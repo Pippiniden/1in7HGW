@@ -2,9 +2,10 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>聖杯戦争 観戦記</title>
-<meta name="description" content="七騎のサーヴァントとマスターが、ひとつの街で最長三十日を戦う。すべて自動で進む聖杯戦争の二次創作シミュレーション。">
+<meta name="description" content="七騎のサーヴァントとマスターが、ひとつの街で最長三十日を戦う聖杯戦争の二次創作シミュレーション。">
+<meta name="theme-color" content="#18203a">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,44 +13,46 @@
 :root {
   --night: #18203a; --deep: #121a30; --surface: #212b4a; --line: #33406a;
   --moon: #e9e6dc; --mist: #9aa3bf; --seal: #d0405a; --grail: #d1ab55; --dawn: #6f86c7;
-  --hp: #8fb3e8; --mana: #7bc4b1;
+  --hp: #8fb3e8; --mana: #7bc4b1; --bond: #e4a0b6;
   --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
   --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --night: #eef0f6; --deep: #e2e6f0; --surface: #ffffff; --line: #cfd5e4;
     --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #9a7420; --dawn: #3f5aa6;
-    --hp: #3f6fb8; --mana: #2f8a74;
+    --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c;
   }
 }
 :root[data-theme="light"] {
   --night: #eef0f6; --deep: #e2e6f0; --surface: #ffffff; --line: #cfd5e4;
   --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #9a7420; --dawn: #3f5aa6;
-  --hp: #3f6fb8; --mana: #2f8a74;
+  --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--night); color: var(--moon); font: 15px/1.7 var(--gothic); }
+body { margin: 0; background: var(--night); color: var(--moon); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere; }
 a { color: var(--dawn); }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--grail); outline-offset: 2px; }
 
 /* ---------- 開戦前 ---------- */
-.intro { max-width: 640px; margin: 0 auto; padding: 12vh 16px 64px; }
-.intro h1 { font: 700 clamp(40px, 9vw, 68px)/1.15 var(--mincho); margin: 0; letter-spacing: .08em; }
+.intro { max-width: 640px; margin: 0 auto; padding: 10vh 16px 64px; }
+.intro h1 { font: 700 clamp(40px, 11vw, 68px)/1.15 var(--mincho); margin: 0; letter-spacing: .08em; }
 .intro h1 small { display: block; font-size: .36em; letter-spacing: .3em; color: var(--mist); margin-top: 12px; font-weight: 500; }
 .intro p.lead { font: 500 17px/2 var(--mincho); margin: 28px 0 32px; }
-.form { display: grid; gap: 14px; border-top: 1px solid var(--line); padding-top: 24px; }
-.field { display: grid; gap: 6px; }
+.form { display: grid; gap: 18px; border-top: 1px solid var(--line); padding-top: 24px; }
+.field { display: grid; gap: 8px; }
 .field > span { font-size: 13px; color: var(--mist); }
-.field input[type=text] { background: var(--deep); border: 1px solid var(--line); border-radius: 6px; color: var(--moon); padding: 9px 12px; font: 15px var(--gothic); max-width: 260px; }
+.field input[type=text] { background: var(--deep); border: 1px solid var(--line); border-radius: 6px; color: var(--moon); padding: 10px 12px; font: 16px var(--gothic); max-width: 260px; }
 .choice { display: flex; flex-wrap: wrap; gap: 8px; }
-.choice label { border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: 14px; }
+.choice label { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; cursor: pointer; font-size: 14px; min-height: 40px; display: flex; align-items: center; }
 .choice input { position: absolute; opacity: 0; pointer-events: none; }
 .choice label:has(input:checked) { border-color: var(--grail); color: var(--grail); }
 .choice label:has(input:focus-visible) { outline: 2px solid var(--grail); outline-offset: 2px; }
-.go { justify-self: start; margin-top: 8px; background: var(--seal); color: #fff; border: 0; border-radius: 6px; padding: 12px 28px; font: 700 17px var(--mincho); letter-spacing: .1em; cursor: pointer; }
+.choice label:has(input:disabled) { opacity: .4; cursor: default; }
+.go { justify-self: start; margin-top: 4px; background: var(--seal); color: #fff; border: 0; border-radius: 6px; padding: 12px 32px; font: 700 18px var(--mincho); letter-spacing: .1em; cursor: pointer; min-height: 48px; }
 .go:disabled { opacity: .45; cursor: default; }
 .data { font-size: 13px; color: var(--mist); }
 .data b { color: var(--moon); font-weight: 500; }
@@ -64,31 +67,28 @@ body.watching .intro { display: none; }
 body.watching .war { display: block; }
 .bar { position: sticky; top: 0; z-index: 5; background: var(--night); border-bottom: 1px solid var(--line); }
 .bar-in { max-width: 1180px; margin: 0 auto; padding: 10px 16px 8px; display: grid; gap: 8px; }
-.top { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
 .top h2 { font: 700 20px/1.3 var(--mincho); margin: 0; letter-spacing: .06em; }
 .top .city { color: var(--mist); font-size: 13px; }
 .ctl { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
-.ctl button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; }
+.ctl button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; min-height: 32px; }
 .ctl button[aria-pressed="true"] { border-color: var(--grail); color: var(--grail); }
-/* 三十夜の暦（このページの見せ場） */
+.ctl .seatsBtn { display: none; }
+/* 三十日の暦 */
 .nights { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 3px; align-items: center; }
-.night { position: relative; aspect-ratio: 1; max-height: 22px; border-radius: 50%; border: 1px solid var(--line); background: transparent; }
-.night.past { background: var(--line); border-color: var(--line); }
-.night.now { border-color: var(--grail); background: radial-gradient(circle at 35% 35%, var(--moon), var(--grail)); }
-.night.blood::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); box-shadow: 0 0 0 2px var(--night); }
+.moon { position: relative; aspect-ratio: 1; max-height: 22px; border-radius: 50%; border: 1px solid var(--line); }
+.moon.past { background: var(--line); }
+.moon.now { border-color: var(--grail); background: radial-gradient(circle at 35% 35%, var(--moon), var(--grail)); }
+.moon.blood::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); box-shadow: 0 0 0 2px var(--night); }
+.nights-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--mist); }
 .mini { display: none; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.mini div { min-width: 0; font-size: 11px; line-height: 1.3; color: var(--moon); }
-.mini div span { display: block; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.mini div { min-width: 0; font-size: 11px; line-height: 1.3; }
+.mini div span { display: block; overflow: hidden; white-space: nowrap; }
 .mini div.you span { color: var(--grail); }
 .mini div.down { opacity: .4; }
-.mini .gauge { margin-top: 2px; }
-@media (max-width: 880px) { .mini { display: grid; } }
-.nights-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--mist); }
 
-.stage { max-width: 1180px; margin: 0 auto; padding: 16px 16px 80px; display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 28px; align-items: start; }
-@media (max-width: 880px) { .stage { grid-template-columns: minmax(0, 1fr); gap: 16px; } }
+.stage { max-width: 1180px; margin: 0 auto; padding: 16px 16px 120px; display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 28px; align-items: start; }
 .seats { display: grid; gap: 6px; position: sticky; top: 112px; }
-@media (max-width: 880px) { .seats { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .seat { border-left: 3px solid var(--line); padding: 6px 10px 7px; background: var(--deep); border-radius: 0 6px 6px 0; min-width: 0; }
 .seat.you { border-left-color: var(--grail); }
 .seat.down { opacity: .5; }
@@ -98,32 +98,55 @@ body.watching .war { display: block; }
 .seat .tn.hidden { color: var(--mist); letter-spacing: .2em; }
 .seat .ms { font-size: 12px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .seat .ms.dead { text-decoration: line-through; }
+.seat .tags { font-size: 11px; color: var(--mist); }
+.seat .tags b { color: var(--bond); font-weight: 500; }
+.seat .tags .bounty { color: var(--seal); }
 .gauge { height: 3px; background: var(--line); border-radius: 2px; margin-top: 5px; overflow: hidden; }
 .gauge i { display: block; height: 100%; background: var(--hp); transition: width .4s; }
 .gauge.mana i { background: var(--mana); }
-.seals { display: inline-flex; gap: 3px; }
+.seals { display: inline-flex; gap: 3px; vertical-align: 1px; }
 .seals i { width: 4px; height: 11px; border-radius: 2px; background: var(--seal); transform: skewX(-18deg); }
 .seals i.used { background: var(--line); }
 .seat .fate { font-size: 12px; color: var(--seal); margin-top: 3px; }
 .seat.win .fate { color: var(--grail); }
 
+/* 記録 */
 .log { font: 500 16px/2 var(--mincho); max-width: 40em; }
 .log p { margin: 0 0 .55em; }
-.log .dayhead { font: 700 22px/1.4 var(--mincho); margin: 1.6em 0 .6em; letter-spacing: .1em; display: flex; align-items: center; gap: 14px; }
-.log .dayhead::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.log .head:first-child { margin-top: 0; }
-.log .quiet { color: var(--mist); font-size: 14px; }
+.log h3 { font: 700 22px/1.4 var(--mincho); margin: 1.6em 0 .6em; letter-spacing: .1em; display: flex; align-items: center; gap: 14px; }
+.log h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
 .log .scene { color: var(--mist); font-size: 14px; margin-top: 1.2em; }
-.log .you { padding-left: 12px; border-left: 2px solid var(--grail); }
-.log .death { color: var(--seal); font-weight: 700; }
-.log .np { font-weight: 700; }
-.log .cs { color: var(--seal); }
-.log .end { color: var(--grail); font-weight: 700; }
+.log .k-quiet { color: var(--mist); font-size: 14px; }
+.log .is-you { padding-left: 12px; border-left: 2px solid var(--grail); }
+.log .k-death { color: var(--seal); font-weight: 700; }
+.log .k-np { font-weight: 700; }
+.log .k-cs { color: var(--seal); }
+.log .k-end { color: var(--grail); font-weight: 700; }
+.log .k-life { color: var(--moon); }
+.log .k-world { color: var(--dawn); }
+.log .k-choice { font: 500 14px var(--gothic); color: var(--grail); }
+.log .k-choice::before { content: "▶ "; }
 .log blockquote { margin: -.2em 0 .8em 1.4em; font-size: 15px; color: var(--mist); }
 .log blockquote::before { content: "「"; } .log blockquote::after { content: "」"; }
 .log .new { animation: rise .5s ease-out; }
 @keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .log .new { animation: none; } .gauge i { transition: none; } }
+
+/* 判断を求めるパネル */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: none; padding: 0 12px calc(12px + var(--safe-b)); }
+.sheet.on { display: block; animation: up .25s ease-out; }
+@keyframes up { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-in { max-width: 620px; margin: 0 auto; background: var(--surface); border: 1px solid var(--grail); border-radius: 12px; padding: 16px 16px 12px; box-shadow: 0 -8px 32px rgba(0, 0, 0, .35); max-height: 75vh; overflow: auto; }
+.sheet h4 { font: 700 19px/1.4 var(--mincho); margin: 0 0 4px; }
+.sheet p { margin: 0 0 12px; font-size: 14px; color: var(--mist); }
+.opts { display: grid; gap: 6px; }
+.opts button { text-align: left; background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; min-height: 48px; display: grid; gap: 1px; }
+.opts button:hover { border-color: var(--grail); }
+.opts button b { font-weight: 700; font-size: 15px; }
+.opts button small { color: var(--mist); font-size: 12px; }
+.opts button.auto { background: transparent; }
+.opts kbd { font: 11px var(--gothic); color: var(--mist); float: right; }
+@media (pointer: coarse) { .opts kbd { display: none; } }
+@media (max-width: 560px) { .sheet { padding: 0 8px calc(8px + var(--safe-b)); } .sheet-in { padding: 12px; } .opts button { padding: 8px 10px; min-height: 44px; } .sheet h4 { font-size: 17px; } }
 
 .result { margin-top: 2em; border-top: 1px solid var(--line); padding-top: 1.2em; font: 15px/1.8 var(--gothic); max-width: 46em; }
 .result h3 { font: 700 20px var(--mincho); margin: 0 0 .6em; }
@@ -131,32 +154,57 @@ body.watching .war { display: block; }
 .result td, .result th { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .result th { font-weight: 500; color: var(--mist); font-size: 12px; }
 .result tr.win td:first-child { color: var(--grail); }
+.result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.2em; }
+.result .acts button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 9px 14px; cursor: pointer; min-height: 44px; }
+.result .acts button.primary { background: var(--seal); color: #fff; border-color: var(--seal); }
+.toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); padding: 8px 16px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; max-width: calc(100vw - 32px); }
+.toast.on { opacity: 1; }
+
+/* ---------- スマホ ---------- */
+@media (max-width: 880px) {
+  .stage { grid-template-columns: minmax(0, 1fr); padding-top: 12px; }
+  .mini { display: grid; }
+  .ctl .seatsBtn { display: inline-block; }
+  .seats { display: none; position: fixed; inset: auto 0 0 0; top: auto; z-index: 15; max-height: 70vh; overflow: auto; background: var(--night); border-top: 1px solid var(--grail); padding: 12px 12px calc(16px + var(--safe-b)); grid-template-columns: repeat(2, minmax(0, 1fr)); box-shadow: 0 -8px 32px rgba(0, 0, 0, .35); }
+  body.seats-open .seats { display: grid; }
+}
 @media (max-width: 560px) {
+  .top h2 { font-size: 17px; }
+  .top .city { font-size: 12px; width: 100%; order: 3; }
+  .ctl { margin-left: 0; width: 100%; }
+  .ctl button { flex: 1 1 auto; min-height: 38px; padding: 4px 6px; }
+  .nights { gap: 2px; }
+  .moon.blood::after { width: 5px; height: 5px; right: -1px; bottom: -1px; }
+  .log { font-size: 15px; line-height: 1.9; }
+  .log h3 { font-size: 19px; }
   .result tr:first-child { display: none; }
   .result tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); border-bottom: 1px solid var(--line); padding: 6px 0; }
   .result td { border: 0; padding: 2px 8px 2px 0; }
   .result td:nth-child(3), .result td:nth-child(4) { grid-column: 1 / -1; }
 }
-.result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.2em; }
-.result .acts button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 7px 14px; cursor: pointer; }
-.result .acts button.primary { background: var(--seal); color: #fff; border-color: var(--seal); }
-.tbl { overflow-x: auto; }
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); padding: 8px 16px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; }
-.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .log .new, .sheet.on { animation: none; } .gauge i { transition: none; } }
 </style>
 </head>
 <body>
 
 <section class="intro" aria-labelledby="title">
   <h1 id="title">聖杯戦争<small>観戦記</small></h1>
-  <p class="lead">七騎の英霊と七人のマスターが、ひとつの街で最長三十日を戦う。誰が呼ばれ、誰が残るかは選べない。あなたはその一陣営として、終わりまで見届ける。</p>
+  <p class="lead">七騎の英霊と七人のマスターが、ひとつの街で最長三十日を戦う。誰が呼ばれるかは選べない。あなたはその一陣営のマスターとして、要所で方針を決めながら終わりまで見届ける。</p>
   <div class="form">
     <div class="data" id="data">サーヴァントのデータを読み込んでいます…</div>
     <div class="field">
-      <span>見届け方</span>
+      <span>立場</span>
       <div class="choice" role="radiogroup">
-        <label><input type="radio" name="view" value="you" checked>ひとつの陣営として（他の真名は分かるまで伏せる）</label>
-        <label><input type="radio" name="view" value="all">すべてを知る観測者として</label>
+        <label><input type="radio" name="view" value="you" checked>ひとつの陣営のマスター</label>
+        <label><input type="radio" name="view" value="all">すべてを知る観測者（判断はしない）</label>
+      </div>
+    </div>
+    <div class="field">
+      <span>判断を求める頻度</span>
+      <div class="choice" role="radiogroup">
+        <label><input type="radio" name="ask" value="sometimes" checked>ときどき</label>
+        <label><input type="radio" name="ask" value="often">こまめに</label>
+        <label><input type="radio" name="ask" value="never">すべておまかせ</label>
       </div>
     </div>
     <div class="field">
@@ -167,22 +215,23 @@ body.watching .war { display: block; }
         <label><input type="radio" name="speed" value="4">はやい</label>
       </div>
     </div>
-    <label class="field"><span>シード（同じシードと同じデータなら、同じ戦争になります。空欄なら毎回ちがう戦争）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+    <label class="field"><span>シード（同じシード・同じデータ・同じ選択なら、同じ戦争になります。空欄なら毎回ちがう戦争）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
     <button class="go" id="go" disabled>開戦する</button>
   </div>
   <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァント名簿</a>から。</p>
 </section>
 
-<section class="war" aria-live="off">
+<section class="war">
   <div class="bar"><div class="bar-in">
     <div class="top">
-      <h2 id="warTitle">聖杯戦争</h2><span class="city" id="warCity"></span>
+      <h2>聖杯戦争</h2><span class="city" id="warCity"></span>
       <div class="ctl" role="group" aria-label="再生">
+        <button class="seatsBtn" id="seatsBtn" aria-expanded="false" aria-controls="seats">陣営</button>
         <button id="pause" aria-pressed="false">一時停止</button>
         <button data-sp="1" aria-pressed="false">×1</button>
         <button data-sp="2" aria-pressed="false">×2</button>
         <button data-sp="4" aria-pressed="false">×4</button>
-        <button id="skip">最後まで</button>
+        <button id="skip">次の判断まで</button>
       </div>
     </div>
     <div class="mini" id="mini" aria-hidden="true"></div>
@@ -197,6 +246,14 @@ body.watching .war { display: block; }
     </div>
   </div>
 </section>
+
+<div class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheetTitle">
+  <div class="sheet-in">
+    <h4 id="sheetTitle"></h4>
+    <p id="sheetBody"></p>
+    <div class="opts" id="sheetOpts"></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"></div>
 
 <script src="js/config.js"></script>
@@ -217,6 +274,7 @@ body.watching .war { display: block; }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const MAX = H.CONFIG.ENGINE.maxDays;
   const qs = new URLSearchParams(location.search);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let roster = [], masters = [], source = '';
 
   // ---------- データ ----------
@@ -229,7 +287,7 @@ body.watching .war { display: block; }
       : `サーヴァントが足りません（${roster.length}騎）。${err}`;
     $('#go').disabled = roster.length < 2;
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
-    const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); location.reload(); };
+    const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
   }
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
@@ -243,83 +301,146 @@ body.watching .war { display: block; }
     catch (e) { askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : '公開データを読めませんでした（' + e.message + '）。'); }
   })();
   if (qs.get('seed')) $('#seed').value = qs.get('seed');
-  if (qs.get('view') === 'all') document.querySelector('input[name=view][value=all]').checked = true;
+  const setRadio = (name, v) => { const el = document.querySelector(`input[name=${name}][value="${v}"]`); if (el) el.checked = true; };
+  if (qs.get('view')) setRadio('view', qs.get('view'));
+  if (qs.get('ask')) setRadio('ask', qs.get('ask'));
+  const syncAsk = () => { const obs = document.querySelector('input[name=view]:checked').value === 'all'; document.querySelectorAll('input[name=ask]').forEach(i => { i.disabled = obs; }); };
+  document.querySelectorAll('input[name=view]').forEach(i => i.addEventListener('change', syncAsk)); syncAsk();
 
-  // ---------- 再生 ----------
-  let war = null, idx = 0, timer = null, speed = 2, paused = false;
-  const DELAY = { dayhead: 1100, quiet: 900, death: 2000, np: 1700, end: 1800, cs: 1500, summon: 1100, prologue: 1300 };
-  function start() {
-    const seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
-    const view = document.querySelector('input[name=view]:checked').value;
+  // ---------- 進行 ----------
+  // エンジンは「判断を求める」ところで止まる。記録（out.entries）を順に再生し、追いついたら問いを出す
+  let gen = null, out = null, pending = null, done = false, result = null;
+  let idx = 0, timer = null, speed = 2, paused = false, choices = [], replay = [], view = 'you', askLevel = 'sometimes', seed = '';
+  const DELAY = { dayhead: 1100, quiet: 900, death: 2000, np: 1700, end: 1800, cs: 1500, summon: 1100, prologue: 1300, choice: 500, life: 1300, world: 1300 };
+
+  function pump(answer) {
+    const r = gen.next(answer);
+    if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value;
+  }
+  function start(keepChoices) {
+    seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
+    view = document.querySelector('input[name=view]:checked').value;
+    askLevel = view === 'all' ? 'never' : document.querySelector('input[name=ask]:checked').value;
     speed = +document.querySelector('input[name=speed]:checked').value;
-    try { war = H.engine.runWar({ roster, seed, player: view === 'all' ? 'none' : undefined, masters: masters.slice() }); }
+    replay = keepChoices && qs.get('c') ? qs.get('c').split('.').filter(Boolean) : [];
+    choices = []; out = {}; done = false; result = null; pending = null; idx = 0; paused = false;
+    try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: askLevel, masters: masters.slice(), out }); pump(); }
     catch (e) { $('#data').innerHTML = `<span class="err">開戦できませんでした：${esc(e.message)}</span>`; return; }
-    const url = new URL(location.href); url.searchParams.set('seed', seed); url.searchParams.set('view', view);
-    if (source === 'local') url.searchParams.set('data', 'local'); else url.searchParams.delete('data');
-    history.replaceState(null, '', url);
+    updateURL();
     document.body.classList.add('watching');
-    $('#warCity').textContent = `${war.city} ・ シード ${war.seed}`;
+    $('#warCity').textContent = `${out.city} ・ シード ${seed}`;
     $('#nights').style.setProperty('--n', MAX);
     $('#nightsMax').textContent = MAX + '日目';
-    $('#log').innerHTML = ''; $('#result').innerHTML = '';
-    idx = 0; paused = false; syncCtl();
+    $('#log').innerHTML = ''; $('#result').innerHTML = ''; lastScene = '';
+    hideSheet(); syncCtl();
     window.scrollTo(0, 0);
     step();
   }
-  $('#go').onclick = start;
+  $('#go').onclick = () => start(qs.get('seed') === ($('#seed').value.trim()) && !!qs.get('c'));
+
+  function updateURL() {
+    const url = new URL(location.href);
+    url.searchParams.set('seed', seed); url.searchParams.set('view', view); url.searchParams.set('ask', askLevel);
+    if (choices.length) url.searchParams.set('c', choices.join('.')); else url.searchParams.delete('c');
+    if (source === 'local') url.searchParams.set('data', 'local'); else url.searchParams.delete('data');
+    history.replaceState(null, '', url);
+  }
 
   function syncCtl() {
     $('#pause').setAttribute('aria-pressed', String(paused)); $('#pause').textContent = paused ? '再開' : '一時停止';
     document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
   }
-  $('#pause').onclick = () => { paused = !paused; syncCtl(); if (!paused) step(); else clearTimeout(timer); };
+  $('#pause').onclick = () => { paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
-  $('#skip').onclick = () => { clearTimeout(timer); while (idx < war.entries.length) show(war.entries[idx++], true); finish(); };
+  // 次の判断（なければ最後）まで一気に進める
+  $('#skip').onclick = () => {
+    if ($('#sheet').classList.contains('on')) return;
+    clearTimeout(timer);
+    while (idx < out.entries.length) show(out.entries[idx++], true);
+    board(out.entries[idx - 1]);
+    window.scrollTo({ top: document.body.scrollHeight });
+    if (pending) present(pending); else if (done) finish();
+  };
+  $('#seatsBtn').onclick = () => { const on = document.body.classList.toggle('seats-open'); $('#seatsBtn').setAttribute('aria-expanded', String(on)); };
+  $('#seats').addEventListener('click', () => { if (matchMedia('(max-width: 880px)').matches) { document.body.classList.remove('seats-open'); $('#seatsBtn').setAttribute('aria-expanded', 'false'); } });
 
-  function nearBottom() { return window.innerHeight + window.scrollY >= document.body.scrollHeight - 160; }
+  function nearBottom() { return window.innerHeight + window.scrollY >= document.body.scrollHeight - 200; }
   function step() {
-    if (!war || paused) return;
-    if (idx >= war.entries.length) return finish();
-    const e = war.entries[idx++];
-    const stick = nearBottom();
-    show(e, false);
-    if (stick) window.scrollTo({ top: document.body.scrollHeight, behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-    const base = DELAY[e.kind] || (e.big ? 1500 : 800);
-    timer = setTimeout(step, base / speed + (e.quote ? 700 / speed : 0));
+    if (!gen || paused) return;
+    clearTimeout(timer);
+    if (idx < out.entries.length) {
+      const e = out.entries[idx++];
+      const stick = nearBottom();
+      show(e, false);
+      if (stick) window.scrollTo({ top: document.body.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
+      const base = DELAY[e.kind] || (e.big ? 1500 : 800);
+      timer = setTimeout(step, base / speed + (e.quote ? 700 / speed : 0));
+      return;
+    }
+    if (pending) return present(pending);
+    if (done) return finish();
   }
 
+  // ---------- 判断 ----------
+  function present(q) {
+    if (replay.length) { const k = replay.shift(); answer(k, true); return; }
+    $('#sheetTitle').textContent = q.title;
+    $('#sheetBody').textContent = q.body || '';
+    $('#sheetOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}" class="${o.k === 'auto' ? 'auto' : ''}"><b>${esc(o.label)}<kbd>${i + 1}</kbd></b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+    $('#sheet').classList.add('on');
+    document.body.style.paddingBottom = ($('#sheet').offsetHeight + 16) + 'px';
+    requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' }));
+    const first = $('#sheetOpts button'); if (first) first.focus({ preventScroll: true });
+  }
+  function hideSheet() { $('#sheet').classList.remove('on'); document.body.style.paddingBottom = ''; }
+  function answer(k, fromReplay) {
+    hideSheet();
+    choices.push(k); updateURL();
+    pump(k);
+    timer = setTimeout(step, fromReplay ? 50 : 200);
+  }
+  $('#sheetOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
+  document.addEventListener('keydown', e => {
+    if (!$('#sheet').classList.contains('on')) return;
+    const n = +e.key; if (n >= 1) { const b = document.querySelectorAll('#sheetOpts button')[n - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } }
+  });
+
+  // ---------- 表示 ----------
   const PHASE = { day: '昼', night: '夜' };
   let lastScene = '';
   function show(e, fast) {
-    const log = $('#log');
     let html = '';
-    if (e.kind === 'dayhead') { html = `<h3 class="dayhead head">${esc(e.text)}</h3>`; lastScene = ''; }
+    if (e.kind === 'dayhead') { html = `<h3>${esc(e.text)}</h3>`; lastScene = ''; }
     else {
       const scene = e.day + e.phase;
-      if (PHASE[e.phase] && scene !== lastScene && e.kind !== 'quiet') { html += `<p class="scene">${PHASE[e.phase]}</p>`; }
+      if (PHASE[e.phase] && scene !== lastScene && e.kind !== 'quiet') html += `<p class="scene">${PHASE[e.phase]}</p>`;
       lastScene = scene;
-      const cls = [e.kind, e.you ? 'you' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
+      // 記録の種類は k- を付けてクラスにする（他の部品の名前とぶつからないように）
+      const cls = ['k-' + e.kind, e.you ? 'is-you' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
       html += `<p class="${cls}">${esc(e.text)}</p>`;
-      if (e.quote) html += `<blockquote class="${e.you ? 'you' : ''}${fast ? '' : ' new'}">${esc(e.quote.text)}</blockquote>`;
+      if (e.quote) html += `<blockquote class="${e.you ? 'is-you' : ''}${fast ? '' : ' new'}">${esc(e.quote.text)}</blockquote>`;
     }
-    log.insertAdjacentHTML('beforeend', html);
-    if (!fast || idx === war.entries.length) board(e);
+    $('#log').insertAdjacentHTML('beforeend', html);
+    if (!fast) board(e);
   }
 
   function board(e) {
+    if (!e) return;
     const day = e.day || 0;
-    const blood = new Set(war.entries.slice(0, idx).filter(x => x.kind === 'death').map(x => x.day));
-    $('#nights').innerHTML = Array.from({ length: MAX }, (_, i) => `<span class="night${i + 1 < day ? ' past' : ''}${i + 1 === day ? ' now' : ''}${blood.has(i + 1) ? ' blood' : ''}"></span>`).join('');
+    const blood = new Set(out.entries.slice(0, idx).filter(x => x.kind === 'death').map(x => x.day));
+    $('#nights').innerHTML = Array.from({ length: MAX }, (_, i) => `<span class="moon${i + 1 < day ? ' past' : ''}${i + 1 === day ? ' now' : ''}${blood.has(i + 1) ? ' blood' : ''}"></span>`).join('');
     $('#nightsNow').textContent = day ? `いま ${day}日目` : '開戦前夜';
+    const fin = done && idx >= out.entries.length;
     $('#mini').innerHTML = e.snap.map(c => `<div class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}"><span>${esc(c.label.replace(/（.*/, '').slice(0, 3))}</span><div class="gauge"><i style="width:${c.alive ? c.hp : 0}%"></i></div></div>`).join('');
     $('#seats').innerHTML = e.snap.map(c => {
-      const win = war.winner === c.id && idx >= war.entries.length;
+      const win = fin && result && result.winner === c.id;
       return `<div class="seat${c.you ? ' you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}">
         <div class="cls"><span>${esc(c.label)}</span><span>${c.you ? 'あなた' : ''}</span></div>
         <div class="tn${c.name ? '' : ' hidden'}">${c.name ? esc(c.name) : '真名不明'}</div>
-        <div class="ms${c.masterAlive ? '' : ' dead'}">${esc(c.master)} <span class="seals" aria-label="令呪 残り${c.cs}画">${[0, 1, 2].map(i => `<i class="${i < c.cs ? '' : 'used'}"></i>`).join('')}</span></div>
+        <div class="ms${c.masterAlive ? '' : ' dead'}">${esc(c.master)} <span class="seals" aria-label="令呪 残り${c.cs}画">${[0, 1, 2].map(i => `<i class="${i < c.cs ? '' : 'used'}"></i>`).join('')}${c.cs > 3 ? '+' + (c.cs - 3) : ''}</span></div>
         <div class="gauge" title="霊基 ${c.hp}"><i style="width:${c.alive ? c.hp : 0}%"></i></div>
         ${c.masterAlive && c.alive ? `<div class="gauge mana" title="魔力 ${c.mana}"><i style="width:${c.mana}%"></i></div>` : ''}
+        ${c.you && c.alive ? `<div class="tags">絆 <b>${c.bond}</b>${c.workshop ? ` ・ 工房 ${c.workshop}` : ''}</div>` : c.bounty && c.alive ? '<div class="tags"><span class="bounty">討伐令</span></div>' : ''}
         ${c.fate ? `<div class="fate">${esc(win ? '聖杯を手にした' : c.fate)}</div>` : !c.masterAlive && c.alive ? `<div class="fate">はぐれ（あと${c.soloLeft}日）</div>` : ''}
       </div>`;
     }).join('');
@@ -328,17 +449,17 @@ body.watching .war { display: block; }
   function finish() {
     clearTimeout(timer);
     if ($('#result').innerHTML) return;
-    board(war.entries[war.entries.length - 1]);
-    const w = war.winner != null ? war.camps[war.winner] : null;
-    const you = war.you != null ? war.camps.find(c => c.you) : null;
+    board(out.entries[out.entries.length - 1]);
+    const w = result.winner != null ? result.camps[result.winner] : null;
+    const you = result.you != null ? result.camps[result.you] : null;
     const head = w ? `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした` : '聖杯を手にした者はいなかった';
-    const yours = you ? (you.id === war.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
+    const yours = you ? (you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
     $('#result').innerHTML = `<div class="result">
       <h3>${esc(head)}</h3>
-      <p>${esc(yours)}${war.days}日間の戦いだった。</p>
+      <p>${esc(yours)}${result.days}日間の戦いだった。${choices.length ? `あなたが下した判断は${choices.filter(k => k !== 'auto').length}回。` : ''}</p>
       <div class="tbl"><table>
         <tr><th>クラス</th><th>真名</th><th>マスター</th><th>結末</th></tr>
-        ${war.camps.map(c => `<tr class="${c.id === war.winner ? 'win' : ''}"><td>${esc(c.label)}</td><td>${esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}</small></td><td>${esc(c.id === war.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${esc(c.label)}</td><td>${esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table></div>
       <div class="acts">
         <button class="primary" id="again">別の聖杯戦争を始める</button>
@@ -346,11 +467,11 @@ body.watching .war { display: block; }
         <button id="back">最初の画面へ</button>
       </div>
     </div>`;
-    $('#again').onclick = () => { $('#seed').value = ''; start(); };
-    $('#back').onclick = () => { document.body.classList.remove('watching'); clearTimeout(timer); window.scrollTo(0, 0); };
-    $('#share').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら同じ戦争が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
+    $('#again').onclick = () => { $('#seed').value = ''; start(false); };
+    $('#back').onclick = () => { document.body.classList.remove('watching'); clearTimeout(timer); hideSheet(); window.scrollTo(0, 0); };
+    $('#share').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ戦争が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
   }
-  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 2600); }
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 2800); }
 })();
 </script>
 </body>
