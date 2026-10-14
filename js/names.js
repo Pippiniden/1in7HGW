@@ -13,12 +13,13 @@
   G.WORLD = {
     cities: ['朱鷺沢市', '宵ヶ浜市', '白霧市', '鳴神市', '冬凪市', '月詠市', '霞ヶ丘市', '浅葱市'],
     // terrain は効果の条件（水辺・森・山・夜）と対応
+    // scene は情景の種類（js/scenes.js）。背景画像の選び分けに使う
     places: [
-      { name: '港湾倉庫街', terrain: '水辺' }, { name: '河川敷', terrain: '水辺' }, { name: '海浜公園', terrain: '水辺' },
-      { name: '郊外の森', terrain: '森' }, { name: '神社の裏山', terrain: '山' }, { name: '山中の廃寺', terrain: '山' },
-      { name: '旧市街の路地', terrain: null }, { name: '駅前の繁華街', terrain: null }, { name: '閉鎖中の工場跡', terrain: null },
-      { name: '夜の学園', terrain: null }, { name: '高層ビルの屋上', terrain: null }, { name: '新興住宅地', terrain: null },
-      { name: '丘の上の洋館', terrain: null }, { name: '地下駐車場', terrain: '夜' },
+      { name: '港湾倉庫街', terrain: '水辺', scene: 'harbor' }, { name: '河川敷', terrain: '水辺', scene: 'river' }, { name: '海浜公園', terrain: '水辺', scene: 'beach' },
+      { name: '郊外の森', terrain: '森', scene: 'forest' }, { name: '神社の裏山', terrain: '山', scene: 'shrine' }, { name: '山中の廃寺', terrain: '山', scene: 'temple' },
+      { name: '旧市街の路地', terrain: null, scene: 'alley' }, { name: '駅前の繁華街', terrain: null, scene: 'city' }, { name: '閉鎖中の工場跡', terrain: null, scene: 'industrial' },
+      { name: '夜の学園', terrain: null, scene: 'school' }, { name: '高層ビルの屋上', terrain: null, scene: 'rooftop' }, { name: '新興住宅地', terrain: null, scene: 'residential' },
+      { name: '丘の上の洋館', terrain: null, scene: 'mansion' }, { name: '地下駐車場', terrain: '夜', scene: 'underground' },
     ],
     church: '丘の上の教会',
   };
