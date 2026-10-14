@@ -1,0 +1,9 @@
+{
+  "servants": [
+    "servants.json"
+  ],
+  "overrides": [
+    "overrides.json"
+  ],
+  "masters": []
+}

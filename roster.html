@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>サーヴァント名簿</title>
+<style>
+:root {
+  --bg: #f6f4ef; --panel: #ffffff; --ink: #1f1d1a; --sub: #6b665d; --rule: #e2ddd2;
+  --accent: #7a1f2b; --accent-ink: #ffffff; --bar: #b8473f; --bar-bg: #efe9df;
+  --warn-bg: #fff4dc; --warn-ink: #7a5300; --err-bg: #fde8e6; --err-ink: #8f1d14;
+  --ok: #2f6b4f; --chip: #f0ece4; --neg: #a2321f; --hover: #faf8f3;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161514; --panel: #201f1d; --ink: #ece8e1; --sub: #a49d91; --rule: #36332f;
+    --accent: #d06470; --accent-ink: #1a1112; --bar: #d0675e; --bar-bg: #2c2a27;
+    --warn-bg: #3a2f17; --warn-ink: #f0cd80; --err-bg: #3d1f1b; --err-ink: #f4a196;
+    --ok: #7cc4a0; --chip: #2b2926; --neg: #f08a75; --hover: #262422;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161514; --panel: #201f1d; --ink: #ece8e1; --sub: #a49d91; --rule: #36332f;
+  --accent: #d06470; --accent-ink: #1a1112; --bar: #d0675e; --bar-bg: #2c2a27;
+  --warn-bg: #3a2f17; --warn-ink: #f0cd80; --err-bg: #3d1f1b; --err-ink: #f4a196;
+  --ok: #7cc4a0; --chip: #2b2926; --neg: #f08a75; --hover: #262422;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+header { padding: 18px 16px 8px; max-width: 1240px; margin: 0 auto; }
+h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .02em; }
+header p { margin: 0; color: var(--sub); font-size: 13px; }
+main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; }
+.panel > h2 { font-size: 13px; color: var(--sub); margin: 0 0 8px; font-weight: 600; letter-spacing: .04em; }
+.side { position: sticky; top: 12px; display: grid; gap: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+@media (max-width: 900px) { .side { position: static; max-height: none; } }
+textarea { width: 100%; min-height: 180px; resize: vertical; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
+.hint { font-size: 12px; color: var(--sub); }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, .btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 7px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); cursor: pointer; }
+td button, .filters button, summary button { white-space: nowrap; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+button:hover, .btn:hover { filter: brightness(0.97); }
+button.ghost { background: transparent; }
+button.sm { font-size: 12px; padding: 3px 8px; }
+button.danger { color: var(--neg); }
+input[type=file] { display: none; }
+select, input[type=number], input[type=text] { font: inherit; font-size: 13px; padding: 5px 7px; border-radius: 6px; border: 1px solid var(--rule); background: var(--bg); color: var(--ink); max-width: 100%; }
+.status { font-size: 13px; color: var(--sub); margin-top: 6px; }
+.pool { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; font-size: 13px; }
+.pool div { display: flex; justify-content: space-between; border-bottom: 1px dashed var(--rule); padding: 2px 0; }
+.pool .low b { color: var(--neg); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.filters button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.list { display: grid; gap: 8px; min-width: 0; }
+details.sv { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
+details.sv > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+details.sv > summary::-webkit-details-marker { display: none; }
+details.sv > summary:hover { background: var(--hover); border-radius: 10px; }
+details.sv[open] > summary { border-bottom: 1px solid var(--rule); border-radius: 10px 10px 0 0; }
+.sumname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sumname small { font-weight: 400; color: var(--sub); margin-left: 6px; }
+.nums { display: flex; gap: 12px; font-size: 12px; color: var(--sub); white-space: nowrap; }
+.nums b { color: var(--ink); font-size: 14px; margin-left: 2px; }
+.badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); }
+@media (max-width: 560px) { details.sv > summary { grid-template-columns: 80px minmax(0, 1fr); } .nums { grid-column: 1 / -1; } }
+.cls { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.cls.ex { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.body { padding: 12px 14px 16px; min-width: 0; }
+.meta { color: var(--sub); font-size: 13px; }
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin: 12px 0 10px; }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.stat { background: var(--bg); border-radius: 8px; padding: 6px 8px; }
+.stat .k { font-size: 11px; color: var(--sub); }
+.stat .v { font-size: 17px; font-weight: 700; }
+.stat .s { font-size: 11px; color: var(--sub); margin-left: 4px; font-weight: 400; }
+.stat .bar { height: 4px; background: var(--bar-bg); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.stat .bar i { display: block; height: 100%; background: var(--bar); }
+.stat.missing { outline: 1px dashed var(--warn-ink); }
+.stat.override { outline: 1px solid var(--ok); }
+.kpi { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; color: var(--sub); align-items: center; }
+.kpi b { color: var(--ink); font-size: 16px; margin-left: 4px; }
+h3 { font-size: 13px; margin: 16px 0 6px; color: var(--sub); font-weight: 600; letter-spacing: .04em; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { text-align: left; padding: 7px 6px; border-top: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 11px; color: var(--sub); font-weight: 600; border-top: none; white-space: nowrap; }
+.tbl { overflow-x: auto; }
+.chip { display: inline-block; background: var(--chip); border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; font-size: 12px; white-space: nowrap; }
+.chip.neg { color: var(--neg); }
+.chip.per { outline: 1px solid var(--ok); }
+.src { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+.src.dict, .src.override, .src.servant-override, .src.spec { color: var(--ok); border: 1px solid var(--ok); }
+.src.keyword, .src.dict-partial, .src.type, .src.compound { background: var(--warn-bg); color: var(--warn-ink); }
+.src.default { background: var(--err-bg); color: var(--err-ink); }
+.src.lost { color: var(--sub); border: 1px solid var(--rule); }
+.desc { color: var(--sub); font-size: 12px; margin-top: 2px; white-space: pre-wrap; }
+.box { border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-top: 10px; }
+.box.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.box.err { background: var(--err-bg); color: var(--err-ink); }
+.box ul { margin: 2px 0 0; padding-left: 18px; }
+details.more { margin-top: 10px; font-size: 13px; }
+details.more summary { cursor: pointer; color: var(--sub); }
+dialog { border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(660px, calc(100vw - 32px)); padding: 16px; }
+dialog::backdrop { background: rgba(0,0,0,.35); }
+dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
+.erow { display: grid; grid-template-columns: minmax(0, 1.6fr) 72px minmax(0, 1fr) 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.srow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.srow label { font-size: 11px; color: var(--sub); display: grid; gap: 2px; min-width: 0; }
+.srow input, .erow input, .erow select { width: 100%; min-width: 0; }
+@media (max-width: 560px) { .srow { grid-template-columns: repeat(3, minmax(0, 1fr)); } .erow { grid-template-columns: minmax(0, 1fr) 60px; } .erow input[type=text] { grid-column: 1 / 2; } }
+.empty { color: var(--sub); text-align: center; padding: 40px 10px; border: 1px dashed var(--rule); border-radius: 12px; }
+.odds .big { font-size: 22px; font-weight: 700; }
+.meter { height: 8px; border-radius: 4px; background: var(--bar-bg); overflow: hidden; margin: 6px 0; }
+.meter i { display: block; height: 100%; background: var(--accent); }
+.war { font-size: 13px; display: grid; gap: 3px; margin-top: 8px; }
+.war div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px; }
+.war span:first-child { color: var(--sub); }
+</style>
+</head>
+<body>
+<header>
+  <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a></h1>
+  <p>Wikiのページを貼り付けるか、書き出したJSONをまとめて読み込むと名簿に入ります。名簿と手直しはこのブラウザに残り、すべてこのパソコンの中で処理します。</p>
+</header>
+<main>
+  <div class="side">
+    <section class="panel">
+      <h2>取り込み</h2>
+      <textarea id="src" spellcheck="false" placeholder="Wikiのページのテキストを貼り付け&#10;複数ページは ===== だけの行で区切る"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="add">名簿に追加</button>
+        <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
+      </div>
+      <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出した名簿）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
+      <div class="status" id="status"></div>
+    </section>
+    <section class="panel">
+      <h2>保存</h2>
+      <div class="row">
+        <button id="saveJson">名簿をJSONで保存</button>
+        <button id="saveLean">公開用に保存（data/servants.json）</button>
+        <button id="saveOv">手直し表を保存（data/overrides.json）</button>
+        <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
+      </div>
+      <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">名簿を空にする</button></div>
+    </section>
+    <section class="panel">
+      <h2>クラス別の人数</h2>
+      <div class="pool" id="pool"></div>
+      <div class="hint" id="poolNote" style="margin-top:6px"></div>
+    </section>
+    <section class="panel" id="warPanel" hidden>
+      <h2>聖杯戦争の組み合わせ（試し引き）</h2>
+      <button id="warDraw">7騎を引く</button>
+      <div class="war" id="warOut"></div>
+    </section>
+    <section class="panel" id="cmpPanel" hidden>
+      <h2>勝率の目安</h2>
+      <div class="row"><select id="cmpA"></select><span>vs</span><select id="cmpB"></select></div>
+      <div class="row" style="margin-top:6px">
+        <label class="hint"><input type="checkbox" id="cmpNp"> 宝具を使う</label>
+        <label class="hint"><input type="checkbox" id="cmpHome"> 左が拠点で戦う</label>
+        <select id="cmpTerrain"><option value="">場所：普通</option><option>水辺</option><option>森</option><option>山</option><option>夜</option></select>
+      </div>
+      <div id="cmpOut" class="odds" style="margin-top:8px"></div>
+      <div class="hint">本番の戦闘処理ができるまでの確認用です。</div>
+    </section>
+  </div>
+  <div>
+    <div class="filters" id="filters"></div>
+    <div class="list" id="list"><div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div></div>
+  </div>
+</main>
+
+<dialog id="ed">
+  <h3 id="edTitle"></h3>
+  <div class="desc" id="edDesc" style="margin-bottom:10px;max-height:160px;overflow:auto"></div>
+  <div class="erow hint"><span>効果</span><span>係数</span><span>対象・条件（例：竜 / luck / 水辺）</span><span></span></div>
+  <div id="edRows"></div>
+  <div class="row" style="margin:8px 0 12px"><button class="sm" id="edAdd">＋ 効果を追加</button></div>
+  <div class="row" id="edAtkRow" style="margin-bottom:12px">
+    <span class="hint">宝具の扱い：</span>
+    <label class="hint"><input type="radio" name="atk" value="auto" checked> 自動</label>
+    <label class="hint"><input type="radio" name="atk" value="yes"> 攻撃宝具</label>
+    <label class="hint"><input type="radio" name="atk" value="no"> 補助宝具</label>
+  </div>
+  <div class="row" style="margin-bottom:12px">
+    <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
+    <label class="hint"><input type="radio" name="scope" value="global"> 同じ名前のスキルすべて</label>
+  </div>
+  <div class="hint" style="margin-bottom:12px">係数1でBランク標準の強さ。ランクの倍率は自動で掛かります（自滅・使用不可・属性付与は倍率なし）。マイナスにすると不利な効果になります。</div>
+  <div class="row">
+    <button class="primary" id="edSave">保存して反映</button>
+    <button id="edReset">手直しを消す</button>
+    <button class="ghost" id="edCancel">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="st">
+  <h3 id="stTitle"></h3>
+  <div class="srow" id="stRows"></div>
+  <div class="hint" style="margin:10px 0 6px">空欄の項目はWikiの値を使います。</div>
+  <div class="row" id="stAlts" style="margin-bottom:12px"></div>
+  <div class="row">
+    <button class="primary" id="stSave">保存して反映</button>
+    <button id="stReset">手直しを消す</button>
+    <button class="ghost" id="stCancel">閉じる</button>
+  </div>
+</dialog>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, E = H.effects, R = H.rank, B = H.build;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const OV_KEY = 'hgw.overrides.v1', ROSTER_KEY = 'hgw.roster.v2';
+  let roster = [], filter = 'all';
+  const open = new Set();
+
+  // ---------- 保存領域 ----------
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } } };
+  const TABLES = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES };
+  function ovGet() { const o = {}; for (const k in TABLES) o[k] = Object.assign({}, TABLES[k]); return o; }
+  function ovSet(o, merge) { for (const k in TABLES) { if (!merge) for (const x of Object.keys(TABLES[k])) delete TABLES[k][x]; Object.assign(TABLES[k], (o && o[k]) || {}); } }
+  function ovStore() { store.set(OV_KEY, ovGet()); }
+  ovSet(store.get(OV_KEY, null));
+
+  // 名簿は「解析済みの元データ」を保存し、表示のたびに今の規則で組み直す
+  function save() { if (!store.set(ROSTER_KEY, roster)) status('ブラウザの保存領域がいっぱいで名簿を保存できませんでした。JSONで保存してください'); }
+  function rebuildAll() { roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
+  function upsert(list) {
+    let add = 0, rep = 0;
+    for (const s of list) { const i = roster.findIndex(x => x.id === s.id); if (i >= 0) { roster[i] = s; rep++; } else { roster.push(s); add++; } }
+    roster.sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
+    return { add, rep };
+  }
+  const CLS_ORDER = Object.keys(H.CONFIG.CLASS_DEFS);
+  const order = s => { const i = CLS_ORDER.indexOf(s.class.key); return i < 0 ? 99 : i; };
+  function status(t) { $('#status').textContent = t; }
+
+  // ---------- 表示 ----------
+  const MS = H.master.MASTER_STATS;
+  function fmtEff(e) {
+    const neg = e.mag < 0, a = Math.abs(e.mag);
+    let v;
+    if (e.unit === 'rate') v = (neg ? '−' : '+') + Math.round(a * 100) + '%';
+    else if (e.unit === 'chance') v = (neg ? '−' : '') + Math.round(a * 100) + '%';
+    else if (e.unit === 'days') v = (Math.round(a * 10) / 10) + '日';
+    else if (e.unit === 'pt') v = (neg ? '−' : '+') + Math.round(a);
+    else v = '';
+    const p = e.params || {};
+    const tg = p.tag ? '〔' + p.tag + '〕' : p.stat ? '〔' + (MS[p.stat] ? MS[p.stat].name : p.stat) + '〕' : '';
+    const cd = p.cond ? '（' + p.cond + 'で）' : '';
+    return `<span class="chip${neg ? ' neg' : ''}${e.persistent ? ' per' : ''}" title="${esc(E.EFFECTS[e.id].desc)}${e.persistent ? '（消滅後も持続）' : ''}">${esc(e.name + tg + cd)} ${esc(v)}</span>`;
+  }
+  const SRC_JA = { dict: '辞書', 'dict-partial': '辞書＋推定', keyword: '推定', compound: '参照', default: '仮', override: '手直し', 'servant-override': '個別手直し', type: '種別のみ', spec: '指定', lost: '喪失' };
+  const srcBadge = s => `<span class="src ${esc(s)}">${esc(SRC_JA[s] || s)}</span>`;
+  const isExtra = s => H.classDef(s.class.key).slot === 'extra';
+
+  function body(sv, i) {
+    const st = B.STAT_KEYS.map(k => {
+      const rk = sv.ranks[k], raw = sv.stats[k] ? sv.stats[k].raw : '', src = sv.statSource[k];
+      return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(R.label(rk))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / 80 * 100)}%"></i></div></div>`;
+    }).join('');
+    const skills = sv.allSkills.map((s, j) => `<tr><td><b>${esc(s.name)}</b> <span class="hint">${esc(R.label(s.rank))}</span>${s.group === 'class' ? '<div class="hint">クラス別</div>' : ''}${s.desc ? `<div class="desc">${esc(s.desc.length > 90 ? s.desc.slice(0, 90) + '…' : s.desc)}</div>` : ''}</td><td>${s.effects.map(fmtEff).join('') || '<span class="hint">なし</span>'}</td><td>${srcBadge(s.effectSource)}${s.matched ? `<div class="hint">${esc(s.matched)}</div>` : ''}</td><td><button class="sm" data-ed="${i}:s:${j}">編集</button></td></tr>`).join('');
+    const nps = sv.nps.map((n, j) => `<tr><td><b>${esc(n.name)}</b>${n.reading ? `<div class="hint">${esc(n.reading)}</div>` : ''}<div class="hint">${esc(R.label(n.rank))} · ${esc(n.typeRaw || '種別不明')}${n.maxTargets ? ' · 最大' + n.maxTargets + '人' : ''}</div></td><td>${n.disabled ? '<span class="chip neg">使用不可</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}<span class="chip">消費×${n.cost}</span>${n.effects.filter(e => e.id !== 'disabled').map(fmtEff).join('')}</td><td>${srcBadge(n.effectSource)}${n.attackBasis === 'override' ? '<div class="hint">扱いを手直し</div>' : ''}</td><td><button class="sm" data-ed="${i}:n:${j}">編集</button></td></tr>`).join('');
+    const review = sv.review.length ? `<div class="box warn"><b>要確認</b><ul>${sv.review.map(r => `<li>${esc(r.target)}：${esc(r.why)}</li>`).join('')}</ul></div>` : '';
+    const warn = sv.warnings.length ? `<div class="box err"><b>読み取りの警告</b><ul>${sv.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : '';
+    const alt = sv.statsAlt.length ? `<div class="hint" style="margin-top:6px">別のステータス：${sv.statsAlt.map(a => esc(a.label) + '（' + Object.entries(a.stats).map(([k, v]) => B.STAT_JA[k] + R.label(v.rank)).join(' ') + '）').join(' / ')}</div>` : '';
+    const PJ = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
+    const prof = Object.entries(sv.profile || {}).map(([k, v]) => `${esc(PJ[k] || k)}：${esc(v)}`).join('<br>');
+    const rel = (sv.relations || []).map(r => `${esc(r.name)}：${esc(r.text)}`).join('<br>');
+    const voice = Object.entries(sv.voice || {}).map(([k, v]) => `${esc(k)}（${v.length}）`).join('、');
+    return `<div class="body">
+      <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).join('・')].filter(Boolean).join(' · '))}</div>
+      <div class="stats">${st}</div>
+      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
+      <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
+      ${alt}${warn}${review}
+      <h3>スキル</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${skills || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
+      <h3>宝具</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${nps || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
+      <details class="more"><summary>プロフィール・因縁・セリフ</summary>
+        <p>${prof || '<span class="hint">なし</span>'}</p>
+        ${rel ? '<p><b>因縁</b><br>' + rel + '</p>' : ''}
+        ${voice ? '<p><b>セリフ</b>（場面と数）<br>' + voice + '</p>' : ''}
+      </details>
+    </div>`;
+  }
+
+  function render() {
+    const counts = H.war.classCounts(roster);
+    // クラスの絞り込み
+    const present = CLS_ORDER.filter(k => counts[k]);
+    if (filter !== 'all' && filter !== 'review' && !counts[filter]) filter = 'all';
+    const nReview = roster.filter(s => s.review.some(r => r.kind !== 'class')).length;
+    $('#filters').innerHTML = roster.length ? [`<button class="sm${filter === 'all' ? ' on' : ''}" data-f="all">すべて ${roster.length}</button>`]
+      .concat(present.map(k => `<button class="sm${filter === k ? ' on' : ''}" data-f="${k}">${esc(H.classDef(k).label)} ${counts[k]}</button>`))
+      .concat(nReview ? [`<button class="sm${filter === 'review' ? ' on' : ''}" data-f="review">要確認あり ${nReview}</button>`] : []).join('') : '';
+    const shown = roster.map((s, i) => [s, i]).filter(([s]) => filter === 'all' || (filter === 'review' ? s.review.some(r => r.kind !== 'class') : s.class.key === filter));
+    $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
+      const nr = s.review.filter(r => r.kind !== 'class').length;
+      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="sumname">${esc(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
+    }).join('') : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
+
+    // クラス別の人数
+    const std = H.standardClasses();
+    $('#pool').innerHTML = std.map(k => `<div class="${counts[k] < 2 ? 'low' : ''}"><span>${esc(H.classDef(k).label)}</span><b>${counts[k]}</b></div>`).join('')
+      + `<div><span>エクストラ</span><b>${roster.filter(isExtra).length}</b></div>`;
+    const low = std.filter(k => counts[k] < 2).map(k => H.classDef(k).label);
+    $('#poolNote').textContent = !roster.length ? '' : low.length ? `${low.join('・')}は候補が1騎以下です。そのクラスは毎回同じサーヴァントになるか、別クラスの代役が入ります。` : '各クラス2騎以上います。';
+
+    $('#warPanel').hidden = roster.length < 7;
+    const opts = roster.map((s, i) => `<option value="${i}">${esc(s.class.label + '・' + s.trueName)}</option>`).join('');
+    $('#cmpPanel').hidden = roster.length < 2;
+    const a = $('#cmpA').value, b = $('#cmpB').value;
+    $('#cmpA').innerHTML = opts; $('#cmpB').innerHTML = opts;
+    $('#cmpA').value = a && roster[a] ? a : 0; $('#cmpB').value = b && roster[b] ? b : Math.min(1, roster.length - 1);
+    compare();
+  }
+  function compare() {
+    if (roster.length < 2) return;
+    const a = roster[$('#cmpA').value], b = roster[$('#cmpB').value];
+    const r = B.battleOdds(a, b, { np: $('#cmpNp').checked, home: $('#cmpHome').checked, terrain: $('#cmpTerrain').value || undefined });
+    $('#cmpOut').innerHTML = `<div><span class="big">${Math.round(r.pA * 100)}%</span> ${esc(a.trueName)}の勝率</div><div class="meter"><i style="width:${r.pA * 100}%"></i></div><div class="hint">実効戦闘力 ${r.a} 対 ${r.b}</div>`;
+  }
+  ['cmpA', 'cmpB', 'cmpNp', 'cmpHome', 'cmpTerrain'].forEach(id => $('#' + id).addEventListener('change', compare));
+
+  $('#list').addEventListener('toggle', e => {
+    const d = e.target; if (!d.matches || !d.matches('details.sv')) return;
+    const id = d.dataset.id;
+    if (d.open && !open.has(id)) { open.add(id); const i = roster.findIndex(s => s.id === id); d.insertAdjacentHTML('beforeend', body(roster[i], i)); }
+    else if (!d.open && open.has(id)) { open.delete(id); const b = d.querySelector('.body'); if (b) b.remove(); }
+  }, true);
+  $('#filters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; render(); });
+
+  // ---------- 取り込み ----------
+  function splitPages(text) { return text.split(/\n\s*={5,}\s*\n/).map(s => s.trim()).filter(Boolean); }
+  function fromText(pages) {
+    const out = [], errs = [];
+    pages.forEach((p, i) => { try { out.push(B.importServant(p.text || p, { title: p.title })); } catch (e) { errs.push((p.title || (i + 1) + 'ページ目') + '：' + e.message); console.error(e); } });
+    return { out, errs };
+  }
+  function fromJsonText(t, name) {
+    const d = JSON.parse(t);
+    const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
+    if (!list) throw new Error('名簿の形式ではありません');
+    const n = B.harvestOverrides(list);
+    if (n) ovStore();
+    return { list: list.map(B.fromJSON), harvested: n };
+  }
+  function done(res, errs, extra) {
+    rebuildAll(); save(); render();
+    status(`追加 ${res.add}騎・置き換え ${res.rep}騎` + (extra || '') + (errs.length ? ' / 失敗：' + errs.join('、') : ''));
+  }
+  $('#add').onclick = () => {
+    const pages = splitPages($('#src').value); if (!pages.length) return;
+    const { out, errs } = fromText(pages);
+    const res = upsert(out); out.forEach(s => open.add(s.id));
+    done(res, errs); if (out.length) $('#src').value = '';
+  };
+  $('#files').onchange = async e => {
+    const fs = Array.from(e.target.files || []); e.target.value = '';
+    const all = [], errs = []; let harvested = 0;
+    for (const f of fs) {
+      try {
+        const t = await f.text();
+        if (/\.json$/i.test(f.name) || /^\s*[\[{]/.test(t)) { const r = fromJsonText(t, f.name); all.push(...r.list); harvested += r.harvested; }
+        else { const r = fromText(splitPages(t).map((p, i, a) => ({ title: a.length > 1 ? null : f.name.replace(/\.[^.]+$/, ''), text: p }))); all.push(...r.out); errs.push(...r.errs); }
+      } catch (err) { errs.push(f.name + '：' + err.message); }
+    }
+    done(upsert(all), errs, harvested ? `（ファイルに残っていた手直し ${harvested}件を引き継ぎ）` : '');
+  };
+
+  // ---------- 書き出し ----------
+  function download(name, obj) {
+    const blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+  $('#saveJson').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, at: new Date().toISOString(), servants: roster }); };
+  $('#saveLean').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, lean: true, at: new Date().toISOString(), servants: roster.map(B.toLean) }); };
+  $('#saveOv').onclick = () => download('overrides.json', Object.assign({ format: 'hgw-overrides', version: 2 }, ovGet()));
+  $('#ovFile').onchange = async e => {
+    const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+    try { ovSet(JSON.parse(await f.text()), true); ovStore(); rebuildAll(); save(); render(); status('手直し表を読み込みました'); }
+    catch (err) { status('手直し表を読めませんでした：' + err.message); }
+  };
+  $('#clearAll').onclick = () => { if (!roster.length || !confirm('名簿を空にします（手直し表は残ります）')) return; roster = []; save(); render(); status('名簿を空にしました'); };
+  document.addEventListener('click', e => {
+    const d = e.target.closest('[data-del]'); if (!d) return;
+    const s = roster[+d.dataset.del]; if (!confirm(`${s.trueName} を名簿から外します`)) return;
+    roster.splice(+d.dataset.del, 1); save(); render();
+  });
+
+  // ---------- 試し引き ----------
+  $('#warDraw').onclick = () => {
+    const w = H.war.composeWar(roster);
+    $('#warOut').innerHTML = w.map(x => `<div><span>${esc(H.classDef(x.slot).label)}</span><span>${x.servant ? esc(x.servant.trueName) + (x.extra ? `（${esc(x.servant.class.label)}）` : x.substitute ? `（代役：${esc(x.servant.class.label)}）` : '') : '空席'}</span></div>`).join('');
+  };
+
+  // ---------- 効果の編集 ----------
+  let edCtx = null;
+  const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(id)}）</option>`).join('');
+  function edRow(spec) {
+    const [id, f, p] = spec || ['power', 1, null];
+    const pv = p ? [p.tag || p.stat || '', p.cond ? '@' + p.cond : ''].join('') : '';
+    const div = document.createElement('div'); div.className = 'erow';
+    div.innerHTML = `<select>${effOptions(id)}</select><input type="number" step="0.1" value="${f == null ? 1 : f}"><input type="text" value="${esc(pv)}" placeholder="竜 / luck / @水辺"><button class="sm ghost" title="削除">×</button>`;
+    div.querySelector('button').onclick = () => div.remove();
+    $('#edRows').appendChild(div);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ed]'); if (!b) return;
+    const [i, kind, j] = b.dataset.ed.split(':'), sv = roster[+i], item = kind === 's' ? sv.allSkills[+j] : sv.nps[+j];
+    edCtx = { sv, item, kind };
+    $('#edTitle').textContent = `${sv.trueName} ／ ${item.name}（${R.label(item.rank)}）`;
+    $('#edDesc').textContent = item.desc || '';
+    $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
+    $('#edAtkRow').hidden = kind !== 'n';
+    if (kind === 'n') { const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)]; document.querySelector(`input[name=atk][value=${o ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true; }
+    document.querySelector(`input[name=scope][value=${item.effectSource === 'override' ? 'global' : 'servant'}]`).checked = true;
+    $('#ed').showModal();
+  });
+  $('#edAdd').onclick = () => edRow();
+  $('#edCancel').onclick = () => $('#ed').close();
+  const keysFor = ctx => { const n = E.normName(ctx.item.name); return { servant: ctx.sv.trueName + '/' + n, global: n }; };
+  function afterEdit() { ovStore(); rebuildAll(); save(); render(); }
+  $('#edSave').onclick = () => {
+    const specs = Array.from($('#edRows').children).map(r => {
+      const [sel, num, txt] = r.querySelectorAll('select, input');
+      const id = sel.value, f = parseFloat(num.value), v = txt.value.trim();
+      const [main, cond] = v.split('@').map(x => (x || '').trim());
+      const p = {};
+      if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main;
+      if (cond) p.cond = cond;
+      return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
+    });
+    const k = keysFor(edCtx), scope = document.querySelector('input[name=scope]:checked').value;
+    delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global];
+    if (scope === 'global') E.SKILL_OVERRIDES[k.global] = specs; else E.SERVANT_OVERRIDES[k.servant] = specs;
+    if (edCtx.kind === 'n') {
+      const a = document.querySelector('input[name=atk]:checked').value;
+      if (a === 'auto') delete E.NP_OVERRIDES[k.servant]; else E.NP_OVERRIDES[k.servant] = { attack: a === 'yes' };
+    }
+    $('#ed').close(); afterEdit();
+  };
+  $('#edReset').onclick = () => { const k = keysFor(edCtx); delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global]; delete E.NP_OVERRIDES[k.servant]; $('#ed').close(); afterEdit(); };
+
+  // ---------- ステータスの編集 ----------
+  let stCtx = null;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-st]'); if (!b) return;
+    const sv = roster[+b.dataset.st]; stCtx = sv;
+    const cur = E.STAT_OVERRIDES[sv.trueName] || {};
+    $('#stTitle').textContent = `${sv.trueName} のステータス`;
+    $('#stRows').innerHTML = B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="${esc(cur[k] || '')}" placeholder="${esc(sv.stats[k] ? sv.stats[k].raw : '')}"></label>`).join('');
+    $('#stAlts').innerHTML = sv.statsAlt.length ? '<span class="hint">別のステータスを写す：</span>' + sv.statsAlt.map((a, i) => `<button class="sm" data-alt="${i}">${esc(a.label)}</button>`).join('') : '';
+    $('#st').showModal();
+  });
+  $('#stAlts').addEventListener('click', e => {
+    const b = e.target.closest('[data-alt]'); if (!b) return;
+    const a = stCtx.statsAlt[+b.dataset.alt];
+    for (const inp of $('#stRows').querySelectorAll('input')) { const v = a.stats[inp.dataset.k]; if (v) inp.value = v.raw; }
+  });
+  $('#stCancel').onclick = () => $('#st').close();
+  $('#stSave').onclick = () => {
+    const o = {}; for (const inp of $('#stRows').querySelectorAll('input')) if (inp.value.trim()) o[inp.dataset.k] = inp.value.trim();
+    if (Object.keys(o).length) E.STAT_OVERRIDES[stCtx.trueName] = o; else delete E.STAT_OVERRIDES[stCtx.trueName];
+    $('#st').close(); afterEdit();
+  };
+  $('#stReset').onclick = () => { delete E.STAT_OVERRIDES[stCtx.trueName]; $('#st').close(); afterEdit(); };
+
+  // ---------- 起動 ----------
+  roster = store.get(ROSTER_KEY, []);
+  // 以前の版の取り込みツールで保存した名簿はないので、最初は空。JSONを読み込めば入る
+  rebuildAll(); render();
+  if (roster.length) status(`名簿に ${roster.length}騎`);
+})();
+</script>
+</body>
+</html>
