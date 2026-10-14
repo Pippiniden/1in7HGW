@@ -130,6 +130,7 @@
       nps: (c.sv.nps || []).map(n => '『' + n.name + '』').join(' '),
     }));
     let day = 0, phase = 'prologue';
+    let tonight = {};   // その夜の天候など（雨・満月・祭り）
     const known = c => !you || c.you || you.knowName.has(c.id) || pubName.has(c.id);
     const nm = c => known(c) ? `${c.label}「${c.sv.trueName}」` : c.label;
     const sn = c => known(c) ? c.sv.trueName : c.label;           // 文中で短く呼ぶとき
@@ -139,11 +140,13 @@
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.ally, workshop: c.workshop, you: !!c.you, out: c.out,
       fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty,
-      origin: c.master.originLabel, wish: c.master.wish,
+      origin: c.master.originLabel, wish: c.master.wish, base: c.base.name, scene: c.base.scene,
     }));
     function log(kind, text, ids, extra) {
       ids = ids || [];
       const e = Object.assign({ day, phase, kind, text, ids, you: !!you && ids.includes(you.id) }, extra || {});
+      if (phase === 'night' && tonight.rain) e.weather = 'rain';
+      else if (phase === 'night' && tonight.moon) e.weather = 'moon';
       e.snap = snap();
       entries.push(e);
       if (you && ids.includes(you.id) && /battle|death|cs/.test(kind)) you.notable = true;
@@ -219,7 +222,7 @@
       log('death', `${nm(c)}が消滅した。${text}。`, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true });
       pubName.add(c.id);
       if (c.masterAlive) {
-        if (c.cs > 0 && chance(0.8)) { c.inChurch = true; log('event', `マスターの${mn(c)}は${W.church}に保護を求めた。残る令呪は${c.cs}画。`, [c.id]); }
+        if (c.cs > 0 && chance(0.8)) { c.inChurch = true; log('event', `マスターの${mn(c)}は${W.church}に保護を求めた。残る令呪は${c.cs}画。`, [c.id], { place: W.church, scene: 'church' }); }
         else log('event', `マスターの${mn(c)}は姿を消した。`, [c.id]);
       }
     }
@@ -290,7 +293,7 @@
       a.fought = b.fought = true; a.battles++; b.battles++;
       a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set();
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
-      log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name });
+      log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       const rt = related(a, b);
       if (rt) {
         a.knowName.add(b.id); b.knowName.add(a.id);
@@ -395,7 +398,6 @@
     }
 
     // ---------- 街の出来事 ----------
-    let tonight = {};
     function* worldEvent() {
       const alive = active();
       const o = { leyline: 2, rain: 2, moon: 1.5, familiar: 2, festival: 0.8 };
@@ -490,8 +492,8 @@
       else if (k === 'info') {
         c.mana -= 25;
         const t = pick(enemies.filter(x => !c.knowName.has(x.id) || !c.knowLoc.has(x.id)));
-        if (!c.knowName.has(t.id) && chance(0.6)) { c.knowName.add(t.id); log('scout', `教会の記録によれば、${t.label}の真名は「${t.sv.trueName}」。`, [c.id, t.id]); }
-        else { c.knowLoc.add(t.id); log('scout', `教会の記録によれば、${t.label}の拠点は「${t.base.name}」。`, [c.id, t.id]); }
+        if (!c.knowName.has(t.id) && chance(0.6)) { c.knowName.add(t.id); log('scout', `教会の記録によれば、${t.label}の真名は「${t.sv.trueName}」。`, [c.id, t.id], { place: W.church, scene: 'church' }); }
+        else { c.knowLoc.add(t.id); log('scout', `教会の記録によれば、${t.label}の拠点は「${t.base.name}」。`, [c.id, t.id], { place: W.church, scene: 'church' }); }
       } else if (k === 'recover') { c.mana = c.manaMax; c.hp = Math.min(100, c.hp + 30); c.restNight = true; log('council', `${sn(c)}は霊脈の上で力を蓄えた。`, [c.id]); }
     }
     function* dayPhase() {
