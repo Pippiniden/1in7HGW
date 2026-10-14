@@ -39,6 +39,18 @@
     balanced:   { label: '臨機応変', day: {}, hunt: 0 },
   };
 
+  // 重点：プレイヤーがいつでも切り替えられる、その日の動き方。次の日の朝から反映される
+  //   day: 昼の行動 / night: 夜に出撃するか（null は方針どおり） / stance: 戦い方
+  const FOCUS = {
+    auto:   { code: 'o', label: 'おまかせ', desc: '方針に沿って臨機応変に動く', day: null, night: null, stance: null },
+    attack: { code: 'a', label: '攻め', desc: '昼は偵察し、夜は敵を探して戦う。戦いでは宝具も惜しまない', day: 'scout', night: true, stance: 'all' },
+    defend: { code: 'd', label: '守り', desc: '工房を強化し、夜は拠点で迎え撃つ', day: 'fortify', night: false, stance: 'careful' },
+    scout:  { code: 's', label: '偵察', desc: '敵の拠点と真名を探る。夜の動きは方針どおり', day: 'scout', night: null, stance: 'careful' },
+    rest:   { code: 'r', label: '休養', desc: '傷と魔力の回復に努め、夜は動かない', day: 'rest', night: false, stance: 'careful' },
+    hide:   { code: 'h', label: '潜伏', desc: '気配を断って見つからないようにする。戦いになればすぐ退く', day: 'hide', night: false, stance: 'retreat' },
+    ally:   { code: 'l', label: '交渉', desc: '他の陣営に同盟を持ちかける', day: 'ally', night: null, stance: 'careful' },
+  };
+
   function* warGen(opts) {
     opts = opts || {};
     const ENG = Object.assign({}, G.CONFIG.ENGINE, opts.engine || {});
@@ -48,7 +60,7 @@
     const pick = a => a[Math.floor(rnd() * a.length)];
     const wpick = o => { let t = 0; for (const k in o) t += Math.max(0, o[k]); let x = rnd() * t; for (const k in o) { x -= Math.max(0, o[k]); if (x <= 0) return k; } return Object.keys(o)[0]; };
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-    const askLevel = opts.ask || 'never'; // 'often' | 'sometimes' | 'never'
+    const askLevel = opts.ask || 'never'; // 'never' 以外なら、プレイヤーの陣営で大きな決断のたびに止まる
 
     const roster = (opts.roster || []).filter(s => s && s.score);
     if (roster.length < 2) throw new Error('サーヴァントが2騎以上必要です');
@@ -110,6 +122,13 @@
     const out = opts.out || {};
     const entries = out.entries = [];
     out.seed = seed; out.city = city; out.camps = camps.map(c => ({ id: c.id, label: c.label }));
+    // 画面に出す固定の情報（ステータス・スキル・宝具の名前）
+    out.meta = camps.map(c => ({
+      id: c.id, trueName: c.sv.trueName, cls: c.sv.class.label,
+      ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], R.label(c.sv.ranks[k])]),
+      skills: (c.sv.allSkills || []).map(x => x.name).join('、'),
+      nps: (c.sv.nps || []).map(n => '『' + n.name + '』').join(' '),
+    }));
     let day = 0, phase = 'prologue';
     const known = c => !you || c.you || you.knowName.has(c.id) || pubName.has(c.id);
     const nm = c => known(c) ? `${c.label}「${c.sv.trueName}」` : c.label;
@@ -120,6 +139,7 @@
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.ally, workshop: c.workshop, you: !!c.you, out: c.out,
       fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty,
+      origin: c.master.originLabel, wish: c.master.wish,
     }));
     function log(kind, text, ids, extra) {
       ids = ids || [];
@@ -147,15 +167,10 @@
 
     // ---------- 判断 ----------
     // プレイヤーの陣営なら問いを出して止まる。それ以外（と「おまかせ」）は auto() で決める
-    const ASK = {
-      often: { policy: 1, plan: 1, battle: 1, cs: 1, ally: 1, recontract: 1, event: 1, life: 1 },
-      sometimes: { policy: 1, plan: 1, battle: 1, cs: 1, ally: 1, recontract: 1, event: 1, life: 1 },
-      never: {},
-    };
     function* ask(c, kind, q, auto) {
-      if (!c || !c.you || !ASK[askLevel][kind]) return auto();
+      if (!c || !c.you || askLevel === 'never') return auto();
       const options = q.options.filter(Boolean);
-      const ans = yield { type: 'decision', kind, day, phase, title: q.title, body: q.body || '', options: options.concat([{ k: 'auto', label: 'おまかせ', sub: '運命に任せる' }]), camp: c.id };
+      const ans = yield { type: 'decision', kind, day, phase, title: q.title, body: q.body || '', note: q.note || '', options, camp: c.id };
       const chosen = options.find(o => o.k === ans);
       const k = chosen ? chosen.k : auto();
       const o = options.find(x => x.k === k);
@@ -189,6 +204,8 @@
       if (!c.masterAlive) p *= 0.9;
       if (c.mana < 10) p *= 0.85;
       if (c.stance === 'all') p *= 1.05;
+      if (c.boostUntil != null && c.boostUntil >= day) p *= 1.2;
+      if (c.surprise) p *= 1 + c.surprise;
       p += c.npBoost;
       return p * (0.9 + rnd() * 0.2);
     }
@@ -273,27 +290,18 @@
       a.fought = b.fought = true; a.battles++; b.battles++;
       a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set();
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
-      log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true });
+      log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name });
       const rt = related(a, b);
       if (rt) {
         a.knowName.add(b.id); b.knowName.add(a.id);
         const who = rel[a.id] && rel[a.id][b.id] ? a : b, other = who === a ? b : a;
         log('event', `因縁の再会だった。${nm(who)}は${nm(other)}をよく知っている——「${rt}」`, [a.id, b.id], { big: true });
       }
-      // 戦い方
+      // 戦い方：プレイヤーは重点から、他の陣営は方針から決まる
       for (const c of [a, b]) {
-        const o = c === a ? b : a;
-        const askNow = c.you && (askLevel === 'often' || c.battles === 1 || c.hp < 60 || o.sv.power > c.sv.power * 1.25);
-        const auto = () => c.hp < 25 && chance(0.5) ? 'retreat' : wpick({ all: c.policy === 'aggressive' ? 2.5 : 1.5, careful: c.policy === 'defensive' ? 1.5 : 1 });
-        c.stance = askNow ? yield* ask(c, 'battle', {
-          title: `${o.label}${known(o) ? '「' + o.sv.trueName + '」' : ''}との戦い`,
-          body: `${sn(c)}の霊基 ${Math.round(c.hp)}・魔力 ${Math.round(c.mana / c.manaMax * 100)}%。どう戦わせるか。`,
-          options: [
-            { k: 'all', label: '全力で戦う', sub: '宝具も惜しまない' },
-            { k: 'careful', label: '様子を見る', sub: '危なくなれば退く' },
-            { k: 'retreat', label: 'すぐに退く', sub: '戦わずに離脱を試みる' },
-          ],
-        }, auto) : auto();
+        const F = focusOf(c);
+        c.stance = F && F.stance ? F.stance : c.hp < 25 && chance(0.5) ? 'retreat' : wpick({ all: c.policy === 'aggressive' ? 2.5 : 1.5, careful: c.policy === 'defensive' ? 1.5 : 1 });
+        if (c.stance === 'retreat' && c.hp > 60 && !c.you) c.stance = 'careful';
       }
       for (let round = 1; round <= ENG.rounds; round++) {
         a.npBoost = b.npBoost = 0;
@@ -340,7 +348,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { a.temp = []; b.temp = []; a.npBoost = b.npBoost = 0; a.stance = b.stance = null; }
+      function cleanup() { a.temp = []; b.temp = []; a.npBoost = b.npBoost = 0; a.stance = b.stance = null; a.surprise = b.surprise = 0; }
     }
 
     function* ambushMaster(h, t) {
@@ -367,7 +375,7 @@
       if ((v['聖杯について'] || []).length || pf.wish) opt.grail = c.lifeSeen.has('grail') ? 0.3 : 2;
       if ((v['好きなこと'] || v['嫌いなこと'] || []).length) opt.likes = 1.5;
       if (c.bond >= 70 && (v['絆'] || []).length && !c.lifeSeen.has('bondv')) opt.bondv = 3;
-      opt.outing = 1.5; opt.master = 1.5;
+      opt.outing = 1; opt.master = 1.5;
       const k = wpick(opt); c.lifeSeen.add(k === 'bondv' ? 'bondv' : k);
       const S = sn(c), M = mn(c);
       if (k === 'meal') { bondUp(c, 5); c.hp = Math.min(100, c.hp + 5); log('life', `${M}は${S}と食卓を囲んだ。${S}の好きなものは「${pf.likes}」らしい。`, [c.id]); }
@@ -381,13 +389,8 @@
         const t = { civilian: `${M}は久しぶりに学校へ顔を出した。日常は、まだそこにあった。`, noble: `${M}は家の書庫で、聖杯戦争の古い記録を読み返した。`, mercenary: `${M}は武器と礼装の手入れに一日を費やした。`, newblood: `${M}は工房で新しい術式を試した。`, irregular: `${M}は自分の異能を確かめるように、街の外れを歩いた。` }[c.master.origin] || `${M}は静かに一日を過ごした。`;
         c.mana = Math.min(c.manaMax, c.mana + 5); log('life', t, [c.id]);
       } else if (k === 'outing') {
-        const a = yield* ask(c, 'life', {
-          title: `${S}が街を見て回りたいと言っている`,
-          body: '現代の街に興味があるらしい。目立てば敵に見つかるかもしれない。',
-          options: [{ k: 'allow', label: '一緒に出かける', sub: '絆が深まる。今夜は見つかりやすい' }, { k: 'deny', label: '拠点に留める', sub: '安全だが不満は残る' }],
-        }, () => chance(0.5) ? 'allow' : 'deny');
-        if (a === 'allow') { bondUp(c, 8); c.wander = true; log('life', `${M}と${S}は昼の街を歩いた。${S}は何を見ても楽しそうだった。`, [c.id]); }
-        else { bondUp(c, -4); log('life', `${S}は不満げに霊体化した。`, [c.id]); }
+        if (chance(0.6)) { bondUp(c, 8); c.wander = true; log('life', `${S}にせがまれて、${M}は昼の街を一緒に歩いた。${S}は何を見ても楽しそうだった。`, [c.id]); }
+        else { bondUp(c, -2); log('life', `街に出たがる${S}を、${M}はなだめて拠点に留めた。`, [c.id]); }
       }
     }
 
@@ -399,7 +402,7 @@
       if (witnessed.length) o.witness = 4;
       const bountyCand = alive.filter(c => !c.bounty && (c.kills.length >= 2 || c.warned >= 2));
       if (day >= 4 && bountyCand.length && !camps.some(c => c.bounty && c.alive)) o.bounty = 3;
-      if (you && you.alive && you.masterAlive && alive.length > 2) o.spot = 2.5;
+      if (you && you.alive && you.masterAlive && alive.length > 2) o.spot = 1.2;
       const k = wpick(o);
       if (k === 'leyline') { for (const c of alive) c.mana = Math.min(c.manaMax, c.mana + 25); log('world', `${city}の霊脈が騒いでいる。どの陣営にも魔力が満ちた。`, []); }
       else if (k === 'rain') { tonight.rain = true; log('world', '夕方から雨になった。今夜はどこもかしこも水辺だ。', []); }
@@ -446,7 +449,51 @@
     }
 
     // ---------- 昼 ----------
-    let lastPlanDay = 0;
+    let lastCouncil = 0;
+    const focusOf = c => c.you && c.focus && c.focus !== 'auto' && FOCUS[c.focus] ? FOCUS[c.focus] : null;
+
+    // 作戦会議：状況に合う選択肢を最大3つ出す
+    function* council() {
+      const c = you, alive = active();
+      const enemies = alive.filter(t => t !== c && t.ally !== c.id);
+      const cand = [];
+      const knownT = enemies.filter(t => c.knowLoc.has(t.id));
+      if (knownT.length) {
+        const t = knownT.reduce((a, b) => (a.hp / Math.max(5, a.sv.power) < b.hp / Math.max(5, b.sv.power) ? a : b));
+        cand.push({ w: 3, o: { k: 'assault:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}の拠点に総攻撃をかける`, sub: `今夜、準備を整えて「${t.base.name}」へ攻め込む（戦闘力+15%）` } });
+      }
+      if (c.cs >= 2) cand.push({ w: 1.5, o: { k: 'boost', label: '令呪を一画使い、霊基を強化する', sub: `3日間、戦闘力+20%（令呪 残り${c.cs}画）` } });
+      if (camps.some(t => t !== c && t.alive && t.knowLoc.has(c.id))) cand.push({ w: 2.5, o: { k: 'move', label: '拠点を移す', sub: '居場所を知られている。工房は一から作り直し' } });
+      if (c.ally == null && alive.length > ENG.allianceBreakAt + 1) {
+        const t = pick(enemies.filter(x => x.ally == null && x.masterAlive));
+        if (t) cand.push({ w: 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}に同盟を申し込む`, sub: '残り3騎になるまで互いを襲わない' } });
+      }
+      if (c.ally != null && alive.length <= ENG.allianceBreakAt + 1) { const t = camps[c.ally]; cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
+      if (c.mana >= 30 && enemies.some(t => !c.knowName.has(t.id) || !c.knowLoc.has(t.id))) cand.push({ w: 1.5, o: { k: 'info', label: '教会から情報を買う', sub: '敵ひとつの真名か拠点が分かる。魔力を消費' } });
+      cand.push({ w: c.hp < 60 || c.mana < c.manaMax * 0.5 ? 3 : 0.8, o: { k: 'recover', label: '霊脈で力を蓄える', sub: '魔力と霊基を大きく回復する。今夜は動かない' } });
+      const options = [];
+      const pool = cand.slice();
+      while (options.length < 3 && pool.length) { const i = +wpick(Object.fromEntries(pool.map((x, j) => [j, x.w]))); options.push(pool[i].o); pool.splice(i, 1); }
+      const k = yield* ask(c, 'council', {
+        title: `${day}日目、作戦会議`,
+        body: `${sn(c)}の霊基 ${Math.round(c.hp)}・魔力 ${Math.round(c.mana / c.manaMax * 100)}%・令呪 ${c.cs}画。残り${alive.length}騎。`,
+        options: options.concat([{ k: 'pass', label: '今は動かない', sub: '重点のとおりに過ごす' }]),
+      }, () => { const w = {}; for (const o of options) w[o.k] = o.k.startsWith('assault') ? (c.policy === 'aggressive' ? 3 : 1.5) : o.k === 'recover' ? (c.hp < 60 ? 3 : 0.5) : 1; w.pass = 1; return wpick(w); });
+      if (k.startsWith('assault:')) { c.assault = +k.split(':')[1]; log('council', `今夜、${camps[c.assault].label}の拠点を攻める。`, [c.id]); }
+      else if (k === 'boost') { c.cs--; c.boostUntil = day + 2; bondUp(c, 3); log('cs', `「令呪をもって命ずる——力を示せ」${sn(c)}の霊基に令呪の魔力が満ちた。（残り${c.cs}画）`, [c.id], { big: true }); }
+      else if (k === 'move') { for (const t of camps) if (t !== c) t.knowLoc.delete(c.id); const np = pick(W.places.filter(p => p.name !== c.base.name)); c.base = np; c.workshop = 0; log('council', `${mn(c)}は拠点を「${np.name}」へ移した。`, [c.id]); }
+      else if (k.startsWith('ally:')) {
+        const t = camps[+k.split(':')[1]];
+        if (chance(clamp(0.25 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0), 0, 0.85))) { c.ally = t.id; t.ally = c.id; c.knowName.add(t.id); log('ally', `${mn(t)}は申し出を受けた。${nm(c)}と${nm(t)}の同盟だ。`, [c.id, t.id], { big: true }); }
+        else log('council', `${mn(t)}は申し出を断った。`, [c.id, t.id]);
+      } else if (k === 'betray') { const t = camps[c.ally]; c.ally = null; t.ally = null; c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
+      else if (k === 'info') {
+        c.mana -= 25;
+        const t = pick(enemies.filter(x => !c.knowName.has(x.id) || !c.knowLoc.has(x.id)));
+        if (!c.knowName.has(t.id) && chance(0.6)) { c.knowName.add(t.id); log('scout', `教会の記録によれば、${t.label}の真名は「${t.sv.trueName}」。`, [c.id, t.id]); }
+        else { c.knowLoc.add(t.id); log('scout', `教会の記録によれば、${t.label}の拠点は「${t.base.name}」。`, [c.id, t.id]); }
+      } else if (k === 'recover') { c.mana = c.manaMax; c.hp = Math.min(100, c.hp + 30); c.restNight = true; log('council', `${sn(c)}は霊脈の上で力を蓄えた。`, [c.id]); }
+    }
     function* dayPhase() {
       phase = 'day';
       tonight = {};
@@ -457,25 +504,8 @@
       }
       if (chance(ENG.eventChance)) yield* worldEvent();
 
-      // 方針を聞く
-      if (you && you.alive && you.masterAlive && (askLevel === 'often' || day === 1 || day - lastPlanDay >= ENG.planEvery || you.notable)) {
-        lastPlanDay = day; you.notable = false;
-        const known2 = active().filter(t => t !== you && you.knowLoc.has(t.id) && t.ally !== you.id).slice(0, 2);
-        const status = `${sn(you)}の霊基 ${Math.round(you.hp)}・魔力 ${Math.round(you.mana / you.manaMax * 100)}%・令呪 ${you.cs}画・残り${active().length}騎。`;
-        const k = yield* ask(you, 'plan', {
-          title: `${day}日目の方針`,
-          body: status,
-          options: [
-            { k: 'attack', label: '攻めに出る', sub: '昼は偵察し、夜は敵を探す' },
-            ...known2.map(t => ({ k: 'target:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}を狙う`, sub: `拠点「${t.base.name}」を夜に襲う` })),
-            { k: 'fortify', label: '守りを固める', sub: '工房を強化し、夜は拠点で迎え撃つ' },
-            { k: 'rest', label: '傷を癒やす', sub: '休養し、夜は動かない' },
-            { k: 'hide', label: '身を潜める', sub: '気配を断ち、見つからないようにする' },
-            you.ally == null && active().length > ENG.allianceBreakAt + 1 ? { k: 'ally', label: '同盟を探る', sub: '他の陣営に接触する' } : null,
-          ],
-        }, () => 'policy');
-        you.plan = k === 'policy' ? null : k;
-      }
+      // 作戦会議（大きな決断）。数日ごと
+      if (you && you.alive && you.masterAlive && day - lastCouncil >= ENG.councilEvery) { lastCouncil = day; yield* council(); }
 
       for (const c of shuffle(alive)) {
         c.hunting = c.hidden = c.wander = c.fought = false;
@@ -516,11 +546,9 @@
           hide: eff(c, 'stealth') * 2 + (c.hp < 50 ? 0.5 : 0),
         };
         for (const k in P.day) w[k] *= P.day[k];
-        let act;
-        if (c.you && c.plan) {
-          const pl = c.plan;
-          act = pl === 'attack' || pl.startsWith('target:') ? 'scout' : pl === 'fortify' ? 'fortify' : pl === 'rest' ? 'rest' : pl === 'hide' ? 'hide' : pl === 'ally' ? 'ally' : wpick(w);
-        } else act = wpick(w);
+        const F = focusOf(c);
+        let act = F && F.day ? F.day : wpick(w);
+        if (act === 'ally' && !w.ally) act = 'scout';
         yield* doAct(c, act, alive);
         // 日常
         if (c.you && c.masterAlive && chance(ENG.lifeChance)) yield* lifeEvent(c);
@@ -589,8 +617,11 @@
         const P = POLICIES[c.policy] || POLICIES.balanced;
         let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + (tonight.moon ? 0.2 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
         p = clamp(p, 0.05, 0.95);
-        if (c.wander) c.hunting = true;
-        else if (c.you && c.plan) c.hunting = c.plan === 'attack' || c.plan.startsWith('target:') ? true : ['fortify', 'rest', 'hide'].includes(c.plan) ? false : chance(p);
+        const F = focusOf(c);
+        if (c.restNight) { c.restNight = false; c.hunting = false; }
+        else if (c.assault != null) c.hunting = true;
+        else if (c.wander) c.hunting = true;
+        else if (F && F.night != null) c.hunting = F.night;
         else c.hunting = chance(p);
       }
       let any = false;
@@ -599,7 +630,7 @@
         const targets = active().filter(t => t !== h && !t.fought && t.ally !== h.id);
         if (!targets.length) continue;
         let t = null;
-        const fixed = h.you && h.plan && h.plan.startsWith('target:') ? camps[+h.plan.split(':')[1]] : h.targetPref != null ? camps[h.targetPref] : null;
+        const fixed = h.assault != null ? camps[h.assault] : h.targetPref != null ? camps[h.targetPref] : null;
         if (fixed && targets.includes(fixed)) t = fixed;
         else {
           const tw = {};
@@ -607,7 +638,9 @@
           t = camps[+wpick(tw)];
         }
         if (h.targetPref != null && !camps[h.targetPref].alive) h.targetPref = null;
-        const pf = clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0), 0.05, 0.95);
+        const assault = h.assault != null && t.id === h.assault;
+        h.assault = null;
+        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0), 0.05, 0.95);
         if (!chance(pf)) { if (h.you) log('night', `${sn(h)}は夜の街を巡ったが、敵の気配はつかめなかった。`, [h.id]); continue; }
         any = true;
         const home = t.hunting ? null : t;
@@ -617,6 +650,7 @@
           h.fought = t.fought = true;
           if (yield* ambushMaster(h, t)) continue;
         }
+        if (assault) { h.surprise = h.betray ? 0.2 : 0.15; h.betray = false; }
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain });
       }
       if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', '静かな夜だった。どこかで誰かが、息を潜めている。', []);
@@ -640,11 +674,8 @@
     for (const c of camps) if (!c.you) c.policy = autoPolicy(c);
     if (you) {
       log('summon', `あなたの${you.label}の真名は「${you.sv.trueName}」。${you.sv.profile && you.sv.profile.wish ? '聖杯に託す願いは「' + you.sv.profile.wish + '」。' : ''}マスター${mn(you)}の願いは「${you.master.wish}」。`, [you.id]);
-      you.policy = yield* ask(you, 'policy', {
-        title: 'この聖杯戦争をどう戦うか',
-        body: `${you.label}「${you.sv.trueName}」の戦闘力はおよそ${r1(you.sv.power)}（参加者の平均は${r1(camps.reduce((t, c) => t + c.sv.power, 0) / camps.length)}）。方針は日々の行動や夜の動き方に影響する。`,
-        options: Object.entries(POLICIES).map(([k, p]) => ({ k, label: p.label, sub: { aggressive: '積極的に夜の街へ出る', defensive: '拠点を固めて迎え撃つ', intel: '偵察と隠密で先手を取る', diplomacy: '他の陣営と手を組む', balanced: '状況に応じて動く' }[k] })),
-      }, () => autoPolicy(you));
+      you.policy = autoPolicy(you);
+      you.focus = 'auto';
     }
 
     // ---------- 本編 ----------
@@ -652,7 +683,9 @@
     for (day = 1; day <= ENG.maxDays; day++) {
       if (active().length <= 1) { day--; break; }
       phase = 'day';
-      if (quietFrom != null && (you && you.alive)) { /* 静かな日が続いていても、方針を聞く日は区切る */ }
+      // 1日ごとに呼び出し元へ戻り、プレイヤーの今の重点を受け取る（止まらない）
+      const f = yield { type: 'tick', day };
+      if (you && FOCUS[f]) you.focus = f;
       const head = log('dayhead', `${day}日目`, [], { head: true }), n0 = entries.length;
       if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', '聖杯の降臨が近い。残るサーヴァントたちが動き出した。', [], { big: true }); }
       yield* dayPhase();
@@ -703,9 +736,9 @@
   function runWar(opts) {
     const g = warGen(Object.assign({}, opts, { ask: opts && opts.ask ? opts.ask : 'never' }));
     let r = g.next();
-    while (!r.done) r = g.next('auto');
+    while (!r.done) r = g.next(r.value && r.value.type === 'tick' && opts && opts.focus ? opts.focus(r.value.day) : 'auto');
     return r.value;
   }
 
-  G.engine = { runWar, warGen, makeRng, POLICIES };
+  G.engine = { runWar, warGen, makeRng, POLICIES, FOCUS };
 })(globalThis.HGW = globalThis.HGW || {});

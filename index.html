@@ -11,24 +11,30 @@
 <link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --night: #18203a; --deep: #121a30; --surface: #212b4a; --line: #33406a;
-  --moon: #e9e6dc; --mist: #9aa3bf; --seal: #d0405a; --grail: #d1ab55; --dawn: #6f86c7;
-  --hp: #8fb3e8; --mana: #7bc4b1; --bond: #e4a0b6;
+  --night: #161d34; --deep: #111829; --card: #1c2542; --line: #2f3b62;
+  --moon: #e9e6dc; --mist: #98a1bd; --seal: #d0405a; --grail: #d1ab55; --dawn: #7a90d0;
+  --hp: #8fb3e8; --mana: #7bc4b1; --bond: #e4a0b6; --ws: #b9a3e3;
+  --sky1: #0d1430; --sky2: #26305a; --bldg: #10172d; --win: #e8c46a;
   --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
   --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
   --safe-b: env(safe-area-inset-bottom, 0px);
+  color-scheme: dark;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --night: #eef0f6; --deep: #e2e6f0; --surface: #ffffff; --line: #cfd5e4;
-    --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #9a7420; --dawn: #3f5aa6;
-    --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c;
+    --night: #eceff6; --deep: #e1e5ef; --card: #ffffff; --line: #cfd5e4;
+    --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #93701c; --dawn: #3f5aa6;
+    --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c; --ws: #6b51a8;
+    --sky1: #7fa2d8; --sky2: #c9d8ee; --bldg: #3a4566; --win: #f3d88c;
+    color-scheme: light;
   }
 }
 :root[data-theme="light"] {
-  --night: #eef0f6; --deep: #e2e6f0; --surface: #ffffff; --line: #cfd5e4;
-  --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #9a7420; --dawn: #3f5aa6;
-  --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c;
+  --night: #eceff6; --deep: #e1e5ef; --card: #ffffff; --line: #cfd5e4;
+  --moon: #1c2340; --mist: #5d6684; --seal: #b4243e; --grail: #93701c; --dawn: #3f5aa6;
+  --hp: #3f6fb8; --mana: #2f8a74; --bond: #b5476c; --ws: #6b51a8;
+  --sky1: #7fa2d8; --sky2: #c9d8ee; --bldg: #3a4566; --win: #f3d88c;
+  color-scheme: light;
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -36,6 +42,7 @@ body { margin: 0; background: var(--night); color: var(--moon); font: 15px/1.7 v
 a { color: var(--dawn); }
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--grail); outline-offset: 2px; }
+.mincho { font-family: var(--mincho); }
 
 /* ---------- 開戦前 ---------- */
 .intro { max-width: 640px; margin: 0 auto; padding: 10vh 16px 64px; }
@@ -51,7 +58,6 @@ button { font: inherit; color: inherit; }
 .choice input { position: absolute; opacity: 0; pointer-events: none; }
 .choice label:has(input:checked) { border-color: var(--grail); color: var(--grail); }
 .choice label:has(input:focus-visible) { outline: 2px solid var(--grail); outline-offset: 2px; }
-.choice label:has(input:disabled) { opacity: .4; cursor: default; }
 .go { justify-self: start; margin-top: 4px; background: var(--seal); color: #fff; border: 0; border-radius: 6px; padding: 12px 32px; font: 700 18px var(--mincho); letter-spacing: .1em; cursor: pointer; min-height: 48px; }
 .go:disabled { opacity: .45; cursor: default; }
 .data { font-size: 13px; color: var(--mist); }
@@ -65,131 +71,207 @@ button { font: inherit; color: inherit; }
 .war { display: none; }
 body.watching .intro { display: none; }
 body.watching .war { display: block; }
-.bar { position: sticky; top: 0; z-index: 5; background: var(--night); border-bottom: 1px solid var(--line); }
-.bar-in { max-width: 1180px; margin: 0 auto; padding: 10px 16px 8px; display: grid; gap: 8px; }
-.top { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
-.top h2 { font: 700 20px/1.3 var(--mincho); margin: 0; letter-spacing: .06em; }
-.top .city { color: var(--mist); font-size: 13px; }
-.ctl { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
-.ctl button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; font-size: 13px; cursor: pointer; min-height: 32px; }
-.ctl button[aria-pressed="true"] { border-color: var(--grail); color: var(--grail); }
-.ctl .seatsBtn { display: none; }
-/* 三十日の暦 */
-.nights { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 3px; align-items: center; }
-.moon { position: relative; aspect-ratio: 1; max-height: 22px; border-radius: 50%; border: 1px solid var(--line); }
-.moon.past { background: var(--line); }
-.moon.now { border-color: var(--grail); background: radial-gradient(circle at 35% 35%, var(--moon), var(--grail)); }
-.moon.blood::after { content: ""; position: absolute; right: -2px; bottom: -2px; width: 7px; height: 7px; border-radius: 50%; background: var(--seal); box-shadow: 0 0 0 2px var(--night); }
-.nights-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--mist); }
-.mini { display: none; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
-.mini div { min-width: 0; font-size: 11px; line-height: 1.3; }
-.mini div span { display: block; overflow: hidden; white-space: nowrap; }
-.mini div.you span { color: var(--grail); }
-.mini div.down { opacity: .4; }
 
-.stage { max-width: 1180px; margin: 0 auto; padding: 16px 16px 120px; display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 28px; align-items: start; }
-.seats { display: grid; gap: 6px; position: sticky; top: 112px; }
-.seat { border-left: 3px solid var(--line); padding: 6px 10px 7px; background: var(--deep); border-radius: 0 6px 6px 0; min-width: 0; }
-.seat.you { border-left-color: var(--grail); }
-.seat.down { opacity: .5; }
-.seat .cls { font: 700 15px/1.3 var(--mincho); display: flex; gap: 6px; align-items: baseline; justify-content: space-between; }
-.seat .cls span:last-child { font: 12px var(--gothic); color: var(--mist); white-space: nowrap; }
-.seat .tn { font-size: 13px; min-height: 1.4em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seat .tn.hidden { color: var(--mist); letter-spacing: .2em; }
-.seat .ms { font-size: 12px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.seat .ms.dead { text-decoration: line-through; }
-.seat .tags { font-size: 11px; color: var(--mist); }
-.seat .tags b { color: var(--bond); font-weight: 500; }
-.seat .tags .bounty { color: var(--seal); }
-.gauge { height: 3px; background: var(--line); border-radius: 2px; margin-top: 5px; overflow: hidden; }
-.gauge i { display: block; height: 100%; background: var(--hp); transition: width .4s; }
-.gauge.mana i { background: var(--mana); }
-.seals { display: inline-flex; gap: 3px; vertical-align: 1px; }
-.seals i { width: 4px; height: 11px; border-radius: 2px; background: var(--seal); transform: skewX(-18deg); }
-.seals i.used { background: var(--line); }
-.seat .fate { font-size: 12px; color: var(--seal); margin-top: 3px; }
-.seat.win .fate { color: var(--grail); }
+.hud { position: sticky; top: 0; z-index: 10; background: var(--night); border-bottom: 1px solid var(--line); }
+.hud-in { max-width: 1320px; margin: 0 auto; padding: 8px 16px 10px; }
+.hud-top { display: flex; align-items: baseline; gap: 14px; }
+.brand { font: 700 17px var(--mincho); letter-spacing: .06em; white-space: nowrap; }
+.dayno { font: 700 34px/1 var(--mincho); white-space: nowrap; }
+.dayno small { font-size: 16px; margin-left: 2px; }
+.hud-sub { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.hud-sub span { font-size: 12px; color: var(--mist); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.prog { height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.prog i { display: block; height: 100%; width: 0; background: var(--seal); transition: width .3s; }
+.ctl { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.ctl button { background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 5px 12px; font-size: 13px; cursor: pointer; min-height: 34px; white-space: nowrap; }
+.ctl button[aria-pressed="true"] { background: var(--moon); color: var(--night); border-color: var(--moon); }
+.ctl .play { background: var(--moon); color: var(--night); border-color: var(--moon); font-weight: 700; }
+.ctl button:disabled { opacity: .5; cursor: default; }
+.ctl .more { display: none; }
+.ctl .sm { display: none; }
+.menu { display: none; position: absolute; right: 16px; top: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 6px; z-index: 12; min-width: 180px; }
+.menu.on { display: grid; gap: 4px; }
+.menu button { text-align: left; background: transparent; border: 0; padding: 10px 12px; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.menu button:hover { background: var(--deep); }
 
-/* 記録 */
-.log { font: 500 16px/2 var(--mincho); max-width: 40em; }
-.log p { margin: 0 0 .55em; }
-.log h3 { font: 700 22px/1.4 var(--mincho); margin: 1.6em 0 .6em; letter-spacing: .1em; display: flex; align-items: center; gap: 14px; }
-.log h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-.log .scene { color: var(--mist); font-size: 14px; margin-top: 1.2em; }
-.log .k-quiet { color: var(--mist); font-size: 14px; }
-.log .is-you { padding-left: 12px; border-left: 2px solid var(--grail); }
-.log .k-death { color: var(--seal); font-weight: 700; }
-.log .k-np { font-weight: 700; }
-.log .k-cs { color: var(--seal); }
-.log .k-end { color: var(--grail); font-weight: 700; }
-.log .k-life { color: var(--moon); }
-.log .k-world { color: var(--dawn); }
-.log .k-choice { font: 500 14px var(--gothic); color: var(--grail); }
-.log .k-choice::before { content: "▶ "; }
-.log blockquote { margin: -.2em 0 .8em 1.4em; font-size: 15px; color: var(--mist); }
-.log blockquote::before { content: "「"; } .log blockquote::after { content: "」"; }
-.log .new { animation: rise .5s ease-out; }
-@keyframes rise { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.grid { max-width: 1320px; margin: 0 auto; padding: 16px 16px 80px; display: grid; gap: 16px; align-items: start;
+  grid-template-columns: minmax(0, 270px) minmax(0, 1fr) minmax(0, 300px); grid-template-areas: "left center right"; }
+.col-left { grid-area: left; display: grid; gap: 16px; }
+.col-center { grid-area: center; display: grid; gap: 16px; min-width: 0; }
+.col-right { grid-area: right; display: grid; gap: 16px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.card > h3 { font: 700 17px var(--gothic); margin: 0; padding: 14px 16px 10px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.card > h3 small { font: 12px var(--gothic); color: var(--mist); font-weight: 400; }
+.card-body { padding: 0 16px 14px; }
 
-/* 判断を求めるパネル */
-.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; display: none; padding: 0 12px calc(12px + var(--safe-b)); }
-.sheet.on { display: block; animation: up .25s ease-out; }
-@keyframes up { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
-.sheet-in { max-width: 620px; margin: 0 auto; background: var(--surface); border: 1px solid var(--grail); border-radius: 12px; padding: 16px 16px 12px; box-shadow: 0 -8px 32px rgba(0, 0, 0, .35); max-height: 75vh; overflow: auto; }
-.sheet h4 { font: 700 19px/1.4 var(--mincho); margin: 0 0 4px; }
-.sheet p { margin: 0 0 12px; font-size: 14px; color: var(--mist); }
-.opts { display: grid; gap: 6px; }
-.opts button { text-align: left; background: var(--deep); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; cursor: pointer; min-height: 48px; display: grid; gap: 1px; }
+/* マスター証 */
+.idcard .band { background: var(--seal); color: #fff; font-size: 12px; padding: 6px 14px; display: flex; justify-content: space-between; border-radius: 5px 5px 0 0; letter-spacing: .05em; }
+.idcard .id { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 12px; padding: 14px; }
+.sealmark { width: 64px; height: 76px; background: var(--deep); border: 1px solid var(--line); border-radius: 4px; display: grid; place-items: center; }
+.idcard .nm { font: 700 19px/1.3 var(--mincho); margin-bottom: 6px; }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 12px; font-size: 13px; }
+.kv dt { color: var(--mist); }
+.kv dd { margin: 0; }
+.servant .cls { font-size: 12px; color: var(--mist); }
+.servant .tn { font: 700 19px/1.3 var(--mincho); }
+.ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; margin: 10px 0; }
+.ranks div { background: var(--deep); border-radius: 4px; padding: 3px 8px; font-size: 12px; display: flex; justify-content: space-between; }
+.ranks b { font: 700 14px var(--mincho); }
+.skl { font-size: 12px; color: var(--mist); line-height: 1.8; }
+.skl b { color: var(--moon); font-weight: 500; }
+.bars { display: grid; gap: 8px; }
+.bars div { display: grid; grid-template-columns: 4em minmax(0, 1fr) 2.2em; gap: 10px; align-items: center; font-size: 14px; }
+.bars span:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { height: 10px; background: var(--deep); border-radius: 2px; overflow: hidden; }
+.bar i { display: block; height: 100%; transition: width .4s; }
+.seals-inline { display: inline-flex; gap: 3px; vertical-align: 1px; }
+.seals-inline i { width: 4px; height: 12px; border-radius: 2px; background: var(--seal); transform: skewX(-18deg); }
+.seals-inline i.used { background: var(--line); }
+
+/* 情景 */
+.scene { overflow: hidden; }
+.scene svg { display: block; width: 100%; height: auto; aspect-ratio: 16 / 5; }
+.scene .cap { padding: 10px 16px; font-size: 14px; border-top: 1px solid var(--line); }
+.flash { animation: flash 1.2s ease-out; }
+@keyframes flash { 0% { opacity: .45; } 100% { opacity: 0; } }
+
+/* 重点 */
+.focus .seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.focus .seg button { background: var(--deep); border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer; font-size: 14px; min-height: 36px; }
+.focus .seg button[aria-pressed="true"] { border-color: var(--grail); color: var(--grail); }
+.focus p { margin: 10px 0 0; font-size: 13px; color: var(--mist); }
+
+/* 記録（新しい順） */
+.log { list-style: none; margin: 0; padding: 0 16px 8px; }
+.log li { display: grid; grid-template-columns: 4.2em minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.log li:first-child { border-top: 0; }
+.log .when { font-size: 12px; color: var(--mist); line-height: 1.5; padding-top: 3px; }
+.log .txt { font: 500 15px/1.85 var(--mincho); }
+.log .q { display: block; font-size: 14px; color: var(--mist); margin-top: 2px; }
+.log .q::before { content: "「"; } .log .q::after { content: "」"; }
+.log .is-you .txt { font-weight: 700; }
+.log .is-you .when { color: var(--grail); }
+.log .k-death .txt { color: var(--seal); font-weight: 700; }
+.log .k-cs .txt { color: var(--seal); }
+.log .k-end .txt { color: var(--grail); font-weight: 700; }
+.log .k-world .txt { color: var(--dawn); }
+.log .k-quiet .txt { color: var(--mist); font-size: 14px; }
+.log .k-choice .txt, .log .k-council .txt { font-family: var(--gothic); font-size: 14px; color: var(--grail); }
+.log .k-choice .txt::before { content: "▶ "; }
+.log .new { animation: rise .45s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.loghint { font-size: 12px; color: var(--mist); }
+
+/* 陣営 */
+.camps { list-style: none; margin: 0; padding: 0 16px 10px; }
+.camps li { padding: 9px 0; border-top: 1px solid var(--line); }
+.camps li:first-child { border-top: 0; }
+.camps .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.camps b { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.camps .st { font-size: 12px; color: var(--mist); white-space: nowrap; }
+.camps .sub { font-size: 12px; color: var(--mist); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.camps .you b { color: var(--grail); }
+.camps .down { opacity: .5; }
+.camps .down .st { color: var(--seal); }
+.camps .win .st { color: var(--grail); }
+.camps .hpb { height: 3px; background: var(--deep); margin-top: 5px; border-radius: 2px; overflow: hidden; }
+.camps .hpb i { display: block; height: 100%; background: var(--hp); }
+
+/* 暦 */
+.cal { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; }
+.cal span { aspect-ratio: 1; border: 1px solid var(--line); border-radius: 2px; position: relative; }
+.cal .past { background: var(--line); }
+.cal .now { border-color: var(--grail); background: transparent; box-shadow: inset 0 0 0 1px var(--grail); }
+.cal .fought { border-color: var(--grail); }
+.cal .death::after { content: ""; position: absolute; inset: 30%; border-radius: 50%; background: var(--seal); }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--mist); margin-top: 8px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border: 1px solid var(--line); margin-right: 4px; vertical-align: -1px; }
+
+/* スマホ用の状態の帯と重点チップ */
+.strip { display: none; }
+.chip { background: var(--deep); border: 1px solid var(--line); border-radius: 99px; padding: 5px 12px; font-size: 13px; cursor: pointer; white-space: nowrap; min-height: 36px; }
+.chip b { margin-left: 4px; }
+
+/* 大きな決断 */
+.dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(8, 10, 20, .55); }
+.dlg.on { display: flex; }
+.dlg.min { background: transparent; pointer-events: none; align-items: flex-end; }
+.dlg-in { width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px 18px; pointer-events: auto; box-shadow: 0 12px 40px rgba(0, 0, 0, .4); }
+.dlg-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; color: var(--seal); }
+.dlg-head .when { margin-left: auto; }
+.dlg-head button { background: transparent; border: 1px solid var(--line); border-radius: 99px; padding: 4px 12px; cursor: pointer; font-size: 12px; color: var(--moon); }
+.dlg h4 { font: 700 24px/1.35 var(--mincho); margin: 10px 0 6px; }
+.dlg .body { margin: 0 0 12px; font-size: 14px; color: var(--mist); }
+.dlg .note { border-left: 3px solid var(--mana); background: var(--deep); padding: 8px 12px; font-size: 13px; margin-bottom: 12px; }
+.opts { display: grid; gap: 8px; }
+.opts button { text-align: left; background: var(--deep); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; cursor: pointer; display: grid; grid-template-columns: 1.6em minmax(0, 1fr); gap: 0 10px; min-height: 52px; }
 .opts button:hover { border-color: var(--grail); }
-.opts button b { font-weight: 700; font-size: 15px; }
-.opts button small { color: var(--mist); font-size: 12px; }
-.opts button.auto { background: transparent; }
-.opts kbd { font: 11px var(--gothic); color: var(--mist); float: right; }
-@media (pointer: coarse) { .opts kbd { display: none; } }
-@media (max-width: 560px) { .sheet { padding: 0 8px calc(8px + var(--safe-b)); } .sheet-in { padding: 12px; } .opts button { padding: 8px 10px; min-height: 44px; } .sheet h4 { font-size: 17px; } }
+.opts .n { font-size: 12px; color: var(--mist); padding-top: 2px; }
+.opts b { font-size: 15px; }
+.opts small { grid-column: 2; color: var(--mist); font-size: 12px; }
+.dlg .allauto { display: block; margin: 14px auto 0; background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 8px 16px; cursor: pointer; font-size: 13px; }
+.dlg.min .dlg-in > :not(.dlg-head) { display: none; }
+.dlg.min .dlg-in { width: min(420px, 100%); padding: 10px 14px; margin-bottom: var(--safe-b); }
 
-.result { margin-top: 2em; border-top: 1px solid var(--line); padding-top: 1.2em; font: 15px/1.8 var(--gothic); max-width: 46em; }
-.result h3 { font: 700 20px var(--mincho); margin: 0 0 .6em; }
-.result table { width: 100%; border-collapse: collapse; font-size: 14px; }
+/* 焦点選択（スマホ） */
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 18; display: none; background: var(--card); border-top: 1px solid var(--grail); padding: 14px 16px calc(16px + var(--safe-b)); box-shadow: 0 -8px 32px rgba(0, 0, 0, .35); }
+.sheet.on { display: block; }
+
+.result h4 { font: 700 20px/1.4 var(--mincho); margin: 0 0 6px; }
+.result table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
 .result td, .result th { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
 .result th { font-weight: 500; color: var(--mist); font-size: 12px; }
 .result tr.win td:first-child { color: var(--grail); }
-.result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.2em; }
-.result .acts button { background: transparent; border: 1px solid var(--line); border-radius: 6px; padding: 9px 14px; cursor: pointer; min-height: 44px; }
+.result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.result .acts button { background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 9px 14px; cursor: pointer; min-height: 44px; }
 .result .acts button.primary { background: var(--seal); color: #fff; border-color: var(--seal); }
-.toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); padding: 8px 16px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; max-width: calc(100vw - 32px); }
+.toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); background: var(--card); border: 1px solid var(--line); padding: 8px 16px; border-radius: 6px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; max-width: calc(100vw - 32px); }
 .toast.on { opacity: 1; }
 
-/* ---------- スマホ ---------- */
-@media (max-width: 880px) {
-  .stage { grid-template-columns: minmax(0, 1fr); padding-top: 12px; }
-  .mini { display: grid; }
-  .ctl .seatsBtn { display: inline-block; }
-  .seats { display: none; position: fixed; inset: auto 0 0 0; top: auto; z-index: 15; max-height: 70vh; overflow: auto; background: var(--night); border-top: 1px solid var(--grail); padding: 12px 12px calc(16px + var(--safe-b)); grid-template-columns: repeat(2, minmax(0, 1fr)); box-shadow: 0 -8px 32px rgba(0, 0, 0, .35); }
-  body.seats-open .seats { display: grid; }
+body.observer .col-left, body.observer .focus.card, body.observer .strip { display: none !important; }
+body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 300px); grid-template-areas: "center right"; }
+/* ---------- 幅に応じた組み替え ---------- */
+@media (max-width: 1180px) {
+  .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 300px); grid-template-areas: "center right" "center left"; }
 }
-@media (max-width: 560px) {
-  .top h2 { font-size: 17px; }
-  .top .city { font-size: 12px; width: 100%; order: 3; }
-  .ctl { margin-left: 0; width: 100%; }
-  .ctl button { flex: 1 1 auto; min-height: 38px; padding: 4px 6px; }
-  .nights { gap: 2px; }
-  .moon.blood::after { width: 5px; height: 5px; right: -1px; bottom: -1px; }
-  .log { font-size: 15px; line-height: 1.9; }
-  .log h3 { font-size: 19px; }
+@media (max-width: 820px) {
+  body.observer .grid, .grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "right" "left"; padding: 12px 12px 80px; gap: 12px; }
+  .col-center, .col-right, .col-left { gap: 12px; }
+  .brand { display: none; }
+  .dayno { font-size: 30px; }
+  .ctl { flex-wrap: nowrap; gap: 4px; }
+  .ctl button { padding: 5px 8px; min-height: 38px; flex: 0 1 auto; min-width: 0; }
+  .ctl .lg { display: none; } .ctl .sm { display: inline; }
+  .hud-top { gap: 10px; }
+  .ctl .wide { display: none; }
+  .ctl .more { display: inline-block; margin-left: auto; }
+  .ctl .grow { flex: 1; }
+  .focus.card { display: none; }
+  .statecard { display: none; }
+  .strip { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; padding: 10px 14px; }
+  .strip .s { font-size: 12px; color: var(--mist); display: grid; gap: 3px; }
+  .strip .s b { color: var(--moon); font-size: 15px; margin-left: 6px; }
+  .strip .s .bar { height: 3px; width: 64px; }
+  .strip .chip { margin-left: auto; }
+  .log li { grid-template-columns: 3.4em minmax(0, 1fr); gap: 10px; }
+  .log .txt { font-size: 15px; }
+  .dlg { padding: 10px; align-items: flex-end; }
+  .dlg-in { padding: 14px; }
+  .dlg h4 { font-size: 21px; }
   .result tr:first-child { display: none; }
   .result tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); border-bottom: 1px solid var(--line); padding: 6px 0; }
   .result td { border: 0; padding: 2px 8px 2px 0; }
   .result td:nth-child(3), .result td:nth-child(4) { grid-column: 1 / -1; }
 }
-@media (prefers-reduced-motion: reduce) { .log .new, .sheet.on { animation: none; } .gauge i { transition: none; } }
+@media (max-width: 380px) { .ctl button { padding: 5px 7px; font-size: 12px; } }
+@media (prefers-reduced-motion: reduce) { .log .new, .flash { animation: none; } .bar i, .prog i { transition: none; } }
 </style>
 </head>
 <body>
 
 <section class="intro" aria-labelledby="title">
   <h1 id="title">聖杯戦争<small>観戦記</small></h1>
-  <p class="lead">七騎の英霊と七人のマスターが、ひとつの街で最長三十日を戦う。誰が呼ばれるかは選べない。あなたはその一陣営のマスターとして、要所で方針を決めながら終わりまで見届ける。</p>
+  <p class="lead">七騎の英霊と七人のマスターが、ひとつの街で最長三十日を戦う。誰が呼ばれるかは選べない。あなたはその一陣営のマスターとして、日々の重点を決め、大きな決断を下しながら、終わりまで見届ける。</p>
   <div class="form">
     <div class="data" id="data">サーヴァントのデータを読み込んでいます…</div>
     <div class="field">
@@ -197,14 +279,6 @@ body.watching .war { display: block; }
       <div class="choice" role="radiogroup">
         <label><input type="radio" name="view" value="you" checked>ひとつの陣営のマスター</label>
         <label><input type="radio" name="view" value="all">すべてを知る観測者（判断はしない）</label>
-      </div>
-    </div>
-    <div class="field">
-      <span>判断を求める頻度</span>
-      <div class="choice" role="radiogroup">
-        <label><input type="radio" name="ask" value="sometimes" checked>ときどき</label>
-        <label><input type="radio" name="ask" value="often">こまめに</label>
-        <label><input type="radio" name="ask" value="never">すべておまかせ</label>
       </div>
     </div>
     <div class="field">
@@ -222,36 +296,94 @@ body.watching .war { display: block; }
 </section>
 
 <section class="war">
-  <div class="bar"><div class="bar-in">
-    <div class="top">
-      <h2>聖杯戦争</h2><span class="city" id="warCity"></span>
-      <div class="ctl" role="group" aria-label="再生">
-        <button class="seatsBtn" id="seatsBtn" aria-expanded="false" aria-controls="seats">陣営</button>
-        <button id="pause" aria-pressed="false">一時停止</button>
-        <button data-sp="1" aria-pressed="false">×1</button>
-        <button data-sp="2" aria-pressed="false">×2</button>
-        <button data-sp="4" aria-pressed="false">×4</button>
-        <button id="skip">次の判断まで</button>
+  <header class="hud">
+    <div class="hud-in">
+      <div class="hud-top">
+        <span class="brand">聖杯戦争</span>
+        <span class="dayno" id="dayNo">0<small>日目</small></span>
+        <div class="hud-sub"><span id="hudSub"></span><div class="prog"><i id="prog"></i></div></div>
+      </div>
+      <div class="ctl" role="toolbar" aria-label="再生">
+        <button class="play" id="pause">❚❚ 一時停止</button>
+        <button data-sp="1">1×</button><button data-sp="2">2×</button><button data-sp="4">4×</button><button data-sp="8">8×</button>
+        <button id="skip" class="grow"><span class="lg">次の決断まで »</span><span class="sm">次へ »</span></button>
+        <button class="wide" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
+        <button class="wide" id="themeBtn" title="明るさを切り替える">明るさ</button>
+        <button class="wide" id="quitBtn">中断</button>
+        <button class="more" id="moreBtn" aria-expanded="false" aria-controls="menu">⋯</button>
+      </div>
+      <div class="menu" id="menu" role="menu">
+        <button id="autoBtn2" role="menuitemcheckbox" aria-checked="false">決断をおまかせ</button>
+        <button id="themeBtn2" role="menuitem">明るさを切り替える</button>
+        <button id="quitBtn2" role="menuitem">中断して最初の画面へ</button>
       </div>
     </div>
-    <div class="mini" id="mini" aria-hidden="true"></div>
-    <div class="nights" id="nights" aria-hidden="true"></div>
-    <div class="nights-cap"><span>1日目</span><span id="nightsNow"></span><span id="nightsMax"></span></div>
-  </div></div>
-  <div class="stage">
-    <aside class="seats" id="seats" aria-label="七つの陣営"></aside>
-    <div>
-      <div class="log" id="log"></div>
+  </header>
+
+  <div class="grid">
+    <div class="col-left">
+      <section class="card idcard" aria-label="あなたのマスター">
+        <div class="band"><span id="idBand">参戦記録</span><span id="idCity"></span></div>
+        <div class="id"><div class="sealmark" id="sealMark"></div><div><div class="nm" id="mName"></div><dl class="kv" id="mKv"></dl></div></div>
+      </section>
+      <section class="card servant" aria-label="あなたのサーヴァント">
+        <h3><span>サーヴァント</span><small id="svClass"></small></h3>
+        <div class="card-body"><div class="tn" id="svName"></div><div class="ranks" id="svRanks"></div><div class="skl" id="svSkills"></div></div>
+      </section>
+      <section class="card statecard" aria-label="状態">
+        <h3><span>状態</span><small>0–100</small></h3>
+        <div class="card-body"><div class="bars" id="bars"></div></div>
+      </section>
+    </div>
+
+    <div class="col-center">
       <div id="result"></div>
+      <section class="card scene" aria-label="情景">
+        <svg id="sceneSvg" viewBox="0 0 320 100" preserveAspectRatio="xMidYMid slice" role="img" aria-label="夜の街"></svg>
+        <div class="cap" id="sceneCap"></div>
+      </section>
+      <section class="card strip" aria-label="状態">
+        <div id="stripBars" style="display:contents"></div>
+        <button class="chip" id="focusChip">重点<b id="focusChipLabel">おまかせ</b> ▾</button>
+      </section>
+      <section class="card focus" aria-label="重点">
+        <h3><span>今日の重点</span><small>いつでも変えられる・次の朝から反映</small></h3>
+        <div class="card-body"><div class="seg" id="focusSeg" role="radiogroup"></div><p id="focusDesc"></p></div>
+      </section>
+      <section class="card" aria-label="戦いの記録">
+        <h3><span>戦いの記録</span><small>新しい順</small></h3>
+        <ol class="log" id="log" reversed></ol>
+      </section>
+    </div>
+
+    <div class="col-right">
+      <section class="card" aria-label="七つの陣営">
+        <h3><span>七つの陣営</span><small id="aliveCount"></small></h3>
+        <ul class="camps" id="camps"></ul>
+      </section>
+      <section class="card" aria-label="三十日の暦">
+        <h3><span>三十日の暦</span><small>1マス＝1日</small></h3>
+        <div class="card-body"><div class="cal" id="cal"></div>
+          <div class="legend"><span><i style="background:var(--line)"></i>過ぎた日</span><span><i style="border-color:var(--grail)"></i>あなたが戦った日</span><span><i style="border-radius:50%;background:var(--seal);border-color:var(--seal)"></i>脱落者が出た日</span></div>
+        </div>
+      </section>
     </div>
   </div>
 </section>
 
-<div class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheetTitle">
-  <div class="sheet-in">
-    <h4 id="sheetTitle"></h4>
-    <p id="sheetBody"></p>
-    <div class="opts" id="sheetOpts"></div>
+<div class="sheet" id="focusSheet" role="dialog" aria-label="重点を選ぶ">
+  <div style="font:700 17px var(--gothic);margin-bottom:8px">今日の重点</div>
+  <div class="focus"><div class="seg" id="focusSeg2" role="radiogroup"></div><p id="focusDesc2"></p></div>
+</div>
+
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <div class="dlg-in">
+    <div class="dlg-head"><span>大きな決断</span><span class="when" id="dlgWhen"></span><button id="dlgMin">いったん下ろす ▾</button></div>
+    <h4 id="dlgTitle"></h4>
+    <p class="body" id="dlgBody"></p>
+    <div class="note" id="dlgNote" hidden></div>
+    <div class="opts" id="dlgOpts"></div>
+    <button class="allauto" id="dlgAuto">これからの決断をおまかせにする</button>
   </div>
 </div>
 <div class="toast" id="toast" role="status"></div>
@@ -273,9 +405,21 @@ body.watching .war { display: block; }
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const MAX = H.CONFIG.ENGINE.maxDays;
+  const FOCUS = H.engine.FOCUS, FOCUS_BY_CODE = Object.fromEntries(Object.entries(FOCUS).map(([k, v]) => [v.code, k]));
   const qs = new URLSearchParams(location.search);
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) { } } };
   let roster = [], masters = [], source = '';
+
+  // ---------- 明るさ ----------
+  function applyTheme(t) { if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+  applyTheme(store.get('hgw.theme'));
+  function cycleTheme() {
+    const cur = document.documentElement.dataset.theme || 'auto';
+    const next = { auto: 'light', light: 'dark', dark: 'auto' }[cur];
+    applyTheme(next); store.set('hgw.theme', next);
+    toast({ auto: '明るさ：端末の設定に合わせる', light: '明るさ：明るい', dark: '明るさ：暗い' }[next]);
+  }
 
   // ---------- データ ----------
   function dataReady(res, label) {
@@ -301,177 +445,290 @@ body.watching .war { display: block; }
     catch (e) { askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : '公開データを読めませんでした（' + e.message + '）。'); }
   })();
   if (qs.get('seed')) $('#seed').value = qs.get('seed');
-  const setRadio = (name, v) => { const el = document.querySelector(`input[name=${name}][value="${v}"]`); if (el) el.checked = true; };
-  if (qs.get('view')) setRadio('view', qs.get('view'));
-  if (qs.get('ask')) setRadio('ask', qs.get('ask'));
-  const syncAsk = () => { const obs = document.querySelector('input[name=view]:checked').value === 'all'; document.querySelectorAll('input[name=ask]').forEach(i => { i.disabled = obs; }); };
-  document.querySelectorAll('input[name=view]').forEach(i => i.addEventListener('change', syncAsk)); syncAsk();
+  if (qs.get('view')) { const el = document.querySelector(`input[name=view][value="${qs.get('view')}"]`); if (el) el.checked = true; }
 
   // ---------- 進行 ----------
-  // エンジンは「判断を求める」ところで止まる。記録（out.entries）を順に再生し、追いついたら問いを出す
+  // エンジンは1日ごと（tick）と大きな決断（decision）で戻ってくる。
+  // 記録（out.entries）を順に再生し、追いついたら tick には今の重点を渡して進め、decision なら問いを出す
   let gen = null, out = null, pending = null, done = false, result = null;
-  let idx = 0, timer = null, speed = 2, paused = false, choices = [], replay = [], view = 'you', askLevel = 'sometimes', seed = '';
-  const DELAY = { dayhead: 1100, quiet: 900, death: 2000, np: 1700, end: 1800, cs: 1500, summon: 1100, prologue: 1300, choice: 500, life: 1300, world: 1300 };
+  let idx = 0, timer = null, speed = 2, paused = false, view = 'you', seed = '';
+  let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = false, youId = null, curDay = 0;
+  const DELAY = { quiet: 900, death: 2200, np: 1800, end: 1900, cs: 1600, summon: 1100, prologue: 1300, choice: 500, council: 900, life: 1400, world: 1400, ally: 1400 };
 
   function pump(answer) {
     const r = gen.next(answer);
     if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value;
   }
-  function start(keepChoices) {
+  function start(withReplay) {
     seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
     view = document.querySelector('input[name=view]:checked').value;
-    askLevel = view === 'all' ? 'never' : document.querySelector('input[name=ask]:checked').value;
     speed = +document.querySelector('input[name=speed]:checked').value;
-    replay = keepChoices && qs.get('c') ? qs.get('c').split('.').filter(Boolean) : [];
-    choices = []; out = {}; done = false; result = null; pending = null; idx = 0; paused = false;
-    try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: askLevel, masters: masters.slice(), out }); pump(); }
+    replay = withReplay && qs.get('c') ? qs.get('c').split('.').filter(Boolean) : [];
+    replayFocus = withReplay && qs.get('f') ? qs.get('f') : '';
+    $('#pause').disabled = false; $('#skip').disabled = false;
+    choices = []; focusLog = ''; focus = 'auto'; out = {}; done = false; result = null; pending = null; idx = 0; paused = false; curDay = 0;
+    try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out }); pump(); }
     catch (e) { $('#data').innerHTML = `<span class="err">開戦できませんでした：${esc(e.message)}</span>`; return; }
-    updateURL();
+    youId = (out.entries.find(e => e.snap && e.snap.some(c => c.you)) || { snap: [] }).snap.findIndex(c => c.you);
+    if (youId < 0) youId = null;
     document.body.classList.add('watching');
-    $('#warCity').textContent = `${out.city} ・ シード ${seed}`;
-    $('#nights').style.setProperty('--n', MAX);
-    $('#nightsMax').textContent = MAX + '日目';
-    $('#log').innerHTML = ''; $('#result').innerHTML = ''; lastScene = '';
-    hideSheet(); syncCtl();
-    window.scrollTo(0, 0);
+    document.body.classList.toggle('observer', youId == null);
+    $('#log').innerHTML = ''; $('#result').innerHTML = '';
+    drawScene(seed, 'night'); renderFocus(); syncCtl(); updateURL();
+    hideDlg(); window.scrollTo(0, 0);
     step();
   }
-  $('#go').onclick = () => start(qs.get('seed') === ($('#seed').value.trim()) && !!qs.get('c'));
+  $('#go').onclick = () => start(qs.get('seed') && qs.get('seed') === $('#seed').value.trim());
 
   function updateURL() {
     const url = new URL(location.href);
-    url.searchParams.set('seed', seed); url.searchParams.set('view', view); url.searchParams.set('ask', askLevel);
+    url.searchParams.set('seed', seed); url.searchParams.set('view', view);
     if (choices.length) url.searchParams.set('c', choices.join('.')); else url.searchParams.delete('c');
+    if (focusLog.replace(/o/g, '')) url.searchParams.set('f', focusLog); else url.searchParams.delete('f');
     if (source === 'local') url.searchParams.set('data', 'local'); else url.searchParams.delete('data');
     history.replaceState(null, '', url);
   }
 
   function syncCtl() {
-    $('#pause').setAttribute('aria-pressed', String(paused)); $('#pause').textContent = paused ? '再開' : '一時停止';
+    $('#pause').textContent = paused ? '▸ 再開' : '❚❚ 一時停止';
     document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
+    $('#autoBtn').setAttribute('aria-pressed', String(autoAll)); $('#autoBtn2').setAttribute('aria-checked', String(autoAll));
+    $('#autoBtn2').textContent = (autoAll ? '✓ ' : '') + '決断をおまかせ';
   }
   $('#pause').onclick = () => { paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
-  // 次の判断（なければ最後）まで一気に進める
-  $('#skip').onclick = () => {
-    if ($('#sheet').classList.contains('on')) return;
-    clearTimeout(timer);
-    while (idx < out.entries.length) show(out.entries[idx++], true);
-    board(out.entries[idx - 1]);
-    window.scrollTo({ top: document.body.scrollHeight });
-    if (pending) present(pending); else if (done) finish();
-  };
-  $('#seatsBtn').onclick = () => { const on = document.body.classList.toggle('seats-open'); $('#seatsBtn').setAttribute('aria-expanded', String(on)); };
-  $('#seats').addEventListener('click', () => { if (matchMedia('(max-width: 880px)').matches) { document.body.classList.remove('seats-open'); $('#seatsBtn').setAttribute('aria-expanded', 'false'); } });
+  const toggleAuto = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '大きな決断はおまかせで進みます' : '大きな決断で止まります'); if (autoAll && pending && pending.type === 'decision' && $('#dlg').classList.contains('on')) answer('auto'); };
+  $('#autoBtn').onclick = toggleAuto; $('#autoBtn2').onclick = () => { closeMenu(); toggleAuto(); };
+  $('#themeBtn').onclick = cycleTheme; $('#themeBtn2').onclick = () => { closeMenu(); cycleTheme(); };
+  const quit = () => { clearTimeout(timer); hideDlg(); document.body.classList.remove('watching'); window.scrollTo(0, 0); };
+  $('#quitBtn').onclick = quit; $('#quitBtn2').onclick = () => { closeMenu(); quit(); };
+  const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
+  $('#moreBtn').onclick = e => { e.stopPropagation(); const on = $('#menu').classList.toggle('on'); $('#moreBtn').setAttribute('aria-expanded', String(on)); };
+  document.addEventListener('click', e => { if (!e.target.closest('#menu')) closeMenu(); if (!e.target.closest('#focusSheet') && !e.target.closest('#focusChip')) $('#focusSheet').classList.remove('on'); });
 
-  function nearBottom() { return window.innerHeight + window.scrollY >= document.body.scrollHeight - 200; }
+  // 次の決断（なければ最後）まで一気に進める
+  $('#skip').onclick = () => {
+    if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); return; }
+    clearTimeout(timer);
+    let guard = 0;
+    while (guard++ < 5000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick') { advanceTick(); continue; }
+      break;
+    }
+    if (idx) board(out.entries[idx - 1]);
+    if (pending && pending.type === 'decision') present(pending); else if (done) finish();
+  };
+
+  function advanceTick() {
+    const d = pending.day;
+    const code = replayFocus && replayFocus[d - 1] ? replayFocus[d - 1] : FOCUS[focus].code;
+    const f = FOCUS_BY_CODE[code] || 'auto';
+    focusLog = (focusLog + 'o'.repeat(Math.max(0, d - 1 - focusLog.length))).slice(0, d - 1) + FOCUS[f].code;
+    pump(f);
+  }
+
   function step() {
     if (!gen || paused) return;
     clearTimeout(timer);
     if (idx < out.entries.length) {
       const e = out.entries[idx++];
-      const stick = nearBottom();
       show(e, false);
-      if (stick) window.scrollTo({ top: document.body.scrollHeight, behavior: reduceMotion ? 'auto' : 'smooth' });
-      const base = DELAY[e.kind] || (e.big ? 1500 : 800);
+      const base = DELAY[e.kind] || (e.big ? 1500 : e.kind === 'dayhead' ? 300 : 850);
       timer = setTimeout(step, base / speed + (e.quote ? 700 / speed : 0));
       return;
     }
-    if (pending) return present(pending);
+    if (pending && pending.type === 'tick') { advanceTick(); updateURL(); return step(); }
+    if (pending && pending.type === 'decision') return present(pending);
     if (done) return finish();
   }
 
-  // ---------- 判断 ----------
+  // ---------- 大きな決断 ----------
   function present(q) {
-    if (replay.length) { const k = replay.shift(); answer(k, true); return; }
-    $('#sheetTitle').textContent = q.title;
-    $('#sheetBody').textContent = q.body || '';
-    $('#sheetOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}" class="${o.k === 'auto' ? 'auto' : ''}"><b>${esc(o.label)}<kbd>${i + 1}</kbd></b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
-    $('#sheet').classList.add('on');
-    document.body.style.paddingBottom = ($('#sheet').offsetHeight + 16) + 'px';
-    requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'auto' }));
-    const first = $('#sheetOpts button'); if (first) first.focus({ preventScroll: true });
+    clearTimeout(timer);
+    if (replay.length) return answer(replay.shift(), true);
+    if (autoAll) return answer('auto', true);
+    $('#dlgWhen').textContent = `${q.day ? q.day + '日目・' : '開戦前・'}${{ day: '昼', night: '夜', prologue: '' }[q.phase] || ''}`;
+    $('#dlgTitle').textContent = q.title;
+    $('#dlgBody').textContent = q.body || '';
+    $('#dlgNote').hidden = !q.note; $('#dlgNote').textContent = q.note || '';
+    $('#dlgOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}"><span class="n">${i + 1}</span><b>${esc(o.label)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+    $('#dlg').classList.remove('min'); $('#dlg').classList.add('on');
+    const first = $('#dlgOpts button'); if (first) first.focus({ preventScroll: true });
   }
-  function hideSheet() { $('#sheet').classList.remove('on'); document.body.style.paddingBottom = ''; }
-  function answer(k, fromReplay) {
-    hideSheet();
+  function hideDlg() { $('#dlg').classList.remove('on', 'min'); }
+  function answer(k, silent) {
+    hideDlg();
     choices.push(k); updateURL();
     pump(k);
-    timer = setTimeout(step, fromReplay ? 50 : 200);
+    timer = setTimeout(step, silent ? 30 : 250);
   }
-  $('#sheetOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
+  $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
+  $('#dlgMin').onclick = () => { const m = $('#dlg').classList.toggle('min'); $('#dlgMin').textContent = m ? '決断に戻る ▴' : 'いったん下ろす ▾'; };
+  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
   document.addEventListener('keydown', e => {
-    if (!$('#sheet').classList.contains('on')) return;
-    const n = +e.key; if (n >= 1) { const b = document.querySelectorAll('#sheetOpts button')[n - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } }
+    if (e.target.closest('input, textarea')) return;
+    if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) {
+      const n = +e.key; if (n >= 1) { const b = document.querySelectorAll('#dlgOpts button')[n - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } }
+      return;
+    }
+    if (e.key === ' ' && document.body.classList.contains('watching')) { e.preventDefault(); $('#pause').click(); }
   });
 
-  // ---------- 表示 ----------
-  const PHASE = { day: '昼', night: '夜' };
-  let lastScene = '';
-  function show(e, fast) {
-    let html = '';
-    if (e.kind === 'dayhead') { html = `<h3>${esc(e.text)}</h3>`; lastScene = ''; }
-    else {
-      const scene = e.day + e.phase;
-      if (PHASE[e.phase] && scene !== lastScene && e.kind !== 'quiet') html += `<p class="scene">${PHASE[e.phase]}</p>`;
-      lastScene = scene;
-      // 記録の種類は k- を付けてクラスにする（他の部品の名前とぶつからないように）
-      const cls = ['k-' + e.kind, e.you ? 'is-you' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
-      html += `<p class="${cls}">${esc(e.text)}</p>`;
-      if (e.quote) html += `<blockquote class="${e.you ? 'is-you' : ''}${fast ? '' : ' new'}">${esc(e.quote.text)}</blockquote>`;
+  // ---------- 重点 ----------
+  function renderFocus() {
+    const html = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-pressed="${k === focus}" aria-checked="${k === focus}">${esc(f.label)}</button>`).join('');
+    $('#focusSeg').innerHTML = html; $('#focusSeg2').innerHTML = html;
+    $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusDesc2').textContent = FOCUS[focus].desc;
+    $('#focusChipLabel').textContent = FOCUS[focus].label;
+  }
+  function setFocus(k) { if (!FOCUS[k]) return; focus = k; replayFocus = ''; renderFocus(); }
+  ['#focusSeg', '#focusSeg2'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) setFocus(b.dataset.f); }));
+  $('#focusChip').onclick = e => { e.stopPropagation(); $('#focusSheet').classList.toggle('on'); };
+
+  // ---------- 情景（シードから街並みを作る） ----------
+  function drawScene(sd, ph) {
+    const rnd = H.engine.makeRng('scene' + sd);
+    let x = 0, b = '', w = '';
+    while (x < 320) {
+      const bw = 10 + Math.floor(rnd() * 22), bh = 18 + Math.floor(rnd() * 46), y = 92 - bh;
+      b += `<rect x="${x}" y="${y}" width="${bw}" height="${bh + 8}"/>`;
+      for (let wy = y + 4; wy < 88; wy += 6) for (let wx = x + 2; wx < x + bw - 3; wx += 5) if (rnd() < 0.28) w += `<rect x="${wx}" y="${wy}" width="2" height="3"/>`;
+      if (rnd() < 0.15) b += `<rect x="${x + bw / 2 - 0.5}" y="${y - 8}" width="1" height="8"/>`;
+      x += bw + (rnd() < 0.3 ? 2 : 0);
     }
-    $('#log').insertAdjacentHTML('beforeend', html);
-    if (!fast) board(e);
+    const stars = Array.from({ length: 40 }, () => `<rect x="${Math.floor(rnd() * 320)}" y="${Math.floor(rnd() * 50)}" width="1" height="1"/>`).join('');
+    const mx = 40 + Math.floor(rnd() * 240);
+    $('#sceneSvg').innerHTML = `
+      <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--sky1)"/><stop offset="1" stop-color="var(--sky2)"/></linearGradient></defs>
+      <rect width="320" height="100" fill="url(#sky)"/>
+      <g id="stars" fill="#fff" opacity=".7" shape-rendering="crispEdges">${stars}</g>
+      <circle id="moonc" cx="${mx}" cy="20" r="7" fill="#f2ead2"/>
+      <g fill="var(--bldg)" shape-rendering="crispEdges">${b}</g>
+      <g id="wins" fill="var(--win)" shape-rendering="crispEdges">${w}</g>
+      <rect y="92" width="320" height="8" fill="var(--bldg)"/>
+      <rect id="flashr" width="320" height="100" fill="#fff" opacity="0"/>`;
+    setPhase(ph);
+  }
+  let lastPhase = null;
+  function setPhase(ph) {
+    if (ph === lastPhase) return; lastPhase = ph;
+    const night = ph !== 'day';
+    const s = $('#sceneSvg');
+    s.querySelector('#stars').setAttribute('opacity', night ? '.7' : '0');
+    s.querySelector('#wins').setAttribute('opacity', night ? '1' : '.25');
+    const moon = s.querySelector('#moonc'); moon.setAttribute('fill', night ? '#f2ead2' : '#fff6d8'); moon.setAttribute('r', night ? 7 : 9);
+    s.style.filter = night ? '' : 'brightness(1.6) saturate(.8)';
+  }
+  function flash(color) {
+    if (reduceMotion) return;
+    const r = $('#flashr'); if (!r) return;
+    r.setAttribute('fill', color); r.classList.remove('flash'); void r.getBoundingClientRect(); r.classList.add('flash');
+  }
+
+  // ---------- 表示 ----------
+  const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
+  function show(e, fast) {
+    if (e.kind === 'dayhead') { curDay = e.day; if (!fast) board(e); return; }
+    const when = e.day ? `${e.day}日目<br>${PH[e.phase] || ''}` : PH[e.phase] || '';
+    const li = document.createElement('li');
+    li.className = ['k-' + e.kind, e.you ? 'is-you' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
+    li.innerHTML = `<span class="when">${when}</span><div class="txt">${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</div>`;
+    $('#log').prepend(li);
+    if (!fast) {
+      board(e);
+      if (e.kind === 'np') flash('#f2c46a'); else if (e.kind === 'death') flash('#d0405a');
+    }
   }
 
   function board(e) {
-    if (!e) return;
+    if (!e || !e.snap) return;
     const day = e.day || 0;
-    const blood = new Set(out.entries.slice(0, idx).filter(x => x.kind === 'death').map(x => x.day));
-    $('#nights').innerHTML = Array.from({ length: MAX }, (_, i) => `<span class="moon${i + 1 < day ? ' past' : ''}${i + 1 === day ? ' now' : ''}${blood.has(i + 1) ? ' blood' : ''}"></span>`).join('');
-    $('#nightsNow').textContent = day ? `いま ${day}日目` : '開戦前夜';
+    curDay = day || curDay;
+    $('#dayNo').innerHTML = `${curDay}<small>日目</small>`;
+    const me = youId != null ? e.snap[youId] : null;
+    const youNow = e.snap.find(c => c.you) || me;
+    const ph = e.phase === 'day' ? 'day' : 'night';
+    setPhase(ph);
     const fin = done && idx >= out.entries.length;
-    $('#mini').innerHTML = e.snap.map(c => `<div class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}"><span>${esc(c.label.replace(/（.*/, '').slice(0, 3))}</span><div class="gauge"><i style="width:${c.alive ? c.hp : 0}%"></i></div></div>`).join('');
-    $('#seats').innerHTML = e.snap.map(c => {
+    $('#hudSub').textContent = `${out.city} ・ ${PH[e.phase] || ''} ・ ${youNow ? 'マスター ' + youNow.master : '観測者'} ・ シード ${seed}`;
+    const dayEntries = out.entries.filter(x => x.day === curDay);
+    const pos = out.entries.slice(0, idx).filter(x => x.day === curDay).length;
+    $('#prog').style.width = (fin ? 100 : Math.min(100, pos / Math.max(1, dayEntries.length) * 100)) + '%';
+    const place = e.place || (youNow ? `${youNow.label}の拠点` : '');
+    $('#sceneCap').textContent = `${out.city}${place ? ' ・ ' + place : ''} ・ ${PH[e.phase] || ''}`;
+
+    // 左：マスターとサーヴァントと状態
+    if (youNow) {
+      $('#idBand').textContent = '参戦記録 ・ ' + youNow.label;
+      $('#idCity').textContent = out.city;
+      $('#mName').textContent = youNow.master;
+      $('#sealMark').innerHTML = sealSvg(youNow.cs);
+      const meta = metaOf(youNow.id);
+      $('#mKv').innerHTML = `<dt>出自</dt><dd>${esc(youNow.origin)}</dd><dt>令呪</dt><dd>残り${youNow.cs}画</dd><dt>状態</dt><dd>${youNow.masterAlive ? '健在' : '死亡'}</dd><dt>願い</dt><dd>${esc(youNow.wish)}</dd>`;
+      $('#svClass').textContent = youNow.label;
+      $('#svName').textContent = meta.trueName + (youNow.alive ? '' : '（消滅）');
+      $('#svRanks').innerHTML = meta.ranks.map(([k, v]) => `<div><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+      $('#svSkills').innerHTML = `<b>スキル</b> ${esc(meta.skills)}<br><b>宝具</b> ${esc(meta.nps)}`;
+      const bars = [['霊基', youNow.alive ? youNow.hp : 0, 'var(--hp)'], ['魔力', youNow.masterAlive ? youNow.mana : 0, 'var(--mana)'], ['絆', youNow.bond, 'var(--bond)'], ['工房', youNow.workshop * 20, 'var(--ws)']];
+      $('#bars').innerHTML = bars.map(([k, v, c]) => `<div><span>${k}</span><span class="bar"><i style="width:${v}%;background:${c}"></i></span><span>${k === '工房' ? youNow.workshop : v}</span></div>`).join('');
+      $('#stripBars').innerHTML = bars.slice(0, 3).map(([k, v, c]) => `<span class="s"><span>${k}<b>${v}</b></span><span class="bar"><i style="width:${v}%;background:${c}"></i></span></span>`).join('') + `<span class="s"><span>令呪</span>${sealsInline(youNow.cs)}</span>`;
+    }
+    // 右：陣営
+    const alive = e.snap.filter(c => c.alive).length;
+    $('#aliveCount').textContent = `残り${alive}騎`;
+    $('#camps').innerHTML = e.snap.map(c => {
       const win = fin && result && result.winner === c.id;
-      return `<div class="seat${c.you ? ' you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}">
-        <div class="cls"><span>${esc(c.label)}</span><span>${c.you ? 'あなた' : ''}</span></div>
-        <div class="tn${c.name ? '' : ' hidden'}">${c.name ? esc(c.name) : '真名不明'}</div>
-        <div class="ms${c.masterAlive ? '' : ' dead'}">${esc(c.master)} <span class="seals" aria-label="令呪 残り${c.cs}画">${[0, 1, 2].map(i => `<i class="${i < c.cs ? '' : 'used'}"></i>`).join('')}${c.cs > 3 ? '+' + (c.cs - 3) : ''}</span></div>
-        <div class="gauge" title="霊基 ${c.hp}"><i style="width:${c.alive ? c.hp : 0}%"></i></div>
-        ${c.masterAlive && c.alive ? `<div class="gauge mana" title="魔力 ${c.mana}"><i style="width:${c.mana}%"></i></div>` : ''}
-        ${c.you && c.alive ? `<div class="tags">絆 <b>${c.bond}</b>${c.workshop ? ` ・ 工房 ${c.workshop}` : ''}</div>` : c.bounty && c.alive ? '<div class="tags"><span class="bounty">討伐令</span></div>' : ''}
-        ${c.fate ? `<div class="fate">${esc(win ? '聖杯を手にした' : c.fate)}</div>` : !c.masterAlive && c.alive ? `<div class="fate">はぐれ（あと${c.soloLeft}日）</div>` : ''}
-      </div>`;
+      const st = win ? '聖杯を手にした' : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
+      return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}">
+        <div class="row1"><b>${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
+        <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : ''}${c.ally != null && e.snap[c.ally] ? ' ・ ' + esc(e.snap[c.ally].label) + 'と同盟' : ''} ${sealsInline(c.cs)}</div>
+        ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
+      </li>`;
     }).join('');
+    // 右：暦
+    const seen = out.entries.slice(0, idx);
+    const deaths = new Set(seen.filter(x => x.kind === 'death').map(x => x.day));
+    const fought = new Set(seen.filter(x => x.kind === 'battle' && x.you).map(x => x.day));
+    $('#cal').innerHTML = Array.from({ length: MAX }, (_, i) => { const d = i + 1; return `<span class="${d < curDay ? 'past' : ''}${d === curDay ? ' now' : ''}${fought.has(d) ? ' fought' : ''}${deaths.has(d) ? ' death' : ''}" title="${d}日目"></span>`; }).join('');
   }
+  const sealsInline = n => `<span class="seals-inline" aria-label="令呪 残り${n}画">${[0, 1, 2].map(i => `<i class="${i < n ? '' : 'used'}"></i>`).join('')}${n > 3 ? '+' + (n - 3) : ''}</span>`;
+  // 令呪の紋様（残りの画数だけ色が付く）
+  function sealSvg(n) {
+    const on = i => i < n ? 'var(--seal)' : 'var(--line)';
+    return `<svg width="48" height="60" viewBox="0 0 48 60" aria-label="令呪 残り${n}画">
+      <path d="M24 4 C14 14 14 22 24 30 C34 22 34 14 24 4 Z" fill="none" stroke="${on(0)}" stroke-width="3"/>
+      <path d="M8 34 C14 30 20 32 24 38 C28 32 34 30 40 34" fill="none" stroke="${on(1)}" stroke-width="3" stroke-linecap="round"/>
+      <path d="M12 46 L24 56 L36 46" fill="none" stroke="${on(2)}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  }
+  // サーヴァントの固定情報はエンジンが out.meta に入れている
+  function metaOf(id) { return (out && out.meta && out.meta[id]) || { trueName: '', ranks: [], skills: '', nps: '' }; }
 
   function finish() {
     clearTimeout(timer);
+    $('#pause').textContent = '終幕'; $('#pause').disabled = true; $('#skip').disabled = true;
     if ($('#result').innerHTML) return;
     board(out.entries[out.entries.length - 1]);
     const w = result.winner != null ? result.camps[result.winner] : null;
     const you = result.you != null ? result.camps[result.you] : null;
     const head = w ? `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした` : '聖杯を手にした者はいなかった';
     const yours = you ? (you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
-    $('#result').innerHTML = `<div class="result">
-      <h3>${esc(head)}</h3>
-      <p>${esc(yours)}${result.days}日間の戦いだった。${choices.length ? `あなたが下した判断は${choices.filter(k => k !== 'auto').length}回。` : ''}</p>
-      <div class="tbl"><table>
-        <tr><th>クラス</th><th>真名</th><th>マスター</th><th>結末</th></tr>
+    const decided = choices.filter(k => k !== 'auto').length;
+    $('#result').innerHTML = `<section class="card result" aria-label="結末"><h3><span>結末</span><small>${result.days}日間</small></h3><div class="card-body">
+      <h4>${esc(head)}</h4>
+      <p>${esc(yours)}${decided ? `あなたが下した大きな決断は${decided}回。` : ''}</p>
+      <table><tr><th>クラス</th><th>真名</th><th>マスター</th><th>結末</th></tr>
         ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${esc(c.label)}</td><td>${esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
-      </table></div>
-      <div class="acts">
-        <button class="primary" id="again">別の聖杯戦争を始める</button>
-        <button id="share">この戦争のリンクをコピー</button>
-        <button id="back">最初の画面へ</button>
-      </div>
-    </div>`;
+      </table>
+      <div class="acts"><button class="primary" id="again">別の聖杯戦争を始める</button><button id="share">この戦争のリンクをコピー</button><button id="back">最初の画面へ</button></div>
+    </div></section>`;
     $('#again').onclick = () => { $('#seed').value = ''; start(false); };
-    $('#back').onclick = () => { document.body.classList.remove('watching'); clearTimeout(timer); hideSheet(); window.scrollTo(0, 0); };
+    $('#back').onclick = quit;
     $('#share').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ戦争が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
-  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); setTimeout(() => el.classList.remove('on'), 2800); }
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2800); }
+
 })();
 </script>
 </body>
