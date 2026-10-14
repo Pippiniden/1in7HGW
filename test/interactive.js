@@ -1,5 +1,5 @@
 // 対話式の流れを、ランダムな重点と選択で大量に試す（再現性も確認）
-for (const f of ["config","rank","parser","effects","build","master","war","names","scenes","engine"]) require("../js/"+f+".js");
+for (const f of ["config","rank","parser","effects","build","master","war","names","scenes","personas","engine"]) require("../js/"+f+".js");
 const fs = require('fs');
 const raw = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants;
 const roster = raw.map(HGW.build.fromJSON);

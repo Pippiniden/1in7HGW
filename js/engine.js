@@ -83,6 +83,9 @@
       const m = G.master.createMaster(preset || {}, rnd);
       if (!m.name) m.name = makeName(m);
       m.wish = m.wish || pick(G.WISHES);
+      // 性格：設定があればそれ、無ければ出自に合わせて抽選
+      m.persona = preset && preset.persona && G.PERSONAS[preset.persona] ? preset.persona
+        : wpick(Object.fromEntries(Object.entries(G.PERSONAS).map(([k, p]) => [k, (p.origins && p.origins[m.origin]) || 1])));
       const c = {
         id: i, slot: x.slot, substitute: x.substitute, extra: x.extra, sv, master: m, labelBase: base, label: base,
         hp: 100, mhp: 0, mhpMax: 0, mana: 0, manaMax: 0, cs: m.commandSpells,
@@ -91,6 +94,7 @@
         knowName: new Set([i]), knowLoc: new Set([i]), temp: [], npBoost: 0, kills: [], npUses: 0, battles: 0,
         hunting: false, hidden: false, wander: false, fought: false, stance: null, usedSup: new Set(),
         bond: 30 + (m.catalyst ? 10 : 0), policy: 'balanced', plan: null, warned: 0, bounty: false, dreams: 0, lifeSeen: new Set(),
+        knowPersona: new Set([i]), clues: {},
       };
       c.mhpMax = c.mhp = Math.round(50 + m.stats.body * 0.8);
       c.manaMax = Math.round(ENG.manaBase + m.stats.mana);
@@ -111,6 +115,11 @@
       if (tn.length >= 2 && (tn.includes(r.name) || r.name.includes(tn))) (rel[a.id] = rel[a.id] || {})[b.id] = r.text;
     }
     const related = (a, b) => (rel[a.id] && rel[a.id][b.id]) || (rel[b.id] && rel[b.id][a.id]);
+    // 性格（マスターに付く。再契約すれば新しい陣営に移る）
+    const PER = c => (G.PERSONAS && G.PERSONAS[c.master.persona]) || {};
+    const perv = (c, k) => PER(c)[k] || 0;
+    // 手がかり：相手の真名に近づく材料（戦う・宝具を見る・偵察する）
+    const clue = (c, t, n) => { if (c === t || c.knowName.has(t.id)) return; c.clues[t.id] = (c.clues[t.id] || 0) + n; };
 
     function makeName(m) {
       const west = m.origin === 'noble' ? chance(0.5) : m.origin === 'civilian' ? chance(0.1) : chance(0.35);
@@ -141,6 +150,8 @@
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.ally, workshop: c.workshop, you: !!c.you, out: c.out,
       fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty,
       origin: c.master.originLabel, wish: c.master.wish, base: c.base.name, scene: c.base.scene,
+      persona: !you || c.you || you.knowPersona.has(c.id) ? (PER(c).label || null) : null,
+      clues: you && !c.you && !known(c) ? (you.clues[c.id] || 0) : 0,
     }));
     function log(kind, text, ids, extra) {
       ids = ids || [];
@@ -154,7 +165,7 @@
     }
     const voice = (c, keys) => { for (const k of keys) { const v = c.sv.voice && c.sv.voice[k]; if (v && v.length) return pick(v); } return null; };
     const say = (c, keys) => { const v = voice(c, keys); return v ? { who: nm(c), text: v } : null; };
-    const bondUp = (c, n) => { c.bond = clamp(c.bond + n, 0, 100); };
+    const bondUp = (c, n) => { c.bond = clamp(c.bond + (n > 0 ? n * (PER(c).bond || 1) : n), 0, 100); };
     // 宝具のセリフは、その宝具の名前を含むものを優先。別の宝具の名前を叫んでいるものは使わない
     const sayNP = (c, np) => {
       const lines = (c.sv.voice && c.sv.voice['宝具']) || [];
@@ -171,7 +182,7 @@
     // ---------- 判断 ----------
     // プレイヤーの陣営なら問いを出して止まる。それ以外（と「おまかせ」）は auto() で決める
     function* ask(c, kind, q, auto) {
-      if (!c || !c.you || askLevel === 'never') return auto();
+      if (!c || !c.you || askLevel === 'never' || c.retired) return auto();
       const options = q.options.filter(Boolean);
       const ans = yield { type: 'decision', kind, day, phase, title: q.title, body: q.body || '', note: q.note || '', options, camp: c.id };
       const chosen = options.find(o => o.k === ans);
@@ -221,6 +232,12 @@
       if (c.ally != null) { camps[c.ally].ally = null; c.ally = null; }
       log('death', `${nm(c)}が消滅した。${text}。`, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true });
       pubName.add(c.id);
+      if (c.you && c.masterAlive) {
+        // プレイヤーのマスターは、運が悪ければその場で巻き込まれる
+        if (chance(ENG.fallenDeath)) { c.masterAlive = false; c.mhp = 0; c.gameOver = true; log('death', `崩れ落ちる${sn(c)}のすぐそばで、マスターの${mn(c)}もまた命を落とした。`, [c.id].concat(by ? [by.id] : []), { big: true }); }
+        else c.fallenPending = true;
+        return;
+      }
       if (c.masterAlive) {
         if (c.cs > 0 && chance(0.8)) { c.inChurch = true; log('event', `マスターの${mn(c)}は${W.church}に保護を求めた。残る令呪は${c.cs}画。`, [c.id], { place: W.church, scene: 'church' }); }
         else log('event', `マスターの${mn(c)}は姿を消した。`, [c.id]);
@@ -230,6 +247,7 @@
       c.masterAlive = false; c.mhp = 0;
       c.soloLeft = Math.floor(eff(c, 'solo'));
       log('death', `マスターの${mn(c)}が倒れた。${text}。`, [c.id].concat(by ? [by.id] : []), { big: true });
+      if (c.you) c.gameOver = true;
       log('event', c.soloLeft > 0 ? `${nm(c)}は単独行動でしばらく現界を保てる（あと${c.soloLeft}日）。` : `要を失った${nm(c)}の現界は長くはもたない。`, [c.id]);
     }
 
@@ -246,7 +264,7 @@
             { k: 'rally', label: '令呪で奮い立たせる', sub: '霊基をつなぎ止め、戦いを続けさせる' },
             { k: 'none', label: '令呪は使わない', sub: '残りの令呪を温存する' },
           ],
-        }, () => chance(ENG.csEmergency) ? 'escape' : 'none');
+        }, () => chance(ENG.csEmergency + perv(l, 'cs')) ? 'escape' : 'none');
         if (use !== 'none') {
           l.cs--;
           const resist = Math.max(0, eff(l, 'cs_resist') - l.bond / 300);
@@ -267,6 +285,7 @@
       const losing = power(c, o, ctx) < power(o, c, ctx);
       let p = 0.1 + (c.hp < 50 ? 0.25 : 0) + (round >= 2 ? 0.1 : 0) + (isBerserk(c) ? 0.15 : 0) + (losing ? 0.2 : 0) + (day > ENG.maxDays - ENG.finaleDays ? 0.2 : 0);
       if (c.stance === 'all') p += 0.35; else if (c.stance === 'careful') p -= 0.05; else if (c.stance === 'retreat') p -= 0.1;
+      p += perv(c, 'np');
       if (!chance(p)) return;
       const retireOk = n => !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5) || (c.hp < 25 && chance(0.3));
       const atk = nps.filter(n => n.attackResolved && retireOk(n));
@@ -277,7 +296,7 @@
       if (np.attackResolved) c.npBoost = np.power * ENG.npPowerK * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1);
       else c.usedSup.add(np.name);
       for (const e of np.effects || []) if (!['master_buff', 'np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id)) c.temp.push(e);
-      if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id);
+      if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (np.exposure >= 1) pubName.add(c.id);
       if (np.exposure >= 0.8) witnessed.push(c.id);
       log('np', `${nm(c)}が宝具を解放した——『${np.name}』${np.reading ? '（' + np.reading + '）' : ''}！`, [c.id, o.id], { quote: sayNP(c, np), big: true });
@@ -294,6 +313,7 @@
       a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set();
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
+      clue(a, b, 1); clue(b, a, 1);
       const rt = related(a, b);
       if (rt) {
         a.knowName.add(b.id); b.knowName.add(a.id);
@@ -335,18 +355,34 @@
           if (w.hp <= 0 && w.alive && outcome !== 'dead') { const o2 = yield* lethal(w, l, 'battle'); if (o2 !== 'guts' && o2 !== 'rallied') outcome = outcome || o2; }
         }
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
+        // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
+        if (l.masterAlive && w.alive) {
+          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - Math.min(0.8, eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0)));
+          if (chance(Math.min(0.15, pm))) {
+            l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
+            if (l.mhp <= 0) {
+              if (l.cs > 0 && chance(ENG.csSaveMaster)) { l.cs--; l.mhp = 6; log('cs', `${sn(w)}の刃がマスターの${mn(l)}に迫る——令呪の光が、すんでのところで${mn(l)}を守った。（残り${l.cs}画）`, [l.id, w.id], { big: true }); }
+              else { log('battle', `乱戦の中、${sn(w)}の刃がマスターの${mn(l)}に届いた。`, [w.id, l.id], { big: true }); masterDown(l, `${day}日目の夜、${nm(w)}との戦いの最中だった`, w); break; }
+            } else log('battle', `${sn(w)}の一撃がマスターの${mn(l)}をかすめた。${mn(l)}は深手を負った。`, [w.id, l.id]);
+          }
+        }
         // 撤退
         const weaker = a.hp < b.hp ? a : b, other = weaker === a ? b : a;
-        const threshold = weaker.stance === 'careful' ? ENG.retreatAt + 10 : weaker.stance === 'all' ? ENG.retreatAt - 15 : ENG.retreatAt;
+        const threshold = (weaker.stance === 'careful' ? ENG.retreatAt + 10 : weaker.stance === 'all' ? ENG.retreatAt - 15 : ENG.retreatAt) + perv(weaker, 'retreat') * 30;
         if (weaker.hp < threshold || (weaker === l && p < 0.3 && weaker.hp < 60) || weaker.stance === 'retreat') {
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
-          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0), 0.05, 0.9))) {
+          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5, 0.05, 0.9))) {
             log('battle', `${sn(weaker)}は退いた。${sn(other)}は深追いしなかった。`, [weaker.id, other.id]); break;
           } else if (eff(other, 'pin', ctx.terrain) > 0.1) log('battle', `退こうとした${sn(weaker)}の行く手を、${sn(other)}が阻んだ。`, [weaker.id, other.id]);
         }
         if (round === ENG.rounds) log('battle', '夜明けが近づき、両者は刃を収めた。', [a.id, b.id]);
       }
       if (ctx.home) a.knowLoc.add(ctx.home.id);
+      // 戦いぶりから、相手のマスターの性格が見えてくる
+      for (const [x, y] of [[a, b], [b, a]]) if (y.masterAlive && !x.knowPersona.has(y.id) && chance(ENG.personaReveal)) {
+        x.knowPersona.add(y.id);
+        if (x.you && PER(y).reveal) log('scout', PER(y).reveal.replace('{m}', mn(y)), [x.id, y.id]);
+      }
       for (const [x, y] of [[a, b], [b, a]]) if (x.alive && y.alive && chance(0.1 + eff(x, 'reveal') - eff(y, 'conceal') * 0.6)) {
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
@@ -454,6 +490,78 @@
     let lastCouncil = 0;
     const focusOf = c => c.you && c.focus && c.focus !== 'auto' && FOCUS[c.focus] ? FOCUS[c.focus] : null;
 
+    const deduceP = (c, t) => clamp(0.08 + (c.clues[t.id] || 0) * 0.12 + eff(c, 'reveal') + eff(c, 'intel') * 0.5 + c.master.stats.craft / 500 - eff(t, 'conceal') * 0.5, 0.03, 0.9);
+
+    // はぐれサーヴァント（c）と、サーヴァントを失ったマスター（m）の再契約
+    function contract(c, m, how) {
+      c.master = m.master; c.masterAlive = true; c.mhp = m.mhp || Math.round(m.mhpMax * 0.7); c.mhpMax = m.mhpMax; c.cs = m.cs; c.manaMax = m.manaMax; c.mana = Math.round(m.manaMax * 0.5); c.soloLeft = null; c.bond = 20;
+      m.merged = true; m.inChurch = false; m.fate = { day, text: (m.fate ? m.fate.text + '。' : '') + `${day}日目、マスターは${c.label}と再契約した` };
+      if (m.you) moveYou(m, c);
+      log('ally', how || `主を失った${nm(c)}と、サーヴァントを失った${mn(c)}が手を結んだ。再契約だ。`, [c.id, m.id], { big: true });
+    }
+    // プレイヤーの陣営を移す（知っていることも引き継ぐ）
+    function moveYou(from, to) {
+      to.you = true; from.you = false; you = to;
+      to.knowName = new Set([...to.knowName, ...from.knowName]); to.knowLoc = new Set([...to.knowLoc, ...from.knowLoc]); to.knowPersona = new Set([...to.knowPersona, ...from.knowPersona, to.id]);
+      to.clues = Object.assign({}, to.clues, from.clues);
+      to.focus = from.focus; to.policy = from.policy;
+    }
+
+    // プレイヤーのサーヴァントが消滅した・マスターが倒れたときの選択
+    function* checkFallen() {
+      if (!you) return;
+      if (you.gameOver && !you.gameOverAsked) {
+        you.gameOverAsked = true; you.retiredAsk = true;
+        const k = yield* ask(you, 'gameover', {
+          title: 'ゲームオーバー',
+          body: `マスター${mn(you)}は命を落とした。聖杯戦争は、あなたを置いて続いていく。`,
+          options: [{ k: 'watch', label: '最後まで見届ける', sub: '残りの戦いを観戦する' }, { k: 'skip', label: '結末まで早送りする', sub: 'すぐに結末を見る' }],
+        }, () => 'watch');
+        you.retired = true; you.spectate = k;
+        return;
+      }
+      if (!you.fallenPending) return;
+      you.fallenPending = false;
+      const c = you;
+      const strays = camps.filter(t => t.alive && !t.masterAlive);
+      const targets = camps.filter(t => t !== c && t.alive && t.masterAlive);
+      const k = yield* ask(c, 'fallen', {
+        title: `${c.label}を失った`,
+        body: `${sn(c)}は消滅した。マスター${mn(c)}はまだ生きている。令呪は残り${c.cs}画。`,
+        options: [
+          { k: 'watch', label: '教会に保護を求め、戦いを見届ける', sub: '残りの聖杯戦争を観戦する。主を失ったサーヴァントが現れれば、再契約の機会もある' },
+          { k: 'skip', label: '教会に保護を求め、結末まで早送りする', sub: 'ここで聖杯戦争から降りる' },
+          ...strays.slice(0, 2).map(t => ({ k: 'stray:' + t.id, label: `主を失った${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}と契約する`, sub: `現界していられるのはあと${t.soloLeft}日。すぐに契約すれば戦いに戻れる` })),
+          targets.length ? { k: 'steal', label: '他のマスターから令呪を奪う', sub: '成功の見込みはごくわずか。失敗すれば命はない' } : null,
+        ],
+      }, () => strays.length && chance(ENG.recontract) ? 'stray:' + strays[0].id : 'watch');
+      if (k.startsWith('stray:')) { contract(camps[+k.split(':')[1]], c, `${mn(c)}は、主を失った${nm(camps[+k.split(':')[1]])}に手を差し伸べた。再契約だ。`); return; }
+      if (k === 'steal') {
+        const t = targets.reduce((a, b) => (a.mhp - a.master.stats.body * 0.3 <= b.mhp - b.master.stats.body * 0.3 ? a : b));
+        const p = ENG.stealBase + c.master.stats.craft / 800 + c.master.stats.luck / 1500 + (t.mhp < t.mhpMax * 0.5 ? 0.04 : 0) - eff(t, 'master_guard') * 0.1;
+        log('council', `${mn(c)}は夜陰に紛れ、${t.label}のマスター、${mn(t)}を狙った。`, [c.id, t.id]);
+        if (chance(Math.max(0.01, p))) {
+          const old = mn(t);
+          t.fate = null; t.cs = Math.max(1, t.cs);
+          t.master = c.master; t.mhp = c.mhp; t.mhpMax = c.mhpMax; t.manaMax = c.manaMax; t.mana = Math.round(c.manaMax * 0.6); t.bond = 10;
+          c.merged = true; c.fate = { day, text: (c.fate ? c.fate.text + '。' : '') + `${day}日目、マスターは${t.label}の令呪を奪った` };
+          moveYou(c, t);
+          log('cs', `${mn(t)}は${old}の腕から令呪を奪い取った。${nm(t)}の新たなマスターだ。`, [t.id], { big: true });
+        } else if (chance(0.6)) {
+          c.masterAlive = false; c.mhp = 0; c.gameOver = true;
+          log('death', `試みは露見した。${nm(t)}の刃が、マスター${mn(c)}の命を奪った。`, [c.id, t.id], { big: true });
+          yield* checkFallen();
+        } else {
+          c.inChurch = true; c.retired = false; c.spectate = 'watch';
+          log('event', `試みは失敗した。深手を負った${mn(c)}は、からくも${W.church}へ逃げ込んだ。`, [c.id], { place: W.church, scene: 'church' });
+        }
+        return;
+      }
+      c.inChurch = true; c.spectate = k;
+      if (k === 'skip') c.retired = true;
+      log('event', `マスターの${mn(c)}は${W.church}に保護を求めた。${k === 'skip' ? 'ここから先は、結末だけを見届ける。' : '戦いの行方を見届ける。'}`, [c.id], { place: W.church, scene: 'church' });
+    }
+
     // 作戦会議：状況に合う選択肢を最大3つ出す
     function* council() {
       const c = you, alive = active();
@@ -471,7 +579,14 @@
         if (t) cand.push({ w: 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}に同盟を申し込む`, sub: '残り3騎になるまで互いを襲わない' } });
       }
       if (c.ally != null && alive.length <= ENG.allianceBreakAt + 1) { const t = camps[c.ally]; cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
-      if (c.mana >= 30 && enemies.some(t => !c.knowName.has(t.id) || !c.knowLoc.has(t.id))) cand.push({ w: 1.5, o: { k: 'info', label: '教会から情報を買う', sub: '敵ひとつの真名か拠点が分かる。魔力を消費' } });
+      // 真名は手がかりから推理する。手がかりの多い相手ほど当たりやすい
+      const unk = enemies.filter(t => !c.knowName.has(t.id));
+      if (unk.length) {
+        const t = unk.reduce((a, b) => ((c.clues[a.id] || 0) >= (c.clues[b.id] || 0) ? a : b)), n = c.clues[t.id] || 0, p = deduceP(c, t);
+        cand.push({ w: n >= 2 ? 3 : 1.2, o: { k: 'deduce:' + t.id, label: `${t.label}の真名を推理する`, sub: `手がかり${n}個・見込みは${p >= 0.6 ? '高い' : p >= 0.35 ? '五分' : '低い'}` } });
+      }
+      const unl = enemies.filter(t => !c.knowLoc.has(t.id));
+      if (unl.length && c.mana >= 20) cand.push({ w: 1.5, o: { k: 'familiar', label: '使い魔を放って拠点を探す', sub: '魔力を使う。見つかるとは限らない' } });
       cand.push({ w: c.hp < 60 || c.mana < c.manaMax * 0.5 ? 3 : 0.8, o: { k: 'recover', label: '霊脈で力を蓄える', sub: '魔力と霊基を大きく回復する。今夜は動かない' } });
       const options = [];
       const pool = cand.slice();
@@ -489,11 +604,15 @@
         if (chance(clamp(0.25 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0), 0, 0.85))) { c.ally = t.id; t.ally = c.id; c.knowName.add(t.id); log('ally', `${mn(t)}は申し出を受けた。${nm(c)}と${nm(t)}の同盟だ。`, [c.id, t.id], { big: true }); }
         else log('council', `${mn(t)}は申し出を断った。`, [c.id, t.id]);
       } else if (k === 'betray') { const t = camps[c.ally]; c.ally = null; t.ally = null; c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
-      else if (k === 'info') {
-        c.mana -= 25;
-        const t = pick(enemies.filter(x => !c.knowName.has(x.id) || !c.knowLoc.has(x.id)));
-        if (!c.knowName.has(t.id) && chance(0.6)) { c.knowName.add(t.id); log('scout', `教会の記録によれば、${t.label}の真名は「${t.sv.trueName}」。`, [c.id, t.id], { place: W.church, scene: 'church' }); }
-        else { c.knowLoc.add(t.id); log('scout', `教会の記録によれば、${t.label}の拠点は「${t.base.name}」。`, [c.id, t.id], { place: W.church, scene: 'church' }); }
+      else if (k.startsWith('deduce:')) {
+        const t = camps[+k.split(':')[1]];
+        if (chance(deduceP(c, t))) { c.knowName.add(t.id); log('scout', `これまでの手がかりを突き合わせ、${mn(c)}は${t.label}の真名にたどり着いた——「${t.sv.trueName}」。`, [c.id, t.id], { big: true }); }
+        else { clue(c, t, 1); log('council', `${t.label}の真名を推理したが、決め手に欠けた。もう少し手がかりが要る。`, [c.id, t.id]); }
+      } else if (k === 'familiar') {
+        c.mana -= 20;
+        const t = pick(enemies.filter(x => !c.knowLoc.has(x.id)));
+        if (t && chance(clamp(0.45 + eff(c, 'intel') + eff(c, 'craft') * 0.5 + c.master.stats.craft / 400 - eff(t, 'stealth') * 0.5, 0.1, 0.9))) { c.knowLoc.add(t.id); log('scout', `放った使い魔が、${t.label}の拠点「${t.base.name}」を見つけた。`, [c.id, t.id]); }
+        else log('council', '使い魔は手がかりを持ち帰れなかった。', [c.id]);
       } else if (k === 'recover') { c.mana = c.manaMax; c.hp = Math.min(100, c.hp + 30); c.restNight = true; log('council', `${sn(c)}は霊脈の上で力を蓄えた。`, [c.id]); }
     }
     function* dayPhase() {
@@ -503,6 +622,11 @@
       if (alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.ally != null) {
         const o = camps[c.ally]; c.ally = null; o.ally = null;
         log('ally', `残りが${alive.length}騎となり、${nm(c)}と${nm(o)}の同盟は解消された。`, [c.id, o.id]);
+      }
+      // 終盤、同盟を破る陣営（性格による）
+      if (alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.ally != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
+        const t = camps[c.ally]; c.ally = null; t.ally = null; c.assault = t.id; c.betray = true;
+        log('ally', `${mn(c)}が同盟を破った。今夜、${t.label}を討つつもりだ。`, [c.id, t.id], { big: true });
       }
       if (chance(ENG.eventChance)) yield* worldEvent();
 
@@ -515,7 +639,7 @@
         if (c.warned > 0 && day % 3 === 0) c.warned = Math.max(0, c.warned - 1);
         // はぐれサーヴァント
         if (!c.masterAlive) {
-          const free = camps.filter(m => !m.alive && m.masterAlive && !m.merged && m.cs > 0);
+          const free = camps.filter(m => !m.alive && m.masterAlive && !m.merged && m.cs > 0 && !m.retired);
           let m = null;
           if (free.length) {
             const yours = free.find(f => f.you);
@@ -528,12 +652,8 @@
               if (a === 'yes') m = yours;
             } else if (chance(ENG.recontract)) m = pick(free);
           }
-          if (m) {
-            c.master = m.master; c.masterAlive = true; c.mhp = m.mhp || Math.round(m.mhpMax * 0.7); c.mhpMax = m.mhpMax; c.cs = m.cs; c.manaMax = m.manaMax; c.mana = Math.round(m.manaMax * 0.5); c.soloLeft = null; c.bond = 20;
-            m.merged = true; m.fate = { day, text: (m.fate ? m.fate.text + '。' : '') + `${day}日目、マスターは${c.label}と再契約した` };
-            if (m.you) { c.you = true; m.you = false; you = c; c.knowName = new Set([...c.knowName, ...m.knowName]); c.knowLoc = new Set([...c.knowLoc, ...m.knowLoc]); }
-            log('ally', `主を失った${nm(c)}と、サーヴァントを失った${mn(c)}が手を結んだ。再契約だ。`, [c.id, m.id], { big: true });
-          } else if (c.soloLeft <= 0) { servantDown(c, `マスターを失い、${day}日目に現界を保てなくなった`); continue; }
+          if (m) contract(c, m);
+          else if (c.soloLeft <= 0) { servantDown(c, `マスターを失い、${day}日目に現界を保てなくなった`); continue; }
           else c.soloLeft--;
         }
         if (chance(eff(c, 'uncontrolled') * (1 - c.bond / 150))) { c.wander = true; if (c.you) log('day', `${sn(c)}が言うことを聞かず、昼の街をうろついている。`, [c.id]); continue; }
@@ -544,7 +664,7 @@
           scout: 1 + (eff(c, 'intel') + eff(c, 'detect')) * 3,
           fortify: c.workshop >= 5 ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
           rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0),
-          ally: alive.length > ENG.allianceBreakAt + 1 && c.ally == null && c.masterAlive ? 0.3 + Math.max(0, eff(c, 'negotiate')) * 3 : 0,
+          ally: alive.length > ENG.allianceBreakAt + 1 && c.ally == null && c.masterAlive ? Math.max(0, 0.3 + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) : 0,
           hide: eff(c, 'stealth') * 2 + (c.hp < 50 ? 0.5 : 0),
         };
         for (const k in P.day) w[k] *= P.day[k];
@@ -571,7 +691,7 @@
         if (chance(clamp(0.35 + eff(c, 'intel') + eff(c, 'detect') * 0.5 - eff(t, 'stealth') * 0.6, 0.05, 0.9))) {
           const newLoc = !c.knowLoc.has(t.id); c.knowLoc.add(t.id);
           const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + eff(c, 'reveal') + eff(c, 'intel') * 0.3 - eff(t, 'conceal') * 0.6, 0, 0.7));
-          if (nameHit) c.knowName.add(t.id);
+          if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
           if (c.ally != null) { camps[c.ally].knowLoc.add(t.id); if (nameHit) camps[c.ally].knowName.add(t.id); }
           if (c.you && (newLoc || nameHit)) log('scout', `偵察の結果、${t.label}の拠点は「${t.base.name}」だと突き止めた。` + (nameHit ? `さらに真名が「${t.sv.trueName}」だと分かった。` : ''), [c.id, t.id]);
           else if (c.you) log('day', `${sn(c)}は街を偵察した。目新しい手がかりはなかった。`, [c.id]);
@@ -591,7 +711,7 @@
         const cand = alive.filter(x => x !== c && x.alive && x.ally == null && x.masterAlive);
         if (!cand.length) return;
         const t = pick(cand);
-        const p = clamp(0.12 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0), 0, 0.8);
+        const p = clamp(0.12 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + perv(t, 'ally'), 0, 0.8);
         // 申し込まれた側がプレイヤーなら、受けるかどうかを聞く
         const accept = t.you ? (yield* ask(t, 'ally', {
           title: '同盟の申し出',
@@ -617,7 +737,7 @@
       const finale = day > ENG.maxDays - ENG.finaleDays;
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
-        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + (tonight.moon ? 0.2 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
+        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
         p = clamp(p, 0.05, 0.95);
         const F = focusOf(c);
         if (c.restNight) { c.restNight = false; c.hunting = false; }
@@ -648,12 +768,13 @@
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
         if (!home) t.knowLoc.add(h.id);
-        if (home && t.masterAlive && chance(Math.min(0.6, eff(h, 'anti_master') * 1.5))) {
+        if (home && t.masterAlive && chance(Math.min(0.6, eff(h, 'anti_master') * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
           h.fought = t.fought = true;
-          if (yield* ambushMaster(h, t)) continue;
+          if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
         if (assault) { h.surprise = h.betray ? 0.2 : 0.15; h.betray = false; }
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain });
+        yield* checkFallen();
       }
       if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', '静かな夜だった。どこかで誰かが、息を潜めている。', []);
     }
@@ -666,13 +787,13 @@
       log('summon', `${who}が${c.label}を召喚した。${sub}${c.you ? 'これが、あなたの陣営だ。' : ''}`, [c.id], { quote: c.you ? say(c, ['召喚']) : null });
     }
     // 各陣営の方針（プレイヤーは選べる）
-    const autoPolicy = c => wpick({
+    const autoPolicy = c => { const pw = PER(c).policy || {}; const w = {
       aggressive: 1 + (isBerserk(c) ? 2 : 0) + Math.max(0, (c.sv.power - 35) / 15),
       defensive: 1 + (c.sv.class.key === 'caster' ? 2 : 0) + eff(c, 'territory') * 3,
       intel: 0.6 + eff(c, 'stealth') * 2 + eff(c, 'intel') * 2,
       diplomacy: 0.4 + Math.max(0, eff(c, 'negotiate')) * 3,
       balanced: 1.5,
-    });
+    }; for (const k in w) w[k] *= pw[k] || 1; return wpick(w); };
     for (const c of camps) if (!c.you) c.policy = autoPolicy(c);
     if (you) {
       log('summon', `あなたの${you.label}の真名は「${you.sv.trueName}」。${you.sv.profile && you.sv.profile.wish ? '聖杯に託す願いは「' + you.sv.profile.wish + '」。' : ''}マスター${mn(you)}の願いは「${you.master.wish}」。`, [you.id]);
@@ -691,7 +812,9 @@
       const head = log('dayhead', `${day}日目`, [], { head: true }), n0 = entries.length;
       if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', '聖杯の降臨が近い。残るサーヴァントたちが動き出した。', [], { big: true }); }
       yield* dayPhase();
+      yield* checkFallen();
       if (active().length > 1) yield* nightPhase();
+      yield* checkFallen();
       for (const c of camps) { c.temp = []; c.npBoost = 0; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
       if (quiet) { entries.splice(entries.indexOf(head)); if (quietFrom == null) quietFrom = day; }
@@ -727,6 +850,7 @@
         id: c.id, label: c.label, slot: c.slot, trueName: c.sv.trueName, cls: c.sv.class.label, servantId: c.sv.id,
         master: c.master.name, origin: c.master.originLabel, wish: c.master.wish, alive: c.alive, masterAlive: c.masterAlive,
         fate: c.fate, kills: c.kills.map(i => camps[i].sv.trueName), npUses: c.npUses, battles: c.battles, power: r1(c.sv.power), you: !!c.you, bond: Math.round(c.bond), policy: c.policy,
+        persona: PER(c).label || null,
       })),
       entries,
     };

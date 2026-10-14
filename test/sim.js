@@ -1,5 +1,5 @@
 // 使い方: node test/sim.js [回数] [シードを1つ表示]
-for (const f of ["config","rank","parser","effects","build","master","war","names","scenes","engine"]) require("../js/"+f+".js");
+for (const f of ["config","rank","parser","effects","build","master","war","names","scenes","personas","engine"]) require("../js/"+f+".js");
 const fs = require('fs');
 const man = JSON.parse(fs.readFileSync(__dirname + '/../data/manifest.json', 'utf8'));
 for (const f of man.overrides) { const o = JSON.parse(fs.readFileSync(__dirname + '/../data/' + f, 'utf8')); const E = HGW.effects; Object.assign(E.SKILL_OVERRIDES, o.global || {}); Object.assign(E.SERVANT_OVERRIDES, o.servant || {}); Object.assign(E.STAT_OVERRIDES, o.stats || {}); Object.assign(E.NP_OVERRIDES, o.np || {}); }
