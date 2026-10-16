@@ -517,7 +517,9 @@ Kinds: `prologue, summon, dayhead, day, night, battle, np, cs, death, event, wor
 council, choice, quiet, end`. `snap` is a full per-camp snapshot from the **player's knowledge view**
 (`name` null if unknown, `persona` null if unknown, `clues`, hp, mana %, cs, ally, fate, …) so the UI can
 render any moment without querying the engine. `out.meta[campId]` holds static display info
-(trueName, ranks, skill names, NP names).
+(trueName, ranks, skill names, NP names, `servantId`, `policy`/`policyLabel`, `base`, and `master` = { name, sex,
+age, origin, originLabel, persona, personaDesc, stats (0–100), skills, traits, catalyst, wish, cs, hpMax, manaMax }).
+The meta is filled after the prologue without using `rnd()`, so it does not affect determinism.
 
 ### 7.10 Result
 
@@ -543,6 +545,15 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   (`DELAY`) divided by speed. On `tick` the current focus is passed; on `decision` the dialog opens.
   "次の決断まで" renders everything until the next decision. Answer `skip` (fallen/gameover) triggers
   `fastForward()` to the end with auto answers.
+- **Opening** (player is a Master, not when replaying a shared link with `c`/`f`): before any log entry is played,
+  `#opening` walks through 1) the Master (from `meta.master`), 2) a strength rating of the Servant, 3) the first
+  day's focus. Playback (`step()`) does not run while `op` is set, so day 1 starts with the chosen focus (it used
+  to start as おまかせ). The rating is computed in the UI from the loaded roster: mean `battleOdds` pA (with and
+  without NP) against every other roster servant → rank → grade S (top 10%) / A (30%) / B (60%) / C (85%) / D;
+  plus base power / NP peak ranks, strengths/weaknesses from `effectSummary`, and a recommended focus. It rates the
+  Servant alone, not against the current line-up. Cached per roster (`strengthCache`).
+- Focus panel: on desktop it can be collapsed to one line (「たたむ」/「ひらく」, saved in `localStorage`
+  `hgw.focusCollapsed`); on ≤820px the strip chip + bottom sheet are used as before.
 - Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) items; "すべての記録を見る"
   expands to a scrollable box (`.logwrap.open`).
 - Scenes: `setScene(scene, day|night, weather)` probes `img/scenes/{scene}-{time}.webp` along the fallback
