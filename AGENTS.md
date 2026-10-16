@@ -1,0 +1,577 @@
+# AGENTS.md — Holy Grail War Simulator (1in7HGW)
+
+Specification for AI coding agents. It explains what the project is, how the code is organised, how the
+simulation works, and the rules to follow when changing it. Human-facing docs are in Japanese (`README.md`,
+`img/scenes/README.md`); this file is the English reference for agents.
+
+> Keep this file in sync when you change architecture, data formats, engine rules, decision keys or the
+> URL format. Numbers quoted here come from `js/config.js`; if they disagree, the code wins.
+
+---
+
+## 1. What this is
+
+A browser game: a **Fate-style "Holy Grail War" simulation** (fan fiction). Seven Servants (heroic spirits)
+and their Masters fight in one city for up to **30 in-game days**; the last Servant standing wins.
+
+- Inspired by the Japanese life-sim **"1in8b.life" (80億分の1)**: mostly automatic, the player watches a
+  chronicle unfold, changes a light-weight **focus** at any time and only makes **big decisions** every
+  ~5 days or at events.
+- The player is **one Master** (or a neutral observer). Servants come from the owner's wiki
+  **kagemiya@ふたば** (https://seesaawiki.jp/kagemiya/, a Seesaa wiki the repo owner administers).
+  Wiki pages are parsed into data; contributors send additions, the owner merges and pushes them.
+- Hosted as a **static site on GitHub Pages**: https://github.com/Pippiniden/1in7HGW
+- All UI text, log text, comments and the human README are **Japanese**. Keep new user-facing strings in
+  Japanese and match the existing tone (literary, Fate-like narration). Code comments are Japanese too;
+  English comments are acceptable but stay consistent within a file.
+
+### Glossary (Japanese term → meaning in code)
+
+| JP | Code name | Meaning |
+|---|---|---|
+| サーヴァント | `sv` (servant) | Heroic spirit; has class, stats, skills, Noble Phantasms |
+| マスター | `master` / `m` | Human contractor; stats `mana/craft/body/mind/luck` |
+| 陣営 | camp `c` | One Master+Servant pair; the unit the engine simulates |
+| 真名 | `trueName` | Servant's true identity; hidden from other camps until learned |
+| クラス | `class.key` | saber, archer, … (see `CLASS_DEFS`) |
+| 宝具 | NP (`nps`) | Noble Phantasm (ultimate attack/ability) |
+| 令呪 | `cs` | Command Seals (3 by default); emergency orders |
+| 霊基 | `hp` | Servant HP (0–100) |
+| 魔力 | `mana` | Master's mana pool; pays upkeep and NP cost |
+| 絆 | `bond` | Master–Servant bond (0–100) |
+| 工房 | `workshop` | Base fortification level (0–5) |
+| 拠点 | `base` | Camp's home location |
+| 重点 | focus | Player's daily stance, changeable anytime |
+| 方針 | policy | Camp's long-term strategy (AI and player's "auto") |
+| 作戦会議 | council | Big decision every `councilEvery` days |
+| 性格 | persona | Master personality that biases behaviour |
+| 手がかり | clues | Evidence toward deducing an enemy's true name |
+| 教会 | church | Neutral ground; defeated Masters seek protection |
+| はぐれ | stray | Servant whose Master died (survives `soloLeft` days) |
+| 単独行動 | `solo` effect | Lets a stray persist longer |
+| 討伐令 | bounty | Overseer's kill order; reward = +1 command seal |
+| 因縁 | relations | Wiki-listed connections between servants |
+| 日常 | life event | Slice-of-life events for the player's camp |
+| 情景 | scene | Background image category |
+
+---
+
+## 2. Hard constraints
+
+1. **No build step, no bundler, no npm dependencies at runtime.** Plain HTML/CSS/JS served as static files.
+2. **Classic scripts, not ES modules.** Every `js/*.js` file is an IIFE that attaches to the global
+   namespace `HGW`:
+   ```js
+   (function (G) { 'use strict'; /* ... */ G.something = ...; })(globalThis.HGW = globalThis.HGW || {});
+   ```
+   This lets the game run from `file://` and lets Node tests `require()` the same files.
+3. **Script load order matters** (each file reads what earlier files put on `HGW`):
+   `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data`.
+   `index.html` loads all of them; `roster.html` loads `config…war` only. Node tests use the same order.
+   When you add a file, add it to **index.html, roster.html (if needed), test/sim.js and test/interactive.js**.
+4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All
+   randomness inside `warGen` must go through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`).
+   Never call `Math.random()` inside the engine. Adding/removing/reordering `rnd()` calls changes every
+   seed's outcome (acceptable, but old shared links will replay differently). Never iterate over
+   `Set`/object keys in an order that depends on anything other than insertion.
+5. **`.nojekyll`** must stay at the repo root (stops GitHub's Jekyll processing).
+6. External resources: only Google Fonts. No CDN scripts.
+7. Mobile support is required (breakpoint **820px**; must not overflow horizontally at 390px width).
+
+---
+
+## 3. Repository map
+
+```
+index.html          Game (single page; inline CSS + inline UI script, ~840 lines)
+roster.html         Admin tool: import wiki pages, review/fix effects, export data (~490 lines)
+.nojekyll
+README.md           Japanese user/maintainer guide
+AGENTS.md           This file
+data/
+  manifest.json     Which data files to load
+  servants.json     Servant pack (hgw-servants, lean). LARGE (~40k lines) — do not read whole; inspect with node
+  overrides.json    Hand-fix tables (hgw-overrides)
+img/scenes/
+  README.md         Background image spec: sizes, filenames, AI image prompts (Japanese)
+  *.webp            (optional) {scene}-day.webp / {scene}-night.webp
+js/
+  config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K
+  rank.js           Rank string ("A+", "C~A", "B(狂化時A)", "-", "EX") → numeric object
+  parser.js         Wiki markup → structured servant (parsePage, parseServant, finalize, parseClass)
+  effects.js        Effect primitives, skill dictionary, keyword rules, override tables, resolveSkill/resolveNP
+  build.js          Parsed servant → game servant (scores, effects, power); toLean/fromJSON; battleOdds
+  master.js         Master structure, origins, createMaster, parseMasterText
+  war.js            composeWar: pick 7 (+extra) servants for one war
+  names.js          Name pools, cities, places (terrain + scene), church name, wishes
+  scenes.js         Scene categories + fallback chain for background images
+  personas.js       Master personalities and their behavioural biases
+  engine.js         The simulation (generator), ~870 lines
+  data.js           Loading published data / browser-local roster / user-picked files
+test/
+  sim.js            N automatic wars → balance stats; or print one war's log
+  interactive.js    Random focus/answers through the generator; checks replay determinism
+  run.js            Parse wiki .txt files and print what was read
+  rebuild.js        Rebuild exported JSON folder; print effects per servant
+  lucan.txt, variant1.txt, master1.txt   Sample wiki pages
+```
+
+Current data: 64 servants (saber 12, lancer 10, rider 10, berserker 9, assassin 8, caster 6, archer 5,
+ruler 1, extra 3).
+
+---
+
+## 4. Data pipeline
+
+```
+wiki page text ──parsePage──▶ {info, sections, items}
+               ──parseServant──▶ parsed servant (raw strings + rank objects)
+               ──finalize──▶ (split "名前(読み)", rescan alt stat blocks in descriptions)
+               ──buildServant──▶ game servant (scores, effects, tags, power, npPeak, review)
+               ──toLean──▶ published JSON (derived fields stripped)
+published JSON ──fromJSON──▶ (re-parse class, finalize, buildServant)  ← done at every page load
+```
+
+Because the game **always rebuilds from lean data at load time**, improving the parser rules, the skill
+dictionary or `CLASS_DEFS` automatically applies to all previously imported servants.
+
+### 4.1 Wiki page format (kagemiya)
+
+Seesaa wiki markup. Typical page:
+
+```
+*基本情報
+【元ネタ】アーサー王伝説
+【CLASS】セイバー
+【真名】…
+【性別】女
+【属性】秩序・善
+【天地人属性】地
+【その他属性】人型
+【ステータス】筋力：D　耐久：C　敏捷：D　魔力：C　幸運：A　宝具：D
+*【クラス別スキル】
+**対魔力：A
+description…
+*【保有スキル】
+**戦闘続行：C
+description…
+*【宝具】
+**『宝具名』
+ランク：A　種別：対城宝具　レンジ：1～99　最大捕捉：1000人
+description…
+*【解説】 / 【人物・性格】 / 【因縁キャラ】 / 【セリフ】(voice lines under headings like 召喚, 開始, 宝具, 会話, 絆, 聖杯について…)
+```
+
+Pages deviate from the template often; the parser is deliberately tolerant (regex section/key matching,
+`SECTIONS`, `INFO_KEYS`, `PROFILE_KEYS` in `parser.js`). Struck-through text (`%%…%%`) is dropped by default.
+`roster.html` accepts several pages pasted together separated by a line of `=====`.
+
+### 4.2 Rank object (`rank.js`)
+
+`parseRank(raw)` → `{ raw, base, plus, minus, step, score, mult, burst, range, alt, unknown, none }`
+
+- `step`: E=1 … EX=6; each `+` adds `PLUS_STEP` (0.15), each `-` subtracts `MINUS_STEP` (0.25).
+- `score`: stat scale, interpolated from `RANK_SCORE` (E10 D20 C32 B46 A62 EX80).
+- `mult`: effect multiplier from `RANK_MULT` (E0.4 D0.6 C0.8 B1.0 A1.2 EX1.5).
+- `burst`: momentary multiplier for `+` marks (`PLUS_BURST` [1,2,3,4]).
+- `range`: for "C~A", "B/A", "C→A" → `[lo, hi]`; score is the mean; **rolled once per war** (`rollRange`).
+- `alt`: parenthesised alternates, e.g. "B(狂化時A)".
+- `none`: "-", "なし" (score 0). `unknown`: unreadable or "A?".
+- Unreadable stats become `MISSING_STAT` ("C") and are listed in `review`.
+
+### 4.3 Servant object
+
+Parsed fields (kept in lean JSON): `kind:'servant', id ('<classKey>:<trueName>'), trueName, aliases,
+class {key,label,raw,standard,sub}, origin, sex, alignment, attribute, traits, stats {str,end,agi,mag,luk,np:
+{raw, rank}}, statsAlt [{label, stats, fromText?}], classSkills/skills [{name, rankRaw, rank, desc}],
+nps [{name, reading, rankRaw, rank, typeRaw, typeKey, range, maxTargets, desc, …}], weapons, profile
+{likes, dislikes, wish, imageColor, specialty, firstPerson…}, relations [{name,text}], voice {heading:[lines]},
+text {commentary, personality, comment, voice, other}, info (all 【key】 pairs), warnings, body`.
+
+Derived fields (added by `buildServant`, stripped by `toLean`): `ranks, score, statSource, tags, allSkills
+(with .effects/.effectSource/.matched/.group), nps[].{attackResolved, power, burst, cost, exposure, multi,
+disabled, effects}, effectSummary, power, npPeak, review, built`.
+
+Identity: two entries with the same `class.key + trueName` are the same servant; later files win.
+
+### 4.4 Data files
+
+`data/manifest.json`
+```json
+{ "servants": ["servants.json", "packs/xxx.json"], "overrides": ["overrides.json"], "masters": [] }
+```
+- `servants`: all listed packs are loaded; duplicates by id → last wins.
+- `overrides`: merged in order into the override tables (later wins).
+- `masters`: JSON arrays of fixed-Master specs (see §7.4). Each camp has a 50% chance to draw from this pool.
+
+`hgw-servants` pack: `{ format:'hgw-servants', version:2, lean:true, at:<ISO>, servants:[…] }`.
+
+`hgw-overrides`: `{ format:'hgw-overrides', version:2, global:{}, servant:{}, stats:{}, np:{} }`
+- `global` → `SKILL_OVERRIDES`: `'skillName': [[effectId, factor, params?], …]` (all servants)
+- `servant` → `SERVANT_OVERRIDES`: `'trueName/skillOrNpName': [[…]]` (one servant; `[]` = no effects)
+- `stats` → `STAT_OVERRIDES`: `'trueName': { str:'B', … }` (only listed stats replaced)
+- `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
+
+Overrides embedded in exported servant JSON (`effectSource: 'override'|'servant-override'`) are harvested
+back into the tables on load (`harvestOverrides`), without overwriting existing entries.
+
+**The owner sometimes uploads `data/servants.json` directly to `main` via the GitHub web UI.** Always
+branch from the latest `origin/main` and never overwrite data files you were not asked to change.
+
+---
+
+## 5. Effects system (`effects.js`)
+
+The engine understands only a fixed set of **effect primitives**. Every skill and NP is mapped onto them.
+
+### 5.1 Primitives (`EFFECTS`)
+
+| Phase | IDs |
+|---|---|
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `instakill`, `evade`, `initiative`, `charm`, `rally`, `anti_master`, `mental_guard` |
+| damage | `guard`, `magic_guard`, `weakness` (vs tag), `master_guard` |
+| lethal | `guts` |
+| encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
+| scout | `intel` |
+| retreat | `escape`, `pin` |
+| day | `regen`, `heal_other`, `territory`, `craft`, `resource`, `uncontrolled` |
+| upkeep | `upkeep_down`, `upkeep_up`, `solo` (days a stray survives) |
+| talk | `negotiate` |
+| master | `cs_resist`, `master_buff` (`params.stat` → adds to a master stat) |
+| passive | `luck`, `tag` (adds a trait tag) |
+| np | `np_boost`, `np_cost`, `backfire`, `self_retire`, `disabled` |
+
+Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`. `params.cond`
+(`'水辺'|'森'|'山'|'夜'`) makes an effect apply only on matching terrain.
+
+**Effect spec** (used everywhere): `[effectId, factor = 1, params?]`.
+**Magnitude**: `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank` → table lookup;
+unknown rank → ×0.8).
+
+### 5.2 Skill resolution order (`resolveSkill`)
+
+1. `SERVANT_OVERRIDES['trueName/skill']` → source `servant-override`
+2. `SKILL_OVERRIDES['skill']` → `override`
+3. rank "-" and description says the skill is lost → `lost` (no effects)
+4. `SKILL_DICT` exact or base-name match (77 entries, e.g. 対魔力, 騎乗, 気配遮断, 狂化, 神性, 戦闘続行…) → `dict`
+5. Text analysis: partial dict match (`dict-partial`) + references to other known skills inside the
+   description (`compoundSpecs`, ×0.6) + per-sentence keyword `RULES` (41 regex rules) → `compound`/`keyword`
+6. Nothing found → `[['power', 0.3]]`, source `default`
+
+Anything not from an override or exact dict hit is added to the servant's `review` list (shown in
+`roster.html` as 要確認, "needs review").
+
+### 5.3 NP resolution (`resolveNP`)
+
+- Type from 種別 text → `NP_TYPE` key (`anti_unit, anti_army, anti_fort, anti_nation, anti_world, barrier,
+  self, special`) with `power`, `cost`, `exposure` multipliers.
+- Attack or support: `NP_OVERRIDES` → disabled → self-type → non-attack wording → attack wording
+  (`ATTACK_WORDS`) → barrier → support effects → otherwise guessed attack.
+- `power = rank.score × type.power` (attack NPs only); `cost = type.cost × rank.mult × (1 + np_cost)`;
+  `exposure` = how likely use reveals the true name (≥1 makes it public; ≥0.8 can trigger a "witnessed" event).
+- `self_retire` (servant drops out after use), `backfire`, `disabled` are detected from text.
+
+### 5.4 Summary and power (`build.js`)
+
+- `effectSummary`: effects summed per `id[:tag|stat][@cond]` → `{passive, onNP, from[]}`. NP effects
+  count as `onNP` (applied only when the NP is used), except `master_buff`/persistent ones.
+- `combatPower = weightedMean(str,end,agi,mag,luk scores; STAT_W × classWeights) × (1 + Σpower)`.
+- `npPeak` = strongest usable attack NP power × (1 + np_boost).
+- `battleOdds(a,b,opts)` = quick logistic estimate used by the roster tool (not by the engine).
+
+---
+
+## 6. Classes and war composition
+
+`CLASS_DEFS` in `config.js` is the single registry. Each entry: `label`, `aliases` (substring matches
+against the wiki 【CLASS】 field; longest hit at the earliest position wins), `slot` (`'standard'` = one
+of the seven seats, `'extra'`), optional stat `weights` and `tags`. Unmatched classes become `extra` with
+the wiki's own label.
+
+`composeWar` (`war.js`, `CONFIG.WAR`): fills the 7 standard slots; with `extraChance` (0.3) one random
+slot is taken by an extra-class servant (max `maxExtra` 1). If a class has no candidates, `fillWith`
+decides (`'any'` default / `'extra'` / `'none'`). Duplicate class labels get suffixes （一）（二）.
+
+**To add a class:** add one entry to `CLASS_DEFS`. Nothing else is required; old data is reclassified on load.
+
+---
+
+## 7. Engine (`engine.js`)
+
+### 7.1 API
+
+```js
+// Interactive (the game):
+const out = {};
+const gen = HGW.engine.warGen({ roster, seed, ask: 'big', masters, out /*, player, engine, city */ });
+let r = gen.next();
+while (!r.done) {
+  if (r.value.type === 'tick')     r = gen.next(focusKey);       // once per day; 'auto','attack',…
+  else /* 'decision' */            r = gen.next(optionKey|'auto');
+}
+const result = r.value;               // also merged into `out`
+
+// Fully automatic:
+const result = HGW.engine.runWar({ roster, seed, focus: day => 'auto' });
+```
+
+Options: `roster` (built servants, ≥2), `seed` (string; random if omitted), `ask` (`'never'` = never
+yield decisions; anything else = yield for the player camp), `player` (camp index, `'none'` for observer,
+default random), `masters` (fixed master specs), `engine` (overrides for `CONFIG.ENGINE`), `city`, `out`
+(object filled live with `entries`, `meta`, `city`, `seed`, `camps`, then the result).
+
+Yields:
+- `{ type:'tick', day }` — start of each day. Answer with a `FOCUS` key. Non-blocking for the UI.
+- `{ type:'decision', kind, day, phase, title, body, note, options:[{k,label,sub}], camp }` — answer with
+  an option `k`; any unknown answer (e.g. `'auto'`) → the auto policy decides and the log says "おまかせ".
+
+`ask()` only yields when the camp is the player's, `ask !== 'never'`, and the camp is not `retired`.
+Every other camp makes the same decision through the `auto` callback. **All decisions should go through
+`ask()`** so the player can be offered them and replays stay deterministic.
+
+Exports: `HGW.engine = { runWar, warGen, makeRng, POLICIES, FOCUS }`.
+
+### 7.2 Camp state (key fields)
+
+`id, label, slot, sv (deep-copied servant; range ranks rolled), master, hp (0–100), mhp/mhpMax (master HP),
+mana/manaMax, cs, alive, masterAlive, fate {day,text}, soloLeft, inChurch, merged, retired, base (place),
+workshop (0–5), ally (camp id|null), policy, focus (player), stance (per battle: all|careful|retreat),
+bond, knowName/knowLoc/knowPersona (Sets of camp ids), clues {campId:n}, kills, battles, npUses, temp
+(battle-scoped effects), npBoost, assault (target id for tonight), betray, boostUntil, restNight,
+targetPref, bounty, warned, you, gameOver, fallenPending`.
+
+Knowledge is per camp. `known(c)` = player knows c's true name (own camp, `you.knowName`, or public via
+`pubName` — e.g. after death or exposure ≥1). Text helpers: `nm(c)` (label + true name if known),
+`sn(c)` (short), `mn(c)` (master name).
+
+### 7.3 Turn structure
+
+```
+prologue: compose war, create masters (+persona), assign policies, log summons
+for day = 1..maxDays (30):
+  yield tick → player focus
+  dayPhase:
+    alliances dissolve when alive ≤ allianceBreakAt (3); persona-based AI betrayal at ≤ 4
+    world event (eventChance 0.25)
+    council for the player every councilEvery (5) days
+    for each alive camp (shuffled):
+      stray handling (recontract chance / soloLeft countdown / vanish)
+      uncontrolled wandering (berserk-like)
+      day action: scout | fortify | rest | ally | hide   (weighted by effects × policy; player focus overrides)
+      player's life event (lifeChance 0.4)
+    upkeep: mana += manaRegen + master.mana×0.15 + workshop×2 − upkeep×modifiers; starvation hurts hp
+  checkFallen
+  nightPhase (skipped on festival nights):
+    each camp decides to hunt (huntBase 0.56 + power diff + class + hp + finale + policy + persona + moon …)
+    hunters pick a target (known location, relative power, low hp, relations, bounty), roll find chance
+    if target stayed home → fight at its base (territory/workshop bonus); possible master ambush (anti_master, persona)
+    battle → checkFallen
+  quiet days are collapsed into one 'quiet' log entry
+  stop when ≤ 1 servant alive
+end: winner (1 alive) / mutual destruction (0) / draw (time out); result
+```
+
+The last `finaleDays` (3) days add aggression.
+
+### 7.4 Masters, policies, personas, focus
+
+- **Master** (`master.js`): `createMaster(spec, rnd)` — every field in `spec` is used as-is, missing ones
+  are rolled from the **origin** (`ORIGINS`: noble, newblood, mercenary, civilian, irregular; or a custom
+  label). Stats `mana, craft, body, mind, luck` accept rank strings or 0–100 numbers. Optional `skills`
+  use the same effect library. `custom` holds arbitrary extra settings. `parseMasterText` reads
+  wiki-style master pages. Spec may include `persona: '<key>'`.
+- **Policy** (`POLICIES`): aggressive, defensive, intel, diplomacy, balanced — weights day actions and
+  hunt chance. Chosen per camp at start by `autoPolicy` (servant traits × persona `policy` weights).
+- **Persona** (`personas.js`, `G.PERSONAS`): rational, proud, cautious, warmonger, kind, timid, assassin,
+  ambitious. Fields are additive biases: `hunt, retreat, ally, np, ambush, betray, cs` (+0 = neutral),
+  `bond` (multiplier on bond gains), `policy` (multipliers), `origins` (draw weights by origin),
+  `reveal` (log line, `{m}` = master name). Read in the engine via `perv(c, key)`. Other camps' personas
+  are hidden; after each battle there is a `personaReveal` (0.35) chance to learn the opponent's.
+- **Focus** (`FOCUS`, player only, takes effect next morning): `auto(o) attack(a) defend(d) scout(s)
+  rest(r) hide(h) ally(l)` — each fixes the day action, night hunting (`true/false/null`) and battle stance.
+  `auto` follows the camp policy.
+
+### 7.5 Battle (`battle`, up to `rounds` = 4)
+
+Per round:
+1. Retreat-stance camps may disengage immediately (round 1).
+2. Each side may use an NP (`useNP`: chance from hp, round, berserker, losing, finale, stance, persona;
+   needs `cost × npCost` mana). Attack NP → `npBoost = power × npPowerK (× burst)`; support NP → its effects
+   go to `temp`. Using an NP may reveal the true name (else +2 clues for the opponent).
+3. `power(c, o, ctx)`: combatPower(terrain) × temp power × special-attack/weakness × defence
+   (guard/evade/magic_guard, reduced by opponent `pierce`) × opponent debuff × home territory/workshop ×
+   knows-name 1.08 × hp factor × no-master 0.9 × low-mana 0.85 × stance × command-seal boost × surprise
+   + npBoost, then ×(0.9–1.1) noise. Charm can cut the other side by 40%.
+4. Winner of the exchange: logistic `p = 1/(1+exp(-(ea-eb)/BATTLE_K))`, `BATTLE_K` = 15.
+5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction.
+6. HP ≤ 0 → `lethal()`: `guts` (+bond) may survive at 5–15 hp; else the Master may use a command seal
+   (decision `cs`: escape / rally / none); `cs_resist` can make a seal fail; otherwise `servantDown`.
+7. **Master strike**: rare chance the winning side hits the enemy Master directly:
+   `(masterStrike 0.006 + anti_master×0.3 + persona ambush×0.03) × (1 − master_guard − home workshop×0.04)`,
+   capped at 0.15. Lethal unless saved by a command seal (`csSaveMaster` 0.5).
+8. Retreat check for the weaker side (threshold `retreatAt` 35 ± stance ± persona; success from
+   `retreatBase` + escape − pin + bond …).
+
+After battle: attacker learns the defender's base; persona reveal; chance to learn the true name
+(`0.1 + reveal − conceal×0.6`); clues +1 each way at battle start; related servants (因縁) know each other.
+
+### 7.6 Defeat and the player's fallen flow
+
+- `servantDown`: marks dead, breaks alliance, logs the death, name becomes public. AI masters go to the
+  church (80% if seals remain) or vanish. A dead Master's Servant becomes a **stray** with
+  `soloLeft = floor(eff(solo))` days and may **recontract** with a servant-less Master (`recontract` 0.45/day).
+- Player's servant dies: with `fallenDeath` (0.12) the Master dies too → game over. Otherwise
+  `fallenPending` and `checkFallen()` (called after every battle/ambush and after each phase) asks
+  decision **`fallen`**: `watch` (church, keep watching; recontract offers may still come), `skip` (church,
+  retired → UI fast-forwards to the end), `stray:<id>` (contract a living stray), `steal` (take another
+  master's command seals: `stealBase 0.04 + craft/800 + luck/1500 (+0.04 if target hurt) − target
+  master_guard×0.1`; success → take over that camp; failure → 60% death, else wounded in church).
+- Player's Master dies (any cause): decision **`gameover`**: `watch` / `skip`. The camp is `retired`.
+- `contract()` and `moveYou()` move the player's identity to another camp, merging knowledge.
+
+### 7.7 Big decisions (all go through `ask`)
+
+| kind | when | option keys |
+|---|---|---|
+| `council` | every 5 days, player alive with master | `assault:<id>`, `boost`, `move`, `ally:<id>`, `betray`, `deduce:<id>`, `familiar`, `recover`, `pass` (max 3 + pass, weighted by situation) |
+| `cs` | servant about to die, seals left | `escape`, `rally`, `none` |
+| `ally` | another camp proposes alliance | `yes`, `no` |
+| `recontract` | a stray seeks a master (player servant-less) | `yes`, `no` |
+| `event` | bounty issued | `join`, `ignore` |
+| `event` | player spots an enemy master in town | `talk`, `follow`, `ignore` |
+| `fallen` | player's servant died | `watch`, `skip`, `stray:<id>`, `steal` |
+| `gameover` | player's master died | `watch`, `skip` |
+
+`<id>` is the **camp index** (0–6), not a servant id. Option keys are persisted in the URL for replay, so
+**do not rename existing keys**; add new ones instead.
+
+Council details: `deduce:<id>` targets the unknown enemy with most clues;
+`p = clamp(0.08 + clues×0.12 + reveal + intel×0.5 + master.craft/500 − target conceal×0.5, 0.03, 0.9)`;
+failure adds a clue. The church **never** reveals true names (design decision by the owner) — names are
+learned by deduction, NPs, scouting, battle insight, relations, alliance, or conversation.
+`familiar` costs 20 mana and may reveal one unknown enemy base.
+
+### 7.8 Events
+
+- **World events** (`worldEvent`, 25%/day): leyline (+mana all), rain (night terrain = 水辺), full moon
+  (+hunt), festival (no fights tonight), familiar (someone learns a base), witness (NP seen → overseer
+  warning, reduces hunting), bounty (on camps with ≥2 kills or ≥2 warnings), spot (player decision).
+- **Life events** (`lifeEvent`, player camp, 40%/day): meal (profile likes), talk (voice 会話), dream
+  (first sentence of 解説), dislike, grail wish, likes, bond line (bond ≥70), outing, master's own day.
+  They raise bond, which improves guts, retreat, seal reliability and control.
+
+### 7.9 Log entries (`out.entries`)
+
+`{ day, phase ('prologue'|'day'|'night'|'end'), kind, text, ids [camp ids], you (involves player),
+quote? {who,text}, big?, head?, place?, scene?, weather? ('rain'|'moon'), snap }`
+
+Kinds: `prologue, summon, dayhead, day, night, battle, np, cs, death, event, world, life, scout, ally,
+council, choice, quiet, end`. `snap` is a full per-camp snapshot from the **player's knowledge view**
+(`name` null if unknown, `persona` null if unknown, `clues`, hp, mana %, cs, ally, fate, …) so the UI can
+render any moment without querying the engine. `out.meta[campId]` holds static display info
+(trueName, ranks, skill names, NP names).
+
+### 7.10 Result
+
+`{ seed, city, days, you, winner, camps:[{ id, label, slot, trueName, cls, servantId, master, origin, wish,
+alive, masterAlive, fate, kills, npUses, battles, power, you, bond, policy, persona }], entries }`
+
+---
+
+## 8. UI (`index.html`)
+
+Single page, two states: **briefing** (intro form) and **watching** (`body.watching`).
+
+- Data loading: `data/manifest.json` via `HGW.data.loadPublished`; `?data=local` uses the roster tool's
+  browser storage; on `file://` the user picks JSON files.
+- Layout: HUD (DAY counter, progress, controls: pause, 1×/2×/4×/8×, "next decision", auto-decide, quit,
+  ⋯ menu on mobile) · left column (Master ID card with command-seal SVG, Servant panel, status bars) ·
+  centre (result, scene view, mobile status strip + focus chip, focus selector, Chronicle log) · right
+  (camps list, 30-day calendar) · focus bottom sheet (mobile) · decision dialog (`#dlg`, can be minimised).
+- Visual style: "cyber" navy/cyan/gold (reference: Fate/EXTELLA skill screen). Colours are CSS custom
+  properties on `:root` (`--cyan`, `--gold`, `--seal`, …). Log item classes are prefixed `k-<kind>`
+  (a bare `.night` class once collided with the calendar style).
+- Playback: the generator runs ahead; `out.entries` are replayed one by one with per-kind delays
+  (`DELAY`) divided by speed. On `tick` the current focus is passed; on `decision` the dialog opens.
+  "次の決断まで" renders everything until the next decision. Answer `skip` (fallen/gameover) triggers
+  `fastForward()` to the end with auto answers.
+- Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) items; "すべての記録を見る"
+  expands to a scrollable box (`.logwrap.open`).
+- Scenes: `setScene(scene, day|night, weather)` probes `img/scenes/{scene}-{time}.webp` along the fallback
+  chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
+  missing images are expected.
+- **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
+  [&data=local]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
+  with the same seed replays the identical war (same data required).
+
+`roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
+effect editor and stat editor (writes overrides), class filter, "draw 7" preview, odds comparison, export
+`servants.json` (lean) and `overrides.json`. Persists in `localStorage` keys `hgw.roster.v2` and
+`hgw.overrides.v1`.
+
+---
+
+## 9. Tests and verification
+
+No test framework; plain Node scripts (Node ≥ 18).
+
+```bash
+node test/sim.js 500            # 500 auto wars: errors, win/draw ratio, median days, per-war counts, win rates
+node test/sim.js 1 <seed>       # print one war's full log
+node test/interactive.js 200    # random focus/answers through the generator; replays 50 and checks mismatch
+node test/run.js test/lucan.txt # parse wiki text and show what was read
+node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-servant effects
+python3 -m http.server          # then open http://localhost:8000/
+```
+
+Baseline with current data (500 wars): errors 0, ~90% decided (draw ~10%), median 19 days (P10 11, P90 30),
+~16.5 battles, ~26 NP uses, ~4.2 command-seal events per war. Interactive: errors 0, **mismatch 0**,
+~7 decisions per war.
+
+Before opening a PR, run `sim.js` and `interactive.js` (must be `errors 0`, `mismatch 0`). Compare balance
+against `origin/main` if you touch the engine or config (a `git worktree` of main is convenient). For
+UI changes, check in a headless browser at desktop width and **390px** width (no horizontal overflow).
+Chromium + Playwright may be available in agent sandboxes.
+
+---
+
+## 10. Recipes
+
+| Task | Where / how |
+|---|---|
+| Add a class | One entry in `CLASS_DEFS` (`config.js`). |
+| Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`. |
+| Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. |
+| Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`). Check with `test/rebuild.js` that existing servants did not change unexpectedly. |
+| Fix one servant | Use `roster.html` (writes `overrides.json`) or edit `data/overrides.json` directly. Prefer overrides over editing `servants.json`. |
+| New effect primitive | Add to `EFFECTS`, then read it in `engine.js` via `eff(c, id, terrain)` / `effVs`. Unread primitives do nothing. |
+| New persona | Add to `G.PERSONAS` (all bias keys optional). Keep magnitudes small; `cs` and `retreat` strongly affect draw rate. |
+| New big decision | Use `yield* ask(camp, kind, {title, body, options}, autoFn)`; new kinds need no UI work. Add the kind to §7.7. |
+| New focus | Add to `FOCUS` with a unique one-char `code`. |
+| New place / scene | `WORLD.places` in `names.js` (`terrain` must match effect conds or be null); scene in `scenes.js` with a `fallback`; image spec in `img/scenes/README.md`. |
+| New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. |
+| Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
+| New servant data | Owner imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
+
+---
+
+## 11. Workflow conventions
+
+- The owner (GitHub `Pippiniden`) reviews and merges. **Do not push to `main`.** Work on a feature branch
+  from the latest `origin/main` and open a PR.
+- Commit messages and PR descriptions are written in Japanese for the owner.
+- Keep changes focused; update `README.md` (Japanese, for humans) and this file when behaviour or formats change.
+- Do not commit generated images, large temporary files, or local test output.
+
+## 12. Gotchas
+
+- `data/servants.json` is ~40k lines; load it with Node instead of reading it into context.
+- Japanese text processing relies on regexes over full-width characters; always run `R.normalize()` first
+  (full-width → half-width, unify `～〜~`, `（）`, `＋`, `？`).
+- Variables used by `log()` must be declared before the first `log()` call (TDZ bit us once with `tonight`).
+- `snap()` is copied into every log entry; keep it small and JSON-serialisable.
+- Camp ids are array indices and stable for the whole war; servant ids are `classKey:trueName`.
+- A camp can change hands (`contract`, `steal`): the player's camp id can change mid-war; the UI finds the
+  player camp via `snap.find(c => c.you)`.
+- Probabilities are clamped in many places; when adding terms, clamp the final value.
+- The church name and all narration live in `names.js` / engine strings; never hard-code English text in the UI.
