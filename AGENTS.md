@@ -559,8 +559,19 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   Rosters above `REF_MAX` (120) are compared against 120 evenly spaced reference servants instead of everyone.
 - Focus panel: on desktop it can be collapsed to one line (「たたむ」/「ひらく」, saved in `localStorage`
   `hgw.focusCollapsed`); on ≤820px the strip chip + bottom sheet are used as before.
-- Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) items; "すべての記録を見る"
-  expands to a scrollable box (`.logwrap.open`).
+- Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) matching items; "すべての記録を見る"
+  expands to a scrollable box (`.logwrap.open`). Filter tabs `[data-lf]`: すべて / ★ハイライト / 自陣営 (`e.you`;
+  hidden for observers). `syncLog()` applies the filter (`li.fo`) and the collapse (`li.past`) in JS — call it after
+  bulk `show(e, true)` loops. **Highlight** = `hlCheck(e)`: kind `death`/`end`, or any `big` entry except NPs, which
+  count only for each camp's first NP. 「CSVで保存」 exports the entries shown so far (`out.entries.slice(0, idx)`,
+  no `dayhead`; UTF-8 with BOM; columns 日, 時間帯, 種類, ハイライト, 自陣営, 関わった陣営, 本文, セリフの主, セリフ, 場所).
+  The result panel adds a chronological highlight timeline, 「自陣営の記録を見る」 and CSV export.
+- **Servant lore** (`#lore`): only for the player's own servant and servants whose true name is known in the
+  current snapshot (`canLore`: `snap.name` or `you`), so it never spoils. Opened from the Servant panel, the camps
+  list (known names get an ⓘ), the opening's rating page, and the result table. Shows 元ネタ/異名/属性/願い, an
+  excerpt of 解説 (`text.commentary`, full text and 人物・性格 in `<details>`), and links: Wikipedia search for the
+  true name (parentheses stripped) and for the 元ネタ, and the kagemiya page (`page` or trueName, EUC-JP encoded in
+  the browser via a `TextDecoder('euc-jp')` reverse table). No external fetches. Playback pauses while it is open.
 - Scenes: `setScene(scene, day|night, weather)` probes `img/scenes/{scene}-{time}.webp` along the fallback
   chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
   missing images are expected.
