@@ -189,9 +189,16 @@ body.watching .war { display: block; }
 .view .cap .capt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .view .cap .tag.day { background: var(--gold); }
 
-/* 重点 */
+/* 重点（パソコンでは見出しの「たたむ」で一行に格納できる） */
 .focus .rowsel { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); }
 .focus p { margin: 10px 0 0; font-size: 13px; color: var(--mute); }
+.focus .hd { cursor: default; }
+.focus .fnow { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--mute); }
+.focus .fnow b { color: var(--cyan-2); font-weight: 700; margin-left: 4px; }
+.focus .ftog { flex: none; min-height: 28px; padding: 3px 12px; font-size: 12px; --cut: 7px; }
+.focus.collapsed .body, .focus.collapsed .ja { display: none; }
+.focus.collapsed .fnow { display: block; margin-left: auto; }
+.focus.collapsed .hd { cursor: pointer; padding-bottom: 12px; }
 
 /* 記録（新しい順） */
 .log { list-style: none; margin: 0; padding: 0 12px 8px; }
@@ -276,6 +283,40 @@ body.watching .war { display: block; }
 .dlg.min .dlg-in > :not(.dlg-head) { display: none; }
 .dlg.min .dlg-in { width: min(440px, 100%); margin-bottom: var(--safe-b); }
 
+/* 開戦の案内（マスターの紹介 → サーヴァントの評価 → 最初の重点） */
+.opening .dlg-in { width: min(640px, 100%); background: linear-gradient(180deg, rgba(14, 44, 104, .97), rgba(6, 22, 58, .98)); }
+.opening .dlg-head .step { margin-left: auto; font: 600 13px var(--en); letter-spacing: .14em; color: var(--mute); white-space: nowrap; }
+.opbody { padding: 0 16px; font-size: 14px; }
+.opbody .say { font: 500 15px/1.95 var(--mincho); margin: 0 0 12px; }
+.opkv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 13px; margin: 0 0 10px; }
+.opkv dt { color: var(--mute); white-space: nowrap; }
+.opkv dd { margin: 0; }
+.opstats { display: grid; gap: 6px; margin: 0 0 12px; }
+.opstats div { display: grid; grid-template-columns: 4.4em 2.6em minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.opstats b { font: 700 17px var(--en); color: var(--cyan); text-shadow: 0 0 6px rgba(62, 230, 255, .5); }
+.grade { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 16px; align-items: center; margin: 2px 0 14px; }
+.grade .g { grid-row: span 2; width: 76px; height: 76px; display: grid; place-items: center; font: 700 46px/1 var(--en); color: var(--sel-ink);
+  background: linear-gradient(135deg, var(--cyan), var(--cyan-2)); box-shadow: 0 0 18px rgba(62, 230, 255, .45);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
+.grade .g.S { background: linear-gradient(135deg, var(--gold), #fff3c4); }
+.grade .g.C { background: linear-gradient(135deg, #9fb7d8, #dfe9f7); }
+.grade .g.D { background: linear-gradient(135deg, var(--seal), #ff9db1); }
+.grade .verdict { font: 700 17px/1.5 var(--gothic); align-self: end; }
+.grade .gsub { font-size: 12px; color: var(--mute); align-self: start; }
+.meters { display: grid; gap: 8px; margin: 0 0 12px; }
+.meters div { display: grid; grid-template-columns: 6.6em minmax(0, 1fr) 7.4em; gap: 10px; align-items: center; font-size: 13px; }
+.meters span:last-child { text-align: right; font: 700 15px var(--en); white-space: nowrap; }
+.meters span:last-child small { font: 500 12px var(--gothic); color: var(--mute); margin-left: 3px; }
+.notes { list-style: none; margin: 0 0 6px; padding: 0; display: grid; gap: 3px; font-size: 13px; }
+.notes li { padding-left: 1.3em; text-indent: -1.3em; }
+.notes li::before { content: "◆ "; color: var(--cyan); }
+.notes li.neg::before { color: var(--seal); }
+.opening .rowsel { padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opening .rowsel button { grid-template-columns: 26px minmax(0, 1fr); min-height: 58px; }
+.opening .rowsel button .rec { color: var(--gold); font-size: 12px; margin-left: 6px; }
+.opening .rowsel button[aria-pressed="true"] .rec { color: var(--sel-ink); }
+.opening .note2 { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+
 /* 重点の選択（スマホ） */
 .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 18; display: none; padding: 0 0 var(--safe-b); }
 .sheet.on { display: block; }
@@ -331,6 +372,10 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   .dlg { padding: 8px; align-items: flex-end; }
   .dlg h4 { font-size: 20px; }
   .choices3 { grid-template-columns: minmax(0, 1fr); }
+  .opening .rowsel { grid-template-columns: minmax(0, 1fr); }
+  .opening .rowsel button { min-height: 50px; }
+  .opstats div { grid-template-columns: 4em 2.4em minmax(0, 1fr); }
+  .grade .g { width: 64px; height: 64px; font-size: 38px; }
   .result tr:first-child { display: none; }
   .result tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); border-bottom: 1px solid rgba(80, 196, 255, .16); padding: 6px 0; }
   .result td { border: 0; padding: 2px 8px 2px 0; }
@@ -428,9 +473,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         <div id="stripBars" style="display:contents"></div>
         <button class="btn chip" id="focusChip">重点：<b id="focusChipLabel">おまかせ</b> ▾</button>
       </section>
-      <section class="panel focus" aria-label="重点">
-        <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">今日の重点・次の朝から反映</span></div>
-        <div class="body"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p id="focusDesc"></p></div>
+      <section class="panel focus" id="focusPanel" aria-label="重点">
+        <div class="hd" id="focusHead"><i class="chev"></i><span class="en">Focus</span><span class="ja">今日の重点・次の朝から反映</span><span class="fnow">重点<b id="focusNow">おまかせ</b></span><button class="btn ftog" id="focusToggle" aria-expanded="true" aria-controls="focusBody">たたむ ▴</button></div>
+        <div class="body" id="focusBody"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p id="focusDesc"></p></div>
       </section>
       <section class="panel" aria-label="戦いの記録">
         <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">戦いの記録・新しい順</span></div>
@@ -471,6 +516,15 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <p class="lead2" id="dlgBody"></p>
     <div class="rowsel" id="dlgOpts"></div>
     <div class="dlg-foot"><span class="keys"><i>1</i>〜 で選ぶ</span><button class="btn" id="dlgAuto">これからの決断をおまかせにする</button></div>
+  </section>
+</div>
+<div class="dlg opening" id="opening" role="dialog" aria-modal="true" aria-labelledby="opTitle">
+  <section class="dlg-in panel">
+    <div class="dlg-head"><i class="chev"></i><span class="en" id="opEn">Master</span><span class="step" id="opStep">1 / 3</span></div>
+    <div class="band" id="opBand">あなたのマスター</div>
+    <h4 id="opTitle"></h4>
+    <div class="opbody" id="opBody"></div>
+    <div class="dlg-foot"><span class="keys" id="opKeys">Enter で次へ</span><button class="btn" id="opBack">戻る</button><button class="btn primary" id="opNext">次へ</button></div>
   </section>
 </div>
 <div class="toast panel" id="toast" role="status"></div>
@@ -553,7 +607,10 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     document.body.classList.toggle('observer', youId == null);
     $('#log').innerHTML = ''; $('#result').innerHTML = ''; $('#logWrap').classList.remove('open'); syncLogMore();
     drawSkyline(seed); lastScene = null; renderFocus(); syncCtl(); updateURL();
-    hideDlg(); window.scrollTo(0, 0);
+    hideDlg(); closeOpening(); window.scrollTo(0, 0);
+    // マスターとして遊ぶときは、開戦の案内（マスター → サーヴァント → 重点）を出してから進める。共有リンクの再現では出さない
+    const replaying = replay.length || replayFocus;
+    if (youId != null && !replaying) { board(out.entries.find(e => e.snap)); if (openOpening()) return; }
     step();
   }
   $('#go').onclick = () => start(qs.get('seed') && qs.get('seed') === $('#seed').value.trim());
@@ -577,7 +634,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   const toggleAuto = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '大きな決断はおまかせで進みます' : '大きな決断で止まります'); if (autoAll && pending && pending.type === 'decision' && $('#dlg').classList.contains('on')) answer('auto'); };
   $('#autoBtn').onclick = toggleAuto; $('#autoBtn2').onclick = () => { closeMenu(); toggleAuto(); };
-  const quit = () => { clearTimeout(timer); hideDlg(); document.body.classList.remove('watching'); window.scrollTo(0, 0); };
+  const quit = () => { clearTimeout(timer); hideDlg(); closeOpening(); document.body.classList.remove('watching'); window.scrollTo(0, 0); };
   $('#quitBtn').onclick = quit; $('#quitBtn2').onclick = () => { closeMenu(); quit(); };
   const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
   $('#moreBtn').onclick = e => { e.stopPropagation(); const on = $('#menu').classList.toggle('on'); $('#moreBtn').setAttribute('aria-expanded', String(on)); };
@@ -585,6 +642,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 
   // 次の決断（なければ最後）まで一気に進める
   $('#skip').onclick = () => {
+    if (op) return;
     if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); return; }
     clearTimeout(timer);
     let guard = 0;
@@ -606,7 +664,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   }
 
   function step() {
-    if (!gen || paused) return;
+    if (!gen || paused || op) return;
     clearTimeout(timer);
     if (idx < out.entries.length) {
       const e = out.entries[idx++];
@@ -657,6 +715,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea')) return;
+    if (op) {
+      if (e.key === 'Enter') { e.preventDefault(); opNext(); }
+      else if (op.step === 3 && +e.key >= 1) { const k = Object.keys(FOCUS)[+e.key - 1]; if (k) { e.preventDefault(); opPick(k); } }
+      return;
+    }
     if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) {
       const n = +e.key; if (n >= 1) { const b = document.querySelectorAll('#dlgOpts button')[n - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } }
       return;
@@ -669,11 +732,183 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const html = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-pressed="${k === focus}" aria-checked="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
     $('#focusSeg').innerHTML = html; $('#focusSeg2').innerHTML = html;
     $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusDesc2').textContent = FOCUS[focus].desc;
-    $('#focusChipLabel').textContent = FOCUS[focus].label;
+    $('#focusChipLabel').textContent = FOCUS[focus].label; $('#focusNow').textContent = FOCUS[focus].label;
   }
   function setFocus(k) { if (!FOCUS[k]) return; focus = k; replayFocus = ''; renderFocus(); }
   ['#focusSeg', '#focusSeg2'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) setFocus(b.dataset.f); }));
   $('#focusChip').onclick = e => { e.stopPropagation(); $('#focusSheet').classList.toggle('on'); };
+  // パソコンでも重点の欄をたためる（スマホの「重点：○○ ▾」と同じく一行に格納）。たたんだかどうかはこのブラウザに残す
+  const FC_KEY = 'hgw.focusCollapsed';
+  function setFocusCollapsed(on, save) {
+    $('#focusPanel').classList.toggle('collapsed', on);
+    $('#focusToggle').setAttribute('aria-expanded', String(!on));
+    $('#focusToggle').textContent = on ? 'ひらく ▾' : 'たたむ ▴';
+    if (save) try { localStorage.setItem(FC_KEY, on ? '1' : '0'); } catch (e) { /* 保存できなくても動く */ }
+  }
+  try { setFocusCollapsed(localStorage.getItem(FC_KEY) === '1'); } catch (e) { setFocusCollapsed(false); }
+  $('#focusToggle').onclick = e => { e.stopPropagation(); setFocusCollapsed(!$('#focusPanel').classList.contains('collapsed'), true); };
+  $('#focusHead').onclick = () => { if ($('#focusPanel').classList.contains('collapsed')) setFocusCollapsed(false, true); };
+
+  // ---------- 開戦の案内 ----------
+  // マスターとして遊ぶとき、記録を流す前に「マスターの紹介 → サーヴァントの評価 → 最初の重点」を順に出す。
+  // 重点を決めるまで1日目は始まらない（以前は「おまかせ」のまま1日目が進んでいた）
+  let op = null; // { step, focus, rec, meta, snap }
+  const ORIGIN_DESC = {
+    noble: '魔術の名門に生まれ、豊かな魔力と家伝の知識を受け継いだ魔術師。拠点にははじめから工房がある。',
+    newblood: '歴史の浅い家系の魔術師。腕も魔力も人並みだが、この戦いに家の名を賭けている。',
+    mercenary: '魔術を道具として使う実戦の人。体と度胸で修羅場をくぐってきた。',
+    civilian: '魔術とは縁のない暮らしから、偶然この戦いに巻き込まれた。魔力は乏しいが、運だけはある。',
+    irregular: '生まれついての異能を持つ者。魔術師の常識には収まらない。',
+  };
+  const GRADE = {
+    S: '聖杯に最も近い一騎。正面からの勝負で後れを取る相手はほとんどいない',
+    A: '有力な優勝候補。多くの英霊と互角以上に渡り合える',
+    B: '並み以上の力を持つ。戦い方しだいで十分に勝ち残れる',
+    C: '正面からでは分の悪い相手も多い。策と運が要る',
+    D: '勝ち残るのは至難。戦いを避けて機を待つ戦い方が向く',
+  };
+  // マスターの能力値（0〜100）をランクの表記に
+  function scoreRank(v) {
+    const S = H.CONFIG.RANK_SCORE, L = H.rank.LEVELS;
+    if (v < S.E - 4) return 'E-';
+    let best = L[0]; for (const l of L) if (v >= S[l] - 4) best = l;
+    return best + (v - S[best] >= 7 ? '+' : '');
+  }
+  // 名簿の全騎と1対1で戦ったときの平均勝率（宝具あり・なしの平均）。名簿ごとに一度だけ計算する
+  const strengthCache = new WeakMap();
+  function strengthTable() {
+    if (strengthCache.has(roster)) return strengthCache.get(roster);
+    const B = H.build, rates = new Map();
+    for (const a of roster) {
+      let t = 0, n = 0;
+      for (const b of roster) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; }
+      rates.set(a.id, n ? t / n : 0.5);
+    }
+    const T = { rates, sorted: [...rates.values()].sort((x, y) => y - x), powers: roster.map(s => s.power).sort((x, y) => y - x), nps: roster.map(s => s.npPeak || 0).sort((x, y) => y - x) };
+    strengthCache.set(roster, T); return T;
+  }
+  const rankIn = (sorted, v) => sorted.filter(x => x > v + 1e-9).length + 1;
+  function evaluate(sv) {
+    const T = strengthTable(), n = roster.length, rate = T.rates.has(sv.id) ? T.rates.get(sv.id) : 0.5;
+    const rank = rankIn(T.sorted, rate), pct = (rank - 1) / Math.max(1, n - 1);
+    const grade = pct <= 0.1 ? 'S' : pct <= 0.3 ? 'A' : pct <= 0.6 ? 'B' : pct <= 0.85 ? 'C' : 'D';
+    const eff = id => Object.values(sv.effectSummary || {}).filter(e => e.id === id && !(e.params && e.params.cond)).reduce((t, e) => t + e.passive, 0);
+    const good = [], bad = [];
+    const STJA = H.build.STAT_JA, high = H.build.STAT_KEYS.filter(k => k !== 'np' && sv.score[k] >= 46).sort((a, b) => sv.score[b] - sv.score[a]).slice(0, 2);
+    if (high.length) good.push(`${high.map(k => STJA[k]).join('・')}が高い`);
+    const atk = (sv.nps || []).filter(x => x.attackResolved && !x.disabled).sort((a, b) => b.power - a.power)[0];
+    const npRank = rankIn(T.nps, sv.npPeak || 0);
+    if (atk && npRank / n <= 0.3) good.push(`宝具『${atk.name}』の威力は名簿でも上位（${npRank}位）`);
+    if (eff('instakill') > 0) good.push('一撃で決着をつける手段を持つ');
+    if (eff('guts') >= 0.25) good.push('致命傷を受けても踏みとどまりやすい');
+    if (eff('magic_guard') >= 0.3) good.push('魔術に対する守りが固い');
+    if (eff('evade') >= 0.12) good.push('攻撃をかわす勘に優れる');
+    if (eff('stealth') >= 0.3) good.push('気配を断つのが得意で、見つかりにくい');
+    if (eff('detect') >= 0.2 || eff('intel') >= 0.2) good.push('索敵・偵察に長ける');
+    if (eff('territory') >= 0.2) good.push('拠点で戦えば強い');
+    if (eff('escape') >= 0.2) good.push('不利になっても逃げ切りやすい');
+    if (eff('charm') > 0) good.push('相手の攻撃をためらわせる魅了を持つ');
+    if (eff('solo') >= 2) good.push('マスターを失っても長く現界できる');
+    const vs = Object.values(sv.effectSummary || {}).filter(e => e.id === 'power_vs' && e.passive > 0).map(e => e.params.tag);
+    if (vs.length) good.push(`〔${vs.slice(0, 2).join('〕〔')}〕への特攻を持つ`);
+    if (!atk) bad.push('攻撃に使える宝具を持たない（決め手に欠ける）');
+    if (eff('uncontrolled') > 0) bad.push('制御が難しく、勝手に動くことがある');
+    if (eff('upkeep_up') > 0) bad.push('燃費が悪く、魔力の消費が激しい');
+    if (eff('guard') < 0) bad.push('打たれ弱い');
+    if (eff('luck') < 0) bad.push('運に見放されがち');
+    if (eff('conceal') < 0) bad.push('真名を見抜かれやすい');
+    if ((sv.nps || []).some(x => (x.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5))) bad.push('宝具を使うと自らも消える');
+    // 最初の重点のおすすめ
+    const caster = sv.class.key === 'caster';
+    const rec = eff('uncontrolled') > 0.05 ? ['attack', '抑えの利かない英霊は、攻めに回したほうが力を出しやすい']
+      : (grade === 'S' || grade === 'A') && !caster ? ['attack', '力で押し切れる。早いうちに敵を減らしたい']
+      : eff('territory') >= 0.2 || caster ? ['defend', '陣地を固めて迎え撃つのが向いている']
+      : grade === 'D' ? [eff('stealth') >= 0.3 ? 'hide' : 'defend', 'まともにぶつかるのは避けたい']
+      : eff('stealth') >= 0.3 ? ['scout', '見つかりにくさを活かして、先に敵を知る']
+      : eff('negotiate') >= 0.2 ? ['ally', '手を組める相手を探すのが近道']
+      : ['auto', '状況に合わせて動くのがよい'];
+    return { rate, rank, n, grade, power: sv.power, powerRank: rankIn(T.powers, sv.power), npPeak: sv.npPeak || 0, npRank, maxPower: T.powers[0] || 1, maxNp: T.nps[0] || 1, good: good.slice(0, 4), bad: bad.slice(0, 2), rec };
+  }
+
+  function openOpening() {
+    const first = out.entries.find(e => e.snap) || { snap: [] };
+    const snap = first.snap.find(c => c.you);
+    if (!snap) return false;
+    const meta = metaOf(snap.id), sv = roster.find(s => s.id === meta.servantId);
+    const ev = sv ? evaluate(sv) : null;
+    op = { step: 1, focus: focus, meta, snap, ev, rec: ev ? ev.rec[0] : 'auto' };
+    $('#opening').classList.add('on');
+    renderOpening();
+    return true;
+  }
+  const meterRow = (k, v, max, label, rank) => `<div><span>${k}</span><span class="bar"><i style="width:${Math.max(2, Math.min(100, v / max * 100))}%;background:var(--cyan);color:var(--cyan)"></i></span><span>${esc(label)}${rank ? `<small>${rank}位</small>` : ''}</span></div>`;
+  function renderOpening() {
+    const { step, meta, snap, ev } = op, m = meta.master || {};
+    $('#opStep').textContent = `${step} / 3`;
+    $('#opBack').hidden = step === 1;
+    $('#opNext').textContent = step === 3 ? 'この重点で一日目を始める' : '次へ';
+    $('#opKeys').innerHTML = step === 3 ? '<i>1</i>〜 で選ぶ ・ Enter で始める' : 'Enter で次へ';
+    if (step === 1) {
+      $('#opEn').textContent = 'Master'; $('#opBand').textContent = 'あなたのマスター';
+      $('#opTitle').textContent = m.name || snap.master;
+      const stats = Object.entries(m.stats || {}).map(([k, v]) => `<div title="${esc(H.master.MASTER_STATS[k].desc)}"><span>${esc(H.master.MASTER_STATS[k].name)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana);color:var(--mana)"></i></span></div>`).join('');
+      $('#opBody').innerHTML = `<p class="say">${esc(out.city)}。${esc(meta.base)}を拠点に、あなたは聖杯戦争に臨む。手の甲には三画の令呪が刻まれている。</p>
+        <dl class="opkv">
+          <dt>素性</dt><dd>${esc([m.sex, m.age ? m.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
+          <dt>出自</dt><dd><b>${esc(m.originLabel || snap.origin)}</b>${ORIGIN_DESC[m.origin] ? '<br>' + esc(ORIGIN_DESC[m.origin]) : ''}</dd>
+          ${m.persona ? `<dt>性格</dt><dd><b>${esc(m.persona)}</b>${m.personaDesc ? '<br>' + esc(m.personaDesc) : ''}</dd>` : ''}
+          <dt>願い</dt><dd>${esc(m.wish || snap.wish)}</dd>
+          <dt>触媒</dt><dd>${m.catalyst ? '縁の品を用意して召喚に臨んだ（サーヴァントとの絆が深まりやすい）' : '触媒なしの召喚。応えたのは、相性で選ばれた英霊だ'}</dd>
+          ${m.skills && m.skills.length ? `<dt>スキル</dt><dd>${esc(m.skills.join('、'))}</dd>` : ''}
+          ${m.traits && m.traits.length ? `<dt>特徴</dt><dd>${esc(m.traits.join('、'))}</dd>` : ''}
+        </dl>
+        <div class="opstats">${stats}</div>
+        <p class="note2">重点を「おまかせ」にしている日は、陣営の方針「${esc(meta.policyLabel || '臨機応変')}」に沿って動く。</p>`;
+    } else if (step === 2) {
+      $('#opEn').textContent = 'Servant'; $('#opBand').textContent = 'あなたのサーヴァント';
+      $('#opTitle').textContent = `${snap.label}「${meta.trueName}」`;
+      const ranks = `<div class="ranks">${meta.ranks.map(([k, v]) => `<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
+      $('#opBody').innerHTML = ev ? `
+        <div class="grade"><span class="g ${ev.grade}">${ev.grade}</span><span class="verdict">${esc(GRADE[ev.grade])}</span>
+          <span class="gsub">名簿の${ev.n}騎と1対1で戦った場合の平均勝率 ${Math.round(ev.rate * 100)}%（${ev.rank}位）</span></div>
+        <div class="meters">
+          ${meterRow('平均勝率', ev.rate, 1, Math.round(ev.rate * 100) + '%', ev.rank)}
+          ${meterRow('基礎戦闘力', ev.power, ev.maxPower, String(ev.power), ev.powerRank)}
+          ${meterRow('宝具の威力', ev.npPeak, ev.maxNp, ev.npPeak ? String(ev.npPeak) : '—', ev.npPeak ? ev.npRank : 0)}
+        </div>
+        ${ranks}
+        <ul class="notes">${ev.good.map(t => `<li>${esc(t)}</li>`).join('')}${ev.bad.map(t => `<li class="neg">${esc(t)}</li>`).join('')}</ul>
+        <p class="note2">ステータス・スキル・宝具から見た、この英霊そのものの強さの目安です。今回の顔ぶれとの相性は含みません。</p>`
+        : `${ranks}<p class="note2">この英霊は名簿に見当たらないため、評価を出せません。</p>`;
+    } else {
+      $('#opEn').textContent = 'Focus'; $('#opBand').textContent = '最初の重点';
+      $('#opTitle').textContent = '一日目をどう動くか';
+      $('#opBody').innerHTML = `<p class="say">重点はいつでも変えられ、次の朝から反映される。まずは一日目の動き方を決めよう。</p>
+        <div class="rowsel" id="opFocus" role="radiogroup">${Object.entries(FOCUS).map(([k, f], i) => `<button data-f="${k}" role="radio" aria-pressed="${k === op.focus}" aria-checked="${k === op.focus}"><span class="n">${i + 1}</span><b>${esc(f.label)}${k === op.rec ? '<span class="rec">★おすすめ</span>' : ''}</b><small>${esc(f.desc)}</small></button>`).join('')}</div>
+        ${ev ? `<p class="note2">★おすすめ：${esc(FOCUS[op.rec].label)} ― ${esc(ev.rec[1])}</p>` : ''}`;
+    }
+    $('#opening .dlg-in').scrollTop = 0;
+    const f = step === 3 ? document.querySelector('#opFocus [aria-pressed="true"]') : $('#opNext');
+    if (f) f.focus({ preventScroll: true });
+  }
+  function opPick(k) {
+    if (!op || !FOCUS[k]) return;
+    op.focus = k;
+    document.querySelectorAll('#opFocus [data-f]').forEach(b => { const on = b.dataset.f === k; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-checked', String(on)); });
+  }
+  function closeOpening() { $('#opening').classList.remove('on'); op = null; }
+  function opNext() {
+    if (!op) return;
+    if (op.step < 3) { op.step++; return renderOpening(); }
+    const k = op.focus;
+    closeOpening(); setFocus(k);
+    toast(`重点「${FOCUS[k].label}」で一日目を始めます`);
+    step();
+  }
+  $('#opNext').onclick = opNext;
+  $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
+  $('#opBody').addEventListener('click', e => { const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f); });
+  $('#opBody').addEventListener('dblclick', e => { const b = e.target.closest('#opFocus [data-f]'); if (b) { opPick(b.dataset.f); opNext(); } });
 
   // ---------- 情景 ----------
   // 背景画像（img/scenes/）があれば使い、無ければシードから描いた街並み（SVG）を出す

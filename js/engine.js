@@ -800,6 +800,20 @@
       you.policy = autoPolicy(you);
       you.focus = 'auto';
     }
+    // 画面に出す開戦時の情報（マスターの紹介・陣営の方針）。乱数は使わない
+    for (const c of camps) {
+      const m = c.master, P = PER(c);
+      Object.assign(out.meta[c.id], {
+        servantId: c.sv.id, policy: c.policy, policyLabel: (POLICIES[c.policy] || {}).label || '', base: c.base.name,
+        master: {
+          name: m.name, sex: m.sex, age: m.age, origin: m.origin, originLabel: m.originLabel,
+          persona: P.label || null, personaDesc: P.desc || null,
+          stats: Object.fromEntries(Object.entries(m.stats).map(([k, v]) => [k, Math.round(v)])),
+          skills: (m.skills || []).map(x => x.name + (x.rankRaw ? '：' + x.rankRaw : '')), traits: m.traits || [],
+          catalyst: !!m.catalyst, wish: m.wish, cs: c.cs, hpMax: c.mhpMax, manaMax: c.manaMax,
+        },
+      });
+    }
 
     // ---------- 本編 ----------
     let finaleAnnounced = false, quietFrom = null;
