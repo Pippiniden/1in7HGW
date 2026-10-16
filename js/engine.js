@@ -82,10 +82,11 @@
       const preset = masterPool.length && chance(0.5) ? masterPool.splice(Math.floor(rnd() * masterPool.length), 1)[0] : null;
       const m = G.master.createMaster(preset || {}, rnd);
       if (!m.name) m.name = makeName(m);
-      m.wish = m.wish || pick(G.WISHES);
       // 性格：設定があればそれ、無ければ出自に合わせて抽選
       m.persona = preset && preset.persona && G.PERSONAS[preset.persona] ? preset.persona
         : wpick(Object.fromEntries(Object.entries(G.PERSONAS).map(([k, p]) => [k, (p.origins && p.origins[m.origin]) || 1])));
+      // 願い：出自と性格に合った候補から
+      m.wish = m.wish || pick(G.wishPool ? G.wishPool(m.origin, m.persona) : G.WISHES);
       const c = {
         id: i, slot: x.slot, substitute: x.substitute, extra: x.extra, sv, master: m, labelBase: base, label: base,
         hp: 100, mhp: 0, mhpMax: 0, mana: 0, manaMax: 0, cs: m.commandSpells,
@@ -287,11 +288,35 @@
       if (c.stance === 'all') p += 0.35; else if (c.stance === 'careful') p -= 0.05; else if (c.stance === 'retreat') p -= 0.1;
       p += perv(c, 'np');
       if (!chance(p)) return;
-      const retireOk = n => !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5) || (c.hp < 25 && chance(0.3));
-      const atk = nps.filter(n => n.attackResolved && retireOk(n));
-      const sup = nps.filter(n => !n.attackResolved && (n.effects || []).some(e => ['battle', 'damage', 'lethal', 'retreat'].includes(e.phase)) && !c.usedSup.has(n.name));
-      const np = atk.length && (chance(0.75) || !sup.length) ? atk.reduce((a, b) => (a.power >= b.power ? a : b)) : sup.length ? pick(sup) : null;
-      if (!np) return;
+      // どの宝具を使うか：威力だけで決めず、状況で重みを付けて選ぶ（複数の宝具を使い分ける）
+      //   劣勢・瀕死・終盤 → 最大火力を優先 / 相手が弱っている・魔力が心もとない → 軽い宝具で足りる
+      //   真名を知られていなければ、正体が露見しやすい宝具は控えめ / 自滅する宝具は追い詰められたときだけ
+      const fx = (n, id) => (n.effects || []).filter(e => e.id === id).reduce((t, e) => t + e.mag, 0);
+      const desperate = c.hp < 25, pressed = losing || c.hp < 40 || day > ENG.maxDays - ENG.finaleDays;
+      const atkAll = nps.filter(n => n.attackResolved);
+      const maxP = Math.max(1, ...atkAll.map(n => n.power)), minCost = Math.min(...nps.map(n => n.cost));
+      const hidden = !o.knowName.has(c.id);
+      const weight = n => {
+        const retire = fx(n, 'self_retire');
+        if (retire >= 0.5 && !desperate) return 0;
+        let w;
+        if (n.attackResolved) {
+          const rel = n.power / maxP;
+          w = pressed ? Math.pow(rel, 3) * 1.4 : o.hp < 35 ? 0.6 + (1 - rel) : 0.35 + rel * 0.65;
+          if (c.mana - n.cost * ENG.npCost < c.manaMax * 0.25 && n.cost > minCost && !pressed) w *= 0.5;  // 魔力を使い切りたくない
+        } else {
+          if (c.usedSup.has(n.name) || !(n.effects || []).some(e => ['battle', 'damage', 'lethal', 'retreat'].includes(e.phase))) return 0;
+          w = losing ? 0.7 : 0.45;
+        }
+        if (hidden && !pressed) w *= 1 - Math.min(0.6, (n.exposure || 0) * 0.4);
+        if (retire > 0 && retire < 0.5) w *= 1 - retire;
+        if (fx(n, 'backfire') > 0 && !pressed) w *= 0.6;
+        if (retire >= 0.5) w *= 0.3;   // 追い詰められても、使うのはまれ
+        return Math.max(0, w);
+      };
+      const ws = {}; nps.forEach((n, i) => { const w = weight(n); if (w > 0) ws[i] = w; });
+      if (!Object.keys(ws).length) return;
+      const np = nps[+wpick(ws)];
       c.mana -= np.cost * ENG.npCost; c.npUses++;
       if (np.attackResolved) c.npBoost = np.power * ENG.npPowerK * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1);
       else c.usedSup.add(np.name);
