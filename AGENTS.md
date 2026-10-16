@@ -108,12 +108,19 @@ js/
   personas.js       Master personalities and their behavioural biases
   engine.js         The simulation (generator), ~870 lines
   data.js           Loading published data / browser-local roster / user-picked files
+tools/
+  kagemiya.js       Fetch kagemiya pages by name (EUC-JP URL) → HTML→wiki markup → parse → data/servants.json (Node CLI)
+.github/workflows/
+  kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, opens a PR
 test/
   sim.js            N automatic wars → balance stats; or print one war's log
   interactive.js    Random focus/answers through the generator; checks replay determinism
   run.js            Parse wiki .txt files and print what was read
   rebuild.js        Rebuild exported JSON folder; print effects per servant
+  content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
+  kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
+  kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
 
 Current data: 64 servants (saber 12, lancer 10, rider 10, berserker 9, assassin 8, caster 6, archer 5,
@@ -162,6 +169,16 @@ description…
 *【解説】 / 【人物・性格】 / 【因縁キャラ】 / 【セリフ】(voice lines under headings like 召喚, 開始, 宝具, 会話, 絆, 聖杯について…)
 ```
 
+**Fetching by name** (`tools/kagemiya.js`, run from the GitHub Actions workflow because Seesaa sends no CORS
+headers, so browsers cannot fetch it): page URL is `https://seesaawiki.jp/kagemiya/d/<page name in EUC-JP
+percent-encoding>` (UTF-8 encoding gives 404; a missing page is 404; `/dp/` print pages return 503). The body
+is `<div class="user-area">` up to `<!-- google_ad_section_end(name=s1)`. `htmlToWiki` maps `<h3>/<h4>/<h5>`
+→ `*`/`**`/`***`, `<br>` → newline, `<ruby><rb>X</rb><rt>Y</rt>` → `&ruby(Y){X}`, `<del>` → `%%…%%`,
+`<b>` → `''…''`, toggle regions → `[+]title … [END]`, tables → `|a|b|`; the result parses identically to the
+pasted wiki source (verified on 3 pages). Imported servants get `page` (wiki page title) so `refresh` can
+re-fetch them; old data without `page` is tried as `trueName`, then `trueName(classLabel)`. Requests are
+serial with a 1.5 s gap.
+
 Pages deviate from the template often; the parser is deliberately tolerant (regex section/key matching,
 `SECTIONS`, `INFO_KEYS`, `PROFILE_KEYS` in `parser.js`). Struck-through text (`%%…%%`) is dropped by default.
 `roster.html` accepts several pages pasted together separated by a line of `=====`.
@@ -186,9 +203,10 @@ class {key,label,raw,standard,sub}, origin, sex, alignment, attribute, traits, s
 {raw, rank}}, statsAlt [{label, stats, fromText?}], classSkills/skills [{name, rankRaw, rank, desc}],
 nps [{name, reading, rankRaw, rank, typeRaw, typeKey, range, maxTargets, desc, …}], weapons, profile
 {likes, dislikes, wish, imageColor, specialty, firstPerson…}, relations [{name,text}], voice {heading:[lines]},
-text {commentary, personality, comment, voice, other}, info (all 【key】 pairs), warnings, body`.
+text {commentary, personality, comment, voice, other}, info (all 【key】 pairs), warnings, body, page?`
+(`page` = kagemiya page title, set by `tools/kagemiya.js`). The browser roster may also hold `_wiki` (see 4.5).
 
-Derived fields (added by `buildServant`, stripped by `toLean`): `ranks, score, statSource, tags, allSkills
+Derived fields (added by `buildServant`, stripped by `toLean`): `contentEdited, ranks, score, statSource, tags, allSkills
 (with .effects/.effectSource/.matched/.group), nps[].{attackResolved, power, burst, cost, exposure, multi,
 disabled, effects}, effectSummary, power, npPeak, review, built`.
 
@@ -206,14 +224,32 @@ Identity: two entries with the same `class.key + trueName` are the same servant;
 
 `hgw-servants` pack: `{ format:'hgw-servants', version:2, lean:true, at:<ISO>, servants:[…] }`.
 
-`hgw-overrides`: `{ format:'hgw-overrides', version:2, global:{}, servant:{}, stats:{}, np:{} }`
+`hgw-overrides`: `{ format:'hgw-overrides', version:2, global:{}, servant:{}, stats:{}, np:{}, content:{} }`
 - `global` → `SKILL_OVERRIDES`: `'skillName': [[effectId, factor, params?], …]` (all servants)
 - `servant` → `SERVANT_OVERRIDES`: `'trueName/skillOrNpName': [[…]]` (one servant; `[]` = no effects)
 - `stats` → `STAT_OVERRIDES`: `'trueName': { str:'B', … }` (only listed stats replaced)
 - `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
+- `content` → `CONTENT_OVERRIDES`: `'trueName': { skills?, nps?, voice?, text?, profile?, relations?, base }` (see 4.5)
 
 Overrides embedded in exported servant JSON (`effectSource: 'override'|'servant-override'`) are harvested
 back into the tables on load (`harvestOverrides`), without overwriting existing entries.
+
+### 4.5 Content overrides (`build.js` `applyContent`)
+
+Hand edits of the *content* read from the wiki (the roster tool's 「内容を編集」 dialog). Each present section
+replaces the wiki value wholesale: `skills: [{group:'class'|'own', name, rankRaw, desc}]` (both classSkills
+and skills), `nps: [{name, reading, rankRaw, typeRaw, rangeRaw, maxRaw, desc}]`, `voice {heading:[lines]}`,
+`text {…}`, `profile {…}`, `relations [{name,text}]`. `base[section]` = `hashOf(contentOf(wikiValue, section))`
+at edit time; if the wiki value later differs, `buildServant` adds a `review` item of kind `content`.
+Sections equal to the wiki are not stored. Ranks/types are re-parsed from the raw strings (`mkSkill`, `mkNP`).
+
+`buildServant` first restores `sv._wiki` (the wiki values stashed when an override was applied), then applies
+`CONTENT_OVERRIDES[trueName]`, stashes the replaced wiki values in `sv._wiki`, re-runs `finalize`, and sets
+`contentEdited` (list of sections). So the browser roster can always revert. `toLean` restores `_wiki`, i.e.
+**published servants.json always holds wiki values; edits live only in overrides.json**. `fromJSON` restores
+`_wiki` before `finalize`. `harvestOverrides` turns a full export that still has `_wiki` back into a
+`CONTENT_OVERRIDES` entry (if none exists). Effect overrides stay keyed by skill name, so renaming a skill
+detaches its effect override. `buildServant` also flags duplicate skill/NP names in `review`.
 
 **The owner sometimes uploads `data/servants.json` directly to `main` via the GitHub web UI.** Always
 branch from the latest `origin/main` and never overwrite data files you were not asked to change.
@@ -505,7 +541,8 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   with the same seed replays the identical war (same data required).
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
-effect editor and stat editor (writes overrides), class filter, "draw 7" preview, odds comparison, export
+effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; writes
+`CONTENT_OVERRIDES`) (all write overrides), class filter, "draw 7" preview, odds comparison, export
 `servants.json` (lean) and `overrides.json`. Persists in `localStorage` keys `hgw.roster.v2` and
 `hgw.overrides.v1`.
 
@@ -520,6 +557,9 @@ node test/sim.js 500            # 500 auto wars: errors, win/draw ratio, median 
 node test/sim.js 1 <seed>       # print one war's full log
 node test/interactive.js 200    # random focus/answers through the generator; replays 50 and checks mismatch
 node test/run.js test/lucan.txt # parse wiki text and show what was read
+node test/content.js            # content overrides
+node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
+node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
 node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-servant effects
 python3 -m http.server          # then open http://localhost:8000/
 ```
@@ -551,7 +591,8 @@ Chromium + Playwright may be available in agent sandboxes.
 | New place / scene | `WORLD.places` in `names.js` (`terrain` must match effect conds or be null); scene in `scenes.js` with a `fallback`; image spec in `img/scenes/README.md`. |
 | New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. |
 | Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
-| New servant data | Owner imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
+| New servant data | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
+| Improve wiki reading for old data | Fix `parser.js`, then run the workflow in 取り直し mode (re-fetches every page; lean JSON has no source text). |
 
 ---
 

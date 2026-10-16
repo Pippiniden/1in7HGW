@@ -6,7 +6,7 @@
  *       1) 手で直した上書き  2) 既知スキルの辞書  3) 説明文の解析（キーワード＋他スキルの参照）  4) 仮の効果
  *     の順で決める。
  *   - 後から手で直すときは SKILL_OVERRIDES（全体）か SERVANT_OVERRIDES（そのサーヴァントだけ）に書く。
- *     ステータスの手直しは STAT_OVERRIDES に書く。
+ *     ステータスの手直しは STAT_OVERRIDES に書く。スキル・宝具・セリフなど内容そのものの手直しは CONTENT_OVERRIDES。
  *
  * 効果の強さ = 部品の基準値(base) × 割り当て係数 × ランク倍率（B=1.0, A=1.2, EX=1.5 …）
  *   fixed: true の部品はランク倍率を掛けない。byRank がある部品はランクごとの表を使う。
@@ -237,6 +237,7 @@
   const SERVANT_OVERRIDES = {};  // '真名/スキル名または宝具名': [[...]]
   const STAT_OVERRIDES = {};     // '真名': { str: 'B', end: 'C', ... }  書いた項目だけ置き換える
   const NP_OVERRIDES = {};       // '真名/宝具名': { attack: true|false }  攻撃宝具かどうかの手直し
+  const CONTENT_OVERRIDES = {};  // '真名': { skills, nps, voice, text, profile, relations, base }  内容の手直し（build.js の applyContent）
 
   // ---------- 名前の正規化と照合 ----------
   function normName(s) {
@@ -423,6 +424,6 @@
     };
   }
 
-  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES,
+  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES,
     normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag };
 })(globalThis.HGW = globalThis.HGW || {});

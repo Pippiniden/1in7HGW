@@ -351,5 +351,5 @@
     return sv;
   }
 
-  G.parser = { stripMarkup, nameAndReading, parsePage, parseServant, parseClass, parseStatLine, splitNameRank, npTypeKey, collectPairs, collectVoice, itemsToSkills, finalize };
+  G.parser = { stripMarkup, nameAndReading, parsePage, parseServant, parseClass, parseStatLine, splitNameRank, npTypeKey, parseNum, parseRange, collectPairs, collectVoice, itemsToSkills, finalize, PROFILE_KEYS };
 })(globalThis.HGW = globalThis.HGW || {});

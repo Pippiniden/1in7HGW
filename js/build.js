@@ -9,7 +9,57 @@
   const STAT_KEYS = ['str', 'end', 'agi', 'mag', 'luk', 'np'];
   const STAT_JA = { str: '筋力', end: '耐久', agi: '敏捷', mag: '魔力', luk: '幸運', np: '宝具' };
   // 再計算で作り直す項目（古いJSONから組み直すときに捨てる）
-  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'built', 'statSource'];
+  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'built', 'statSource', 'contentEdited'];
+
+  // ---------- 内容の手直し（effects.js の CONTENT_OVERRIDES） ----------
+  // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、名簿ツールで直した内容に差し替える。
+  // 差し替えた項目の Wiki の値は sv._wiki に取っておく（名簿に保存したあとでも元に戻せるように）。
+  // 公開用のデータ（toLean）は Wiki の値で書き出し、手直しは overrides.json の content に入る。
+  const CONTENT_SECTIONS = { skills: ['classSkills', 'skills'], nps: ['nps'], voice: ['voice'], text: ['text'], profile: ['profile'], relations: ['relations'] };
+  const CONTENT_JA = { skills: 'スキル', nps: '宝具', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
+  const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
+  function restoreWiki(sv) {
+    if (sv && sv._wiki) { for (const k of Object.keys(sv._wiki)) { if (sv._wiki[k] === undefined) delete sv[k]; else sv[k] = sv._wiki[k]; } delete sv._wiki; }
+    return sv;
+  }
+  /** Wiki から読んだままの内容（手直しを外したもの）の写し */
+  const wikiOf = sv => restoreWiki(clone(sv));
+  /** 編集・比較に使う、項目ごとの内容（計算で出す値を除いたもの） */
+  function contentOf(sv, sec) {
+    const sk = (g, s) => ({ group: g, name: s.name || '', rankRaw: s.rankRaw || '', desc: s.desc || '' });
+    if (sec === 'skills') return (sv.classSkills || []).map(s => sk('class', s)).concat((sv.skills || []).map(s => sk('own', s)));
+    if (sec === 'nps') return (sv.nps || []).map(n => ({ name: n.name || '', reading: n.reading || '', rankRaw: n.rankRaw || '', typeRaw: n.typeRaw || '', rangeRaw: n.rangeRaw || '', maxRaw: n.maxRaw || '', desc: n.desc || '' }));
+    if (sec === 'relations') return clone(sv.relations || []);
+    return clone(sv[sec] || {});
+  }
+  function hashOf(x) { const s = JSON.stringify(x); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); }
+  function mkSkill(s) { const rankRaw = String(s.rankRaw || '').trim(); return { name: String(s.name || '').trim(), rankRaw, rank: R.parseRank(rankRaw), desc: String(s.desc || '') }; }
+  function mkNP(n) {
+    const P = G.parser, g = k => String(n[k] || '').trim();
+    return { name: g('name'), reading: g('reading'), rankRaw: g('rankRaw'), rank: R.parseRank(g('rankRaw')), typeRaw: g('typeRaw'), typeKey: P.npTypeKey(g('typeRaw')),
+      rangeRaw: g('rangeRaw'), range: P.parseRange(g('rangeRaw')), maxRaw: g('maxRaw'), maxTargets: P.parseNum(g('maxRaw')), desc: String(n.desc || '') };
+  }
+  /** 手直しを掛ける。戻り値は差し替えた項目の一覧 */
+  function applyContent(sv, review) {
+    restoreWiki(sv);
+    const c = E.CONTENT_OVERRIDES[sv.trueName];
+    if (!c) return [];
+    const wiki = {}, done = [];
+    for (const sec of Object.keys(CONTENT_SECTIONS)) {
+      if (c[sec] == null) continue;
+      const base = c.base && c.base[sec];
+      if (base && review && base !== hashOf(contentOf(sv, sec))) review.push({ kind: 'content', target: CONTENT_JA[sec], why: '手直しした後にWikiの内容が変わっています（「内容を編集」で見比べて、必要なら直し直してください）' });
+      for (const f of CONTENT_SECTIONS[sec]) wiki[f] = clone(sv[f]);
+      if (sec === 'skills') {
+        sv.classSkills = c.skills.filter(s => s.group === 'class').map(mkSkill).filter(s => s.name);
+        sv.skills = c.skills.filter(s => s.group !== 'class').map(mkSkill).filter(s => s.name);
+      } else if (sec === 'nps') sv.nps = c.nps.map(mkNP).filter(n => n.name);
+      else sv[sec] = clone(c[sec]);
+      done.push(sec);
+    }
+    if (done.length) { sv._wiki = wiki; G.parser.finalize(sv); }
+    return done;
+  }
 
   function buildServant(parsed, opts) {
     opts = opts || {};
@@ -18,6 +68,7 @@
     for (const k of DERIVED) delete sv[k];
     sv.warnings = sv.warnings || [];
     const review = [];
+    sv.contentEdited = applyContent(sv, review);
     const def = G.classDef(sv.class.key);
 
     if (sv.class.key === 'extra' || def.slot === 'extra') {
@@ -66,6 +117,10 @@
       for (const e of r.effects) if (e.id === 'tag' && e.params && e.params.tag) tags.add(e.params.tag);
     }
     sv.allSkills = allSkills;
+    // 同じ名前のスキル・宝具が複数ある（FGO風の表と本文を二重に読んだ、など）
+    const dupOf = list => list.map(x => E.normName(x.name)).filter((n, i, a) => n && a.indexOf(n) !== i).filter((n, i, a) => a.indexOf(n) === i);
+    for (const n of dupOf(allSkills)) review.push({ kind: 'skill', target: n, why: '同じ名前のスキルが複数あります（別の表などを二重に読んだ可能性。「内容を編集」で消せます）' });
+    for (const n of dupOf(sv.nps)) review.push({ kind: 'np', target: n, why: '同じ名前の宝具が複数あります（「内容を編集」で消せます）' });
 
     // 宝具
     for (const np of sv.nps) {
@@ -156,7 +211,7 @@
    * クラスは CLASS_DEFS で判定し直すので、後からクラスを足しても古いデータに反映される。
    */
   function fromJSON(obj) {
-    const sv = JSON.parse(JSON.stringify(obj));
+    const sv = restoreWiki(JSON.parse(JSON.stringify(obj))); // 内容の手直しは buildServant で掛け直す
     if (sv.class) sv.class = G.parser.parseClass(sv.class.raw || sv.class.label || '');
     G.parser.finalize(sv);
     sv.id = sv.class.key + ':' + sv.trueName;
@@ -167,6 +222,15 @@
   function harvestOverrides(list) {
     let n = 0;
     for (const sv0 of list) {
+      // 名簿ツールで内容を直したまま書き出したJSON（_wiki あり）：直した内容を内容の手直し表に戻す
+      if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[sv0.trueName]) {
+        const wiki = wikiOf(sv0), c = { base: {} };
+        for (const [sec, fields] of Object.entries(CONTENT_SECTIONS)) {
+          if (!fields.some(f => f in sv0._wiki)) continue;
+          c[sec] = contentOf(sv0, sec); c.base[sec] = hashOf(contentOf(wiki, sec));
+        }
+        if (Object.keys(c).length > 1) { E.CONTENT_OVERRIDES[sv0.trueName] = c; n++; }
+      }
       // 宝具名の「名前(読み)」の分離などを済ませた名前で登録する
       const sv = G.parser.finalize(JSON.parse(JSON.stringify(sv0)));
       const items = (sv.allSkills || sv.classSkills.concat(sv.skills)).concat(sv.nps || []);
@@ -186,11 +250,12 @@
    */
   const ITEM_DERIVED = ['effects', 'effectSource', 'matched', 'group', 'attack', 'attackAuto', 'attackBasis', 'attackResolved', 'power', 'burst', 'cost', 'exposure', 'multi', 'disabled'];
   function toLean(sv) {
-    const o = JSON.parse(JSON.stringify(sv));
+    const o = restoreWiki(JSON.parse(JSON.stringify(sv)));
     for (const k of DERIVED) delete o[k];
     for (const it of (o.classSkills || []).concat(o.skills || [], o.nps || [])) for (const k of ITEM_DERIVED) delete it[k];
     return o;
   }
 
-  G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA };
+  G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -117,6 +117,35 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .war { font-size: 13px; display: grid; gap: 3px; margin-top: 8px; }
 .war div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px; }
 .war span:first-child { color: var(--sub); }
+.badge.ed { background: var(--chip); color: var(--ok); }
+/* 内容の編集 */
+dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32px); }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tabs button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tabs button i { font-style: normal; color: var(--ok); margin-left: 4px; }
+.tabs button.on i { color: inherit; }
+.ctp .lst { display: grid; gap: 8px; margin-bottom: 8px; }
+.card { border: 1px solid var(--rule); border-radius: 8px; padding: 8px; display: grid; gap: 6px; min-width: 0; }
+.card .line { display: grid; grid-template-columns: 92px minmax(0, 1fr) 96px 32px; gap: 6px; align-items: center; }
+.card .line.np { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 72px 32px; }
+.card .line.np2 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card input, .card select { width: 100%; min-width: 0; }
+.ctp textarea { min-height: 56px; font-size: 13px; line-height: 1.55; font-family: inherit; }
+.ctp textarea.code { min-height: 300px; font: 12.5px/1.6 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.ctp label.f { display: grid; gap: 2px; font-size: 11px; color: var(--sub); min-width: 0; margin-bottom: 8px; }
+.card .line.np2 label.f { margin-bottom: 0; }
+.ctp label.f input, .ctp label.f textarea { width: 100%; }
+.pgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8px; }
+.ctnote { font-size: 12px; margin: 0 0 8px; }
+.ctnote.warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 6px 8px; }
+.ctfoot { position: sticky; bottom: -16px; background: var(--panel); padding: 10px 0 2px; border-top: 1px solid var(--rule); margin-top: 8px; }
+@media (max-width: 560px) {
+  .card .line { grid-template-columns: minmax(0, 1fr) 72px 32px; }
+  .card .line select { grid-column: 1 / -1; }
+  .card .line.np { grid-template-columns: minmax(0, 1fr) 64px 32px; }
+  .card .line.np input[data-f=reading] { grid-column: 1 / -1; grid-row: 2; }
+  .card .line.np2, .pgrid { grid-template-columns: minmax(0, 1fr); }
+}
 </style>
 </head>
 <body>
@@ -134,6 +163,7 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
       <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出した名簿）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
+      <div class="hint" style="margin-top:6px">ページ名だけで取り込むときは <a href="https://github.com/Pippiniden/1in7HGW/actions/workflows/kagemiya.yml" target="_blank" rel="noopener" style="color:var(--accent)">GitHub の「kagemiya から取り込み」</a> を実行します（data/servants.json を更新するプルリクエストができます）。</div>
       <div class="status" id="status"></div>
     </section>
     <section class="panel">
@@ -210,6 +240,20 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
   </div>
 </dialog>
 
+<dialog id="ct" class="wide">
+  <h3 id="ctTitle"></h3>
+  <div class="tabs" id="ctTabs"></div>
+  <div id="ctBody"></div>
+  <div class="ctfoot">
+    <div class="row">
+      <button class="primary" id="ctSave">保存して反映</button>
+      <button id="ctReset">手直しをすべて消す</button>
+      <button class="ghost" id="ctCancel">閉じる</button>
+    </div>
+    <div class="hint" style="margin-top:6px">直した内容は手直し表（overrides.json）に入ります。Wikiから取り直しても残り、「Wikiの内容に戻す」でいつでも戻せます。</div>
+  </div>
+</dialog>
+
 <script src="js/config.js"></script>
 <script src="js/rank.js"></script>
 <script src="js/parser.js"></script>
@@ -229,7 +273,7 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 
   // ---------- 保存領域 ----------
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } } };
-  const TABLES = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES };
+  const TABLES = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES, content: E.CONTENT_OVERRIDES };
   function ovGet() { const o = {}; for (const k in TABLES) o[k] = Object.assign({}, TABLES[k]); return o; }
   function ovSet(o, merge) { for (const k in TABLES) { if (!merge) for (const x of Object.keys(TABLES[k])) delete TABLES[k][x]; Object.assign(TABLES[k], (o && o[k]) || {}); } }
   function ovStore() { store.set(OV_KEY, ovGet()); }
@@ -284,7 +328,8 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
     return `<div class="body">
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).join('・')].filter(Boolean).join(' · '))}</div>
       <div class="stats">${st}</div>
-      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
+      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
+      ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
       <h3>スキル</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${skills || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
@@ -293,6 +338,7 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
         <p>${prof || '<span class="hint">なし</span>'}</p>
         ${rel ? '<p><b>因縁</b><br>' + rel + '</p>' : ''}
         ${voice ? '<p><b>セリフ</b>（場面と数）<br>' + voice + '</p>' : ''}
+        <button class="sm" data-ct="${i}" data-tab="voice">セリフ・解説を編集</button>
       </details>
     </div>`;
   }
@@ -309,7 +355,7 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
     const shown = roster.map((s, i) => [s, i]).filter(([s]) => filter === 'all' || (filter === 'review' ? s.review.some(r => r.kind !== 'class') : s.class.key === filter));
     $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
       const nr = s.review.filter(r => r.kind !== 'class').length;
-      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="sumname">${esc(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
+      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="sumname">${esc(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
     }).join('') : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
 
     // クラス別の人数
@@ -479,6 +525,137 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
     $('#st').close(); afterEdit();
   };
   $('#stReset').onclick = () => { delete E.STAT_OVERRIDES[stCtx.trueName]; $('#st').close(); afterEdit(); };
+
+  // ---------- 内容の編集（スキル・宝具・セリフ・解説・プロフィール・因縁） ----------
+  // 直した内容は E.CONTENT_OVERRIDES['真名'] に項目ごとに入る（Wikiと同じに戻した項目は入れない）
+  const CT_TABS = [['skills', 'スキル'], ['nps', '宝具'], ['voice', 'セリフ'], ['text', '解説・人物'], ['profile', 'プロフィール・因縁']];
+  const TEXT_JA = { commentary: '解説', personality: '人物・性格', comment: 'コメント', other: 'その他' };
+  const PROF_JA = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
+  let ct = null; // { sv, wiki, tab }
+  // キーの順番によらずに比べる
+  const canon = x => Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.keys(x).sort().reduce((o, k) => (o[k] = canon(x[k]), o), {}) : x;
+  const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
+  const ctWiki = sec => B.contentOf(ct.wiki, sec);
+  const ctNow = sec => B.contentOf(ct.sv, sec);
+
+  function voiceToText(v) { return Object.entries(v || {}).map(([k, ls]) => ls.map(l => `${k}：「${l}」`).join('\n')).join('\n\n'); }
+  function parseVoiceText(t) {
+    const voice = {}, bad = []; let last = null;
+    for (const raw of String(t).split('\n')) {
+      const l = raw.trim(); if (!l) continue;
+      const m = l.match(/^([^：:「」]{1,16})\s*[:：]\s*(.+)$/);
+      if (!m) { bad.push(l); continue; }
+      let k = m[1].trim(), v = m[2].trim();
+      const q = v.match(/^「([\s\S]*)」$/); if (q) v = q[1].trim();
+      if (!v) continue;
+      if (/^(その)?\d+$/.test(k) && last) k = last; else last = k;
+      (voice[k] = voice[k] || []).push(v);
+    }
+    return { voice, bad };
+  }
+  const relToText = rs => (rs || []).map(r => `${r.name}：${r.text}`).join('\n');
+  function parseRelText(t) {
+    const out = [], bad = [];
+    for (const raw of String(t).split('\n')) { const l = raw.trim(); if (!l) continue; const m = l.match(/^([^：:]{1,24})\s*[:：]\s*(.+)$/); if (m) out.push({ name: m[1].trim(), text: m[2].trim() }); else bad.push(l); }
+    return { relations: out, bad };
+  }
+
+  function skillCard(s) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = `<div class="line"><select data-f="group"><option value="class"${s.group === 'class' ? ' selected' : ''}>クラス別</option><option value="own"${s.group !== 'class' ? ' selected' : ''}>保有</option></select><input type="text" data-f="name" value="${esc(s.name)}" placeholder="スキル名"><input type="text" data-f="rankRaw" value="${esc(s.rankRaw)}" placeholder="ランク"><button class="sm ghost danger" data-rm title="このスキルを消す">×</button></div><textarea data-f="desc" placeholder="説明（効果の推定に使います）">${esc(s.desc)}</textarea>`;
+    return d;
+  }
+  function npCard(n) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = `<div class="line np"><input type="text" data-f="name" value="${esc(n.name)}" placeholder="宝具名"><input type="text" data-f="reading" value="${esc(n.reading)}" placeholder="読み"><input type="text" data-f="rankRaw" value="${esc(n.rankRaw)}" placeholder="ランク"><button class="sm ghost danger" data-rm title="この宝具を消す">×</button></div>
+      <div class="line np2"><label class="f">種別<input type="text" data-f="typeRaw" value="${esc(n.typeRaw)}" placeholder="対人宝具など"></label><label class="f">レンジ<input type="text" data-f="rangeRaw" value="${esc(n.rangeRaw)}"></label><label class="f">最大捕捉<input type="text" data-f="maxRaw" value="${esc(n.maxRaw)}"></label></div>
+      <textarea data-f="desc" placeholder="説明（攻撃か補助か・効果の推定に使います）">${esc(n.desc)}</textarea>`;
+    return d;
+  }
+  // 1つのタブの中身を作る（val を渡すとその内容で、無ければ今の内容で）
+  function ctPanel(tab, val) {
+    const p = $(`#ctBody [data-p="${tab}"]`);
+    const changed = tab === 'profile' ? (ct.sv.contentEdited || []).some(k => k === 'profile' || k === 'relations') : (ct.sv.contentEdited || []).includes(tab);
+    const moved = ct.sv.review.filter(r => r.kind === 'content' && (r.target === B.CONTENT_JA[tab] || (tab === 'profile' && r.target === B.CONTENT_JA.relations)));
+    const note = (moved.length ? `<p class="ctnote warn">手直しした後にWikiの内容が変わっています。「Wikiの内容に戻す」で今のWikiの内容を読み込めます。</p>` : changed ? '<p class="ctnote hint">手直し中（Wikiの内容の代わりに使っています）</p>' : '<p class="ctnote hint">Wikiから読んだままの内容です</p>');
+    const foot = (add) => `<div class="row">${add || ''}<button class="sm ghost" data-wiki="${tab}">Wikiの内容に戻す</button></div>`;
+    if (tab === 'skills' || tab === 'nps') {
+      p.innerHTML = note + (tab === 'skills' ? '<p class="ctnote hint">別の表を二重に読んだスキルや、関係ないスキルは × で消せます。名前を変えると、そのスキルに付けた効果の手直しは外れます。</p>' : '') + '<div class="lst"></div>' + foot(`<button class="sm" data-add="${tab}">＋ ${tab === 'skills' ? 'スキル' : '宝具'}を追加</button>`);
+      const lst = p.querySelector('.lst');
+      for (const x of val || ctNow(tab)) lst.appendChild(tab === 'skills' ? skillCard(x) : npCard(x));
+    } else if (tab === 'voice') {
+      p.innerHTML = note + '<p class="ctnote hint">1行に1つ、「見出し：「セリフ」」の形で書きます（「その2」は前の見出しにまとめます）。テンプレートのままの行や、別のキャラクターのセリフは行ごと消してください。見出しの「会話」「宝具」などはゲーム中の台詞に使われます。</p>'
+        + `<textarea class="code" data-f="voice" spellcheck="false">${esc(voiceToText(val || ctNow('voice')))}</textarea>` + foot('<span class="hint" data-count></span>');
+      const ta = p.querySelector('textarea'), cnt = p.querySelector('[data-count]');
+      const upd = () => { const r = parseVoiceText(ta.value); const n = Object.values(r.voice).reduce((t, v) => t + v.length, 0); cnt.textContent = `${Object.keys(r.voice).length}場面・${n}行` + (r.bad.length ? `　読めない行 ${r.bad.length}` : ''); };
+      ta.addEventListener('input', upd); upd();
+    } else if (tab === 'text') {
+      const t = val || ctNow('text');
+      p.innerHTML = note + Object.entries(TEXT_JA).map(([k, ja]) => `<label class="f">${ja}<textarea data-k="${k}" rows="${k === 'commentary' ? 8 : 4}">${esc(t[k] || '')}</textarea></label>`).join('') + foot();
+    } else if (tab === 'profile') {
+      const pf = (val && val.profile) || ctNow('profile'), rel = (val && val.relations) || ctNow('relations');
+      p.innerHTML = note + `<div class="pgrid">${Object.entries(PROF_JA).map(([k, ja]) => `<label class="f">${ja}<input type="text" data-k="${k}" value="${esc(pf[k] || '')}"></label>`).join('')}</div>`
+        + `<label class="f">因縁（1行に「名前：説明」）<textarea data-f="relations" rows="6">${esc(relToText(rel))}</textarea></label>` + foot();
+    }
+  }
+  // タブの今の入力から、項目ごとの内容を読む
+  function ctCollect() {
+    const P = tab => $(`#ctBody [data-p="${tab}"]`);
+    const cards = tab => Array.from(P(tab).querySelectorAll('.card')).map(c => { const o = {}; c.querySelectorAll('[data-f]').forEach(x => { o[x.dataset.f] = x.dataset.f === 'desc' ? x.value.replace(/\s+$/, '') : x.value.trim(); }); return o; }).filter(o => o.name);
+    const out = {};
+    out.skills = cards('skills').map(o => ({ group: o.group === 'class' ? 'class' : 'own', name: o.name, rankRaw: o.rankRaw, desc: o.desc }));
+    out.nps = cards('nps').map(o => ({ name: o.name, reading: o.reading, rankRaw: o.rankRaw, typeRaw: o.typeRaw, rangeRaw: o.rangeRaw, maxRaw: o.maxRaw, desc: o.desc }));
+    const v = parseVoiceText(P('voice').querySelector('textarea').value); out.voice = v.voice;
+    out.text = Object.assign({}, ctNow('text')); P('text').querySelectorAll('textarea[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.text[t.dataset.k] = x; else delete out.text[t.dataset.k]; });
+    out.profile = Object.assign({}, ctNow('profile')); P('profile').querySelectorAll('input[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.profile[t.dataset.k] = x; else delete out.profile[t.dataset.k]; });
+    const r = parseRelText(P('profile').querySelector('textarea[data-f=relations]').value); out.relations = r.relations;
+    return { out, bad: { voice: v.bad, relations: r.bad } };
+  }
+  function ctTab(tab) {
+    ct.tab = tab;
+    for (const b of $('#ctTabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.t === tab);
+    for (const p of $('#ctBody').children) p.hidden = p.dataset.p !== tab;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-ct]'); if (!b) return;
+    e.preventDefault();
+    const sv = roster[+b.dataset.ct];
+    ct = { sv, wiki: B.wikiOf(sv), tab: b.dataset.tab || 'skills' };
+    $('#ctTitle').textContent = `${sv.trueName}（${sv.class.label}）の内容を編集`;
+    const ed = sv.contentEdited || [];
+    $('#ctTabs').innerHTML = CT_TABS.map(([t, ja]) => `<button class="sm" data-t="${t}">${ja}${ed.includes(t) || (t === 'profile' && ed.includes('relations')) ? '<i title="手直し中">●</i>' : ''}</button>`).join('');
+    $('#ctBody').innerHTML = CT_TABS.map(([t]) => `<div class="ctp" data-p="${t}"></div>`).join('');
+    for (const [t] of CT_TABS) ctPanel(t);
+    ctTab(ct.tab);
+    $('#ct').showModal();
+  });
+  $('#ctTabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) ctTab(b.dataset.t); });
+  $('#ctBody').addEventListener('click', e => {
+    const rm = e.target.closest('[data-rm]'); if (rm) { rm.closest('.card').remove(); return; }
+    const add = e.target.closest('[data-add]');
+    if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
+    const w = e.target.closest('[data-wiki]');
+    if (w) { const t = w.dataset.wiki; ctPanel(t, t === 'profile' ? { profile: ctWiki('profile'), relations: ctWiki('relations') } : ctWiki(t)); }
+  });
+  $('#ctCancel').onclick = () => $('#ct').close();
+  $('#ctSave').onclick = () => {
+    const { out, bad } = ctCollect();
+    const lost = [].concat(bad.voice.map(l => 'セリフ：' + l), bad.relations.map(l => '因縁：' + l));
+    if (lost.length && !confirm(`次の${lost.length}行は形が読めないため保存されません。よろしいですか？\n\n${lost.slice(0, 8).join('\n')}${lost.length > 8 ? '\n…' : ''}`)) return;
+    const name = ct.sv.trueName, c = {}, base = {};
+    for (const sec of Object.keys(B.CONTENT_SECTIONS)) {
+      const w = ctWiki(sec);
+      if (!same(out[sec], w)) { c[sec] = out[sec]; base[sec] = B.hashOf(w); }
+    }
+    const secs = Object.keys(c);
+    if (secs.length) E.CONTENT_OVERRIDES[name] = Object.assign(c, { base }); else delete E.CONTENT_OVERRIDES[name];
+    $('#ct').close(); afterEdit();
+    status(secs.length ? `${name}の内容の手直しを保存しました（${secs.map(k => B.CONTENT_JA[k]).join('・')}）` : `${name}はWikiの内容のままにしました`);
+  };
+  $('#ctReset').onclick = () => {
+    if (!confirm(`${ct.sv.trueName}の内容の手直しをすべて消して、Wikiの内容に戻します`)) return;
+    delete E.CONTENT_OVERRIDES[ct.sv.trueName]; $('#ct').close(); afterEdit(); status(`${ct.sv.trueName}をWikiの内容に戻しました`);
+  };
 
   // ---------- 起動 ----------
   roster = store.get(ROSTER_KEY, []);

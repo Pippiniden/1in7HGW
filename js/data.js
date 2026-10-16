@@ -17,7 +17,7 @@
   }
   function applyOverrides(o) {
     const E = G.effects;
-    const T = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES };
+    const T = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES, content: E.CONTENT_OVERRIDES };
     for (const k in T) Object.assign(T[k], (o && o[k]) || {});
   }
   function listOf(d) { return Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : []); }
@@ -54,7 +54,7 @@
     for (const f of fileList) {
       try {
         const d = JSON.parse(await f.text());
-        if (d.format === 'hgw-overrides' || d.global || d.servant) applyOverrides(d);
+        if (d.format === 'hgw-overrides' || d.global || d.servant || d.content) applyOverrides(d);
         else raw.push(...listOf(d));
       } catch (e) { errors.push(f.name + '：' + e.message); }
     }
