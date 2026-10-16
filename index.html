@@ -775,13 +775,16 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     return best + (v - S[best] >= 7 ? '+' : '');
   }
   // 名簿の全騎と1対1で戦ったときの平均勝率（宝具あり・なしの平均）。名簿ごとに一度だけ計算する
-  const strengthCache = new WeakMap();
+  // 64騎で約0.1秒。名簿が大きいときは、比べる相手を名簿から等間隔に選んだ REF_MAX 騎に絞る（計算量は 騎数×REF_MAX）
+  const strengthCache = new WeakMap(), REF_MAX = 120;
   function strengthTable() {
     if (strengthCache.has(roster)) return strengthCache.get(roster);
     const B = H.build, rates = new Map();
+    const sortedIds = roster.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    const refs = sortedIds.length <= REF_MAX ? sortedIds : Array.from({ length: REF_MAX }, (_, i) => sortedIds[Math.floor(i * sortedIds.length / REF_MAX)]);
     for (const a of roster) {
       let t = 0, n = 0;
-      for (const b of roster) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; }
+      for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; }
       rates.set(a.id, n ? t / n : 0.5);
     }
     const T = { rates, sorted: [...rates.values()].sort((x, y) => y - x), powers: roster.map(s => s.power).sort((x, y) => y - x), nps: roster.map(s => s.npPeak || 0).sort((x, y) => y - x) };

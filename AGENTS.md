@@ -444,7 +444,11 @@ The last `finaleDays` (3) days add aggression.
 Per round:
 1. Retreat-stance camps may disengage immediately (round 1).
 2. Each side may use an NP (`useNP`: chance from hp, round, berserker, losing, finale, stance, persona;
-   needs `cost × npCost` mana). Attack NP → `npBoost = power × npPowerK (× burst)`; support NP → its effects
+   needs `cost × npCost` mana). **Which** NP is a weighted pick (`wpick`) over all usable NPs: attack NPs by
+   relative power (pressed — losing, hp < 40 or finale — strongly favours the strongest; a weakened opponent
+   favours lighter ones; low remaining mana penalises expensive ones), support NPs with battle effects (once per
+   battle), discounted by exposure while the true name is still hidden, by partial `self_retire` and by
+   `backfire`; NPs with `self_retire` ≥ 0.5 only when hp < 25 (and even then rarely). Attack NP → `npBoost = power × npPowerK (× burst)`; support NP → its effects
    go to `temp`. Using an NP may reveal the true name (else +2 clues for the opponent).
 3. `power(c, o, ctx)`: combatPower(terrain) × temp power × special-attack/weakness × defence
    (guard/evade/magic_guard, reduced by opponent `pierce`) × opponent debuff × home territory/workshop ×
@@ -551,7 +555,8 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   to start as おまかせ). The rating is computed in the UI from the loaded roster: mean `battleOdds` pA (with and
   without NP) against every other roster servant → rank → grade S (top 10%) / A (30%) / B (60%) / C (85%) / D;
   plus base power / NP peak ranks, strengths/weaknesses from `effectSummary`, and a recommended focus. It rates the
-  Servant alone, not against the current line-up. Cached per roster (`strengthCache`).
+  Servant alone, not against the current line-up. Cached per roster (`strengthCache`); ~0.1 s for 64 servants.
+  Rosters above `REF_MAX` (120) are compared against 120 evenly spaced reference servants instead of everyone.
 - Focus panel: on desktop it can be collapsed to one line (「たたむ」/「ひらく」, saved in `localStorage`
   `hgw.focusCollapsed`); on ≤820px the strip chip + bottom sheet are used as before.
 - Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) items; "すべての記録を見る"
@@ -613,6 +618,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | New big decision | Use `yield* ask(camp, kind, {title, body, options}, autoFn)`; new kinds need no UI work. Add the kind to §7.7. |
 | New focus | Add to `FOCUS` with a unique one-char `code`. |
 | New place / scene | `WORLD.places` in `names.js` (`terrain` must match effect conds or be null); scene in `scenes.js` with a `fallback`; image spec in `img/scenes/README.md`. |
+| Master wishes | `G.WISHES_BY_ORIGIN` / `G.WISHES_COMMON` / `G.WISHES_BY_PERSONA` in `names.js` (`G.wishPool(origin, persona)`; origin entries weigh double). |
 | New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. |
 | Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
 | New servant data | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
