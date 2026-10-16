@@ -229,7 +229,7 @@
     function servantDown(c, text, by) {
       c.alive = false; c.out = true; c.hp = 0;
       c.fate = { day, text };
-      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id]); } }
+      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       if (c.ally != null) { camps[c.ally].ally = null; c.ally = null; }
       log('death', `${nm(c)}が消滅した。${text}。`, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true });
       pubName.add(c.id);
