@@ -1,0 +1,105 @@
+# kagemiya@ふたば からサーヴァントのページを名前で取り込み、data/servants.json を更新する
+# 使い方：GitHub の Actions →「kagemiya から取り込み」→「Run workflow」でページ名を入れて実行
+# 中身は tools/kagemiya.js（README の「kagemiya から名前で取り込む」も参照）
+name: kagemiya から取り込み
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '取り込み方'
+        type: choice
+        options:
+          - 追加（ページ名を指定）
+          - 取り直し（空欄なら名簿の全騎）
+        default: 追加（ページ名を指定）
+      names:
+        description: 'ページ名（真名）。複数は「、」かカンマか改行で区切る。ページのURLでもよい'
+        required: false
+        default: ''
+      publish:
+        description: '反映のしかた'
+        type: choice
+        options:
+          - プルリクエストを作る
+          - main に直接反映
+        default: プルリクエストを作る
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: kagemiya-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Wikiから取得して解析
+        id: run
+        env:
+          MODE: ${{ inputs.mode }}
+          NAMES: ${{ inputs.names }}
+        run: |
+          if [[ "$MODE" == 追加* ]]; then CMD=add; else CMD=refresh; fi
+          if [ "$CMD" = add ] && [ -z "${NAMES// /}" ]; then
+            echo "::error::取り込むページ名を入力してください"
+            exit 1
+          fi
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
+          node tools/kagemiya.js "$CMD" "$NAMES" --summary "$RUNNER_TEMP/summary.md" --save-text "$RUNNER_TEMP/wiki"
+
+      - name: 読み取ったWiki記法を保存（確認用）
+        if: always() && steps.run.outputs.ok != '0' && steps.run.outputs.ok != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: wiki-text
+          path: ${{ runner.temp }}/wiki
+          retention-days: 14
+
+      - name: ゲームが動くか確認
+        if: steps.run.outputs.changed != '0'
+        run: |
+          node test/sim.js 40 > "$RUNNER_TEMP/sim.txt" || { cat "$RUNNER_TEMP/sim.txt"; echo "::error::新しいデータでシミュレーションがエラーになりました"; exit 1; }
+          head -3 "$RUNNER_TEMP/sim.txt"
+
+      - name: 反映
+        if: steps.run.outputs.changed != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH: ${{ inputs.publish }}
+          NAMES: ${{ inputs.names }}
+          CMD: ${{ steps.run.outputs.cmd }}
+          CHANGED: ${{ steps.run.outputs.changed }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$CMD" = add ]; then TITLE="kagemiya から取り込み：$(echo "$NAMES" | tr '\n' '、' | cut -c1-80)"; else TITLE="kagemiya から取り直し（${CHANGED}騎を更新）"; fi
+          git add data/servants.json
+          git commit -q -m "$TITLE" -m "GitHub Actions「kagemiya から取り込み」#${GITHUB_RUN_NUMBER} で自動作成"
+          if [[ "$PUBLISH" == main* ]]; then
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+            echo "${GITHUB_REF_NAME} に直接反映しました" >> "$GITHUB_STEP_SUMMARY"
+          else
+            BR="kagemiya/import-${GITHUB_RUN_NUMBER}"
+            git push -q origin "HEAD:refs/heads/$BR"
+            if gh pr create --base "${GITHUB_REF_NAME}" --head "$BR" --title "$TITLE" --body-file "$RUNNER_TEMP/summary.md"; then
+              echo "プルリクエストを作りました（ブランチ $BR）" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::プルリクエストを自動で作れませんでした。リポジトリの Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」を有効にするか、ブランチ $BR から手動で作ってください"
+              echo "プルリクエストは作れませんでした。ブランチ **$BR** に変更があります（${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${GITHUB_REF_NAME}...$BR）" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          fi
+
+      - name: 変更なし
+        if: steps.run.outputs.changed == '0'
+        run: echo "名簿に変更はありませんでした（取得したページは今の名簿と同じ内容です）" >> "$GITHUB_STEP_SUMMARY"

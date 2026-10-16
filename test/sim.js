@@ -2,7 +2,7 @@
 for (const f of ["config","rank","parser","effects","build","master","war","names","scenes","personas","engine"]) require("../js/"+f+".js");
 const fs = require('fs');
 const man = JSON.parse(fs.readFileSync(__dirname + '/../data/manifest.json', 'utf8'));
-for (const f of man.overrides) { const o = JSON.parse(fs.readFileSync(__dirname + '/../data/' + f, 'utf8')); const E = HGW.effects; Object.assign(E.SKILL_OVERRIDES, o.global || {}); Object.assign(E.SERVANT_OVERRIDES, o.servant || {}); Object.assign(E.STAT_OVERRIDES, o.stats || {}); Object.assign(E.NP_OVERRIDES, o.np || {}); }
+for (const f of man.overrides) { const o = JSON.parse(fs.readFileSync(__dirname + '/../data/' + f, 'utf8')); const E = HGW.effects; Object.assign(E.SKILL_OVERRIDES, o.global || {}); Object.assign(E.SERVANT_OVERRIDES, o.servant || {}); Object.assign(E.STAT_OVERRIDES, o.stats || {}); Object.assign(E.NP_OVERRIDES, o.np || {}); Object.assign(E.CONTENT_OVERRIDES, o.content || {}); }
 let raw = []; for (const f of man.servants) raw.push(...JSON.parse(fs.readFileSync(__dirname + '/../data/' + f, 'utf8')).servants);
 const roster = raw.map(HGW.build.fromJSON);
 const n = +(process.argv[2] || 500), show = process.argv[3];
@@ -24,3 +24,4 @@ days.sort((a, b) => a - b);
 console.log({ n, errors, ends, daysMedian: days[days.length >> 1], daysP10: days[Math.floor(days.length * 0.1)], daysP90: days[Math.floor(days.length * 0.9)], entriesAvg: Math.round(entries / n), npPerWar: (npTot / n).toFixed(1), battlesPerWar: (battles / 2 / n).toFixed(1), csPerWar: (cs / n).toFixed(2), reconPerWar: (recon / n).toFixed(2), allyPerWar: (ally / n).toFixed(2), ambushPerWar: (ambush / n).toFixed(2) });
 const rate = Object.keys(apps).map(k => [k, (wins[k] || 0) / apps[k], apps[k]]).sort((a, b) => b[1] - a[1]);
 console.log(rate.map(([k, r, a]) => `${k}:${Math.round(r * 100)}%`).join('  '));
+if (errors) process.exitCode = 1;
