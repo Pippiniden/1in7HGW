@@ -206,6 +206,7 @@
     '剣術':         [['power', 0.6]],
     '槍術':         [['power', 0.6]],
     '弓術':         [['power', 0.5], ['initiative', 0.3]],
+    '棍棒術':       [['power', 0.6]],
     '天狗の兵法':   [['initiative', 0.8], ['power', 0.4]],
     '兵法':         [['intel', 0.5], ['guard', 0.4]],
     '軍師':         [['intel', 0.6], ['rally', 0.4]],
@@ -259,7 +260,72 @@
     '美丈夫':       [['charm', 0.6], ['negotiate', 0.3]],
     '麗しの姫君':   [['charm', 0.6], ['master_guard', 0.5]],
     '百発百中':     [['crit', 1], ['pierce', 0.4]],
+    // ---- 原作で複数の英霊が持つスキル・一般的な技能（FGO実装470騎の集計で確認） ----
+    'ハイ・サーヴァント': [['power', 0.3], ['guard', 0.3]],
+    '狂気':         [['power', 0.6], ['mental_guard', 0.8], ['negotiate', -0.6]],
+    '妖精眼':       [['reveal', 1.2], ['mental_guard', 0.4]],
+    '無限の魔力供給': [['upkeep_down', 1.5], ['np_cost', -0.5]],
+    '霊媒体質':     [['upkeep_down', 0.5], ['magic_guard', 0.3]],
+    '天賦の叡智':   [['guard', 0.4], ['np_boost', 0.5], ['guts', 0.5]],
+    '天賦の見識':   [['reveal', 0.8], ['intel', 0.5]],
+    '自然の嬰児':   [['guard', 0.4], ['upkeep_down', 0.6]],
+    '直死の魔眼':   [['pierce', 1], ['instakill', 0.8]],
+    '投影魔術':     [['power', 0.6], ['craft', 0.6]],
+    'ルーン魔術':   [['power', 0.4], ['magic_guard', 0.4], ['craft', 0.3]],
+    '軍師の忠言':   [['guard', 0.6], ['intel', 0.5], ['rally', 0.3]],
+    '最果ての加護': [['crit', 0.8], ['guts', 0.3]],
+    '紅顔の美少年': [['charm', 1]],
+    '聖者の数字':   [['power', 0.6]],
+    '治癒の竪琴':   [['heal_other', 1], ['rally', 0.3]],
+    '正気喪失':     [['debuff', 1], ['charm', 0.4]],
+    '黄金の杯':     [['debuff', 0.6], ['pierce', 0.4]],
+    'アクセルターン': [['evade', 1], ['crit', 0.4]],
+    'スケープゴート': [['master_guard', 1]],
+    '耐毒':         [['guard', 0.4]],
+    '病弱':         [['guard', -0.8], ['luck', -0.3]],
+    '忍術':         [['stealth', 1], ['evade', 0.5]],
+    '幻術':         [['conceal', 0.6], ['debuff', 0.5], ['charm', 0.3]],
+    '外科手術':     [['heal_other', 1.2]],
+    '人体研究':     [['crit', 0.8], ['heal_other', 0.4]],
+    '一意専心':     [['mental_guard', 0.8], ['power', 0.4]],
+    '沈着冷静':     [['mental_guard', 1]],
+    '傍若無人':     [['power', 0.3], ['negotiate', -0.6]],
+    '処刑人':       [['crit', 0.6], ['instakill', 0.4]],
+    'フェロモン':   [['charm', 1]],
+    'ストーキング': [['detect', 0.8], ['stealth', 0.4]],
+    '先の先':       [['initiative', 1.2]],
+    '無刀取り':     [['evade', 0.6], ['guard', 0.4]],
+    '天眼':         [['crit', 0.8], ['pierce', 0.5]],
+    '中国拳法':     [['power', 0.8], ['evade', 0.4]],
+    'エイミング':   [['crit', 0.6], ['power', 0.3]],
+    '戦闘撤退':     [['escape', 1.2]],
+    '英雄作成':     [['power', 0.5], ['rally', 0.3]],
+    '家事百般':     [['heal_other', 0.4], ['resource', 0.4], ['negotiate', 0.3]],
+    '要塞構築':     [['territory', 1.2], ['guard', 0.3]],
+    '都市改造':     [['territory', 1]],
+    '水泳上手':     [['escape', 0.6, { cond: '水辺' }], ['power', 0.3, { cond: '水辺' }]],
+    '洗礼詠唱':     [['power_vs', 1.2, { tag: '不死' }]],
+    '対霊戦闘':     [['power_vs', 1, { tag: '不死' }]],
+    '代行者':       [['power_vs', 1, { tag: '不死' }], ['power_vs', 0.6, { tag: '魔性' }]],
     // ---- 名前の一部によく使われる言葉（部分一致で土台にし、説明文で補う） ----
+    '神核':         [['tag', 1, { tag: '神性' }], ['mental_guard', 0.8], ['guard', 0.3]],   // 海神の神核・蛇神の神核…
+    '叡智':         [['intel', 0.5], ['power', 0.3]],                                       // 魔神の叡智・大神の叡智…
+    '智慧':         [['intel', 0.5], ['power', 0.3]],                                       // 魔境の智慧・神授の智慧…
+    '武練':         [['power', 0.5], ['mental_guard', 0.5]],                                // 源氏の武練・蒼穹の武練…
+    '審美':         [['reveal', 0.8]],                                                      // 刀剣審美・冒涜審美…
+    '航海者':       [['escape', 0.5], ['rally', 0.4]],                                      // 星の航海者・救世の航海者…
+    '航海':         [['escape', 0.5], ['intel', 0.3]],
+    '託宣':         [['evade', 0.5], ['detect', 0.5], ['intel', 0.5]],                      // 光の託宣・闇の託宣
+    '神通力':       [['power', 0.4], ['intel', 0.3]],
+    '鬼道':         [['debuff', 0.6], ['charm', 0.4]],
+    '道術':         [['power', 0.4], ['craft', 0.4], ['magic_guard', 0.3]],
+    '陰陽道':       [['debuff', 0.6], ['territory', 0.4]],
+    '数秘術':       [['craft', 0.4], ['intel', 0.4]],
+    '狙撃':         [['crit', 0.6], ['initiative', 0.4]],
+    '商才':         [['resource', 1]],
+    '生存':         [['regen', 0.4], ['guts', 0.3]],
+    '変容':         [['power', 0.5]],
+    '戦略':         [['intel', 0.6], ['rally', 0.3]],
     '加護':         [['luck', 0.6], ['guard', 0.3]],
     '寵愛':         [['luck', 0.8]],
     '恩寵':         [['luck', 0.5], ['power', 0.2]],
@@ -272,7 +338,8 @@
   const GENERIC = new Set(['加護', '寵愛', '恩寵', '恩恵', '祝福', '特権', '指揮', '統率', '鼓舞', '激励', '演説', '弁舌', '守護', '護衛', '忠義', '従者', '老練',
     '武術', '剣術', '槍術', '弓術', '兵法', '軍師', '戦術', '呪術', '呪詛', '錬金術', '薬学', '看護', '魔眼', '再生', '剛力', '巨躯',
     '鉄壁', '俊足', '跳躍', '飛行', '狩猟', '追跡', '隠密', '暗殺', '奇襲', '変身', '予知', '神託', '見切り', '受け流し', '美声', '美貌',
-    '美少年', '美丈夫', '混血', '獣化', '竜種', '交渉術', '航海術']);
+    '美少年', '美丈夫', '混血', '獣化', '竜種', '交渉術', '航海術',
+    '神核', '叡智', '智慧', '武練', '審美', '航海者', '航海', '託宣', '神通力', '鬼道', '道術', '陰陽道', '数秘術', '狙撃', '商才', '生存', '変容', '戦略']);
   const COMPOUND_SKIP = new Set(['魔術', '幸運', '射撃', '投擲', '変化', '話術', '医術', 'ルーン', '吸血', '神性', '聖人', '復讐者', ...GENERIC]);
 
   // ---------- 属性タグの正規化（特攻・弱点の照合用） ----------
@@ -284,7 +351,9 @@
   function canonTag(s) {
     const t = String(s || '').trim();
     for (const [tag, re] of TAG_CANON) if (re.test(t)) return tag;
-    return t.replace(/^[をにへのと]|[にへのをと]$/g, '').slice(-6);
+    // 「歴史研究家と吟遊詩人に対して」→「吟遊詩人」（並びの最後の語を使う）
+    const last = t.replace(/[「」『』]/g, '').replace(/(?:に対して|に対する|に対し|への|には)$/, '').split(/[とや、・,]/).filter(Boolean).pop() || t;
+    return last.replace(/[にへをと]$/, '').slice(-6).replace(/^[をにへのと]/, '');
   }
 
   // ---------- 説明文の解析規則 ----------
@@ -484,7 +553,10 @@
     if (d && d.how !== 'partial' && !GENERIC.has(d.key)) {
       const extra = comp.filter(c => !c.mix), specs = SKILL_DICT[d.key].map(s => ({ spec: s }));
       for (const r of refOf(extra)) if (!specs.some(x => sameSpec(x.spec, r.spec))) specs.push(r);
-      return mk(specs.slice(0, 6), 'dict', { matched: d.key + (extra.length ? '＋' + extra.map(c => c.key).join('・') : '') });
+      // 「黄金律(体)」「最果ての加護(羅馬)」のような変種は、説明文から読んだ効果も足す（辞書の効果は消さない）
+      const variant = d.how === 'base' && n !== d.key;
+      if (variant) for (const s of analyzeText(skill.desc || '', 'skill', 3)) { const x = specs.find(x => sameSpec(x.spec, s)); if (!x) specs.push({ spec: s }); else if (Math.abs(s[1]) > Math.abs(x.spec[1] == null ? 1 : x.spec[1])) x.spec = s; }
+      return mk(specs.slice(0, 6), 'dict', { matched: d.key + (extra.length ? '＋' + extra.map(c => c.key).join('・') : '') + (variant ? '（変種：説明文で補足）' : '') });
     }
 
     // 説明文の解析
