@@ -117,6 +117,7 @@ test/
   interactive.js    Random focus/answers through the generator; checks replay determinism
   run.js            Parse wiki .txt files and print what was read
   rebuild.js        Rebuild exported JSON folder; print effects per servant
+  skills.js         Skill dictionary: canonical names resolve via dict, generic names merge with text, references
   content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
@@ -288,10 +289,16 @@ unknown rank → ×0.8).
 
 1. `SERVANT_OVERRIDES['trueName/skill']` → source `servant-override`
 2. `SKILL_OVERRIDES['skill']` → `override`
-3. rank "-" and description says the skill is lost → `lost` (no effects)
-4. `SKILL_DICT` exact or base-name match (77 entries, e.g. 対魔力, 騎乗, 気配遮断, 狂化, 神性, 戦闘続行…) → `dict`
+3. rank "-" and description says the skill is lost or merged (`LOST_WORDS`, incl. 統合され) → `lost` (no effects)
+4. `SKILL_DICT` exact or base-name match (~185 entries: the original 77 plus canonical TYPE-MOON class/personal
+   skills such as 復讐者, 忘却補正, 真名看破, 神明裁決, 反骨の相, 理性蒸発, 矢除けの加護, 信仰の加護…) → `dict`.
+   Explicit references in the description (「直感と同等」) are added on top (×0.6); 「〜との混合」 references are not
+   (the dict entry already models the mix).
 5. Text analysis: partial dict match (`dict-partial`) + references to other known skills inside the
-   description (`compoundSpecs`, ×0.6) + per-sentence keyword `RULES` (41 regex rules) → `compound`/`keyword`
+   description (`compoundSpecs`, ×0.6: 同等/同様/相当/亜種/類似/として機能, 与える/備える, 〜の複合/混合/効果を複合)
+   + per-sentence keyword `RULES` → `compound`/`keyword`. When a keyword effect duplicates a dict/reference
+   effect, the larger factor wins. Names that are ordinary words (`GENERIC`: 従者, 加護, 寵愛, 特権, 指揮, 混血…)
+   take this path even on an exact match, so the description still counts (source `dict-partial`).
 6. Nothing found → `[['power', 0.3]]`, source `default`
 
 Anything not from an override or exact dict hit is added to the servant's `review` list (shown in
@@ -557,6 +564,7 @@ node test/sim.js 500            # 500 auto wars: errors, win/draw ratio, median 
 node test/sim.js 1 <seed>       # print one war's full log
 node test/interactive.js 200    # random focus/answers through the generator; replays 50 and checks mismatch
 node test/run.js test/lucan.txt # parse wiki text and show what was read
+node test/skills.js             # skill dictionary (canonical names, generic names, references)
 node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
@@ -581,7 +589,7 @@ Chromium + Playwright may be available in agent sandboxes.
 |---|---|
 | Add a class | One entry in `CLASS_DEFS` (`config.js`). |
 | Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`. |
-| Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. |
+| Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. If the name is an ordinary word whose meaning depends on the description, also add it to `GENERIC`. Add canonical names to `test/skills.js`. |
 | Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`). Check with `test/rebuild.js` that existing servants did not change unexpectedly. |
 | Fix one servant | Use `roster.html` (writes `overrides.json`) or edit `data/overrides.json` directly. Prefer overrides over editing `servants.json`. |
 | New effect primitive | Add to `EFFECTS`, then read it in `engine.js` via `eff(c, id, terrain)` / `effVs`. Unread primitives do nothing. |
