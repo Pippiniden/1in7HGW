@@ -154,14 +154,131 @@
     '諜報':         [['intel', 1], ['stealth', 0.3]],
     '海賊の誉れ':   [['guts', 0.6], ['power', 0.3]],
     '幸運':         [['luck', 1]],
+
+    // ---- 原作（TYPE-MOON作品）のクラス別スキル ----
+    '復讐者':       [['power', 0.5], ['mental_guard', 0.6], ['negotiate', -0.6]],
+    '忘却補正':     [['crit', 1]],
+    '真名看破':     [['reveal', 1.5]],
+    '神明裁決':     [['debuff', 0.6], ['negotiate', 0.6], ['reveal', 0.3]],
+    '聖人':         [['regen', 0.6], ['heal_other', 0.4], ['negotiate', 0.4]],
+    '領域外の生命': [['mental_guard', 1], ['magic_guard', 0.3], ['debuff', 0.3]],
+    '獣の権能':     [['power_vs', 1, { tag: '人型' }], ['guard', 0.4]],
+    '自己保存':     [['guard', 0.8], ['escape', 0.6]],
+    '自陣防御':     [['master_guard', 1.2], ['guard', 0.6]],
+    '神殿作成':     [['territory', 1.4]],
+    '工房作成':     [['territory', 1], ['craft', 0.3]],
+    // ---- 原作の保有スキル ----
+    '矢除けの加護': [['evade', 0.8]],
+    '風除けの加護': [['evade', 0.5], ['initiative', 0.3]],
+    '信仰の加護':   [['mental_guard', 1.2], ['power', 0.3]],
+    '精霊の加護':   [['luck', 1]],
+    '女神の加護':   [['luck', 0.8], ['guard', 0.3]],
+    '聖杯の寵愛':   [['luck', 1.5], ['guard', 0.3]],
+    '殉教者の魂':   [['mental_guard', 1], ['guts', 0.4]],
+    '不屈の意志':   [['guts', 0.8], ['mental_guard', 1]],
+    '不撓不屈':     [['guts', 0.8], ['mental_guard', 0.8]],
+    '鋼鉄の決意':   [['guard', 0.5], ['mental_guard', 0.5], ['initiative', 0.4]],
+    '明鏡止水':     [['mental_guard', 1.2], ['evade', 0.4]],
+    '自己暗示':     [['mental_guard', 1]],
+    '反骨の相':     [['cs_resist', 1], ['mental_guard', 0.5]],
+    '理性蒸発':     [['mental_guard', 1], ['conceal', -0.6], ['negotiate', -0.3]],
+    '精神異常':     [['mental_guard', 1.2], ['negotiate', -0.8]],
+    '頭痛持ち':     [['mental_guard', -0.5]],
+    '獣化':         [['power', 0.8]],
+    '混血':         [['power', 0.4], ['guard', 0.2]],
+    '竜種':         [['tag', 1, { tag: '竜' }], ['power', 0.5]],
+    '神秘殺し':     [['pierce', 0.5], ['power_vs', 0.6, { tag: '魔性' }]],
+    '鬼殺し':       [['power_vs', 1, { tag: '魔性' }]],
+    '対邪悪':       [['power_vs', 1, { tag: '魔性' }]],
+    '殺戮技巧':     [['power_vs', 1, { tag: '人型' }]],
+    '霧夜の殺人':   [['crit', 0.8, { cond: '夜' }], ['anti_master', 0.4]],
+    '人体理解':     [['crit', 0.8], ['heal_other', 0.4]],
+    '拷問技術':     [['debuff', 0.6], ['power', 0.3]],
+    '魔眼':         [['debuff', 0.8], ['pin', 0.4]],
+    '呪術':         [['debuff', 1], ['craft', 0.3]],
+    '呪詛':         [['debuff', 1]],
+    '錬金術':       [['craft', 1], ['resource', 0.5]],
+    '薬学':         [['heal_other', 0.8], ['craft', 0.4]],
+    '看護':         [['heal_other', 1.2]],
+    '蔵知の司書':   [['intel', 1], ['reveal', 0.5]],
+    '中国武術':     [['power', 0.8], ['evade', 0.4]],
+    '武術':         [['power', 0.6]],
+    '剣術':         [['power', 0.6]],
+    '槍術':         [['power', 0.6]],
+    '弓術':         [['power', 0.5], ['initiative', 0.3]],
+    '天狗の兵法':   [['initiative', 0.8], ['power', 0.4]],
+    '兵法':         [['intel', 0.5], ['guard', 0.4]],
+    '軍師':         [['intel', 0.6], ['rally', 0.4]],
+    '戦術':         [['intel', 0.4], ['power', 0.3]],
+    '指揮':         [['rally', 1]],
+    '統率':         [['rally', 1]],
+    '鼓舞':         [['rally', 0.8], ['power', 0.2]],
+    '激励':         [['rally', 0.6]],
+    '演説':         [['negotiate', 0.6], ['rally', 0.4]],
+    '弁舌':         [['negotiate', 1]],
+    '交渉術':       [['negotiate', 1]],
+    '鷹の瞳':       [['detect', 1], ['initiative', 0.3]],
+    '気配察知':     [['detect', 1]],
+    '審美眼':       [['reveal', 0.8]],
+    '観察眼':       [['reveal', 0.7], ['intel', 0.3]],
+    '野生の勘':     [['evade', 0.6], ['detect', 0.4]],
+    '野生の感':     [['evade', 0.6], ['detect', 0.4]],   // Wikiで見かけた表記
+    '予知':         [['evade', 0.8], ['initiative', 0.5]],
+    '神託':         [['evade', 0.5], ['detect', 0.5], ['intel', 0.5]],
+    '見切り':       [['evade', 1]],
+    '受け流し':     [['guard', 0.6], ['evade', 0.3]],
+    '鉄壁':         [['guard', 1]],
+    '不死身':       [['guts', 1], ['guard', 0.4]],
+    '再生':         [['regen', 1]],
+    '剛力':         [['power', 0.8]],
+    '巨躯':         [['guard', 0.6], ['power', 0.4]],
+    '俊足':         [['initiative', 0.6], ['escape', 0.6]],
+    '跳躍':         [['initiative', 0.5], ['escape', 0.4]],
+    '飛行':         [['escape', 1], ['initiative', 0.3]],
+    '航海術':       [['escape', 0.5], ['intel', 0.3]],
+    '狩猟':         [['detect', 0.5], ['power_vs', 0.5, { tag: '獣' }]],
+    '追跡':         [['detect', 1], ['pin', 0.5]],
+    '隠密':         [['stealth', 1]],
+    '暗殺':         [['anti_master', 1], ['stealth', 0.5]],
+    '奇襲':         [['initiative', 1]],
+    '偽装工作':     [['conceal', 1]],
+    '変身':         [['conceal', 0.8], ['power', 0.2]],
+    '無冠の武芸':   [['conceal', 1], ['power', 0.3]],
+    '己が栄光の為でなく': [['conceal', 1.2]],
+    '騎士は徒手にて死せず': [['power', 0.6]],
+    '守護':         [['master_guard', 0.8]],
+    '護衛':         [['master_guard', 1]],
+    '忠義':         [['master_guard', 0.5], ['mental_guard', 0.3]],
+    '従者':         [['master_guard', 0.5], ['heal_other', 0.4], ['resource', 0.3]],
+    '老練':         [['mental_guard', 0.8], ['power', 0.2]],
+    '愛の黒子':     [['charm', 1.2]],
+    '魅惑の美声':   [['charm', 1]],
+    '美声':         [['charm', 0.6], ['rally', 0.3]],
+    '美貌':         [['charm', 0.8]],
+    '美少年':       [['charm', 0.8]],
+    '美丈夫':       [['charm', 0.6], ['negotiate', 0.3]],
+    '麗しの姫君':   [['charm', 0.6], ['master_guard', 0.5]],
+    '百発百中':     [['crit', 1], ['pierce', 0.4]],
+    // ---- 名前の一部によく使われる言葉（部分一致で土台にし、説明文で補う） ----
+    '加護':         [['luck', 0.6], ['guard', 0.3]],
+    '寵愛':         [['luck', 0.8]],
+    '恩寵':         [['luck', 0.5], ['power', 0.2]],
+    '恩恵':         [['luck', 0.5], ['power', 0.2]],
+    '祝福':         [['luck', 0.6], ['regen', 0.3]],
+    '特権':         [['power', 0.4], ['negotiate', 0.4]],
   };
   // 説明文で「〇〇と同等」と参照されても拾わない、一般的すぎる名前
-  const COMPOUND_SKIP = new Set(['魔術', '幸運', '射撃', '投擲', '変化', '話術', '医術', 'ルーン', '吸血', '神性']);
+  // 一般的な言葉の名前（「従者」「加護」など）は、名前が一致しても辞書だけで決めず、説明文の解析と合わせる
+  const GENERIC = new Set(['加護', '寵愛', '恩寵', '恩恵', '祝福', '特権', '指揮', '統率', '鼓舞', '激励', '演説', '弁舌', '守護', '護衛', '忠義', '従者', '老練',
+    '武術', '剣術', '槍術', '弓術', '兵法', '軍師', '戦術', '呪術', '呪詛', '錬金術', '薬学', '看護', '魔眼', '再生', '剛力', '巨躯',
+    '鉄壁', '俊足', '跳躍', '飛行', '狩猟', '追跡', '隠密', '暗殺', '奇襲', '変身', '予知', '神託', '見切り', '受け流し', '美声', '美貌',
+    '美少年', '美丈夫', '混血', '獣化', '竜種', '交渉術', '航海術']);
+  const COMPOUND_SKIP = new Set(['魔術', '幸運', '射撃', '投擲', '変化', '話術', '医術', 'ルーン', '吸血', '神性', '聖人', '復讐者', ...GENERIC]);
 
   // ---------- 属性タグの正規化（特攻・弱点の照合用） ----------
   const TAG_CANON = [
     ['獣', /獣|動物|野生/], ['竜', /竜|龍|ドラゴン/], ['神性', /神性|神霊|神格|神々|神獣以外の神/], ['不死', /不死|アンデッド|死者|亡霊|吸血鬼/],
-    ['魔性', /魔性|悪魔|魔物|妖怪|怪異/], ['英雄', /英雄|英霊/], ['人型', /人型|人間|人類/], ['女性', /女性|女/], ['男性', /男性|男/],
+    ['魔性', /魔性|悪魔|魔物|妖怪|怪異|鬼|邪悪/], ['英雄', /英雄|英霊/], ['人型', /人型|人間|人類/], ['女性', /女性|女/], ['男性', /男性|男/],
     ['騎乗', /騎乗|騎兵/], ['機械', /機械|機甲|ロボ/], ['王', /王|皇帝/],
   ];
   function canonTag(s) {
@@ -199,8 +316,8 @@
     { re: /交渉|宥め|説得|外交|弁舌|接客|もてなし|意思疎通|証言誘導/, id: 'negotiate' },
     { re: /統率|指揮|鼓舞|士気|軍団|自軍|兵たち|演奏|歌唱|竪琴/, id: 'rally', f: 0.8 },
     { re: /魅了|魅惑|虜|誘惑|媚び/, id: 'charm' },
-    { re: /(?:自身|自分)[^。]{0,8}(?:回復|再生)|自己回復|再生能力/, id: 'regen' },
-    { re: /治療|治癒|回復|看護|手当|バッドステータスを除/, id: 'heal_other', f: 0.8, not: /(?:自身|自分)[^。]{0,8}(?:回復|再生)/ },
+    { re: /(?:自身|自分)[^。]{0,8}(?:回復|再生|癒)|自己回復|再生能力/, id: 'regen' },
+    { re: /治療|治癒|回復|看護|手当|癒[やすし]|バッドステータスを除/, id: 'heal_other', f: 0.8, not: /(?:自身|自分)[^。]{0,8}(?:回復|再生|癒)/ },
     { re: /(?:真名|正体|素性)を?(?:悟らせ|隠|偽|知られ)|隠蔽|偽装|秘匿|変装|見せかけ|表記のみ/, id: 'conceal' },
     { re: /気配[^。]{0,6}(?:消|断)|隠密|潜伏|姿を消|透明|潜ん|バレない|感知は[^。]*不可能/, id: 'stealth' },
     { re: /見抜|看破|見破|暴く|解析|識別|鑑定/, id: 'reveal' },
@@ -230,7 +347,7 @@
   const ATTACK_WORDS = /攻撃|ダメージ|破壊|斬|貫|焼き|焼却|灼き|薙ぎ|放つ|放たれ|砲撃|一撃|殲滅|消し飛|吹き飛|撃ち|殺す|殺害|穿|叩き|粉砕|蹂躙|射撃|呑み込|丸呑|飲み込|喰らい|陥没|溶か|溶断|爆発|爆撃|突撃|突進|踏み潰|掃射|投擲|投げつけ|ビーム|切り裂|引き裂|雷撃|ぶっ飛|一掃|連射|乱射|射出|発射/;
   const NON_ATTACK = /(?:破壊力|攻撃力|殺傷力|攻撃能力)(?:は|を)?(?:持たない|無い|ない)|攻撃(?:は|が)?(?:行えない|出来ない|できない)|戦いは出来ない|戦闘は出来ない/;
   const PERSIST_WORDS = /消滅しようとも|消滅後も|消滅しても|死後も|脱落後も|退去後も/;
-  const LOST_WORDS = /失われ|喪失|消失|封じられ|持たない|使えない|機能しない/;
+  const LOST_WORDS = /失われ|喪失|消失|封じられ|持たない|使えない|機能しない|統合され/;
 
   // ---------- 手直し用の表（取り込みツールやゲーム側から追加する） ----------
   const SKILL_OVERRIDES = {};    // 'スキル名': [[部品ID, 係数, params], ...]
@@ -317,14 +434,16 @@
         while (at >= 0) {
           const after = clause.slice(at + bk.length, at + bk.length + 24), before = clause.slice(Math.max(0, at - 18), at);
           if (/^(?:」)?(?:スキル)?を(?:持つ|有する)|^(?:」)?(?:スキル)?(?:に対して|を相手)/.test(after)) { at = clause.indexOf(bk, at + 1); continue; }
-          let rank = null, ok = false;
-          const eq = after.match(/^(?:」)?(?:スキル)?(?:と|に|の)?(?:ほぼ)?(?:[^。、]{0,6}?)(同等|同様|同効果|相当|亜種)/);
+          let rank = null, ok = false, mix = false;
+          const eq = after.match(/^(?:」)?(?:スキル)?(?:と|に|の)?(?:ほぼ)?(?:[^。、]{0,6}?)(同等|同様|同効果|相当|亜種|類似|として機能)/);
           if (eq) { ok = true; const rm = after.slice(0, eq.index + eq[0].length).match(/(EX|[A-E])[+]*ランク/); if (rm) rank = rm[1]; }
           if (/^(?:」)?(?:スキル)?(?:の加護)?を(?:与え|付与し|付与す|獲得|備え|内包)/.test(after)) ok = true;
           const pre = before.match(/(?:(EX|[A-E])[+]*ランク(?:相当)?の|ランク(EX|[A-E])の)([^。]{0,12})$/);
           if (pre && /^[^をがはにでへ]*$/.test(pre[3])) { ok = true; rank = rank || pre[1] || pre[2]; }
-          if (/^[、・と,\s぀-ヿ一-鿿()]{0,24}?(?:等|など)?との?(?:混合|複合)/.test(after) && !/[をがは]/.test(after.split(/混合|複合/)[0])) ok = true;
-          if (ok) { if (!found.has(key)) found.set(key, { key, rank: rank ? R.parseRank(rank) : null }); break; }
+          // 「A、B、Cの複合スキル」「A：B-とB：Cの複合スキル」「A、Bスキルの効果を複合」
+          const mm = clause.slice(at + bk.length, at + bk.length + 40).match(/^([、・と,\s぀-ヿ一-鿿()（）：:A-Z+\-~]{0,36}?)(?:等|など)?(?:との?|の)?(?:スキル)?(?:の効果)?を?(?:混合|複合)/);
+          if (!ok && mm && !/[をがは]/.test(mm[1])) ok = mix = true;
+          if (ok) { if (!found.has(key)) found.set(key, { key, rank: rank ? R.parseRank(rank) : null, mix }); break; }
           at = clause.indexOf(bk, at + 1);
         }
       }
@@ -333,6 +452,8 @@
     // 長い名前に含まれる短い名前（「勇猛」と「勇猛の戦乙女」など）は長い方だけ残す
     return out.filter(o => !out.some(x => x !== o && x.key.length > o.key.length && x.key.includes(baseName(o.key))));
   }
+
+  const sameSpec = (a, b) => a[0] === b[0] && JSON.stringify(a[2] || null) === JSON.stringify(b[2] || null);
 
   /**
    * スキル1つに効果を割り当てる。
@@ -355,15 +476,24 @@
     if (SKILL_OVERRIDES[n] || SKILL_OVERRIDES[skill.name]) return mk(SKILL_OVERRIDES[n] || SKILL_OVERRIDES[skill.name], 'override');
     if (rank && rank.none && LOST_WORDS.test(skill.desc || '')) return { effects: [], source: 'lost' };
     const d = lookupDict(skill.name);
-    if (d && d.how !== 'partial') return mk(SKILL_DICT[d.key], 'dict', { matched: d.key });
+    const comp = compoundSpecs(skill.desc, skill.name);
+    const refOf = list => list.map(c => SKILL_DICT[c.key].map(s => ({ spec: [s[0], (s[1] == null ? 1 : s[1]) * 0.6, s[2]], rank: c.rank }))).flat();
+    const refSpecs = refOf(comp);
+    // 辞書どおりの名前：辞書の効果＋説明文で「〇〇と同等」などと明記された他スキルの効果
+    // （「〇〇との混合スキル」は辞書の効果がもともとその混合なので足さない）
+    if (d && d.how !== 'partial' && !GENERIC.has(d.key)) {
+      const extra = comp.filter(c => !c.mix), specs = SKILL_DICT[d.key].map(s => ({ spec: s }));
+      for (const r of refOf(extra)) if (!specs.some(x => sameSpec(x.spec, r.spec))) specs.push(r);
+      return mk(specs.slice(0, 6), 'dict', { matched: d.key + (extra.length ? '＋' + extra.map(c => c.key).join('・') : '') });
+    }
 
     // 説明文の解析
-    const comp = compoundSpecs(skill.desc, skill.name);
     const kw = analyzeText(skill.name + '\n' + (skill.desc || ''), 'skill', 4);
     const specs = [];
-    if (d) for (const s of SKILL_DICT[d.key]) specs.push({ spec: s }); // 部分一致した辞書の効果を土台に
-    for (const c of comp) for (const s of SKILL_DICT[c.key]) specs.push({ spec: [s[0], (s[1] == null ? 1 : s[1]) * 0.6, s[2]], rank: c.rank });
-    for (const s of kw) if (!specs.some(x => x.spec[0] === s[0] && JSON.stringify(x.spec[2] || null) === JSON.stringify(s[2] || null))) specs.push({ spec: s });
+    if (d) for (const s of SKILL_DICT[d.key]) specs.push({ spec: s }); // 部分一致した辞書（一般的な言葉の名前）の効果を土台に
+    specs.push(...refSpecs);
+    // 説明文から読んだ効果：同じ部品がもうあれば強い方の係数を使う
+    for (const s of kw) { const x = specs.find(x => sameSpec(x.spec, s)); if (!x) specs.push({ spec: s }); else if (Math.abs(s[1]) > Math.abs(x.spec[1] == null ? 1 : x.spec[1])) x.spec = s; }
     if (!specs.length) return mk([['power', 0.3]], 'default');
     const source = d ? 'dict-partial' : comp.length ? 'compound' : 'keyword';
     return mk(specs.slice(0, 6), source, { matched: d ? d.key : comp.map(c => c.key).join('・') || null });
