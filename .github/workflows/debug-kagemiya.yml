@@ -1,0 +1,42 @@
+name: debug-kagemiya (temporary)
+on:
+  push:
+    branches: [claude/debug-kagemiya-html]
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: fetch sample pages
+        run: |
+          mkdir -p debug
+          python3 - <<'PY'
+          import urllib.parse, urllib.request, json, time
+          out = {}
+          def get(label, url):
+              req = urllib.request.Request(url, headers={'User-Agent': '1in7HGW-fetch-test (github.com/Pippiniden/1in7HGW)', 'Origin': 'https://pippiniden.github.io'})
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as r:
+                      body = r.read()
+                      out[label] = {'url': url, 'final': r.geturl(), 'status': r.status, 'headers': dict(r.headers), 'bytes': len(body)}
+                      open('debug/' + label + '.html', 'wb').write(body)
+              except Exception as e:
+                  out[label] = {'url': url, 'error': repr(e)}
+              time.sleep(2)
+          base = 'https://seesaawiki.jp/kagemiya/'
+          for name, tag in [('ルーカン', 'lucan'), ('ペンテシレイア', 'penth'), ('ヴァルトラウテ', 'walt')]:
+              e = urllib.parse.quote(name.encode('euc_jp'))
+              get(tag + '_d', base + 'd/' + e)
+              get(tag + '_dp', base + 'dp/' + e)
+          get('lucan_utf8', base + 'd/' + urllib.parse.quote('ルーカン'))
+          get('missing', base + 'd/' + urllib.parse.quote('存在しないページ名テスト'.encode('euc_jp')))
+          get('search', base + 'search?keywords=' + urllib.parse.quote('ルーカン'.encode('euc_jp')))
+          json.dump(out, open('debug/meta.json', 'w'), ensure_ascii=False, indent=1)
+          PY
+      - name: commit
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@users.noreply.github.com
+          git add debug && git commit -m "debug: fetched pages" && git push

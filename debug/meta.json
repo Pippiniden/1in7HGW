@@ -1,0 +1,82 @@
+{
+ "lucan_d": {
+  "url": "https://seesaawiki.jp/kagemiya/d/%A5%EB%A1%BC%A5%AB%A5%F3",
+  "final": "https://seesaawiki.jp/kagemiya/d/%A5%EB%A1%BC%A5%AB%A5%F3",
+  "status": 200,
+  "headers": {
+   "Date": "Fri, 16 Oct 2026 01:30:33 GMT",
+   "Content-Type": "text/html; charset=euc-jp",
+   "Transfer-Encoding": "chunked",
+   "Connection": "close",
+   "Set-Cookie": "rainman_u=607530d2.65deb1c4d02b6; path=/; expires=Thu, 14-Jan-27 01:30:33 GMT",
+   "Vary": "User-Agent",
+   "X-Request-Id": "b64adbae7847e584eb39b6eee869e29d"
+  },
+  "bytes": 102354
+ },
+ "lucan_dp": {
+  "url": "https://seesaawiki.jp/kagemiya/dp/%A5%EB%A1%BC%A5%AB%A5%F3",
+  "error": "<HTTPError 503: 'Service Unavailable'>"
+ },
+ "penth_d": {
+  "url": "https://seesaawiki.jp/kagemiya/d/%A5%DA%A5%F3%A5%C6%A5%B7%A5%EC%A5%A4%A5%A2",
+  "final": "https://seesaawiki.jp/kagemiya/d/%A5%DA%A5%F3%A5%C6%A5%B7%A5%EC%A5%A4%A5%A2",
+  "status": 200,
+  "headers": {
+   "Date": "Fri, 16 Oct 2026 01:30:39 GMT",
+   "Content-Type": "text/html; charset=euc-jp",
+   "Transfer-Encoding": "chunked",
+   "Connection": "close",
+   "Set-Cookie": "rainman_u=22c07401.65deb1ca564c8; path=/; expires=Thu, 14-Jan-27 01:30:39 GMT",
+   "Vary": "User-Agent",
+   "X-Request-Id": "c3e038ad15228009f7e322aecc6f5611"
+  },
+  "bytes": 94993
+ },
+ "penth_dp": {
+  "url": "https://seesaawiki.jp/kagemiya/dp/%A5%DA%A5%F3%A5%C6%A5%B7%A5%EC%A5%A4%A5%A2",
+  "error": "<HTTPError 503: 'Service Unavailable'>"
+ },
+ "walt_d": {
+  "url": "https://seesaawiki.jp/kagemiya/d/%A5%F4%A5%A1%A5%EB%A5%C8%A5%E9%A5%A6%A5%C6",
+  "final": "https://seesaawiki.jp/kagemiya/d/%A5%F4%A5%A1%A5%EB%A5%C8%A5%E9%A5%A6%A5%C6",
+  "status": 200,
+  "headers": {
+   "Date": "Fri, 16 Oct 2026 01:30:45 GMT",
+   "Content-Type": "text/html; charset=euc-jp",
+   "Transfer-Encoding": "chunked",
+   "Connection": "close",
+   "Set-Cookie": "rainman_u=84e01071.65deb1cfbe8b8; path=/; expires=Thu, 14-Jan-27 01:30:45 GMT",
+   "Vary": "User-Agent",
+   "X-Request-Id": "80067b490d4b9c36ac43f9cec920ac41"
+  },
+  "bytes": 107657
+ },
+ "walt_dp": {
+  "url": "https://seesaawiki.jp/kagemiya/dp/%A5%F4%A5%A1%A5%EB%A5%C8%A5%E9%A5%A6%A5%C6",
+  "error": "<HTTPError 503: 'Service Unavailable'>"
+ },
+ "lucan_utf8": {
+  "url": "https://seesaawiki.jp/kagemiya/d/%E3%83%AB%E3%83%BC%E3%82%AB%E3%83%B3",
+  "error": "<HTTPError 404: 'Not Found'>"
+ },
+ "missing": {
+  "url": "https://seesaawiki.jp/kagemiya/d/%C2%B8%BA%DF%A4%B7%A4%CA%A4%A4%A5%DA%A1%BC%A5%B8%CC%BE%A5%C6%A5%B9%A5%C8",
+  "error": "<HTTPError 404: 'Not Found'>"
+ },
+ "search": {
+  "url": "https://seesaawiki.jp/kagemiya/search?keywords=%A5%EB%A1%BC%A5%AB%A5%F3",
+  "final": "https://seesaawiki.jp/kagemiya/search?keywords=%A5%EB%A1%BC%A5%AB%A5%F3",
+  "status": 200,
+  "headers": {
+   "Date": "Fri, 16 Oct 2026 01:30:57 GMT",
+   "Content-Type": "text/html; charset=euc-jp",
+   "Transfer-Encoding": "chunked",
+   "Connection": "close",
+   "Set-Cookie": "rainman_u=2da521c3.65deb1dab2a26; path=/; expires=Thu, 14-Jan-27 01:30:56 GMT",
+   "Vary": "User-Agent",
+   "X-Request-Id": "65360ce380521878cab4be0f01498b5d"
+  },
+  "bytes": 35503
+ }
+}
