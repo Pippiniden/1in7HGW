@@ -290,10 +290,15 @@ unknown rank → ×0.8).
 1. `SERVANT_OVERRIDES['trueName/skill']` → source `servant-override`
 2. `SKILL_OVERRIDES['skill']` → `override`
 3. rank "-" and description says the skill is lost or merged (`LOST_WORDS`, incl. 統合され) → `lost` (no effects)
-4. `SKILL_DICT` exact or base-name match (~185 entries: the original 77 plus canonical TYPE-MOON class/personal
-   skills such as 復讐者, 忘却補正, 真名看破, 神明裁決, 反骨の相, 理性蒸発, 矢除けの加護, 信仰の加護…) → `dict`.
+4. `SKILL_DICT` exact or base-name match (~250 entries: the original 77 plus canonical TYPE-MOON class/personal
+   skills such as 復讐者, 忘却補正, 真名看破, 神明裁決, 反骨の相, 理性蒸発, 矢除けの加護, 信仰の加護, 狂気, 妖精眼…;
+   coverage was checked against the skills of all 470 FGO servants — every skill held by ≥2 of them that is not
+   character-specific is in the dictionary) → `dict`.
    Explicit references in the description (「直感と同等」) are added on top (×0.6); 「〜との混合」 references are not
-   (the dict entry already models the mix).
+   (the dict entry already models the mix). Variants matched by base name (「黄金律(体)」「最果ての加護(羅馬)」) also
+   add keyword effects read from the description (dict effects are kept; the larger factor wins).
+   Shared suffixes (〇〇の神核, 〇〇の叡智/智慧, 〇〇の武練, 〇〇審美, 〇〇の託宣, 〇〇の加護/寵愛…) are `GENERIC`
+   entries used as a partial-match base.
 5. Text analysis: partial dict match (`dict-partial`) + references to other known skills inside the
    description (`compoundSpecs`, ×0.6: 同等/同様/相当/亜種/類似/として機能, 与える/備える, 〜の複合/混合/効果を複合)
    + per-sentence keyword `RULES` → `compound`/`keyword`. When a keyword effect duplicates a dict/reference
