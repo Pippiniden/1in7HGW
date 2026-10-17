@@ -203,6 +203,11 @@
     }
     const effVs = (c, id, o) => Object.values(c.sv.effectSummary || {}).filter(x => x.id === id && x.params && o.sv.tags.includes(x.params.tag)).reduce((t, x) => t + x.passive, 0)
       + c.temp.filter(e => e.id === id && e.params && o.sv.tags.includes(e.params.tag)).reduce((t, e) => t + e.mag, 0);
+    // ステータスの役割（config.js の STAT_FX）。sd：サーヴァントの偏差、md：マスターの偏差（C相当を0、A相当を約+1）
+    const FX = G.CONFIG.STAT_FX, dev = B.statDev;
+    const sd = (c, k) => dev(c.sv.score[k]);
+    const md = (c, k) => c.masterAlive ? dev(c.master.stats[k]) : 0;
+    const npCostOf = (c, n) => n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag'));
     const active = () => camps.filter(c => c.alive);
     const isBerserk = c => c.sv.class.key === 'berserker';
 
@@ -213,14 +218,15 @@
       const magHeavy = o.sv.class.key === 'caster' || (o.sv.score.mag || 0) > (o.sv.score.str || 0);
       const def = clamp(eff(c, 'guard', T) * 0.5 + eff(c, 'evade', T) * 0.5 + (magHeavy ? eff(c, 'magic_guard', T) * 0.5 : 0), -0.5, 0.6) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
       p *= 1 + def;
-      p *= 1 - Math.min(0.5, eff(o, 'debuff', T));
+      p *= 1 - Math.min(0.5, eff(o, 'debuff', T) * clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
       if (c.knowName.has(o.id)) p *= 1.08;
       p *= 0.55 + 0.45 * Math.max(0, c.hp) / 100;
       if (!c.masterAlive) p *= 0.9;
+      else p *= 1 + FX.mCraftPower * md(c, 'craft');
       if (c.mana < 10) p *= 0.85;
       if (c.stance === 'all') p *= 1.05;
-      if (c.boostUntil != null && c.boostUntil >= day) p *= 1.2;
+      if (c.boostUntil != null && c.boostUntil >= day) p *= 1 + 0.2 * (1 + FX.mMindCs * md(c, 'mind'));
       if (c.surprise) p *= 1 + c.surprise;
       p += c.npBoost;
       return p * (0.9 + rnd() * 0.2);
@@ -263,7 +269,11 @@
     // 致命傷：踏みとどまる / 令呪 / 消滅
     function* lethal(l, w, cause, round) {
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
-      if (!pierced && chance(Math.min(0.85, eff(l, 'guts') + l.bond / 500))) { l.hp = 5 + rnd() * 10; log('battle', `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]); return 'guts'; }
+      if (!pierced && chance(clamp(eff(l, 'guts') + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85))) {
+        l.hp = 5 + rnd() * 10;
+        log('battle', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]);
+        return 'guts';
+      }
       if (l.masterAlive && l.cs > 0) {
         const use = yield* ask(l, 'cs', {
           title: `${sn(l)}が倒れかけている`,
@@ -276,10 +286,11 @@
         }, () => chance(ENG.csEmergency + perv(l, 'cs')) ? 'escape' : 'none');
         if (use !== 'none') {
           l.cs--;
-          const resist = Math.max(0, eff(l, 'cs_resist') - l.bond / 300);
-          if (chance(resist)) { log('cs', `${mn(l)}が令呪を切ったが、${sn(l)}には届かなかった。（残り${l.cs}画）`, [l.id, w.id]); }
+          // 抗うスキルは絆で和らぎ、マスターの心の強さは別に効く（心が弱いと、抗うスキルが無くても揺らぐ）
+          const resist = clamp(Math.max(0, eff(l, 'cs_resist') - l.bond / 300) - FX.mMindSeal * md(l, 'mind'), 0, 0.9);
+          if (chance(resist)) { log('cs', eff(l, 'cs_resist') > 0 ? `${mn(l)}が令呪を切ったが、${sn(l)}には届かなかった。（残り${l.cs}画）` : `${mn(l)}の令呪は、揺らぐ心のままに光を失った。（残り${l.cs}画）`, [l.id, w.id]); }
           else if (use === 'escape') { l.hp = 5; log('cs', `「令呪をもって命ずる——退け！」${mn(l)}の令呪が輝き、${sn(l)}は戦場から消えた。（残り${l.cs}画）`, [l.id, w.id], { big: true }); return 'escaped'; }
-          else { l.hp = 30; l.temp.push({ id: 'power', mag: 0.3, params: null }); bondUp(l, 5); log('cs', `「令呪をもって命ずる——立て、${sn(l)}！」砕けかけた霊基に、令呪の魔力が満ちる。（残り${l.cs}画）`, [l.id, w.id], { big: true }); return 'rallied'; }
+          else { const mind = 1 + FX.mMindCs * md(l, 'mind'); l.hp = Math.round(30 * mind); l.temp.push({ id: 'power', mag: 0.3 * mind, params: null }); bondUp(l, 5); log('cs', `「令呪をもって命ずる——立て、${sn(l)}！」砕けかけた霊基に、令呪の魔力が満ちる。（残り${l.cs}画）`, [l.id, w.id], { big: true }); return 'rallied'; }
         }
       }
       // 決め手：この打ち合いで宝具を使っていれば宝具、同じ戦いの前の打ち合いで使っていれば「宝具で追い詰めた」
@@ -292,7 +303,7 @@
     // ---------- 宝具 ----------
     function useNP(c, o, round, ctx) {
       if (!c.masterAlive && c.mana < 5) return;
-      const nps = (c.sv.nps || []).filter(n => !n.disabled && c.mana >= n.cost * ENG.npCost);
+      const nps = (c.sv.nps || []).filter(n => !n.disabled && c.mana >= npCostOf(c, n));
       if (!nps.length) return;
       const losing = power(c, o, ctx) < power(o, c, ctx);
       let p = 0.1 + (c.hp < 50 ? 0.25 : 0) + (round >= 2 ? 0.1 : 0) + (isBerserk(c) ? 0.15 : 0) + (losing ? 0.2 : 0) + (day > ENG.maxDays - ENG.finaleDays ? 0.2 : 0);
@@ -314,7 +325,7 @@
         if (n.attackResolved) {
           const rel = n.power / maxP;
           w = pressed ? Math.pow(rel, 3) * 1.4 : o.hp < 35 ? 0.6 + (1 - rel) : 0.35 + rel * 0.65;
-          if (c.mana - n.cost * ENG.npCost < c.manaMax * 0.25 && n.cost > minCost && !pressed) w *= 0.5;  // 魔力を使い切りたくない
+          if (c.mana - npCostOf(c, n) < c.manaMax * 0.25 && n.cost > minCost && !pressed) w *= 0.5;  // 魔力を使い切りたくない
         } else {
           if (c.usedSup.has(n.name) || !(n.effects || []).some(e => ['battle', 'damage', 'lethal', 'retreat'].includes(e.phase))) return 0;
           w = losing ? 0.7 : 0.45;
@@ -328,8 +339,8 @@
       const ws = {}; nps.forEach((n, i) => { const w = weight(n); if (w > 0) ws[i] = w; });
       if (!Object.keys(ws).length) return;
       const np = nps[+wpick(ws)];
-      c.mana -= np.cost * ENG.npCost; c.npUses++;
-      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
+      c.mana -= npCostOf(c, np); c.npUses++;
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
       else c.usedSup.add(np.name);
       for (const e of np.effects || []) if (!['master_buff', 'np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id)) c.temp.push(e);
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
@@ -365,24 +376,30 @@
       for (let round = 1; round <= ENG.rounds; round++) {
         a.npBoost = b.npBoost = 0;
         // 退く方針なら最初に離脱を試みる
-        for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500, 0.05, 0.9))) {
+        for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500 + FX.agiRetreat * (sd(c, 'agi') - sd(o, 'agi')), 0.05, 0.9))) {
           log('battle', `${sn(c)}は刃を交えずに退いた。`, [c.id, o.id]); cleanup(); return;
         }
         useNP(a, b, round, ctx);
         useNP(b, a, round, ctx);
         for (const c of [a, b]) if (c.pendingRetire) { const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`); cleanup(); return; }
         let ea = power(a, b, ctx), eb = power(b, a, ctx);
-        if (chance(eff(a, 'charm', ctx.terrain)) && !chance(eff(b, 'mental_guard', ctx.terrain))) { eb *= 0.6; log('battle', `${sn(b)}の刃が一瞬鈍った。魅了だ。`, [a.id, b.id]); }
-        if (chance(eff(b, 'charm', ctx.terrain)) && !chance(eff(a, 'mental_guard', ctx.terrain))) { ea *= 0.6; log('battle', `${sn(a)}の刃が一瞬鈍った。魅了だ。`, [a.id, b.id]); }
+        // 魅了：マスターの精神が強いと、呼びかけで正気を取り戻しやすい
+        for (const [x, y] of [[a, b], [b, a]]) {
+          if (!chance(eff(x, 'charm', ctx.terrain))) continue;
+          if (!chance(clamp(eff(y, 'mental_guard', ctx.terrain) + FX.mMindCharm * md(y, 'mind'), 0, 0.95))) { if (y === b) eb *= 0.6; else ea *= 0.6; log('battle', `${sn(y)}の刃が一瞬鈍った。魅了だ。`, [x.id, y.id]); }
+          else if (md(y, 'mind') >= 0.45 && !eff(y, 'mental_guard', ctx.terrain)) log('battle', `魅了に呑まれかけた${sn(y)}を、${mn(y)}の呼びかけが引き戻した。`, [y.id, x.id]);
+        }
         const p = 1 / (1 + Math.exp(-(ea - eb) / G.CONFIG.BATTLE_K));
         const [w, l, ew, el] = chance(p) ? [a, b, ea, eb] : [b, a, eb, ea];
         let outcome = null;
-        if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)))) {
+        if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(l, 'luk')))) {
           log('battle', `${sn(w)}の一撃が、${sn(l)}の霊核を捉えた。`, [w.id, l.id]);
           l.hp = 0; outcome = yield* lethal(l, w, 'instakill', round);
         } else {
           let dmg = (ENG.dmgBase + rnd() * ENG.dmgVar) * (1 + clamp((ew - el) / (ew + el + 1), -0.3, 0.6));
-          const crit = chance(eff(w, 'crit', ctx.terrain));
+          // 筋力の高い側ほど深く斬り込み、耐久の高い側ほど持ちこたえる
+          dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(l, 'end'), 0.6, 1.5);
+          const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
           if (crit) dmg *= 1.5;
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(l, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
           l.hp -= dmg; w.hp -= rnd() * 8;
@@ -393,11 +410,11 @@
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
         if (l.masterAlive && w.alive) {
-          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - Math.min(0.8, eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0)));
+          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0) + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
           if (chance(Math.min(0.15, pm))) {
             l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
             if (l.mhp <= 0) {
-              if (l.cs > 0 && chance(ENG.csSaveMaster)) { l.cs--; l.mhp = 6; log('cs', `${sn(w)}の刃がマスターの${mn(l)}に迫る——令呪の光が、すんでのところで${mn(l)}を守った。（残り${l.cs}画）`, [l.id, w.id], { big: true }); }
+              if (l.cs > 0 && chance(clamp(ENG.csSaveMaster + FX.mMindSeal * md(l, 'mind'), 0, 0.95))) { l.cs--; l.mhp = 6; log('cs', `${sn(w)}の刃がマスターの${mn(l)}に迫る——令呪の光が、すんでのところで${mn(l)}を守った。（残り${l.cs}画）`, [l.id, w.id], { big: true }); }
               else { log('battle', `乱戦の中、${sn(w)}の刃がマスターの${mn(l)}に届いた。`, [w.id, l.id], { big: true }); masterDown(l, `${day}日目の夜、${nm(w)}との戦いの最中だった`, w); break; }
             } else log('battle', `${sn(w)}の一撃がマスターの${mn(l)}をかすめた。${mn(l)}は深手を負った。`, [w.id, l.id]);
           }
@@ -407,9 +424,11 @@
         const threshold = (weaker.stance === 'careful' ? ENG.retreatAt + 10 : weaker.stance === 'all' ? ENG.retreatAt - 15 : ENG.retreatAt) + perv(weaker, 'retreat') * 30;
         if (weaker.hp < threshold || (weaker === l && p < 0.3 && weaker.hp < 60) || weaker.stance === 'retreat') {
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
-          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5, 0.05, 0.9))) {
-            log('battle', `${sn(weaker)}は退いた。${sn(other)}は深追いしなかった。`, [weaker.id, other.id]); break;
+          const agi = sd(weaker, 'agi') - sd(other, 'agi');
+          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
+            log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : `${sn(weaker)}は退いた。${sn(other)}は深追いしなかった。`, [weaker.id, other.id]); break;
           } else if (eff(other, 'pin', ctx.terrain) > 0.1) log('battle', `退こうとした${sn(weaker)}の行く手を、${sn(other)}が阻んだ。`, [weaker.id, other.id]);
+          else if (agi <= -0.6) log('battle', `退こうとした${sn(weaker)}に、${sn(other)}の速さが追いすがった。`, [weaker.id, other.id]);
         }
         if (round === ENG.rounds) log('battle', '夜明けが近づき、両者は刃を収めた。', [a.id, b.id]);
       }
@@ -427,11 +446,11 @@
     }
 
     function* ambushMaster(h, t) {
-      const guard = eff(t, 'master_guard') + eff(t, 'detect') * 0.5 + t.workshop * 0.06;
-      if (chance(Math.min(0.85, guard))) { log('battle', `${mn(t)}を狙った刃は、${sn(t)}に阻まれた。`, [h.id, t.id]); return false; }
+      const guard = eff(t, 'master_guard') + eff(t, 'detect') * 0.5 + t.workshop * 0.06 + FX.mLuckHide * md(t, 'luck');
+      if (chance(clamp(guard, 0, 0.85))) { log('battle', `${mn(t)}を狙った刃は、${sn(t)}に阻まれた。`, [h.id, t.id]); return false; }
       t.mhp -= 40 + rnd() * 60 - t.master.stats.body * 0.3;
       if (t.mhp <= 0) {
-        if (t.cs > 0 && chance(ENG.csSaveMaster)) { t.cs--; t.mhp = 8; log('cs', `瀕死の${mn(t)}が令呪で${sn(t)}を呼び戻した。（残り${t.cs}画）`, [t.id, h.id], { big: true }); return false; }
+        if (t.cs > 0 && chance(clamp(ENG.csSaveMaster + FX.mMindSeal * md(t, 'mind'), 0, 0.95))) { t.cs--; t.mhp = 8; log('cs', `瀕死の${mn(t)}が令呪で${sn(t)}を呼び戻した。（残り${t.cs}画）`, [t.id, h.id], { big: true }); return false; }
         masterDown(t, `${nm(h)}の奇襲だった`, h); return true;
       }
       log('battle', `${nm(h)}の奇襲で、${mn(t)}が深手を負った。`, [h.id, t.id]);
@@ -692,7 +711,7 @@
           else if (c.soloLeft <= 0) { servantDown(c, `マスターを失い、${day}日目に現界を保てなくなった`); continue; }
           else c.soloLeft--;
         }
-        if (chance(eff(c, 'uncontrolled') * (1 - c.bond / 150))) { c.wander = true; if (c.you) log('day', `${sn(c)}が言うことを聞かず、昼の街をうろついている。`, [c.id]); continue; }
+        if (chance(eff(c, 'uncontrolled') * (1 - c.bond / 150) * clamp(1 - FX.mMindControl * md(c, 'mind'), 0.3, 1.5))) { c.wander = true; if (c.you) log('day', `${sn(c)}が言うことを聞かず、昼の街をうろついている。`, [c.id]); continue; }
 
         // 昼の行動
         const P = POLICIES[c.policy] || POLICIES.balanced;
@@ -724,7 +743,7 @@
     function* doAct(c, act, alive) {
       if (act === 'scout') {
         const t = pick(alive.filter(x => x !== c && x.alive)); if (!t) return;
-        if (chance(clamp(0.35 + eff(c, 'intel') + eff(c, 'detect') * 0.5 - eff(t, 'stealth') * 0.6, 0.05, 0.9))) {
+        if (chance(clamp(0.35 + eff(c, 'intel') + eff(c, 'detect') * 0.5 - eff(t, 'stealth') * 0.6 + FX.mCraftScout * md(c, 'craft'), 0.05, 0.9))) {
           const newLoc = !c.knowLoc.has(t.id); c.knowLoc.add(t.id);
           const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + eff(c, 'reveal') + eff(c, 'intel') * 0.3 - eff(t, 'conceal') * 0.6, 0, 0.7));
           if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
@@ -733,7 +752,7 @@
           else if (c.you) log('day', `${sn(c)}は街を偵察した。目新しい手がかりはなかった。`, [c.id]);
         } else if (c.you) log('day', `${sn(c)}は街を偵察したが、手がかりは得られなかった。`, [c.id]);
       } else if (act === 'fortify') {
-        if (chance(clamp(0.5 + eff(c, 'territory') + eff(c, 'resource') * 0.5, 0.2, 0.95))) {
+        if (chance(clamp(0.5 + eff(c, 'territory') + eff(c, 'resource') * 0.5 + FX.mCraftFort * md(c, 'craft'), 0.2, 0.95))) {
           c.workshop = Math.min(5, c.workshop + 1);
           if (c.you || c.workshop >= 3) log('day', `${sn(c)}の陣営は拠点「${c.base.name}」の守りを固めた（工房${c.workshop}）。`, [c.id]);
         } else if (c.you) log('day', `拠点の強化は思うように進まなかった。`, [c.id]);
@@ -798,7 +817,8 @@
         if (h.targetPref != null && !camps[h.targetPref].alive) h.targetPref = null;
         const assault = h.assault != null && t.id === h.assault;
         h.assault = null;
-        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0), 0.05, 0.95);
+        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0)
+          + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck'), 0.05, 0.95);
         if (!chance(pf)) { if (h.you) log('night', `${sn(h)}は夜の街を巡ったが、敵の気配はつかめなかった。`, [h.id]); continue; }
         any = true;
         const home = t.hunting ? null : t;

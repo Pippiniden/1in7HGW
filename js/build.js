@@ -169,11 +169,15 @@
     for (const k of ['str', 'end', 'agi', 'mag', 'luk']) { const ww = W[k] * CW[k]; s += (sv.score[k] || 0) * ww; w += ww; }
     return Math.round(s / w * (1 + eff(sv, 'power', terrain)) * 10) / 10;
   }
-  // 最強の攻撃宝具の威力（宝具強化込み。使用不可・自滅する宝具は除く）
+  // ステータスの偏差：C相当（32）を0、A相当を約+1とする（−1〜+1.6）。STAT_FX の係数に掛けて使う
+  const statDev = v => Math.max(-1, Math.min(1.6, ((v == null ? 32 : v) - 32) / 30));
+  // 魔力と「宝具」ステータスによる宝具の威力の倍率
+  const npStatMult = sv => { const F = G.CONFIG.STAT_FX; return Math.max(0.5, 1 + F.magNp * statDev(sv.score.mag) + F.npStat * statDev(sv.score.np)); };
+  // 最強の攻撃宝具の威力（宝具強化・魔力・宝具ステータス込み。使用不可・自滅する宝具は除く）
   function npPeak(sv) {
     const atk = (sv.nps || []).filter(n => n.attackResolved && !n.disabled && !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5));
     if (!atk.length) return 0;
-    return Math.round(Math.max(...atk.map(n => n.power)) * (1 + eff(sv, 'np_boost')) * 10) / 10;
+    return Math.round(Math.max(...atk.map(n => n.power)) * (1 + eff(sv, 'np_boost')) * npStatMult(sv) * 10) / 10;
   }
 
   /**
@@ -190,6 +194,9 @@
       const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T) * 0.5 + eff(x, 'evade', T) * 0.5 + mg) * (1 - pierce)));
       let p = combatPower(x, T) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
       p *= 1 + eff(x, 'crit', T) * 0.5;
+      // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運で会心）を、打ち合いの強さにならして足す
+      const F = G.CONFIG.STAT_FX;
+      p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
       p *= 1 - Math.min(0.5, eff(y, 'debuff', T));
       if (home) p *= 1 + eff(x, 'territory', T);
       if (opts.np) p += x.npPeak * 0.5;
@@ -198,7 +205,8 @@
     const ea = side(a, b, opts.home), eb = side(b, a, false);
     let p = 1 / (1 + Math.exp(-(ea - eb) / K));
     // 即死は戦闘力と無関係に決着しうる
-    const ka = Math.min(0.5, eff(a, 'instakill', T)), kb = Math.min(0.5, eff(b, 'instakill', T));
+    const F = G.CONFIG.STAT_FX, kr = y => Math.max(0, 1 - F.lukInstakill * statDev(y.score.luk));
+    const ka = Math.min(0.5, eff(a, 'instakill', T)) * kr(b), kb = Math.min(0.5, eff(b, 'instakill', T)) * kr(a);
     p = ka + (1 - ka) * (1 - kb) * p;
     return { a: Math.round(ea * 10) / 10, b: Math.round(eb * 10) / 10, pA: Math.round(p * 1000) / 1000 };
   }
@@ -256,6 +264,6 @@
     return o;
   }
 
-  G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki };
 })(globalThis.HGW = globalThis.HGW || {});

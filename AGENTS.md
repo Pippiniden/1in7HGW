@@ -473,6 +473,25 @@ Per round:
 8. Retreat check for the weaker side (threshold `retreatAt` 35 ± stance ± persona; success from
    `retreatBase` + escape − pin + bond …).
 
+**Stat roles** (`CONFIG.STAT_FX`, on top of each stat's share of `combatPower`). `d = B.statDev(score)` =
+`clamp((score − 32)/30, −1, 1.6)` (C≈0, A≈+1); in the engine `sd(c,k)` for servant scores, `md(c,k)` for Master stats
+(0 when the Master is dead). Master coefficients are deliberately smaller. None of these add `rnd()` calls (they only
+change probabilities/magnitudes already rolled), but they change every seed's outcome compared with older versions.
+- 筋力 `str`: damage dealt × (1 + str·d); 耐久 `end`: damage taken × (1 − end·d) (combined factor clamped 0.6–1.5), guts +endGuts·d.
+- 敏捷 `agi`: retreat success (both the retreat-stance disengage and the weaker-side check) ± agiRetreat·(d_self − d_opp);
+  night find chance ± agiFind·(d_hunter − d_target).
+- 魔力 `mag`: NP cost × (1 − magCost·d) (`npCostOf`); NP power × `B.npStatMult(sv)` = 1 + magNp·d(mag) + npStat·d(np).
+  `npPeak` and `battleOdds` include the same factor, so the opening grade reflects it.
+- 幸運 `luk`: crit chance + lukCrit·d (≥0); instakill received × (1 − lukInstakill·d); guts + lukGuts·d.
+- Master 魔術 `craft`: fortify + mCraftFort·d, scouting + mCraftScout·d, combat power × (1 + mCraftPower·d) while alive.
+- Master 精神 `mind`: command-seal failure = clamp(max(0, cs_resist − bond/300) − mMindSeal·d) (low mind can fail without
+  cs_resist), seal-saves-master chance + mMindSeal·d, rally hp and 3-day boost × (1 + mMindCs·d), charm resistance
+  + mMindCharm·d, opponent `debuff` × (1 − mMindDebuff·d), `uncontrolled` × (1 − mMindControl·d).
+- Master 幸運 `luck`: night find chance − mLuckHide·d, master-strike chance × (1 − … − mLuckHide·d), ambush guard + mLuckHide·d.
+- Narration (no rnd): retreat 「持ち前の速さで…振り切った」 (agi gap ≥ 0.6), failed retreat 「…の速さが追いすがった」 (≤ −0.6, no pin),
+  guts 「…の頑強な霊基は崩れなかった」 (end d ≥ 0.9), charm resisted 「…の呼びかけが引き戻した」 (mind d ≥ 0.45), seal failing
+  without cs_resist 「…の令呪は、揺らぐ心のままに光を失った」.
+
 After battle: attacker learns the defender's base; persona reveal; chance to learn the true name
 (`0.1 + reveal − conceal×0.6`); clues +1 each way at battle start; related servants (因縁) know each other.
 
@@ -607,10 +626,9 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   explanation on mouse hover, on tap/click (pinned until tapped again or elsewhere), and on keyboard focus (Esc closes).
   Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
   `st.hp|mana|bond|ws|cs` (status bars, mobile strip, command-seal emblem, 令呪 in the Master card), `m.mana|craft|body|
-  mind|luck` (opening Master stats), `ev.rate|power|np` (opening meters). Texts describe the actual formulas in
-  `engine.js`/`config.js` (some numbers are read from `CONFIG`); update them when the formulas change. Notably the
-  Master's 精神 is not used by the engine, the Master's 幸運 only affects `steal`, and the servant's 宝具 stat is unused
-  (each NP's own rank/type decides power) — the texts say so.
+  mind|luck` (opening Master stats), `ev.rate|power|np` (opening meters). **Texts contain no numbers, ranges or
+  formulas** (owner's request): they say only what each stat affects (§7.5 Stat roles). The class note says whether the
+  class weighs that stat more or less, without the multiplier. Update the texts when a stat's role changes.
 - **Install**: `beforeinstallprompt` shows 「アプリとして追加する」 on the intro; iOS Safari (not standalone) gets a
   「ホーム画面に追加」 hint. `--safe-t` (safe-area top) pads the HUD and intro for standalone mode.
 - **Servant lore** (`#lore`): only for the player's own servant and servants whose true name is known in the
@@ -668,6 +686,7 @@ Chromium + Playwright may be available in agent sandboxes.
 |---|---|
 | Add a class | One entry in `CLASS_DEFS` (`config.js`). |
 | Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`. |
+| Tune what a stat does | `CONFIG.STAT_FX` (see §7.5 Stat roles). Keep Master coefficients smaller than servant ones; update `TIPS` in `index.html` if a role changes. |
 | Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. If the name is an ordinary word whose meaning depends on the description, also add it to `GENERIC`. Add canonical names to `test/skills.js`. |
 | Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`). Check with `test/rebuild.js` that existing servants did not change unexpectedly. |
 | Fix one servant | Use `roster.html` (writes `overrides.json`) or edit `data/overrides.json` directly. Prefer overrides over editing `servants.json`. |
