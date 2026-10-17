@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>サーヴァント名簿</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
 :root {
   --bg: #f6f4ef; --panel: #ffffff; --ink: #1f1d1a; --sub: #6b665d; --rule: #e2ddd2;
@@ -663,6 +667,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   rebuildAll(); render();
   if (roster.length) status(`名簿に ${roster.length}騎`);
 })();
+</script>
+<script>
+// PWA：ゲーム本体と同じサービスワーカー（sw.js）。名簿ツールもオフラインで開ける
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 </script>
 </body>
 </html>

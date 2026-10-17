@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 仮のアイコン：令呪の紋様。差し替え方は icons/README.md -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#16408a"/>
+      <stop offset=".62" stop-color="#0a1f4d"/>
+      <stop offset="1" stop-color="#050d22"/>
+    </radialGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <g fill="none" stroke="#3ee6ff" stroke-width="10" opacity=".9">
+    <path d="M70 130V70h60"/><path d="M442 382v60h-60"/>
+  </g>
+  <g fill="none" stroke="#ff4f72" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+    <path d="M256 104 C206 156 206 196 256 238 C306 196 306 156 256 104 Z"/>
+    <path d="M170 262 C204 240 236 252 256 286 C276 252 308 240 342 262"/>
+    <path d="M190 330 L256 390 L322 330"/>
+  </g>
+</svg>
