@@ -189,7 +189,8 @@
       const chosen = options.find(o => o.k === ans);
       const k = chosen ? chosen.k : auto();
       const o = options.find(x => x.k === k);
-      log('choice', `${chosen ? '' : 'おまかせ：'}${o ? o.label : k}`, [c.id]);
+      // 決断の一覧（結末の画面）に使うので、何を問われたか（q）と種類（dk）も残す
+      log('choice', `${chosen ? '' : 'おまかせ：'}${o ? o.label : k}`, [c.id], { q: q.title, dk: kind, auto: !chosen });
       return k;
     }
 
@@ -226,12 +227,19 @@
     }
 
     // ---------- 脱落 ----------
-    function servantDown(c, text, by) {
+    // fin：戦いで決着がついたとき、何が勝敗を決めたか { how: 'np'|'np-earlier'|'instakill'|'blow', np }
+    //   脱落の記録は「とどめ」と一緒に書く（宝具が決め手なら「〇〇の宝具が勝敗を決定づけた」）
+    function servantDown(c, text, by, fin) {
       c.alive = false; c.out = true; c.hp = 0;
       c.fate = { day, text };
       if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       if (c.ally != null) { camps[c.ally].ally = null; c.ally = null; }
-      log('death', `${nm(c)}が消滅した。${text}。`, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true });
+      const head = !by || !fin ? `${nm(c)}が消滅した。${text}。`
+        : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${nm(c)}は消滅した。`
+        : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
+        : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${nm(c)}は消滅した。`
+        : `${nm(by)}がとどめを刺した。${nm(c)}は消滅した。`;
+      log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
       if (c.you && c.masterAlive) {
         // プレイヤーのマスターは、運が悪ければその場で巻き込まれる
@@ -253,7 +261,7 @@
     }
 
     // 致命傷：踏みとどまる / 令呪 / 消滅
-    function* lethal(l, w, cause) {
+    function* lethal(l, w, cause, round) {
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
       if (!pierced && chance(Math.min(0.85, eff(l, 'guts') + l.bond / 500))) { l.hp = 5 + rnd() * 10; log('battle', `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]); return 'guts'; }
       if (l.masterAlive && l.cs > 0) {
@@ -274,7 +282,10 @@
           else { l.hp = 30; l.temp.push({ id: 'power', mag: 0.3, params: null }); bondUp(l, 5); log('cs', `「令呪をもって命ずる——立て、${sn(l)}！」砕けかけた霊基に、令呪の魔力が満ちる。（残り${l.cs}画）`, [l.id, w.id], { big: true }); return 'rallied'; }
         }
       }
-      servantDown(l, `${day}日目の夜、${nm(w)}${cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w);
+      // 決め手：この打ち合いで宝具を使っていれば宝具、同じ戦いの前の打ち合いで使っていれば「宝具で追い詰めた」
+      const ln = w.lastNP;
+      const fin = ln && ln.round === round ? { how: 'np', np: ln.name } : ln ? { how: 'np-earlier', np: ln.name } : { how: cause === 'instakill' ? 'instakill' : 'blow' };
+      servantDown(l, `${day}日目の夜、${nm(w)}${fin.how === 'np' ? 'の宝具『' + ln.name + '』に倒れた' : cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w, fin);
       return 'dead';
     }
 
@@ -318,7 +329,7 @@
       if (!Object.keys(ws).length) return;
       const np = nps[+wpick(ws)];
       c.mana -= np.cost * ENG.npCost; c.npUses++;
-      if (np.attackResolved) c.npBoost = np.power * ENG.npPowerK * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1);
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
       else c.usedSup.add(np.name);
       for (const e of np.effects || []) if (!['master_buff', 'np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id)) c.temp.push(e);
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
@@ -335,7 +346,7 @@
     let witnessed = [];
     function* battle(a, b, ctx) {
       a.fought = b.fought = true; a.battles++; b.battles++;
-      a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set();
+      a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set(); a.lastNP = b.lastNP = null;
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
@@ -368,7 +379,7 @@
         let outcome = null;
         if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)))) {
           log('battle', `${sn(w)}の一撃が、${sn(l)}の霊核を捉えた。`, [w.id, l.id]);
-          l.hp = 0; outcome = yield* lethal(l, w, 'instakill');
+          l.hp = 0; outcome = yield* lethal(l, w, 'instakill', round);
         } else {
           let dmg = (ENG.dmgBase + rnd() * ENG.dmgVar) * (1 + clamp((ew - el) / (ew + el + 1), -0.3, 0.6));
           const crit = chance(eff(w, 'crit', ctx.terrain));
@@ -376,8 +387,8 @@
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(l, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
           l.hp -= dmg; w.hp -= rnd() * 8;
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? '会心の一撃。' : ''}${sn(w)}が押し勝ち、${sn(l)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, l.id]);
-          if (l.hp <= 0) outcome = yield* lethal(l, w, 'battle');
-          if (w.hp <= 0 && w.alive && outcome !== 'dead') { const o2 = yield* lethal(w, l, 'battle'); if (o2 !== 'guts' && o2 !== 'rallied') outcome = outcome || o2; }
+          if (l.hp <= 0) outcome = yield* lethal(l, w, 'battle', round);
+          if (w.hp <= 0 && w.alive && outcome !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = outcome || o2; }
         }
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
@@ -412,7 +423,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { a.temp = []; b.temp = []; a.npBoost = b.npBoost = 0; a.stance = b.stance = null; a.surprise = b.surprise = 0; }
+      function cleanup() { a.temp = []; b.temp = []; a.npBoost = b.npBoost = 0; a.stance = b.stance = null; a.surprise = b.surprise = 0; a.lastNP = b.lastNP = null; }
     }
 
     function* ambushMaster(h, t) {
