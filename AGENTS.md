@@ -68,7 +68,8 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
 3. **Script load order matters** (each file reads what earlier files put on `HGW`):
    `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data`.
    `index.html` loads all of them; `roster.html` loads `config…war` only. Node tests use the same order.
-   When you add a file, add it to **index.html, roster.html (if needed), test/sim.js and test/interactive.js**.
+   When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and the
+   `PRECACHE` list in `sw.js`** (then bump `VERSION` there).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All
    randomness inside `warGen` must go through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`).
    Never call `Math.random()` inside the engine. Adding/removing/reordering `rnd()` calls changes every
@@ -77,13 +78,21 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
 5. **`.nojekyll`** must stay at the repo root (stops GitHub's Jekyll processing).
 6. External resources: only Google Fonts. No CDN scripts.
 7. Mobile support is required (breakpoint **820px**; must not overflow horizontally at 390px width).
+8. **PWA.** `manifest.webmanifest` + `sw.js` (service worker, registered from `index.html` and `roster.html` only on
+   http(s)). Same-origin GETs are **network-first** (fresh when online, cache when offline or after `NET_TIMEOUT` 6 s;
+   navigations are cached without the query string and fall back to `index.html`); Google Fonts are stale-while-
+   revalidate in `hgw-fonts`. Install precaches `PRECACHE` (failures are skipped). Bump `VERSION` when `PRECACHE` or the
+   worker's logic changes; ordinary content updates need no bump. Placeholder icons live in `icons/` (`icons/README.md`).
 
 ---
 
 ## 3. Repository map
 
 ```
-index.html          Game (single page; inline CSS + inline UI script, ~840 lines)
+index.html          Game (single page; inline CSS + inline UI script)
+manifest.webmanifest  PWA manifest (name, colours, icons, start_url ./index.html, scope ./)
+sw.js               Service worker (offline; see §2.8)
+icons/              App icons (placeholders: icon.svg + PNGs 192/512/maskable-512/apple-touch 180/favicon 32; README.md)
 roster.html         Admin tool: import wiki pages, review/fix effects, export data (~490 lines)
 .nojekyll
 README.md           Japanese user/maintainer guide
@@ -594,6 +603,16 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
     `at`, keeps `HIST_MAX`; an incoming `save` replaces the current one only if there is none or the user confirms.
   - `start(o)` options: `{ seed, view, speed, c, f, to, focus, auto, mode: 'new'|'url'|'resume'|'replay' }`. The opening is
     shown only for a new war without replay data.
+- **Stat explanations** (`TIPS`, `tipAttr(key, classKey)`, `#tipPop`): any element with `data-tip="<key>"` shows a short
+  explanation on mouse hover, on tap/click (pinned until tapped again or elsewhere), and on keyboard focus (Esc closes).
+  Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
+  `st.hp|mana|bond|ws|cs` (status bars, mobile strip, command-seal emblem, 令呪 in the Master card), `m.mana|craft|body|
+  mind|luck` (opening Master stats), `ev.rate|power|np` (opening meters). Texts describe the actual formulas in
+  `engine.js`/`config.js` (some numbers are read from `CONFIG`); update them when the formulas change. Notably the
+  Master's 精神 is not used by the engine, the Master's 幸運 only affects `steal`, and the servant's 宝具 stat is unused
+  (each NP's own rank/type decides power) — the texts say so.
+- **Install**: `beforeinstallprompt` shows 「アプリとして追加する」 on the intro; iOS Safari (not standalone) gets a
+  「ホーム画面に追加」 hint. `--safe-t` (safe-area top) pads the HUD and intro for standalone mode.
 - **Servant lore** (`#lore`): only for the player's own servant and servants whose true name is known in the
   current snapshot (`canLore`: `snap.name` or `you`), so it never spoils. Opened from the Servant panel, the camps
   list (known names get an ⓘ), the opening's rating page, and the result table. Shows 元ネタ/異名/属性/願い, an
