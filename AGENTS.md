@@ -515,7 +515,14 @@ learned by deduction, NPs, scouting, battle insight, relations, alliance, or con
 ### 7.9 Log entries (`out.entries`)
 
 `{ day, phase ('prologue'|'day'|'night'|'end'), kind, text, ids [camp ids], you (involves player),
-quote? {who,text}, big?, head?, place?, scene?, weather? ('rain'|'moon'), snap }`
+quote? {who,text}, big?, head?, place?, scene?, weather? ('rain'|'moon'), fin?, q?, dk?, auto?, snap }`
+
+- `fin` (kind `death` from battle only): `{ by: camp id of the killer, how, np }` — `how` is `'np'` (the killer's attack NP
+  fired in the finishing round → text 「〇〇の宝具『…』が勝敗を決定づけた。」), `'np-earlier'` (NP used earlier in the same
+  battle → 「宝具『…』で追い詰めた〇〇が、とどめを刺した。」), `'instakill'` or `'blow'`. Tracked via `c.lastNP = {name, round}`
+  (set in `useNP` for attack NPs, reset per battle); `lethal(l, w, cause, round)` builds it and passes it to `servantDown`.
+  The fate text also names the NP. None of this calls `rnd()`, so outcomes are unchanged.
+- `q`, `dk`, `auto` (kind `choice`): the decision's title, its `kind`, and whether the auto policy answered.
 
 Kinds: `prologue, summon, dayhead, day, night, battle, np, cs, death, event, world, life, scout, ally,
 council, choice, quiet, end`. `snap` is a full per-camp snapshot from the **player's knowledge view**
@@ -562,10 +569,31 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
 - Chronicle: newest first; collapsed to the latest 10 (desktop) / 5 (≤820px) matching items; "すべての記録を見る"
   expands to a scrollable box (`.logwrap.open`). Filter tabs `[data-lf]`: すべて / ★ハイライト / 自陣営 (`e.you`;
   hidden for observers). `syncLog()` applies the filter (`li.fo`) and the collapse (`li.past`) in JS — call it after
-  bulk `show(e, true)` loops. **Highlight** = `hlCheck(e)`: kind `death`/`end`, or any `big` entry except NPs, which
-  count only for each camp's first NP. 「CSVで保存」 exports the entries shown so far (`out.entries.slice(0, idx)`,
+  bulk `show(e, true)` loops. **Highlight** = `hlCheck(e)`: kind `death`/`end`, or any `big` entry except `np` (an NP
+  release alone decides nothing; a deciding NP is written into the `death` entry via `fin`, and such items get class `fin-np`). 「CSVで保存」 exports the entries shown so far (`out.entries.slice(0, idx)`,
   no `dayhead`; UTF-8 with BOM; columns 日, 時間帯, 種類, ハイライト, 自陣営, 関わった陣営, 本文, セリフの主, セリフ, 場所).
-  The result panel adds a chronological highlight timeline, 「自陣営の記録を見る」 and CSV export.
+  The result panel adds: **purposes and arcs of the other camps** (`purposeSection`; all seven for observers; camps that
+  were ever the player's are excluded) — master wish, servant wish (`profile.wish` via roster), policy label + `AIM[policy]`,
+  battles/NPs/kills, most-fought opponent, fate, and up to 4 highlight entries where the camp is the subject (`ids[0]`, an
+  `ally` entry, or `fin.by`); **bond chart** (`bondSection`, player only: last snapshot per day of the camp with `you`,
+  forward-filled; solid while the servant is alive, dashed after; hover readout; per-day values in a `<details>`);
+  **decision list** (`decisionSection`: `choice` entries with `q`, plus focus runs from `focusLog`); then the highlight
+  timeline, 「自陣営の記録を見る」 and CSV export.
+- **Save / resume / records** (all in `localStorage`, nothing but seeds and answers is stored):
+  - `hgw.save.v1` — one suspended war: `{ v, at, seed, view, data, fp, c, f, idx, focus, auto, speed, sum }`. Saved by
+    `saveProgress()` at each tick, after each answer, on 中断 (`quit`), on `pagehide` and when the tab is hidden; not during
+    the opening; cleared when the war finishes. `c` = answered choices + queued `replay`, `f` = the longer of `replayFocus`
+    and `focusLog`. 「続きから」 → `start({ mode:'resume', …, to: idx })`, which `catchUp(idx)` renders instantly
+    (answering decisions from `c`), then restores `focus`/`auto` and continues.
+  - `hgw.history.v1` — finished wars, newest first, `HIST_MAX` (10): `{ v, at, seed, view, data, fp, c, f, sum }`, added in
+    `finish()` unless an identical record exists (`recordSig` = seed|view|fp|c|f). 「最初から見る」 = `start({mode:'replay'})`,
+    「結末だけ見る」 = the same + `fastForward()`, 「リンクをコピー」 = `recordUrl()`.
+  - `fp` = `rosterFp()` (hash of roster ids, power, npPeak in roster order). On mismatch the user is asked before replaying.
+    `data:'local'` switches to the roster tool's data first.
+  - Export/import file: `{ format:'hgw-records', version:1, at, history, save }`. Import merges by `recordSig`, sorts by
+    `at`, keeps `HIST_MAX`; an incoming `save` replaces the current one only if there is none or the user confirms.
+  - `start(o)` options: `{ seed, view, speed, c, f, to, focus, auto, mode: 'new'|'url'|'resume'|'replay' }`. The opening is
+    shown only for a new war without replay data.
 - **Servant lore** (`#lore`): only for the player's own servant and servants whose true name is known in the
   current snapshot (`canLore`: `snap.name` or `you`), so it never spoils. Opened from the Servant panel, the camps
   list (known names get an ⓘ), the opening's rating page, and the result table. Shows 元ネタ/異名/属性/願い, an

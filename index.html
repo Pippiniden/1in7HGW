@@ -118,6 +118,25 @@ button { font: inherit; color: inherit; }
 .data label.file { color: var(--cyan); text-decoration: underline; cursor: pointer; }
 .data input[type=file] { display: none; }
 .foot { margin-top: 28px; font-size: 12px; color: var(--mute); line-height: 1.9; }
+.over { margin: -6px 0 0; font-size: 12px; color: var(--mute); }
+/* 中断中の戦争・これまでの記録 */
+.resume { margin-bottom: 18px; }
+.resume .rinfo { margin: 0 0 12px; font: 500 15px/1.8 var(--mincho); }
+.resume .rinfo small { display: block; font: 12px var(--gothic); color: var(--mute); }
+.records { margin-top: 18px; }
+.intro .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.intro .acts .btn { min-height: 40px; padding: 8px 16px; display: inline-flex; align-items: center; }
+.records input[type=file] { display: none; }
+.records .note, .recempty { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+.recempty { margin: 0 0 12px; }
+.reclist { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.reclist li { padding: 10px 12px; background: linear-gradient(90deg, rgba(20, 70, 150, .45), rgba(10, 36, 86, .35)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+.reclist li.won { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px var(--line); }
+.reclist .rt { font: 700 15px/1.5 var(--gothic); }
+.reclist .rm { font-size: 12px; color: var(--mute); }
+.reclist .rr { margin: 4px 0 8px; font: 500 14px/1.7 var(--mincho); }
+.reclist .ra { display: flex; flex-wrap: wrap; gap: 6px; }
+.reclist .ra .btn { min-height: 34px; font-size: 12px; }
 
 /* ============================================================
    観戦中
@@ -214,6 +233,8 @@ body.watching .war { display: block; }
 .log .is-you::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
 .log .k-death .txt { color: var(--seal); font-weight: 700; text-shadow: 0 0 10px rgba(255, 79, 114, .35); }
 .log .k-death::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--seal); }
+/* 宝具が勝敗を決めた脱落は、金と赤の二色で */
+.log .k-death.fin-np::before { background: linear-gradient(180deg, var(--gold) 0 50%, var(--seal) 50%); }
 .log .k-np .txt { font-weight: 700; color: #fff3c4; text-shadow: 0 0 12px rgba(255, 216, 74, .45); }
 .log .k-cs .txt { color: #ff9db1; }
 .log .k-end .txt { color: var(--gold); font-weight: 700; }
@@ -353,6 +374,42 @@ body.watching .war { display: block; }
 .result td, .result th { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid rgba(80, 196, 255, .16); vertical-align: top; }
 .result th { font: 600 12px var(--en); letter-spacing: .1em; color: var(--mute); }
 .result tr.win td:first-child { color: var(--gold); }
+/* 結末：陣営の目的と歩み・絆の推移・決断の一覧 */
+.result .rsec { margin-top: 16px; }
+.result .rsec > summary { cursor: pointer; }
+.result .rsec h5 { display: inline; margin: 0; font: 700 14px var(--gothic); color: var(--cyan); }
+.result .rsec .lead3 { font-size: 12px; color: var(--mute); margin: 4px 0 8px; }
+.purp { list-style: none; margin: 8px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px; }
+.purp > li { padding: 10px 12px; background: linear-gradient(180deg, rgba(20, 70, 150, .40), rgba(10, 36, 86, .30)); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.purp > li.win { box-shadow: inset 0 3px 0 var(--gold), inset 0 0 0 1px var(--line); }
+.purp .ph { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px; font-weight: 700; }
+.purp .ph small { font-weight: 400; color: var(--mute); }
+.purp .ph .st { font-size: 12px; color: var(--seal); font-weight: 500; }
+.purp > li.win .ph .st { color: var(--gold); }
+.purp > li.alive .ph .st { color: var(--cyan-2); }
+.purp dl { margin: 6px 0 0; display: grid; grid-template-columns: 4.2em minmax(0, 1fr); gap: 2px 8px; font-size: 13px; }
+.purp dt { color: var(--mute); font-size: 12px; padding-top: 1px; }
+.purp dd { margin: 0; }
+.purp .wish { font-family: var(--mincho); }
+.purp ol { list-style: none; margin: 8px 0 0; padding: 6px 0 0; border-top: 1px solid rgba(80, 196, 255, .14); display: grid; gap: 2px; font: 500 13px/1.7 var(--mincho); }
+.purp ol b { font: 700 12px var(--en); color: var(--cyan); margin-right: 6px; }
+.bondbox { position: relative; margin-top: 6px; }
+.bondbox svg { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
+.bondbox .tip { position: absolute; top: 0; pointer-events: none; padding: 3px 8px; font-size: 12px; background: rgba(5, 13, 34, .95); box-shadow: inset 0 0 0 1px var(--line-hi); white-space: nowrap; transform: translateX(-50%); }
+.bondbox .tip[hidden] { display: none; }
+.bondsum { font-size: 13px; margin: 4px 0 0; }
+.bondsum b { color: var(--bond); font: 700 15px var(--en); }
+.result details.num summary { font-size: 12px; color: var(--mute); cursor: pointer; margin-top: 6px; }
+.result details.num p { font: 12px/1.8 var(--en); color: var(--mute); margin: 4px 0 0; letter-spacing: .04em; }
+.declist { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; }
+.declist li { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(80, 196, 255, .12); font-size: 13px; }
+.declist li b { font: 700 13px var(--en); color: var(--cyan); }
+.declist .dq { color: var(--mute); font-size: 12px; display: block; }
+.declist .da { font: 500 14px/1.7 var(--mincho); }
+.declist .da::before { content: "▸ "; color: var(--gold); }
+.declist li.auto .da { color: var(--mute); }
+.focusrun { font-size: 13px; margin: 8px 0 0; color: var(--mute); }
+.focusrun b { color: var(--ice); font-weight: 500; }
 .result .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .result .acts .btn { min-height: 42px; padding: 8px 16px; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); padding: 8px 16px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; max-width: calc(100vw - 32px); }
@@ -418,6 +475,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <h1 id="title">聖杯戦争<small>観戦記</small></h1>
   </div>
   <p class="lead">七騎の英霊と七人のマスターが、ひとつの街で最長三十日を戦う。誰が呼ばれるかは選べない。あなたはその一陣営のマスターとして、日々の重点を決め、大きな決断を下しながら、終わりまで見届ける。</p>
+  <section class="panel resume" id="resumeBox" aria-label="中断中の聖杯戦争" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Continue</span><span class="ja">中断中の聖杯戦争</span></div>
+    <div class="body"><p class="rinfo" id="resumeInfo"></p>
+      <div class="acts"><button class="btn primary" id="resumeBtn">続きから</button><button class="btn" id="resumeDrop">破棄する</button></div>
+    </div>
+  </section>
   <section class="panel form" aria-label="開戦の準備">
     <div class="hd"><i class="chev"></i><span class="en">Briefing</span><span class="ja">開戦の準備</span></div>
     <div class="body">
@@ -437,6 +500,20 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       </div>
       <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ選択なら、同じ戦争になる。空欄なら毎回ちがう戦争）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
       <button class="btn primary go" id="go" disabled>開戦する</button>
+      <p class="over" id="overNote" hidden>新しく開戦すると、中断中の聖杯戦争は上書きされます。</p>
+    </div>
+  </section>
+  <section class="panel records" aria-label="これまでの聖杯戦争">
+    <div class="hd"><i class="chev"></i><span class="en">Records</span><span class="ja">これまでの聖杯戦争</span></div>
+    <div class="body">
+      <ol class="reclist" id="recList"></ol>
+      <p class="recempty" id="recEmpty">まだ記録はありません。終わった聖杯戦争は、新しいものから<span id="recMax">10</span>件までここに残ります。</p>
+      <div class="acts">
+        <button class="btn" id="recExport">記録を書き出す</button>
+        <label class="btn" for="recImport">記録を読み込む</label><input type="file" id="recImport" accept=".json,application/json">
+        <button class="btn" id="recClear">すべて消す</button>
+      </div>
+      <p class="note">終わった聖杯戦争は新しいものから<span id="recMax2">10</span>件まで残ります。記録と中断中の戦争は、このブラウザにだけ保存されます。別の端末へ移すときは、書き出したファイルを移した先で読み込んでください。</p>
     </div>
   </section>
   <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァント名簿</a>から。</p>
@@ -625,19 +702,23 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // 記録（out.entries）を順に再生し、追いついたら tick には今の重点を渡して進め、decision なら問いを出す
   let gen = null, out = null, pending = null, done = false, result = null;
   let idx = 0, timer = null, speed = 2, paused = false, view = 'you', seed = '';
-  let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = false, youId = null, curDay = 0;
+  let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = false, youId = null, curDay = 0, mode = 'new';
   const DELAY = { quiet: 900, death: 2200, np: 1800, end: 1900, cs: 1600, summon: 1100, prologue: 1300, choice: 500, council: 900, life: 1400, world: 1400, ally: 1400 };
 
   function pump(answer) {
     const r = gen.next(answer);
     if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value;
   }
-  function start(withReplay) {
-    seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
-    view = document.querySelector('input[name=view]:checked').value;
-    speed = +document.querySelector('input[name=speed]:checked').value;
-    replay = withReplay && qs.get('c') ? qs.get('c').split('.').filter(Boolean) : [];
-    replayFocus = withReplay && qs.get('f') ? qs.get('f') : '';
+  // o: { seed, view, speed, c: 決断の列, f: 重点の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode }
+  //   mode … 'new'（開戦） / 'url'（共有リンクの再現） / 'resume'（続きから） / 'replay'（これまでの記録を再生）
+  function start(o) {
+    o = o || {};
+    mode = o.mode || 'new';
+    seed = o.seed || $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
+    view = o.view || document.querySelector('input[name=view]:checked').value;
+    speed = +(o.speed || document.querySelector('input[name=speed]:checked').value);
+    replay = (o.c || []).filter(Boolean);
+    replayFocus = o.f || '';
     $('#pause').disabled = false; $('#skip').disabled = false;
     choices = []; focusLog = ''; focus = 'auto'; out = {}; done = false; result = null; pending = null; idx = 0; paused = false; curDay = 0;
     try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out }); pump(); }
@@ -646,16 +727,40 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (youId < 0) youId = null;
     document.body.classList.add('watching');
     document.body.classList.toggle('observer', youId == null);
-    $('#log').innerHTML = ''; $('#result').innerHTML = ''; $('#logWrap').classList.remove('open'); npSeenLive = new Set(); lastSnap = []; setLogFilter('all');
+    $('#log').innerHTML = ''; $('#result').innerHTML = ''; $('#logWrap').classList.remove('open'); lastSnap = []; setLogFilter('all');
     $('#lfYou').hidden = youId == null; $('#lore').classList.remove('on');
     drawSkyline(seed); lastScene = null; renderFocus(); syncCtl(); updateURL();
     hideDlg(); closeOpening(); window.scrollTo(0, 0);
-    // マスターとして遊ぶときは、開戦の案内（マスター → サーヴァント → 重点）を出してから進める。共有リンクの再現では出さない
-    const replaying = replay.length || replayFocus;
+    // 続きから：中断したところまで、記録を一気に表示する（決断と重点は保存したものを使う）
+    if (o.to) {
+      if (FOCUS[o.focus]) focus = o.focus;
+      if (o.auto != null) autoAll = !!o.auto;
+      catchUp(o.to); renderFocus(); syncCtl(); updateURL();
+      toast(`${curDay ? curDay + '日目' : '開戦'}から再開します`);
+      timer = setTimeout(step, 600);
+      return;
+    }
+    // マスターとして遊ぶときは、開戦の案内（マスター → サーヴァント → 重点）を出してから進める。記録の再現では出さない
+    const replaying = replay.length || replayFocus || mode === 'replay';
     if (youId != null && !replaying) { board(out.entries.find(e => e.snap)); if (openOpening()) return; }
     step();
   }
-  $('#go').onclick = () => start(qs.get('seed') && qs.get('seed') === $('#seed').value.trim());
+  $('#go').onclick = () => {
+    const same = qs.get('seed') && qs.get('seed') === $('#seed').value.trim();
+    start(same ? { mode: 'url', c: qs.get('c') ? qs.get('c').split('.') : [], f: qs.get('f') || '' } : {});
+  };
+  // 記録を target 件目まで、待たずに表示する（途中の決断は replay から答える）
+  function catchUp(target) {
+    let guard = 0;
+    while (idx < target && guard++ < 50000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick') { advanceTick(); continue; }
+      if (pending && pending.type === 'decision' && replay.length) { const k = replay.shift(); choices.push(k); pump(k); continue; }
+      break;
+    }
+    if (idx) board(out.entries[idx - 1]);
+    syncLog();
+  }
 
   function updateURL() {
     const url = new URL(location.href);
@@ -676,7 +781,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   const toggleAuto = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '大きな決断はおまかせで進みます' : '大きな決断で止まります'); if (autoAll && pending && pending.type === 'decision' && $('#dlg').classList.contains('on')) answer('auto'); };
   $('#autoBtn').onclick = toggleAuto; $('#autoBtn2').onclick = () => { closeMenu(); toggleAuto(); };
-  const quit = () => { clearTimeout(timer); hideDlg(); closeOpening(); loreResume = false; $('#lore').classList.remove('on'); document.body.classList.remove('watching'); window.scrollTo(0, 0); };
+  const quit = () => {
+    const saved = saveProgress();
+    clearTimeout(timer); hideDlg(); closeOpening(); loreResume = false; $('#lore').classList.remove('on'); document.body.classList.remove('watching'); window.scrollTo(0, 0);
+    renderIntroRecords();
+    if (saved) toast('中断しました。「続きから」で再開できます');
+  };
   $('#quitBtn').onclick = quit; $('#quitBtn2').onclick = () => { closeMenu(); quit(); };
   const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
   $('#moreBtn').onclick = e => { e.stopPropagation(); const on = $('#menu').classList.toggle('on'); $('#moreBtn').setAttribute('aria-expanded', String(on)); };
@@ -716,7 +826,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       timer = setTimeout(step, base / speed + (e.quote ? 700 / speed : 0));
       return;
     }
-    if (pending && pending.type === 'tick') { advanceTick(); updateURL(); return step(); }
+    if (pending && pending.type === 'tick') { advanceTick(); updateURL(); saveProgress(); return step(); }
     if (pending && pending.type === 'decision') return present(pending);
     if (done) return finish();
   }
@@ -737,7 +847,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function answer(k, silent) {
     hideDlg();
     choices.push(k); updateURL();
-    pump(k);
+    pump(k); saveProgress();
     if (k === 'skip') return fastForward();
     timer = setTimeout(step, silent ? 30 : 250);
   }
@@ -1012,27 +1122,24 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   const KIND_JA = { prologue: '開幕', summon: '召喚', day: '昼の行動', night: '夜の行動', battle: '戦闘', np: '宝具', cs: '令呪', death: '脱落', event: '出来事',
     world: '街の出来事', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
-  // ハイライト：脱落・令呪・同盟・討伐令・因縁・結末など大きな出来事。宝具は各陣営が初めて解放したときだけ
-  function hlCheck(e, npSeen) {
+  // ハイライト：勝敗が決まったとき（脱落。とどめと決め手の宝具は脱落の記録に一緒に書かれる）・令呪・同盟と裏切り・
+  // 討伐令・因縁・真名の看破・結末など大きな出来事。宝具の解放そのものは入れない（それだけでは勝敗は決まらない）
+  function hlCheck(e) {
     if (e.kind === 'death' || e.kind === 'end') return true;
-    if (!e.big) return false;
-    if (e.kind !== 'np') return true;
-    const who = e.ids && e.ids[0];
-    if (npSeen.has(who)) return false;
-    npSeen.add(who); return true;
+    return !!e.big && e.kind !== 'np';
   }
-  let logFilter = 'all', npSeenLive = new Set();
+  let logFilter = 'all';
   function show(e, fast) {
     if (e.kind === 'dayhead') { curDay = e.day; if (!fast) board(e); return; }
-    const hl = hlCheck(e, npSeenLive);
+    const hl = hlCheck(e);
     const li = document.createElement('li');
-    li.className = ['k-' + e.kind, e.you ? 'is-you' : '', hl ? 'hl' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
+    li.className = ['k-' + e.kind, e.you ? 'is-you' : '', hl ? 'hl' : '', e.fin && e.fin.np ? 'fin-np' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
     li.innerHTML = `<span class="when">${e.day ? `<b>D${String(e.day).padStart(2, '0')}</b>` : '<b>—</b>'}<span>${PH[e.phase] || ''}</span></span><div class="txt">${hl && logFilter !== 'hl' ? '<span class="hlmark" title="ハイライト">★</span>' : ''}${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</div>`;
     $('#log').prepend(li);
     if (!fast) {
       syncLog();
       board(e);
-      if (e.kind === 'np') flash('rgba(255, 216, 74, .9)'); else if (e.kind === 'death') flash('rgba(255, 79, 114, .9)'); else if (e.kind === 'cs') flash('rgba(255, 120, 150, .7)');
+      if (e.kind === 'np') flash('rgba(255, 216, 74, .9)'); else if (e.kind === 'death') flash(e.fin && e.fin.how === 'np' ? 'rgba(255, 190, 90, .95)' : 'rgba(255, 79, 114, .9)'); else if (e.kind === 'cs') flash('rgba(255, 120, 150, .7)');
     }
   }
 
@@ -1073,11 +1180,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function shownEntries() { return out.entries.slice(0, idx).filter(e => e.kind !== 'dayhead'); }
   function exportCsv() {
     if (!out || !out.entries) return;
-    const list = shownEntries(), seenNp = new Set();
+    const list = shownEntries();
     const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
     const who = (e, id) => { const c = e.snap && e.snap[id]; return c ? c.label + (c.name ? '「' + c.name + '」' : '') : ''; };
     const rows = [['日', '時間帯', '種類', 'ハイライト', '自陣営', '関わった陣営', '本文', 'セリフの主', 'セリフ', '場所']];
-    for (const e of list) rows.push([e.day || 0, PH[e.phase] || '', KIND_JA[e.kind] || e.kind, hlCheck(e, seenNp) ? '★' : '', e.you ? '○' : '',
+    for (const e of list) rows.push([e.day || 0, PH[e.phase] || '', KIND_JA[e.kind] || e.kind, hlCheck(e) ? '★' : '', e.you ? '○' : '',
       (e.ids || []).map(id => who(e, id)).filter(Boolean).join(' / '), e.text, e.quote ? e.quote.who : '', e.quote ? e.quote.text : '', e.place || '']);
     const csv = '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
     const a = document.createElement('a');
@@ -1162,6 +1269,280 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#camps').addEventListener('click', e => { const li = e.target.closest('li[data-lore]'); if (li) openLore(+li.dataset.lore); });
   $('#camps').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('li[data-lore]')) { e.preventDefault(); openLore(+e.target.dataset.lore); } });
 
+  // ---------- 途中セーブ・これまでの記録 ----------
+  // 戦争はシード・データ・決断・重点で決まるので、保存するのはそれだけ（記録の本文は持たない）。
+  //   中断中の戦争：hgw.save.v1（1つだけ）／ 終わった戦争：hgw.history.v1（新しい順に HIST_MAX 件）
+  const SAVE_KEY = 'hgw.save.v1', HIST_KEY = 'hgw.history.v1', HIST_MAX = 10;
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  };
+  // 名簿の指紋。名簿が変わると同じシードでも別の戦争になるので、再現の前に見比べる
+  function rosterFp() {
+    let h = 2166136261;
+    for (const s of roster) { const t = s.id + '|' + s.power + '|' + (s.npPeak || 0) + ';'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } }
+    return roster.length + ':' + (h >>> 0).toString(36);
+  }
+  const loadHistory = () => { const l = store.get(HIST_KEY); return Array.isArray(l) ? l.filter(validRecord) : []; };
+  const validRecord = r => r && typeof r.seed === 'string' && (r.view === 'you' || r.view === 'all') && Array.isArray(r.c) && typeof r.f === 'string' && r.sum;
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f].join('|');
+  const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
+
+  // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
+  function saveProgress() {
+    if (!gen || done || !out || !out.entries || !document.body.classList.contains('watching')) return false;
+    if (op && !idx) return false; // 開戦の案内の途中は、まだ始まっていない
+    const me = lastSnap.find(c => c.you);
+    return store.set(SAVE_KEY, {
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(),
+      c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
+      idx, focus, auto: autoAll, speed,
+      sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
+    });
+  }
+  addEventListener('pagehide', saveProgress);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
+
+  // 終わった戦争を記録に足す（同じ戦争の再生なら足さない）
+  function addHistory() {
+    const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
+    const rec = {
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), c: choices.slice(), f: focusLog,
+      sum: {
+        city: result.city, days: result.days,
+        winner: w ? { label: w.label, name: w.trueName, master: w.master } : null,
+        you: y ? { label: y.label, name: y.trueName, master: y.master, won: y.id === result.winner, fate: y.fate ? y.fate.text : '' } : null,
+        decided: choices.filter(k => k !== 'auto').length,
+      },
+    };
+    const list = loadHistory();
+    if (list.some(r => recordSig(r) === recordSig(rec))) return;
+    list.unshift(rec);
+    store.set(HIST_KEY, list.slice(0, HIST_MAX));
+  }
+
+  // 記録を作ったときとデータが違えば、切り替えるか確かめる
+  function checkData(r) {
+    if (r.data === 'local' && source !== 'local' && H.data.hasLocal()) dataReady(H.data.loadLocal(), 'local');
+    if (roster.length < 2) { toast('サーヴァントのデータがまだ読み込まれていません'); return false; }
+    if (r.fp && r.fp !== rosterFp()) return confirm('サーヴァントの名簿が、この記録のときから変わっています。同じ展開にならないことがありますが、続けますか？');
+    return true;
+  }
+  function resume() {
+    const s = store.get(SAVE_KEY);
+    if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto });
+  }
+  function playRecord(r, how) {
+    if (!checkData(r)) return;
+    start({ mode: 'replay', seed: r.seed, view: r.view, c: r.c, f: r.f });
+    if (how === 'end') fastForward();
+    else toast('記録を再生しています。重点を変えると、そこから別の展開に分かれます');
+  }
+  function recordUrl(r) {
+    const u = new URL(location.href); u.search = '';
+    u.searchParams.set('seed', r.seed); u.searchParams.set('view', r.view);
+    if (r.c.length) u.searchParams.set('c', r.c.join('.'));
+    if (r.f.replace(/o/g, '')) u.searchParams.set('f', r.f);
+    if (r.data === 'local') u.searchParams.set('data', 'local');
+    return u.href;
+  }
+
+  // 最初の画面：中断中の戦争と、これまでの記録
+  function renderIntroRecords() {
+    const s = store.get(SAVE_KEY);
+    $('#resumeBox').hidden = !s; $('#overNote').hidden = !s;
+    if (s && s.sum) {
+      const who = s.sum.label ? `${s.sum.label}${s.sum.name ? '「' + s.sum.name + '」' : ''}のマスター、${s.sum.master || ''}` : 'すべてを知る観測者';
+      $('#resumeInfo').innerHTML = `${esc(s.sum.city || '')}の聖杯戦争、${s.sum.day ? esc(s.sum.day) + '日目' : '開戦直後'}。${esc(who)}${s.sum.alive ? `。残り${esc(s.sum.alive)}騎` : ''}。<small>中断 ${esc(fmtAt(s.at))} ・ SEED ${esc(s.seed)}</small>`;
+    }
+    const list = loadHistory();
+    $('#recMax').textContent = $('#recMax2').textContent = HIST_MAX;
+    $('#recEmpty').hidden = list.length > 0;
+    $('#recExport').disabled = !list.length && !s; $('#recClear').disabled = !list.length && !s;
+    $('#recList').innerHTML = list.map((r, i) => {
+      const y = r.sum.you, w = r.sum.winner;
+      const title = y ? `${y.label}「${y.name}」のマスター、${y.master}` : 'すべてを知る観測者として';
+      const res = y ? (y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
+        : w ? `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。` : '聖杯を手にした者はいなかった。';
+      return `<li class="${y && y.won ? 'won' : ''}"><div class="rt">${esc(title)}</div>
+        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ 名簿ツールの名簿' : ''}</div>
+        <p class="rr">${esc(res)}</p>
+        <div class="ra"><button class="btn" data-rec="${i}" data-how="full">最初から見る</button><button class="btn" data-rec="${i}" data-how="end">結末だけ見る</button><button class="btn" data-rec="${i}" data-how="link">リンクをコピー</button></div></li>`;
+    }).join('');
+  }
+  $('#recList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-rec]'); if (!b) return;
+    const r = loadHistory()[+b.dataset.rec]; if (!r) return;
+    if (b.dataset.how === 'link') { try { await navigator.clipboard.writeText(recordUrl(r)); toast('リンクをコピーしました'); } catch (err) { toast('コピーできませんでした'); } return; }
+    playRecord(r, b.dataset.how);
+  });
+  $('#resumeBtn').onclick = resume;
+  $('#resumeDrop').onclick = () => { if (confirm('中断中の聖杯戦争を破棄します。よろしいですか？')) { store.set(SAVE_KEY, null); renderIntroRecords(); } };
+
+  // 書き出し・読み込み（別の端末やブラウザへ移す）
+  $('#recExport').onclick = () => {
+    const data = { format: 'hgw-records', version: 1, at: new Date().toISOString(), history: loadHistory(), save: store.get(SAVE_KEY) };
+    const a = document.createElement('a'), d = new Date();
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+    a.download = `聖杯戦争の記録_${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`記録${data.history.length}件${data.save ? 'と中断中の戦争' : ''}を書き出しました`);
+  };
+  $('#recImport').onchange = async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    let data;
+    try { data = JSON.parse(await file.text()); } catch (err) { return toast('読み込めませんでした（JSONではありません）'); }
+    if (!data || data.format !== 'hgw-records') return toast('聖杯戦争の記録のファイルではありません');
+    const incoming = (Array.isArray(data.history) ? data.history : []).filter(validRecord);
+    const list = loadHistory(), sigs = new Set(list.map(recordSig));
+    let added = 0;
+    for (const r of incoming) if (!sigs.has(recordSig(r))) { list.push(r); sigs.add(recordSig(r)); added++; }
+    list.sort((a, b) => (b.at || 0) - (a.at || 0));
+    const dropped = Math.max(0, list.length - HIST_MAX);
+    store.set(HIST_KEY, list.slice(0, HIST_MAX));
+    let saveMsg = '';
+    if (data.save && validRecord(Object.assign({ sum: {} }, data.save))) {
+      const cur = store.get(SAVE_KEY);
+      if (!cur || (cur.at !== data.save.at && confirm('ファイルに中断中の聖杯戦争が入っています。今の中断中の戦争と置き換えますか？'))) { store.set(SAVE_KEY, data.save); saveMsg = 'と中断中の戦争'; }
+    }
+    renderIntroRecords();
+    toast(`記録${added}件${saveMsg}を読み込みました${incoming.length - added ? `（同じ記録${incoming.length - added}件は省略）` : ''}${dropped ? `。古い${dropped}件は${HIST_MAX}件を超えたので外しました` : ''}`);
+  };
+  $('#recClear').onclick = () => {
+    if (!confirm('これまでの聖杯戦争の記録と、中断中の戦争をすべて消します。元には戻せません。よろしいですか？')) return;
+    store.set(HIST_KEY, null); store.set(SAVE_KEY, null); renderIntroRecords(); toast('記録をすべて消しました');
+  };
+  renderIntroRecords();
+
+  // ---------- 結末：陣営の目的と歩み・絆の推移・決断の一覧 ----------
+  const AIM = {
+    aggressive: '先手を取り、敵を一騎ずつ減らしていく',
+    defensive: '拠点を固め、攻め込んでくる敵を迎え撃つ',
+    intel: '敵の拠点と真名を探り、勝てる相手を選んで戦う',
+    diplomacy: '同盟を結び、数の利で勝ち残る',
+    balanced: '情勢を見て、攻めと守りを使い分ける',
+  };
+  // プレイヤー以外の陣営（観測者なら七陣営すべて）が、何を求め、どう戦い、どう終わったか
+  function purposeSection() {
+    const youEver = new Set();
+    for (const e of out.entries) if (e.snap) for (const c of e.snap) if (c.you) youEver.add(c.id);
+    const camps = result.camps.filter(c => !youEver.has(c.id));
+    if (!camps.length) return '';
+    const PL = H.engine.POLICIES;
+    const items = camps.map(c => {
+      const meta = metaOf(c.id), m = meta.master || {}, sv = servantOf(c.id);
+      const svWish = sv && sv.profile && sv.profile.wish;
+      // 最も多く刃を交えた相手
+      const foes = {};
+      for (const e of out.entries) if (e.kind === 'battle' && e.head && e.ids.includes(c.id)) for (const id of e.ids) if (id !== c.id) foes[id] = (foes[id] || 0) + 1;
+      const top = Object.entries(foes).sort((a, b) => b[1] - a[1])[0];
+      const topC = top ? result.camps[+top[0]] : null;
+      // 歩み：この陣営が主役の大きな出来事（自分の令呪・同盟・とどめを刺した相手・自分の脱落など）。古い順に、終わりに近い4つ
+      const moments = out.entries.filter(e => e.ids && hlCheck(e) && e.kind !== 'end'
+        && (e.ids[0] === c.id || (e.kind === 'ally' && e.ids.includes(c.id)) || (e.fin && e.fin.by === c.id))).slice(-4);
+      const won = c.id === result.winner;
+      const st = won ? '聖杯を手にした' : c.alive ? '生き残った' : c.fate ? c.fate.day + '日目に脱落' : '脱落';
+      return `<li class="${won ? 'win' : c.alive ? 'alive' : ''}">
+        <div class="ph"><span>${esc(c.label)}「${esc(c.trueName)}」</span><span class="st">${esc(st)}</span></div>
+        <dl>
+          <dt>マスター</dt><dd>${esc(c.master)}<br><small>${esc([c.origin, c.persona].filter(Boolean).join('・'))}</small></dd>
+          <dt>願い</dt><dd class="wish">「${esc(m.wish || c.wish)}」${svWish ? `<br><small>英霊の願い：「${esc(svWish)}」</small>` : ''}</dd>
+          <dt>狙い</dt><dd>${esc((PL[c.policy] || {}).label || '')}。${esc(AIM[c.policy] || '')}</dd>
+          <dt>戦い</dt><dd>${c.battles}戦・宝具${c.npUses}回${c.kills.length ? `・倒した相手：${esc(c.kills.join('、'))}` : ''}${topC ? `<br><small>最も多く刃を交えた相手：${esc(topC.label)}「${esc(topC.trueName)}」（${top[1]}回）</small>` : ''}</dd>
+          ${!won && c.fate ? `<dt>結末</dt><dd>${esc(c.fate.text)}</dd>` : ''}
+        </dl>
+        ${moments.length ? `<ol>${moments.map(e => `<li><b>D${String(e.day).padStart(2, '0')}</b>${esc(e.text)}</li>`).join('')}</ol>` : ''}
+      </li>`;
+    }).join('');
+    return `<details class="rsec" open><summary><h5>${youId != null ? `他の${camps.length === 6 ? '六' : camps.length}陣営` : '七陣営'}の目的と歩み</h5></summary>
+      <p class="lead3">それぞれのマスターが聖杯に託した願いと、戦い方の狙い。歩みの文は、あなたがその時点で知っていたことで書かれています。</p>
+      <ul class="purp">${items}</ul></details>`;
+  }
+
+  // 絆の推移（あなたの陣営。再契約などで陣営が変わったら、そのときの陣営の絆）
+  function bondSeries() {
+    const byDay = [];
+    for (const e of out.entries) { if (!e.snap) continue; const me = e.snap.find(c => c.you); if (me) byDay[e.day || 0] = { bond: me.bond, label: me.label, alive: me.alive }; }
+    const pts = []; let last = null;
+    for (let d = 0; d <= result.days; d++) { if (byDay[d]) last = byDay[d]; if (last) pts.push(Object.assign({ d }, last)); }
+    return pts;
+  }
+  function bondSection() {
+    if (youId == null) return '';
+    const pts = bondSeries();
+    if (pts.length < 2) return '';
+    // 描く幅を画面に合わせる（縮小で目盛りの文字が小さくなりすぎないように）
+    const narrow = matchMedia('(max-width: 820px)').matches;
+    const W = narrow ? 360 : 600, Hh = narrow ? 160 : 170, L = 28, R = 10, T = 12, Bm = 24, iw = W - L - R, ih = Hh - T - Bm, n = result.days;
+    const x = d => L + d / Math.max(1, n) * iw, y = v => T + (1 - v / 100) * ih;
+    const grid = [0, 25, 50, 75, 100].map(v => `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(141,174,212,.18)" stroke-width="1"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" fill="var(--mute)" font-size="10">${v}</text>`).join('');
+    const step = n > 20 ? 5 : n > 10 ? 2 : 1;
+    const xt = []; for (let d = 0; d <= n; d += step) xt.push(`<text x="${x(d)}" y="${Hh - 6}" text-anchor="middle" fill="var(--mute)" font-size="10">${d === 0 ? '開戦' : d}</text>`);
+    const P = p => `${x(p.d).toFixed(1)},${y(p.bond).toFixed(1)}`;
+    // サーヴァントがいる間は実線、消滅してからは点線（再契約すればまた実線）
+    let solid = '', faint = '';
+    pts.forEach((p, i) => {
+      if (!i) { solid = 'M' + P(p); return; }
+      const seg = `M${P(pts[i - 1])}L${P(p)}`;
+      if (p.alive) solid += pts[i - 1].alive ? 'L' + P(p) : seg; else faint += seg;
+    });
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${P(p)}`).join('');
+    const area = `${line}L${x(pts[pts.length - 1].d).toFixed(1)},${y(0)}L${x(pts[0].d).toFixed(1)},${y(0)}Z`;
+    // 自分のサーヴァントが消滅した日に印を付ける
+    const fell = out.entries.find(e => e.kind === 'death' && e.you && e.snap && e.snap.some(c => c.you && !c.alive && e.ids[0] === c.id));
+    const mark = fell ? `<line x1="${x(fell.day)}" x2="${x(fell.day)}" y1="${T}" y2="${T + ih}" stroke="var(--seal)" stroke-width="1" stroke-dasharray="3 3"/><text x="${x(fell.day) + 4}" y="${T + 10}" fill="var(--seal)" font-size="10">消滅</text>` : '';
+    const first = pts[0], lastP = pts[pts.length - 1], peak = pts.reduce((a, b) => (b.bond > a.bond ? b : a));
+    bondPts = pts; bondGeo = { x, y, L, iw, n, W };
+    return `<details class="rsec" open><summary><h5>絆の推移</h5></summary>
+      <p class="bondsum">開戦時 <b>${first.bond}</b> → 最も深まったのは${peak.d ? peak.d + '日目' : '開戦時'}の <b>${peak.bond}</b> → 結末で <b>${lastP.bond}</b></p>
+      <div class="bondbox"><svg id="bondSvg" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="絆の推移。開戦時${first.bond}、最高${peak.bond}、結末${lastP.bond}">
+        ${grid}${xt.join('')}${mark}
+        <path d="${area}" fill="var(--bond)" fill-opacity=".10"/>
+        <path d="${solid}" fill="none" stroke="var(--bond)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+        ${faint ? `<path d="${faint}" fill="none" stroke="var(--bond)" stroke-opacity=".45" stroke-width="2" stroke-dasharray="4 4"/>` : ''}
+        <g id="bondHover" visibility="hidden"><line id="bondCross" y1="${T}" y2="${T + ih}" stroke="rgba(232,247,255,.35)" stroke-width="1"/><circle id="bondDot" r="5" fill="var(--bond)" stroke="var(--void)" stroke-width="2"/></g>
+        <rect x="${L}" y="${T}" width="${iw}" height="${ih}" fill="transparent" id="bondHit"/>
+      </svg><div class="tip" id="bondTip" hidden></div></div>
+      <details class="num"><summary>日ごとの値を見る</summary><p>${pts.map(p => `${p.d ? 'D' + p.d : '開戦'}:${p.bond}`).join('　')}</p></details></details>`;
+  }
+  let bondPts = [], bondGeo = null;
+  function bindBondHover() {
+    const svg = $('#bondSvg'); if (!svg || !bondGeo) return;
+    const G = bondGeo;
+    const move = ev => {
+      const r = svg.getBoundingClientRect(), sx = (ev.clientX - r.left) / r.width * G.W;
+      const d = Math.round((sx - G.L) / G.iw * G.n);
+      const p = bondPts.find(q => q.d === Math.max(0, Math.min(G.n, d))); if (!p) return;
+      $('#bondHover').setAttribute('visibility', 'visible');
+      $('#bondCross').setAttribute('x1', G.x(p.d)); $('#bondCross').setAttribute('x2', G.x(p.d));
+      $('#bondDot').setAttribute('cx', G.x(p.d)); $('#bondDot').setAttribute('cy', G.y(p.bond));
+      const tip = $('#bondTip'); tip.hidden = false;
+      tip.textContent = `${p.d ? p.d + '日目' : '開戦'} ・ 絆 ${p.bond}${p.alive ? '' : '（消滅後）'}`;
+      tip.style.left = Math.max(60, Math.min(r.width - 60, G.x(p.d) / G.W * r.width)) + 'px';
+    };
+    const leave = () => { $('#bondHover').setAttribute('visibility', 'hidden'); $('#bondTip').hidden = true; };
+    svg.addEventListener('pointermove', move); svg.addEventListener('pointerdown', move); svg.addEventListener('pointerleave', leave);
+  }
+
+  // 決断の一覧と、重点の移り変わり
+  function decisionSection() {
+    if (youId == null) return '';
+    const list = out.entries.filter(e => e.kind === 'choice');
+    const runs = [];
+    for (let i = 0; i < Math.min(focusLog.length, result.days); i++) {
+      const k = FOCUS_BY_CODE[focusLog[i]] || 'auto', lastR = runs[runs.length - 1];
+      if (lastR && lastR.k === k) lastR.to = i + 1; else runs.push({ k, from: i + 1, to: i + 1 });
+    }
+    const runTxt = runs.map(r => `<b>${r.from === r.to ? r.from + '日目' : r.from + '〜' + r.to + '日目'} ${esc(FOCUS[r.k].label)}</b>`).join(' → ');
+    if (!list.length && !runs.length) return '';
+    return `<details class="rsec" open><summary><h5>決断の一覧（${list.length}件）</h5></summary>
+      ${list.length ? `<ol class="declist">${list.map(e => `<li class="${e.auto ? 'auto' : ''}"><b>D${String(e.day || 0).padStart(2, '0')} ${PH[e.phase] || ''}</b><span>${e.q ? `<span class="dq">${esc(e.q)}</span>` : ''}<span class="da">${esc(e.text)}</span></span></li>`).join('')}</ol>` : '<p class="lead3">大きな決断を迫られることはなかった。</p>'}
+      ${runTxt ? `<p class="focusrun">重点の移り変わり：${runTxt}</p>` : ''}</details>`;
+  }
+
   function board(e) {
     if (!e || !e.snap) return;
     lastSnap = e.snap;
@@ -1239,20 +1620,27 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
         ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
+      ${purposeSection()}
+      ${bondSection()}
+      ${decisionSection()}
       ${hlTimeline()}
       <div class="acts"><button class="btn primary" id="again">別の聖杯戦争を始める</button><button class="btn" id="share">この戦争のリンクをコピー</button>${youId != null ? '<button class="btn" id="mine">自陣営の記録を見る</button>' : ''}<button class="btn" id="csv2">記録をCSVで保存</button><button class="btn" id="back">最初の画面へ</button></div>
     </div></section>`;
     $('#result').querySelectorAll('[data-lore]').forEach(b => b.onclick = () => openLore(+b.dataset.lore));
+    bindBondHover();
+    // 終わった戦争は記録に残し、中断の保存は消す
+    store.set(SAVE_KEY, null);
+    addHistory();
     $('#csv2').onclick = exportCsv;
     const mine = $('#mine'); if (mine) mine.onclick = () => { setLogFilter('you'); $('#logWrap').classList.add('open'); $('#logMore').setAttribute('aria-expanded', 'true'); syncLog(); $('#logWrap').scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); };
-    $('#again').onclick = () => { $('#seed').value = ''; start(false); };
+    $('#again').onclick = () => { $('#seed').value = ''; start(); };
     $('#back').onclick = quit;
     $('#share').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ戦争が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
   // 結末の画面に出す振り返り（ハイライトを古い順に）
   function hlTimeline() {
-    const seen = new Set(), list = shownEntries().filter(e => hlCheck(e, seen));
+    const list = shownEntries().filter(e => hlCheck(e));
     if (!list.length) return '';
     return `<details class="hl" open><summary><h5 style="display:inline">この聖杯戦争の振り返り（${list.length}件）</h5></summary><ol>${list.map(e =>
       `<li class="k-${e.kind}${e.you ? ' is-you' : ''}"><b>${e.day ? 'D' + String(e.day).padStart(2, '0') + ' ' + (PH[e.phase] || '') : '開戦'}</b><span>${esc(e.text)}</span></li>`).join('')}</ol></details>`;
