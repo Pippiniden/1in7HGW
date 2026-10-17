@@ -373,7 +373,9 @@ const result = HGW.engine.runWar({ roster, seed, focus: day => 'auto' });
 ```
 
 Options: `roster` (built servants, ≥2), `seed` (string; random if omitted), `war` (overrides for `CONFIG.WAR`;
-`{ extra: false }` removes extra-class servants entirely, also as substitutes), `ask` (`'never'` = never
+`{ extra: false }` removes extra-class servants entirely, also as substitutes; `{ pick: 'open' }` draws 7 distinct servants
+uniformly from the whole roster ignoring classes — duplicates get （一）（二）, `slot` = the servant's own class, no
+substitute/intrusion narration, and the prologue says the class rule is suspended), `ask` (`'never'` = never
 yield decisions; anything else = yield for the player camp), `player` (camp index, `'none'` for observer,
 default random), `masters` (fixed master specs), `engine` (overrides for `CONFIG.ENGINE`), `city`, `out`
 (object filled live with `entries`, `meta`, `city`, `seed`, `camps`, then the result).
@@ -522,6 +524,7 @@ After battle: attacker learns the defender's base; persona reveal; chance to lea
 | `recontract` | a stray seeks a master (player servant-less) | `yes`, `no` |
 | `event` | bounty issued | `join`, `ignore` |
 | `event` | player spots an enemy master in town | `talk`, `follow`, `ignore` |
+| `event` | rumor about an enemy whose base is unknown | `chase`, `ignore` |
 | `fallen` | player's servant died | `watch`, `skip`, `stray:<id>`, `steal` |
 | `gameover` | player's master died | `watch`, `skip` |
 
@@ -536,12 +539,20 @@ learned by deduction, NPs, scouting, battle insight, relations, alliance, or con
 
 ### 7.8 Events
 
-- **World events** (`worldEvent`, 25%/day): leyline (+mana all), rain (night terrain = 水辺), full moon
-  (+hunt), festival (no fights tonight), familiar (someone learns a base), witness (NP seen → overseer
-  warning, reduces hunting), bounty (on camps with ≥2 kills or ≥2 warnings), spot (player decision).
+- **World events** (`worldEvent`, 25%/day): leyline (+mana all), disturb (−15 mana all), rain (night terrain = 水辺),
+  full moon (+hunt), tremor (`tonight.stir`, +0.12 hunt, day ≥ 3), fog (`tonight.fog`, find −0.15; entries get
+  `weather:'fog'`), patrol (`tonight.patrol`, −0.15 hunt, day ≥ 3), festival (no fights tonight), familiar (someone
+  learns a base), witness (NP seen → overseer warning, reduces hunting), bounty (on camps with ≥2 kills or ≥2 warnings),
+  spot (player decision), rumor (player decision about an enemy whose base is unknown: `chase` may reveal it — or, on
+  a miss, may expose the player's base — or `ignore`).
 - **Life events** (`lifeEvent`, player camp, 40%/day): meal (profile likes), talk (voice 会話), dream
-  (first sentence of 解説), dislike, grail wish, likes, bond line (bond ≥70), outing, master's own day.
+  (first sentence of 解説), dislike, grail wish, likes, bond line (bond ≥70), outing, master's own day, train (+3),
+  tale (first sentence of 人物・性格, ≤ 2 per war, +4), care (hp < 70: +8 hp, +3), quarrel (−3), watch (+4), stars (+4).
   They raise bond, which improves guts, retreat, seal reliability and control.
+- **Narration variants**: `G.LINES` in `names.js` (key → array of templates with `{S} {M} {city} {label} {name} {base}
+  {A} {B} {where} {W} {O} {by} {c} …`). `line(key, vars)` in the engine picks one by an FNV hash of
+  `seed:lineN:entries.length` — **not** `rnd()` — so adding/editing variants never changes a war's outcome. Only the
+  keys/vars each call passes are available; a missing var leaves `{x}` in the text.
 
 ### 7.9 Log entries (`out.entries`)
 
@@ -575,9 +586,11 @@ alive, masterAlive, fate, kills, npUses, battles, power, you, bond, policy, pers
 Single page, two states: **briefing** (intro form) and **watching** (`body.watching`).
 
 - **Briefing settings**: 立場, 進む速さ, 戦争の長さ (`#days` range 10–100, default `CONFIG.ENGINE.maxDays` 30 → passed as
-  `engine: { maxDays }`), エクストラクラス (`extra` radio → `war: { extra: false }`), seed. Length/extra are remembered in
-  `localStorage` `hgw.settings` (URL `d`/`x` win). They change the war, so they are stored in the URL, in `hgw.save.v1` and
-  in history records (`days`, `extra`; missing = 30 / true via `recDays`/`recExtra`; both are part of `recordSig`).
+  `engine: { maxDays }`), 七騎の選び方 (`pick` radio `class`/`open` → `war: { pick: 'open' }`), エクストラクラス (`extra`
+  radio → `war: { extra: false }`; `warOpts()` builds the object), seed. Length/pick/extra are remembered in `localStorage`
+  `hgw.settings` (URL `d`/`p`/`x` win). They change the war, so they are stored in the URL, in `hgw.save.v1` and in history
+  records (`days`, `extra`, `pick`; missing = 30 / true / class via `recDays`/`recExtra`/`recPick`; all are part of
+  `recordSig`, `open` only appended when set so older signatures are unchanged).
   The HUD `/N` (`#dayMax`) and the calendar (`maxDays` cells, `#calLbl`) follow the war length.
 - Data loading: `data/manifest.json` via `HGW.data.loadPublished`; `?data=local` uses the roster tool's
   browser storage; on `file://` the user picks JSON files.
@@ -651,7 +664,7 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
   missing images are expected.
 - **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
-  [&data=local][&d=<war length, only if ≠30>][&x=0 (no extra classes)]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
+  [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
   with the same seed replays the identical war (same data required).
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
@@ -706,7 +719,8 @@ Chromium + Playwright may be available in agent sandboxes.
 | New focus | Add to `FOCUS` with a unique one-char `code`. |
 | New place / scene | `WORLD.places` in `names.js` (`terrain` must match effect conds or be null); scene in `scenes.js` with a `fallback`; image spec in `img/scenes/README.md`. |
 | Master wishes | `G.WISHES_BY_ORIGIN` / `G.WISHES_COMMON` / `G.WISHES_BY_PERSONA` in `names.js` (`G.wishPool(origin, persona)`; origin entries weigh double). |
-| New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. |
+| New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. Put the text in `G.LINES` (`names.js`) and log `line(key, vars)`. |
+| More wording for an existing event | Add strings to the key's array in `G.LINES`; outcomes are unaffected. |
 | Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
 | New servant data | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
 | Improve wiki reading for old data | Fix `parser.js`, then run the workflow in 取り直し mode (re-fetches every page; lean JSON has no source text). |

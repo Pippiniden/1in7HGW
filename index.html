@@ -532,6 +532,13 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         <div class="daysel"><input type="range" id="days" min="10" max="100" step="1" value="30" aria-labelledby="daysLbl" aria-describedby="daysNote"><output id="daysOut" for="days">30日</output></div>
         <p class="hint" id="daysNote">短いほど決着がつかないまま終わりやすく、長いほど最後の一騎まで戦い抜きやすい。</p>
       </div>
+      <div class="field"><span class="lbl">七騎の選び方</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎</label>
+          <label><input type="radio" name="pick" value="open"><span class="ico"></span>全騎から均等に</label>
+        </div>
+        <p class="hint">「全騎から均等に」では、クラスを気にせず名簿の全員から同じ確率で七騎が選ばれる。同じクラスが何騎も並ぶことがある。</p>
+      </div>
       <div class="field"><span class="lbl">エクストラクラス</span>
         <div class="rowsel choices2" role="radiogroup">
           <label><input type="radio" name="extra" value="1" checked><span class="ico"></span>ときどき加わる</label>
@@ -711,7 +718,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const DEF_DAYS = H.CONFIG.ENGINE.maxDays, MIN_DAYS = 10, MAX_DAYS = 100;
-  let maxDays = DEF_DAYS, extraOn = true; // この戦争の長さと、エクストラクラスを加えるか
+  let maxDays = DEF_DAYS, extraOn = true, pickMode = 'class'; // この戦争の長さ、エクストラクラスを加えるか、七騎の選び方（class / open）
   const FOCUS = H.engine.FOCUS, FOCUS_BY_CODE = Object.fromEntries(Object.entries(FOCUS).map(([k, v]) => [v.code, k]));
   const qs = new URLSearchParams(location.search);
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -747,22 +754,27 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const clampDays = v => Math.max(MIN_DAYS, Math.min(MAX_DAYS, Math.round(+v) || DEF_DAYS));
   const formDays = () => clampDays($('#days').value);
   const formExtra = () => document.querySelector('input[name=extra]:checked').value !== '0';
-  function setForm(days, extra) {
+  const formPick = () => document.querySelector('input[name=pick]:checked').value === 'open' ? 'open' : 'class';
+  function setForm(days, extra, pick) {
     $('#days').value = clampDays(days); $('#daysOut').textContent = clampDays(days) + '日';
     const el = document.querySelector(`input[name=extra][value="${extra === false ? 0 : 1}"]`); if (el) el.checked = true;
+    const pe = document.querySelector(`input[name=pick][value="${pick === 'open' ? 'open' : 'class'}"]`); if (pe) pe.checked = true;
   }
   (() => {
     let st = null; try { st = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); } catch (e) { /* 読めなくてもよい */ }
     const d = qs.get('d') || (st && st.days) || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
-    setForm(d, x);
+    const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : (st && st.pick) || 'class';
+    setForm(d, x, pk);
   })();
-  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra() })); } catch (e) { /* 保存できなくても動く */ } };
+  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick() })); } catch (e) { /* 保存できなくても動く */ } };
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
-  document.querySelectorAll('input[name=extra]').forEach(r => r.addEventListener('change', saveSettings));
+  document.querySelectorAll('input[name=extra], input[name=pick]').forEach(r => r.addEventListener('change', saveSettings));
 
   // ---------- 進行 ----------
   // エンジンは1日ごと（tick）と大きな決断（decision）で戻ってくる。
+  // 七騎の組み方（エクストラクラスの有無と、選び方）
+  const warOpts = () => { const w = {}; if (!extraOn) w.extra = false; if (pickMode === 'open') w.pick = 'open'; return Object.keys(w).length ? w : undefined; };
   // 記録（out.entries）を順に再生し、追いついたら tick には今の方針を渡して進め、decision なら問いを出す
   let gen = null, out = null, pending = null, done = false, result = null;
   let idx = 0, timer = null, speed = 2, paused = false, view = 'you', seed = '';
@@ -783,11 +795,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     speed = +(o.speed || document.querySelector('input[name=speed]:checked').value);
     maxDays = clampDays(o.days || formDays());
     extraOn = o.extra != null ? o.extra !== false : formExtra();
+    pickMode = o.pick ? (o.pick === 'open' ? 'open' : 'class') : formPick();
     replay = (o.c || []).filter(Boolean);
     replayFocus = o.f || '';
     $('#pause').disabled = false; $('#skip').disabled = false;
     choices = []; focusLog = ''; focus = 'auto'; out = {}; done = false; result = null; pending = null; idx = 0; paused = false; curDay = 0;
-    try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: extraOn ? undefined : { extra: false } }); pump(); }
+    try { gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts() }); pump(); }
     catch (e) { $('#data').innerHTML = `<span class="err">開戦できませんでした：${esc(e.message)}</span>`; return; }
     youId = (out.entries.find(e => e.snap && e.snap.some(c => c.you)) || { snap: [] }).snap.findIndex(c => c.you);
     if (youId < 0) youId = null;
@@ -838,6 +851,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (source === 'local') url.searchParams.set('data', 'local'); else url.searchParams.delete('data');
     if (maxDays !== DEF_DAYS) url.searchParams.set('d', maxDays); else url.searchParams.delete('d');
     if (!extraOn) url.searchParams.set('x', '0'); else url.searchParams.delete('x');
+    if (pickMode === 'open') url.searchParams.set('p', 'open'); else url.searchParams.delete('p');
     history.replaceState(null, '', url);
   }
 
@@ -1426,8 +1440,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const loadHistory = () => { const l = store.get(HIST_KEY); return Array.isArray(l) ? l.filter(validRecord) : []; };
   const validRecord = r => r && typeof r.seed === 'string' && (r.view === 'you' || r.view === 'all') && Array.isArray(r.c) && typeof r.f === 'string' && r.sum;
   // 長さ・エクストラの無い古い記録は、既定（30日・あり）として扱う
-  const recDays = r => clampDays(r.days || DEF_DAYS), recExtra = r => r.extra !== false;
-  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].join('|');
+  const recDays = r => clampDays(r.days || DEF_DAYS), recExtra = r => r.extra !== false, recPick = r => r.pick === 'open' ? 'open' : 'class';
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : []).join('|');
   const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
   // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
@@ -1436,7 +1450,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (op && !idx) return false; // 開戦の案内の途中は、まだ始まっていない
     const me = lastSnap.find(c => c.you);
     return store.set(SAVE_KEY, {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
       idx, focus, auto: autoAll, speed,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
@@ -1449,7 +1463,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function addHistory() {
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
     const rec = {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, c: choices.slice(), f: focusLog,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, c: choices.slice(), f: focusLog,
       sum: {
         city: result.city, days: result.days,
         winner: w ? { label: w.label, name: w.trueName, master: w.master } : null,
@@ -1473,11 +1487,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), c: r.c, f: r.f });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), c: r.c, f: r.f });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
@@ -1489,6 +1503,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (r.data === 'local') u.searchParams.set('data', 'local');
     if (recDays(r) !== DEF_DAYS) u.searchParams.set('d', recDays(r));
     if (!recExtra(r)) u.searchParams.set('x', '0');
+    if (recPick(r) === 'open') u.searchParams.set('p', 'open');
     return u.href;
   }
 
@@ -1510,7 +1525,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const res = y ? (y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
         : w ? `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。` : '聖杯を手にした者はいなかった。';
       return `<li class="${y && y.won ? 'won' : ''}"><div class="rt">${esc(title)}</div>
-        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ 名簿ツールの名簿' : ''}</div>
+        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ 名簿ツールの名簿' : ''}</div>
         <p class="rr">${esc(res)}</p>
         <div class="ra"><button class="btn" data-rec="${i}" data-how="full">最初から見る</button><button class="btn" data-rec="${i}" data-how="end">結末だけ見る</button><button class="btn" data-rec="${i}" data-how="link">リンクをコピー</button></div></li>`;
     }).join('');

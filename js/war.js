@@ -5,6 +5,7 @@
   /**
    * roster: 組み立て済みサーヴァントの配列 / rnd: 0〜1 の乱数関数
    * cfg: config.js の WAR を上書きする（extra: false でエクストラクラスを一切入れない。代役にも使わない）
+   *      pick: 'open' で、クラスを気にせず名簿の全騎から均等に7騎を選ぶ（同じクラスが重なってもよい）
    * 戻り値: [{ slot: 'saber', servant, substitute: bool }]
    */
   function composeWar(roster, rnd, cfg) {
@@ -17,6 +18,15 @@
     const pool = cls => roster.filter(s => !used.has(s.id) && s.class.key === cls);
     const extras = () => roster.filter(s => !used.has(s.id) && isExtra(s));
     const slots = cfg.slots.slice();
+    // クラス被り無視：名簿の全騎から、重ならないように同じ確率で選ぶ
+    if (cfg.pick === 'open') {
+      const pool = roster.slice();
+      for (let i = 0; i < slots.length && pool.length; i++) {
+        const s = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+        out.push({ slot: s.class.key, servant: s, substitute: false, extra: false, open: true });
+      }
+      return out;
+    }
     // エクストラクラスが紛れ込む
     let extraN = 0;
     if (cfg.maxExtra > 0 && rnd() < cfg.extraChance && extras().length) {
