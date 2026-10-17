@@ -30,22 +30,22 @@
   const r1 = x => Math.round(x * 10) / 10;
   const firstSentence = (t, max) => { const s = String(t || '').split(/[。\n]/).map(x => x.trim()).filter(x => x.length >= 8)[0] || ''; return s.length > (max || 60) ? s.slice(0, max || 60) + '…' : s; };
 
-  // 方針（陣営ごとの性格）。昼の行動の重みと、夜に出撃する確率を変える
+  // 戦略（陣営ごとの性格）。昼の行動の重みと、夜に出撃する確率を変える
   const POLICIES = {
-    aggressive: { label: '攻めの方針', day: { scout: 1.5, fortify: 0.6, hide: 0.4 }, hunt: 0.2 },
-    defensive:  { label: '守りの方針', day: { fortify: 2, rest: 1.3 }, hunt: -0.12 },
-    intel:      { label: '情報戦の方針', day: { scout: 2, hide: 1.5 }, hunt: -0.05 },
-    diplomacy:  { label: '同盟重視の方針', day: { ally: 3 }, hunt: -0.1 },
+    aggressive: { label: '攻めの戦略', day: { scout: 1.5, fortify: 0.6, hide: 0.4 }, hunt: 0.2 },
+    defensive:  { label: '守りの戦略', day: { fortify: 2, rest: 1.3 }, hunt: -0.12 },
+    intel:      { label: '情報戦の戦略', day: { scout: 2, hide: 1.5 }, hunt: -0.05 },
+    diplomacy:  { label: '同盟重視の戦略', day: { ally: 3 }, hunt: -0.1 },
     balanced:   { label: '臨機応変', day: {}, hunt: 0 },
   };
 
-  // 重点：プレイヤーがいつでも切り替えられる、その日の動き方。次の日の朝から反映される
-  //   day: 昼の行動 / night: 夜に出撃するか（null は方針どおり） / stance: 戦い方
+  // 方針：プレイヤーがいつでも切り替えられる、その日の動き方。次の日の朝から反映される
+  //   day: 昼の行動 / night: 夜に出撃するか（null は戦略どおり） / stance: 戦い方
   const FOCUS = {
-    auto:   { code: 'o', label: 'おまかせ', desc: '方針に沿って臨機応変に動く', day: null, night: null, stance: null },
+    auto:   { code: 'o', label: 'おまかせ', desc: '戦略に沿って臨機応変に動く', day: null, night: null, stance: null },
     attack: { code: 'a', label: '攻め', desc: '昼は偵察し、夜は敵を探して戦う。戦いでは宝具も惜しまない', day: 'scout', night: true, stance: 'all' },
     defend: { code: 'd', label: '守り', desc: '工房を強化し、夜は拠点で迎え撃つ', day: 'fortify', night: false, stance: 'careful' },
-    scout:  { code: 's', label: '偵察', desc: '敵の拠点と真名を探る。夜の動きは方針どおり', day: 'scout', night: null, stance: 'careful' },
+    scout:  { code: 's', label: '偵察', desc: '敵の拠点と真名を探る。夜の動きは戦略どおり', day: 'scout', night: null, stance: 'careful' },
     rest:   { code: 'r', label: '休養', desc: '傷と魔力の回復に努め、夜は動かない', day: 'rest', night: false, stance: 'careful' },
     hide:   { code: 'h', label: '潜伏', desc: '気配を断って見つからないようにする。戦いになればすぐ退く', day: 'hide', night: false, stance: 'retreat' },
     ally:   { code: 'l', label: '交渉', desc: '他の陣営に同盟を持ちかける', day: 'ally', night: null, stance: 'careful' },
@@ -69,7 +69,7 @@
     const W = G.WORLD, N = G.NAMES;
     const city = opts.city || pick(W.cities);
     const places = shuffle(W.places);
-    const comp = G.war.composeWar(roster, rnd).filter(x => x.servant);
+    const comp = G.war.composeWar(roster, rnd, opts.war).filter(x => x.servant);
     const labelCount = {};
     const masterPool = (opts.masters || []).slice();
     const camps = comp.map((x, i) => {
@@ -367,7 +367,7 @@
         const who = rel[a.id] && rel[a.id][b.id] ? a : b, other = who === a ? b : a;
         log('event', `因縁の再会だった。${nm(who)}は${nm(other)}をよく知っている——「${rt}」`, [a.id, b.id], { big: true });
       }
-      // 戦い方：プレイヤーは重点から、他の陣営は方針から決まる
+      // 戦い方：プレイヤーは方針から、他の陣営は戦略から決まる
       for (const c of [a, b]) {
         const F = focusOf(c);
         c.stance = F && F.stance ? F.stance : c.hp < 25 && chance(0.5) ? 'retreat' : wpick({ all: c.policy === 'aggressive' ? 2.5 : 1.5, careful: c.policy === 'defensive' ? 1.5 : 1 });
@@ -375,7 +375,7 @@
       }
       for (let round = 1; round <= ENG.rounds; round++) {
         a.npBoost = b.npBoost = 0;
-        // 退く方針なら最初に離脱を試みる
+        // 退く戦い方なら最初に離脱を試みる
         for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500 + FX.agiRetreat * (sd(c, 'agi') - sd(o, 'agi')), 0.05, 0.9))) {
           log('battle', `${sn(c)}は刃を交えずに退いた。`, [c.id, o.id]); cleanup(); return;
         }
@@ -403,7 +403,7 @@
           if (crit) dmg *= 1.5;
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(l, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
           l.hp -= dmg; w.hp -= rnd() * 8;
-          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? '会心の一撃。' : ''}${sn(w)}が押し勝ち、${sn(l)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, l.id]);
+          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(l)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, l.id]);
           if (l.hp <= 0) outcome = yield* lethal(l, w, 'battle', round);
           if (w.hp <= 0 && w.alive && outcome !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = outcome || o2; }
         }
@@ -649,7 +649,7 @@
       const k = yield* ask(c, 'council', {
         title: `${day}日目、作戦会議`,
         body: `${sn(c)}の霊基 ${Math.round(c.hp)}・魔力 ${Math.round(c.mana / c.manaMax * 100)}%・令呪 ${c.cs}画。残り${alive.length}騎。`,
-        options: options.concat([{ k: 'pass', label: '今は動かない', sub: '重点のとおりに過ごす' }]),
+        options: options.concat([{ k: 'pass', label: '今は動かない', sub: '方針のとおりに過ごす' }]),
       }, () => { const w = {}; for (const o of options) w[o.k] = o.k.startsWith('assault') ? (c.policy === 'aggressive' ? 3 : 1.5) : o.k === 'recover' ? (c.hp < 60 ? 3 : 0.5) : 1; w.pass = 1; return wpick(w); });
       if (k.startsWith('assault:')) { c.assault = +k.split(':')[1]; log('council', `今夜、${camps[c.assault].label}の拠点を攻める。`, [c.id]); }
       else if (k === 'boost') { c.cs--; c.boostUntil = day + 2; bondUp(c, 3); log('cs', `「令呪をもって命ずる——力を示せ」${sn(c)}の霊基に令呪の魔力が満ちた。（残り${c.cs}画）`, [c.id], { big: true }); }
@@ -842,7 +842,7 @@
       const sub = c.extra ? `本来は${G.classDef(c.slot).label}の枠に、${c.sv.class.label}が割り込んだ。` : c.substitute ? `${G.classDef(c.slot).label}の枠に、${c.sv.class.label}のサーヴァントが応えた。` : '';
       log('summon', `${who}が${c.label}を召喚した。${sub}${c.you ? 'これが、あなたの陣営だ。' : ''}`, [c.id], { quote: c.you ? say(c, ['召喚']) : null });
     }
-    // 各陣営の方針（プレイヤーは選べる）
+    // 各陣営の戦略（プレイヤーは選べる）
     const autoPolicy = c => { const pw = PER(c).policy || {}; const w = {
       aggressive: 1 + (isBerserk(c) ? 2 : 0) + Math.max(0, (c.sv.power - 35) / 15),
       defensive: 1 + (c.sv.class.key === 'caster' ? 2 : 0) + eff(c, 'territory') * 3,
@@ -856,7 +856,7 @@
       you.policy = autoPolicy(you);
       you.focus = 'auto';
     }
-    // 画面に出す開戦時の情報（マスターの紹介・陣営の方針）。乱数は使わない
+    // 画面に出す開戦時の情報（マスターの紹介・陣営の戦略）。乱数は使わない
     for (const c of camps) {
       const m = c.master, P = PER(c);
       Object.assign(out.meta[c.id], {
@@ -876,7 +876,7 @@
     for (day = 1; day <= ENG.maxDays; day++) {
       if (active().length <= 1) { day--; break; }
       phase = 'day';
-      // 1日ごとに呼び出し元へ戻り、プレイヤーの今の重点を受け取る（止まらない）
+      // 1日ごとに呼び出し元へ戻り、プレイヤーの今の方針を受け取る（止まらない）
       const f = yield { type: 'tick', day };
       if (you && FOCUS[f]) you.focus = f;
       const head = log('dayhead', `${day}日目`, [], { head: true }), n0 = entries.length;

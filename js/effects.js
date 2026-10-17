@@ -26,7 +26,7 @@
     power:        { name: '戦闘力上昇',   phase: 'battle',    unit: 'rate',   base: 0.10, desc: '戦闘力に加算' },
     power_vs:     { name: '特攻',         phase: 'battle',    unit: 'rate',   base: 0.30, desc: '特定の相手（params.tag）にだけ戦闘力上昇' },
     debuff:       { name: '弱体化',       phase: 'battle',    unit: 'rate',   base: 0.10, desc: '相手の戦闘力を下げる' },
-    crit:         { name: '会心',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '大ダメージを与える確率' },
+    crit:         { name: 'クリティカル',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '大ダメージを与える確率' },
     pierce:       { name: '防御無視',     phase: 'battle',    unit: 'chance', base: 0.25, desc: '相手の回避・軽減・対魔力・致命傷耐性を無視する確率（必中など）' },
     instakill:    { name: '即死',         phase: 'battle',    unit: 'chance', base: 0.05, desc: '戦闘力に関係なく相手を倒す確率' },
     evade:        { name: '回避',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '攻撃を避ける確率' },

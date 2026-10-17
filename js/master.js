@@ -76,7 +76,8 @@
       id: spec.id || 'm:' + (spec.name || Math.floor(rnd() * 1e9).toString(36)),
       name: spec.name || null,              // null ならゲーム側で名前を生成
       sex: spec.sex || (rnd() < 0.5 ? '男' : '女'),
-      age: spec.age != null ? spec.age : Math.round(16 + rnd() * 30),
+      // 16〜46歳。原作に倣って10代・20代がわずかに多くなるよう、若い側に少しだけ寄せる（乱数の使い方は同じ）
+      age: spec.age != null ? spec.age : Math.round(16 + Math.pow(rnd(), 1.25) * 30),
       origin, originLabel: spec.originLabel || O.name,
       stats, statSource,
       skills,

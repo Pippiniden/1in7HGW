@@ -171,9 +171,9 @@
   }
   // ステータスの偏差：C相当（32）を0、A相当を約+1とする（−1〜+1.6）。STAT_FX の係数に掛けて使う
   const statDev = v => Math.max(-1, Math.min(1.6, ((v == null ? 32 : v) - 32) / 30));
-  // 魔力と「宝具」ステータスによる宝具の威力の倍率
-  const npStatMult = sv => { const F = G.CONFIG.STAT_FX; return Math.max(0.5, 1 + F.magNp * statDev(sv.score.mag) + F.npStat * statDev(sv.score.np)); };
-  // 最強の攻撃宝具の威力（宝具強化・魔力・宝具ステータス込み。使用不可・自滅する宝具は除く）
+  // 魔力による宝具の威力の倍率（「宝具」ステータスは宝具そのものの評価なので、戦闘には使わない）
+  const npStatMult = sv => Math.max(0.5, 1 + G.CONFIG.STAT_FX.magNp * statDev(sv.score.mag));
+  // 最強の攻撃宝具の威力（宝具強化・魔力込み。使用不可・自滅する宝具は除く）
   function npPeak(sv) {
     const atk = (sv.nps || []).filter(n => n.attackResolved && !n.disabled && !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5));
     if (!atk.length) return 0;
@@ -194,7 +194,7 @@
       const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T) * 0.5 + eff(x, 'evade', T) * 0.5 + mg) * (1 - pierce)));
       let p = combatPower(x, T) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
       p *= 1 + eff(x, 'crit', T) * 0.5;
-      // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運で会心）を、打ち合いの強さにならして足す
+      // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運でクリティカル）を、打ち合いの強さにならして足す
       const F = G.CONFIG.STAT_FX;
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
       p *= 1 - Math.min(0.5, eff(y, 'debuff', T));

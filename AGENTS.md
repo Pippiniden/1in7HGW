@@ -41,8 +41,8 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
 | 絆 | `bond` | Master–Servant bond (0–100) |
 | 工房 | `workshop` | Base fortification level (0–5) |
 | 拠点 | `base` | Camp's home location |
-| 重点 | focus | Player's daily stance, changeable anytime |
-| 方針 | policy | Camp's long-term strategy (AI and player's "auto") |
+| 方針 | focus | Player's daily stance, changeable anytime (was 重点 before; UI term is now 方針) |
+| 戦略 | policy | Camp's long-term strategy (AI and player's "auto"); labels 攻めの戦略 etc. (was 方針) |
 | 作戦会議 | council | Big decision every `councilEvery` days |
 | 性格 | persona | Master personality that biases behaviour |
 | 手がかり | clues | Evidence toward deducing an enemy's true name |
@@ -372,7 +372,8 @@ const result = r.value;               // also merged into `out`
 const result = HGW.engine.runWar({ roster, seed, focus: day => 'auto' });
 ```
 
-Options: `roster` (built servants, ≥2), `seed` (string; random if omitted), `ask` (`'never'` = never
+Options: `roster` (built servants, ≥2), `seed` (string; random if omitted), `war` (overrides for `CONFIG.WAR`;
+`{ extra: false }` removes extra-class servants entirely, also as substitutes), `ask` (`'never'` = never
 yield decisions; anything else = yield for the player camp), `player` (camp index, `'none'` for observer,
 default random), `masters` (fixed master specs), `engine` (overrides for `CONFIG.ENGINE`), `city`, `out`
 (object filled live with `entries`, `meta`, `city`, `seed`, `camps`, then the result).
@@ -434,7 +435,8 @@ The last `finaleDays` (3) days add aggression.
 
 - **Master** (`master.js`): `createMaster(spec, rnd)` — every field in `spec` is used as-is, missing ones
   are rolled from the **origin** (`ORIGINS`: noble, newblood, mercenary, civilian, irregular; or a custom
-  label). Stats `mana, craft, body, mind, luck` accept rank strings or 0–100 numbers. Optional `skills`
+  label). Stats `mana, craft, body, mind, luck` accept rank strings or 0–100 numbers. Rolled age is 16–46 skewed
+  slightly young (`16 + rnd()^1.25 × 30`, ~52% under 30). Optional `skills`
   use the same effect library. `custom` holds arbitrary extra settings. `parseMasterText` reads
   wiki-style master pages. Spec may include `persona: '<key>'`.
 - **Policy** (`POLICIES`): aggressive, defensive, intel, diplomacy, balanced — weights day actions and
@@ -480,8 +482,9 @@ change probabilities/magnitudes already rolled), but they change every seed's ou
 - 筋力 `str`: damage dealt × (1 + str·d); 耐久 `end`: damage taken × (1 − end·d) (combined factor clamped 0.6–1.5), guts +endGuts·d.
 - 敏捷 `agi`: retreat success (both the retreat-stance disengage and the weaker-side check) ± agiRetreat·(d_self − d_opp);
   night find chance ± agiFind·(d_hunter − d_target).
-- 魔力 `mag`: NP cost × (1 − magCost·d) (`npCostOf`); NP power × `B.npStatMult(sv)` = 1 + magNp·d(mag) + npStat·d(np).
-  `npPeak` and `battleOdds` include the same factor, so the opening grade reflects it.
+- 魔力 `mag`: NP cost × (1 − magCost·d) (`npCostOf`); NP power × `B.npStatMult(sv)` = 1 + magNp·d(mag).
+  `npPeak` and `battleOdds` include the same factor, so the opening grade reflects it. The 宝具 stat (`np`) is the NP's own
+  appraisal and is **not** used in combat (owner's decision).
 - 幸運 `luk`: crit chance + lukCrit·d (≥0); instakill received × (1 − lukInstakill·d); guts + lukGuts·d.
 - Master 魔術 `craft`: fortify + mCraftFort·d, scouting + mCraftScout·d, combat power × (1 + mCraftPower·d) while alive.
 - Master 精神 `mind`: command-seal failure = clamp(max(0, cs_resist − bond/300) − mMindSeal·d) (low mind can fail without
@@ -571,6 +574,11 @@ alive, masterAlive, fate, kills, npUses, battles, power, you, bond, policy, pers
 
 Single page, two states: **briefing** (intro form) and **watching** (`body.watching`).
 
+- **Briefing settings**: 立場, 進む速さ, 戦争の長さ (`#days` range 10–100, default `CONFIG.ENGINE.maxDays` 30 → passed as
+  `engine: { maxDays }`), エクストラクラス (`extra` radio → `war: { extra: false }`), seed. Length/extra are remembered in
+  `localStorage` `hgw.settings` (URL `d`/`x` win). They change the war, so they are stored in the URL, in `hgw.save.v1` and
+  in history records (`days`, `extra`; missing = 30 / true via `recDays`/`recExtra`; both are part of `recordSig`).
+  The HUD `/N` (`#dayMax`) and the calendar (`maxDays` cells, `#calLbl`) follow the war length.
 - Data loading: `data/manifest.json` via `HGW.data.loadPublished`; `?data=local` uses the roster tool's
   browser storage; on `file://` the user picks JSON files.
 - Layout: HUD (DAY counter, progress, controls: pause, 1×/2×/4×/8×, "next decision", auto-decide, quit,
@@ -606,7 +614,8 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   `ally` entry, or `fin.by`); **bond chart** (`bondSection`, player only: last snapshot per day of the camp with `you`,
   forward-filled; solid while the servant is alive, dashed after; hover readout; per-day values in a `<details>`);
   **decision list** (`decisionSection`: `choice` entries with `q`, plus focus runs from `focusLog`); then the highlight
-  timeline, 「自陣営の記録を見る」 and CSV export.
+  timeline, 「自陣営の記録を見る」 and CSV export. **All result sections (`details.rsec`, `details.hl`) start collapsed.**
+  The chronicle's 「CSVで保存」 (`#csvBtn`) is hidden during play and shown only after `finish()`.
 - **Save / resume / records** (all in `localStorage`, nothing but seeds and answers is stored):
   - `hgw.save.v1` — one suspended war: `{ v, at, seed, view, data, fp, c, f, idx, focus, auto, speed, sum }`. Saved by
     `saveProgress()` at each tick, after each answer, on 中断 (`quit`), on `pagehide` and when the tab is hidden; not during
@@ -627,7 +636,8 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
   `st.hp|mana|bond|ws|cs` (status bars, mobile strip, command-seal emblem, 令呪 in the Master card), `m.mana|craft|body|
   mind|luck` (opening Master stats), `ev.rate|power|np` (opening meters). **Texts contain no numbers, ranges or
-  formulas** (owner's request): they say only what each stat affects (§7.5 Stat roles). The class note says whether the
+  formulas** (owner's request; wording: 「戦闘力」 not 「地力」, 「宝具発動に要する魔力」, 「クリティカルヒット」, 魔力 → 「魔力による攻撃は、
+  対魔力による影響を受けやすい」, no 対魔力 note on 筋力): they say only what each stat affects (§7.5 Stat roles). The class note says whether the
   class weighs that stat more or less, without the multiplier. Update the texts when a stat's role changes.
 - **Install**: `beforeinstallprompt` shows 「アプリとして追加する」 on the intro; iOS Safari (not standalone) gets a
   「ホーム画面に追加」 hint. `--safe-t` (safe-area top) pads the HUD and intro for standalone mode.
@@ -641,7 +651,7 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
   missing images are expected.
 - **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
-  [&data=local]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
+  [&data=local][&d=<war length, only if ≠30>][&x=0 (no extra classes)]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
   with the same seed replays the identical war (same data required).
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
