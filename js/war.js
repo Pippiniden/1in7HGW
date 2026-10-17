@@ -4,6 +4,7 @@
   'use strict';
   /**
    * roster: 組み立て済みサーヴァントの配列 / rnd: 0〜1 の乱数関数
+   * cfg: config.js の WAR を上書きする（extra: false でエクストラクラスを一切入れない。代役にも使わない）
    * 戻り値: [{ slot: 'saber', servant, substitute: bool }]
    */
   function composeWar(roster, rnd, cfg) {
@@ -11,8 +12,10 @@
     cfg = Object.assign({}, G.CONFIG.WAR, cfg || {});
     const pick = arr => arr[Math.floor(rnd() * arr.length)];
     const used = new Set(), out = [];
+    const isExtra = s => G.classDef(s.class.key).slot === 'extra';
+    if (cfg.extra === false) roster = roster.filter(s => !isExtra(s));
     const pool = cls => roster.filter(s => !used.has(s.id) && s.class.key === cls);
-    const extras = () => roster.filter(s => !used.has(s.id) && G.classDef(s.class.key).slot === 'extra');
+    const extras = () => roster.filter(s => !used.has(s.id) && isExtra(s));
     const slots = cfg.slots.slice();
     // エクストラクラスが紛れ込む
     let extraN = 0;
