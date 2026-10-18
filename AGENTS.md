@@ -66,7 +66,7 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
    ```
    This lets the game run from `file://` and lets Node tests `require()` the same files.
 3. **Script load order matters** (each file reads what earlier files put on `HGW`):
-   `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data`.
+   `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html` loads all of them; `roster.html` loads `config…war` only. Node tests use the same order.
    When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and the
    `PRECACHE` list in `sw.js`** (then bump `VERSION` there).
@@ -101,6 +101,7 @@ data/
   manifest.json     Which data files to load
   servants.json     Servant pack (hgw-servants, lean). LARGE (~40k lines) — do not read whole; inspect with node
   overrides.json    Hand-fix tables (hgw-overrides)
+  survival.json     Survival-curve tally (hgw-survival, see 7.11); regenerate with tools/survival.js after data changes
 img/scenes/
   README.md         Background image spec: sizes, filenames, AI image prompts (Japanese)
   *.webp            (optional) {scene}-day.webp / {scene}-night.webp
@@ -117,10 +118,12 @@ js/
   personas.js       Master personalities and their behavioural biases
   engine.js         The simulation (generator), ~870 lines
   data.js           Loading published data / browser-local roster / user-picked files
+  survival.js       Survival curves: many auto wars → per-servant elimination days; roster fingerprint
 tools/
   kagemiya.js       Fetch kagemiya pages by name (EUC-JP URL) → HTML→wiki markup → parse → data/servants.json (Node CLI)
+  survival.js       Build data/survival.json (loads data exactly like the game via data.js with an fs-backed fetch); --check
 .github/workflows/
-  kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, opens a PR
+  kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, rebuilds survival.json, opens a PR
 test/
   sim.js            N automatic wars → balance stats; or print one war's log
   interactive.js    Random focus/answers through the generator; checks replay determinism
@@ -129,6 +132,7 @@ test/
   skills.js         Skill dictionary: canonical names resolve via dict, generic names merge with text, references
   content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
+  survival.js       Survival tally sanity + playerName never changes the outcome
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
@@ -378,7 +382,9 @@ uniformly from the whole roster ignoring classes — duplicates get （一）（
 substitute/intrusion narration, and the prologue says the class rule is suspended), `ask` (`'never'` = never
 yield decisions; anything else = yield for the player camp), `player` (camp index, `'none'` for observer,
 default random), `masters` (fixed master specs), `engine` (overrides for `CONFIG.ENGINE`), `city`, `out`
-(object filled live with `entries`, `meta`, `city`, `seed`, `camps`, then the result).
+(object filled live with `entries`, `meta`, `city`, `seed`, `camps`, then the result), `playerName` (renames the player
+camp's Master after the camp is chosen; control chars stripped, ≤ 20 chars; no `rnd()` call, so the war is identical apart
+from the name — `master.named = true`).
 
 Yields:
 - `{ type:'tick', day }` — start of each day. Answer with a `FOCUS` key. Non-blocking for the UI.
@@ -581,11 +587,22 @@ alive, masterAlive, fate, kills, npUses, battles, power, you, bond, policy, pers
 
 ---
 
+### 7.11 Survival curves (`survival.js`)
+
+`HGW.survival = { fingerprint, empty, tally, runner, curveOf, overall, median }`. `runner(roster, { stats?, masters? })`
+continues a tally and `step(k)` runs k more auto wars (`runWar`, `player:'none'`, default war settings: 30 days, class
+pick, extras on; seeds `sv0`, `sv1`, …, so a tally is reproducible and can be resumed). For each camp the elimination day is
+the first entry whose `snap` shows it `alive:false` (not `fate.day`, which recontract/steal overwrite). Format:
+`{ format:'hgw-survival', version:1, fp, wars, days, seedBase, servants: { '<class>:<trueName>': { n, w, d:[eliminations on
+day 1..] } } }`; survivors = n − Σd. `curveOf(t, days)` → `s[0..days]` (share not yet eliminated at the end of day d).
+`fingerprint(roster)` is the same hash the UI uses for records (`rosterFp`) — keep them identical.
+
 ## 8. UI (`index.html`)
 
 Single page, two states: **briefing** (intro form) and **watching** (`body.watching`).
 
-- **Briefing settings**: 立場, 進む速さ, 戦争の長さ (`#days` range 10–100, default `CONFIG.ENGINE.maxDays` 30 → passed as
+- **Briefing settings**: 立場, 進む速さ (1/2/4/8 = ゆっくり/ふつう/はやい/とても速い; the HUD offers 1×–16×), 一言を残す (`words` radio,
+  remembered in `hgw.settings.words`; see Words below), 戦争の長さ (`#days` range 10–100, default `CONFIG.ENGINE.maxDays` 30 → passed as
   `engine: { maxDays }`), 七騎の選び方 (`pick` radio `class`/`open` → `war: { pick: 'open' }`), エクストラクラス (`extra`
   radio → `war: { extra: false }`; `warOpts()` builds the object), seed. Length/pick/extra are remembered in `localStorage`
   `hgw.settings` (URL `d`/`p`/`x` win). They change the war, so they are stored in the URL, in `hgw.save.v1` and in history
@@ -594,7 +611,7 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   The HUD `/N` (`#dayMax`) and the calendar (`maxDays` cells, `#calLbl`) follow the war length.
 - Data loading: `data/manifest.json` via `HGW.data.loadPublished`; `?data=local` uses the roster tool's
   browser storage; on `file://` the user picks JSON files.
-- Layout: HUD (DAY counter, progress, controls: pause, 1×/2×/4×/8×, "next decision", auto-decide, quit,
+- Layout: HUD (DAY counter, progress, controls: pause, 1×/2×/4×/8×/16×, "next decision", auto-decide, quit,
   ⋯ menu on mobile) · left column (Master ID card with command-seal SVG, Servant panel, status bars) ·
   centre (result, scene view, mobile status strip + focus chip, focus selector, Chronicle log) · right
   (camps list, 30-day calendar) · focus bottom sheet (mobile) · decision dialog (`#dlg`, can be minimised).
@@ -638,12 +655,37 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   - `hgw.history.v1` — finished wars, newest first, `HIST_MAX` (10): `{ v, at, seed, view, data, fp, c, f, sum }`, added in
     `finish()` unless an identical record exists (`recordSig` = seed|view|fp|c|f). 「最初から見る」 = `start({mode:'replay'})`,
     「結末だけ見る」 = the same + `fastForward()`, 「リンクをコピー」 = `recordUrl()`.
-  - `fp` = `rosterFp()` (hash of roster ids, power, npPeak in roster order). On mismatch the user is asked before replaying.
+  - **Record housekeeping**: each record has ☆ 保護する (`keep: true`) and 消す. `trimHistory()` keeps the newest `HIST_MAX`
+    unprotected plus up to `KEEP_MAX` (30) protected records (used when adding and importing). すべて消す also removes protected ones.
+    Records may also carry `name` and `w` (words); replaying the same war again copies new words into a record that had none.
+  - `fp` = `rosterFp()` = `HGW.survival.fingerprint(roster)` (hash of roster ids, power, npPeak in roster order). On mismatch the user is asked before replaying.
     `data:'local'` switches to the roster tool's data first.
   - Export/import file: `{ format:'hgw-records', version:1, at, history, save }`. Import merges by `recordSig`, sorts by
     `at`, keeps `HIST_MAX`; an incoming `save` replaces the current one only if there is none or the user confirms.
   - `start(o)` options: `{ seed, view, speed, c, f, to, focus, auto, mode: 'new'|'url'|'resume'|'replay' }`. The opening is
     shown only for a new war without replay data.
+- **Naming** (opening page 1): `#opName` is prefilled with the rolled name. On 次へ, `applyName()` sets `playerName` and rebuilds the
+  generator with the same seed (`makeGen()`, `warGen({ playerName })`), so the opening, board and log use the new name; empty =
+  rolled name. Buttons: くじの名前に戻す, 前回の名前 (`hgw.settings.name`). Stored as URL `n`, `save.name`, `record.name`; not part of
+  `recordSig` (it does not change the war).
+- **Words** (一言を残す, like 80億分の1's 思いを残す): `armWord(e)` marks milestones while entries are shown (not during `catchUp`):
+  `first` (first battle `head` involving you), `half` (dayhead ≥ ceil(maxDays/2)), `loss` (your servant's `death`). `step()` asks
+  before the next `dayhead` (`askWord`: one prompt per boundary, priority loss > first > half; the others are marked asked);
+  `finish()` asks `end` before rendering the result. `#wordDlg`: input ≤ 60 chars, 残す / やめておく / これからは聞かない (turns the
+  setting off). Words `{ key, at: idx when written, day, q, text }` are shown in the log as `li.k-words.is-you.hl` right after
+  entry `at-1` (also when replaying), saved in `save.w` / `record.w` (never in the URL). `wordsOn` is false for observers,
+  record replays and URL replays with `c`/`f`. Result: `lastWordHtml()` (servant's final voice line by situation — 勝利/聖杯について/
+  絆 when won, 絆/聖杯について/会話 when alive, 戦闘不能/消滅/敗北/絆 when gone — picked by an FNV hash of the seed, plus your latest
+  word) and `wordsSection()`.
+- **Images** (`cardImage('result'|'servant')`): drawn on a canvas (1200px wide, height fits the content: drawn on a draft canvas,
+  then copied over `cardBg`), fonts loaded first with `document.fonts.load(…, text)` (falls back to system fonts offline). Result
+  card: winner, your camp's arc (handles recontract), bond, final quotes, seven-camp table, seed. Servant card: the opening's
+  rating of the servant you summoned (`youId`; uses `op` while the opening is open) plus its survival curve when a tally is at hand
+  (`survQuick()`). `#imgDlg` previews the PNG with 保存する (download) and 共有する (Web Share with files, only when `canShare`).
+- **Survival curve in the lore dialog** (`#survBox`, `renderSurvival`): `survQuick()` uses `data/survival.json` when its `fp`
+  matches the roster, else the browser cache `hgw.survival.v1`; `loadSurvival()` then tops up to `SURV_TARGET` (800) wars in
+  chunks of `SURV_CHUNK` (3) with `setTimeout` gaps (longer while a war is playing), saving every 60 wars and redrawing with
+  partial results. Chart: servant curve, dashed roster average, median-day marker, per-day values in `<details>`.
 - **Stat explanations** (`TIPS`, `tipAttr(key, classKey)`, `#tipPop`): any element with `data-tip="<key>"` shows a short
   explanation on mouse hover, on tap/click (pinned until tapped again or elsewhere), and on keyboard focus (Esc closes).
   Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
@@ -664,7 +706,7 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
   missing images are expected.
 - **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
-  [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
+  [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)][&n=<player's name>]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
   with the same seed replays the identical war (same data required).
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
@@ -687,6 +729,8 @@ node test/run.js test/lucan.txt # parse wiki text and show what was read
 node test/skills.js             # skill dictionary (canonical names, generic names, references)
 node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
+node test/survival.js           # survival tally sanity; playerName does not change the war
+node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
 node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-servant effects
 python3 -m http.server          # then open http://localhost:8000/
@@ -722,6 +766,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. Put the text in `G.LINES` (`names.js`) and log `line(key, vars)`. |
 | More wording for an existing event | Add strings to the key's array in `G.LINES`; outcomes are unaffected. |
 | Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
+| Data changed by hand | Run `node tools/survival.js` so `data/survival.json` matches (the game recomputes in the browser otherwise). |
 | New servant data | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
 | Improve wiki reading for old data | Fix `parser.js`, then run the workflow in 取り直し mode (re-fetches every page; lean JSON has no source text). |
 

@@ -107,6 +107,9 @@
     for (const c of camps) if (labelCount[c.labelBase] > 1) { seenLabel[c.labelBase] = (seenLabel[c.labelBase] || 0) + 1; c.label = c.labelBase + '（' + '一二三四五六七'[seenLabel[c.labelBase] - 1] + '）'; }
     let you = opts.player === 'none' ? null : camps[opts.player != null ? opts.player : Math.floor(rnd() * camps.length)];
     if (you) you.you = true;
+    // プレイヤーが付けた名前（乱数は使わない。名前は文面にしか出ないので、展開は変わらない）
+    const pName = opts.playerName ? String(opts.playerName).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20) : '';
+    if (you && pName) { you.master.name = pName; you.master.named = true; }
     const pubName = new Set();
     // 因縁：Wikiの「因縁キャラ」に、この戦争にいる別のサーヴァントの名前があるか
     const rel = {};

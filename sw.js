@@ -8,14 +8,14 @@
  * js/ にファイルを足したら PRECACHE にも足す。
  */
 'use strict';
-const VERSION = 'v1';
+const VERSION = 'v2';
 const CACHE = 'hgw-' + VERSION;
 const FONT_CACHE = 'hgw-fonts';
 const PRECACHE = [
   './', 'index.html', 'roster.html', 'manifest.webmanifest',
   'js/config.js', 'js/rank.js', 'js/parser.js', 'js/effects.js', 'js/build.js', 'js/master.js', 'js/war.js',
-  'js/names.js', 'js/scenes.js', 'js/personas.js', 'js/engine.js', 'js/data.js',
-  'data/manifest.json', 'data/servants.json', 'data/overrides.json',
+  'js/names.js', 'js/scenes.js', 'js/personas.js', 'js/engine.js', 'js/data.js', 'js/survival.js',
+  'data/manifest.json', 'data/servants.json', 'data/overrides.json', 'data/survival.json',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
 ];
 const NET_TIMEOUT = 6000; // これ以上かかったら保存しておいたものを先に出す

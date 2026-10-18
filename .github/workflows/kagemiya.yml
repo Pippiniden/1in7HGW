@@ -72,6 +72,10 @@ jobs:
           node test/sim.js 40 > "$RUNNER_TEMP/sim.txt" || { cat "$RUNNER_TEMP/sim.txt"; echo "::error::新しいデータでシミュレーションがエラーになりました"; exit 1; }
           head -3 "$RUNNER_TEMP/sim.txt"
 
+      - name: 生存曲線の集計を作り直す
+        if: steps.run.outputs.changed != '0'
+        run: node tools/survival.js 3000
+
       - name: 反映
         if: steps.run.outputs.changed != '0'
         env:
@@ -84,7 +88,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           if [ "$CMD" = add ]; then TITLE="kagemiya から取り込み：$(echo "$NAMES" | tr '\n' '、' | cut -c1-80)"; else TITLE="kagemiya から取り直し（${CHANGED}騎を更新）"; fi
-          git add data/servants.json
+          git add data/servants.json data/survival.json
           git commit -q -m "$TITLE" -m "GitHub Actions「kagemiya から取り込み」#${GITHUB_RUN_NUMBER} で自動作成"
           if [[ "$PUBLISH" == main* ]]; then
             git push origin "HEAD:${GITHUB_REF_NAME}"
