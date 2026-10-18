@@ -424,6 +424,9 @@
   const STAT_OVERRIDES = {};     // '真名': { str: 'B', end: 'C', ... }  書いた項目だけ置き換える
   const NP_OVERRIDES = {};       // '真名/宝具名': { attack: true|false }  攻撃宝具かどうかの手直し
   const CONTENT_OVERRIDES = {};  // '真名': { skills, nps, voice, text, profile, relations, base }  内容の手直し（build.js の applyContent）
+  const PAGE_OVERRIDES = {};     // '真名': 'kagemiya のページ名'  ページ名が真名と違うとき（build.js の pageOf・取り込みツール）
+  // overrides.json の表の名前 → 表。読み込む・書き出す・公開中と見比べるときはこれを使う
+  const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES };
 
   // ---------- 名前の正規化と照合 ----------
   function normName(s) {
@@ -626,6 +629,6 @@
     };
   }
 
-  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES,
+  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, OVERRIDE_TABLES,
     normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag };
 })(globalThis.HGW = globalThis.HGW || {});

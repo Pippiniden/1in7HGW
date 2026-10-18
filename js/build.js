@@ -12,8 +12,8 @@
   const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'built', 'statSource', 'contentEdited'];
 
   // ---------- 内容の手直し（effects.js の CONTENT_OVERRIDES） ----------
-  // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、名簿ツールで直した内容に差し替える。
-  // 差し替えた項目の Wiki の値は sv._wiki に取っておく（名簿に保存したあとでも元に戻せるように）。
+  // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、リストツールで直した内容に差し替える。
+  // 差し替えた項目の Wiki の値は sv._wiki に取っておく（リストに保存したあとでも元に戻せるように）。
   // 公開用のデータ（toLean）は Wiki の値で書き出し、手直しは overrides.json の content に入る。
   const CONTENT_SECTIONS = { skills: ['classSkills', 'skills'], nps: ['nps'], voice: ['voice'], text: ['text'], profile: ['profile'], relations: ['relations'] };
   const CONTENT_JA = { skills: 'スキル', nps: '宝具', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
@@ -22,6 +22,8 @@
     if (sv && sv._wiki) { for (const k of Object.keys(sv._wiki)) { if (sv._wiki[k] === undefined) delete sv[k]; else sv[k] = sv._wiki[k]; } delete sv._wiki; }
     return sv;
   }
+  /** kagemiya のページ名（手直し表 pages → 取り込んだときのページ名 の順）。分からなければ null（真名で探す） */
+  const pageOf = sv => (sv && (E.PAGE_OVERRIDES[sv.trueName] || sv.page)) || null;
   /** Wiki から読んだままの内容（手直しを外したもの）の写し */
   const wikiOf = sv => restoreWiki(clone(sv));
   /** 編集・比較に使う、項目ごとの内容（計算で出す値を除いたもの） */
@@ -230,7 +232,7 @@
   function harvestOverrides(list) {
     let n = 0;
     for (const sv0 of list) {
-      // 名簿ツールで内容を直したまま書き出したJSON（_wiki あり）：直した内容を内容の手直し表に戻す
+      // リストツールで内容を直したまま書き出したJSON（_wiki あり）：直した内容を内容の手直し表に戻す
       if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[sv0.trueName]) {
         const wiki = wikiOf(sv0), c = { base: {} };
         for (const [sec, fields] of Object.entries(CONTENT_SECTIONS)) {
@@ -266,5 +268,5 @@
   }
 
   G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki };
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf };
 })(globalThis.HGW = globalThis.HGW || {});

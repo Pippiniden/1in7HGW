@@ -11,7 +11,7 @@ on:
         type: choice
         options:
           - 追加（ページ名を指定）
-          - 取り直し（空欄なら名簿の全騎）
+          - 取り直し（空欄ならリストの全騎）
         default: 追加（ページ名を指定）
       names:
         description: 'ページ名（真名）。複数は「、」かカンマか改行で区切る。ページのURLでもよい'
@@ -106,4 +106,4 @@ jobs:
 
       - name: 変更なし
         if: steps.run.outputs.changed == '0'
-        run: echo "名簿に変更はありませんでした（取得したページは今の名簿と同じ内容です）" >> "$GITHUB_STEP_SUMMARY"
+        run: echo "リストに変更はありませんでした（取得したページは今のリストと同じ内容です）" >> "$GITHUB_STEP_SUMMARY"

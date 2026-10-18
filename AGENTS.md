@@ -67,7 +67,7 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
    This lets the game run from `file://` and lets Node tests `require()` the same files.
 3. **Script load order matters** (each file reads what earlier files put on `HGW`):
    `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data → survival`.
-   `index.html` loads all of them; `roster.html` loads `config…war` + `voiceedit`; `submit.html` loads `config…war` + `voiceedit` + `data`. Node tests use the same order.
+   `index.html` and `ranking.html` load all of them; `roster.html` loads `config…war` + `voiceedit`; `submit.html` loads `config…war` + `voiceedit` + `data`. Node tests use the same order.
    When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and the
    `PRECACHE` list in `sw.js`** (then bump `VERSION` there).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All
@@ -95,6 +95,7 @@ sw.js               Service worker (offline; see §2.8)
 icons/              App icons (hooded figure; PNGs 192/512/maskable-512 (inside the frame)/apple-touch 180/favicon 32 (face crop), 256-colour quantised; README.md)
 roster.html         Admin tool: import wiki pages, review/fix effects, export data; applies player requests
 submit.html         Player request form (new servant / adjustment) → GitHub Issue URL, .json file or copied text (no server)
+ranking.html        Strength ranking of all servants (spoilers: linked only at the very bottom of the game's intro)
 img/classes/        Class icons, 128×128 WebP: saber archer lancer rider caster assassin berserker + extra (any extra class)
 .nojekyll
 README.md           Japanese user/maintainer guide
@@ -108,7 +109,7 @@ img/scenes/
   README.md         Background image spec: sizes, filenames, AI image prompts (Japanese)
   *.webp            (optional) {scene}-day.webp / {scene}-night.webp
 js/
-  config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K, VOICE_SLOTS
+  config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K, VOICE_SLOTS, GRADES
   rank.js           Rank string ("A+", "C~A", "B(狂化時A)", "-", "EX") → numeric object
   parser.js         Wiki markup → structured servant (parsePage, parseServant, finalize, parseClass)
   effects.js        Effect primitives, skill dictionary, keyword rules, override tables, resolveSkill/resolveNP
@@ -243,7 +244,10 @@ class {key,label,raw,standard,sub}, origin, sex, alignment, attribute, traits, s
 nps [{name, reading, rankRaw, rank, typeRaw, typeKey, range, maxTargets, desc, …}], weapons, profile
 {likes, dislikes, wish, imageColor, specialty, firstPerson…}, relations [{name,text}], voice {heading:[lines]},
 text {commentary, personality, comment, voice, other}, info (all 【key】 pairs), warnings, body, page?`
-(`page` = kagemiya page title, set by `tools/kagemiya.js`), `skippedItems?` (see 4.1). The browser roster may also hold `_wiki` (see 4.5).
+(`page` = kagemiya page title, set by `tools/kagemiya.js`), `pageMissing? { at: 'YYYY-MM-DD', tried: [names] }` (set by a
+refresh that got 404; a successful refresh replaces the entry and drops it), `skippedItems?` (see 4.1). The page to fetch is
+`B.pageOf(sv)` = `PAGE_OVERRIDES[trueName]` (overrides.json `pages`, edited in the roster's 「Wikiのページ名」) → `sv.page` → null
+(then the true name is tried). The browser roster may also hold `_wiki` (see 4.5).
 
 Derived fields (added by `buildServant`, stripped by `toLean`): `contentEdited, ranks, score, statSource, tags, allSkills
 (with .effects/.effectSource/.matched/.group), nps[].{attackResolved, power, burst, cost, exposure, multi,
@@ -263,12 +267,14 @@ Identity: two entries with the same `class.key + trueName` are the same servant;
 
 `hgw-servants` pack: `{ format:'hgw-servants', version:2, lean:true, at:<ISO>, servants:[…] }`.
 
-`hgw-overrides`: `{ format:'hgw-overrides', version:2, global:{}, servant:{}, stats:{}, np:{}, content:{} }`
+`hgw-overrides`: `{ format:'hgw-overrides', version:2, global:{}, servant:{}, stats:{}, np:{}, content:{}, pages:{} }` —
+`E.OVERRIDE_TABLES` maps these names to the tables; data.js, tools/kagemiya.js and roster.html all use it (add new tables there).
 - `global` → `SKILL_OVERRIDES`: `'skillName': [[effectId, factor, params?], …]` (all servants)
 - `servant` → `SERVANT_OVERRIDES`: `'trueName/skillOrNpName': [[…]]` (one servant; `[]` = no effects)
 - `stats` → `STAT_OVERRIDES`: `'trueName': { str:'B', … }` (only listed stats replaced)
 - `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
 - `content` → `CONTENT_OVERRIDES`: `'trueName': { skills?, nps?, voice?, text?, profile?, relations?, base }` (see 4.5)
+- `pages` → `PAGE_OVERRIDES`: `'trueName': 'kagemiya page name'` (when the page title differs from the true name, e.g. ハイヌヴェレ → ウンコ)
 
 Overrides embedded in exported servant JSON (`effectSource: 'override'|'servant-override'`) are harvested
 back into the tables on load (`harvestOverrides`), without overwriting existing entries.
@@ -664,9 +670,12 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   `#opening` walks through 1) the Master (from `meta.master`), 2) a strength rating of the Servant, 3) the first
   day's focus. Playback (`step()`) does not run while `op` is set, so day 1 starts with the chosen focus (it used
   to start as おまかせ). The rating is computed in the UI from the loaded roster: mean `battleOdds` pA (with and
-  without NP) against every other roster servant → rank → grade S (top 10%) / A (30%) / B (60%) / C (85%) / D;
+  without NP) against every other roster servant → rank → grade via `H.gradeOfPct(pct)` (`G.GRADES` in config.js: S ≤ 10%, A ≤ 25%,
+  B ≤ 45%, C ≤ 65%, D ≤ 85%, E rest — six levels like Fate ranks; EX is not used because it also means "unrateable"; the roster,
+  submit form, ranking page and test/focus.js use the same function);
   plus base power / NP peak ranks, strengths/weaknesses from `effectSummary`, and a recommended focus (`REC_FOCUS[grade]`:
-  measured with `test/focus.js` — same seeds, one constant focus for the whole war — B → rest, others → auto; the old
+  measured with `test/focus.js` — same seeds, one constant focus for the whole war — S/A → auto, B/C/D → rest, E → hide (E wins
+  ~0% whatever the focus; hide survives longest); the old
   trait-based rule (S/A → attack, caster → defend…) won 10% vs auto's 16%, so re-run the test after balance changes). It rates the
   Servant alone, not against the current line-up. Cached per roster (`strengthCache`); ~0.1 s for 64 servants.
   Rosters above `REF_MAX` (120) are compared against 120 evenly spaced reference servants instead of everyone.
@@ -791,7 +800,7 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   (`fetchPublished`, not `data.js`). An empty browser roster is replaced by the published one. Otherwise a **three-way merge**
   (`merge3`) compares the last-synced published state (`hgw.roster.base` = `{ at, sv: {id: sig}, ov: {table: {key: JSON}} }`,
   `sig` = `hashOf(canon(toLean(sv)))`), the current published state and the browser state, per servant id and per override
-  key: unchanged locally → take published; changed locally → keep local. 「公開中の名簿にそろえる」 applies it, 「…で置き換える」
+  key: unchanged locally → take published; changed locally → keep local. 「公開中のリストにそろえる」 applies it, 「…で置き換える」
   discards local changes. With no base yet, a local value equal to published counts as unchanged. `advanceBase()` moves the
   base forward where local and published agree (e.g. after the owner published). Local-only changes are shown as
   未公開の追加/変更 badges, a filter, and a summary in 保存.
@@ -802,10 +811,14 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   voice summary, profile, relations, commentary excerpt). Selection `sel` (`select(id, {open, flash, force})`, remembered in
   `hgw.roster.sel`); ↑↓/j/k move within the shown list (`shownIds`). ≤900px: one column, `#browse.show` swaps list ↔ detail
   (「← 一覧へ」). `jumpTo(id)` switches to the roster view, clears filters if needed and selects. Sync state also shows as a badge on the
-  公開・保存 tab and a `#syncBanner` with 「公開中の名簿にそろえる」; `status()` also shows a toast (`#toast`).
+  公開・保存 tab and a `#syncBanner` with 「公開中のリストにそろえる」; `status()` also shows a toast (`#toast`).
+- **Wiki page name** (`pageBox`): every detail has 「Wikiのページ名」 (input + 保存 → `PAGE_OVERRIDES`; a pasted kagemiya URL is
+  decoded from EUC-JP; equal to `page` or empty removes the override). `pageState(sv)`: `missing` (has `pageMissing`, no override),
+  `fixed` (override set after a miss), `unknown` (no `page` and no override) → row badge 「ページ名？」 and filter chip
+  「Wikiのページ名を確かめる」 (`flag: 'page'`). 「Wikiから取り直す」, the kagemiya link and search use `B.pageOf`.
 - **Finding**: toolbar with search (`fold()`: NFKC, katakana→hiragana, ignores spaces/・; matches true name, aliases,
   class, origin, page, skill and NP names; `/` focuses, Enter opens the first hit, Esc clears), sort (class/name/grade/power/
-  NP/review count), class select (`#clsSel`, `filter`) and toggle chips (`flag`: 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–D grade (same formula as
+  NP/review count), class select (`#clsSel`, `filter`) and toggle chips (`flag`: 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–E grade (same formula as
   the game's opening: `strengthTable`, cached per `rosterVer`, which `save()`/`rebuildAll()` bump).
 - **試し戦い** (its own tab, `section#cmpPanel`): left/right pickers are text
   inputs with a `<datalist>` (`findSv` matches label, then prefix/substring of the folded name), swap, NP/home/terrain options,
@@ -814,11 +827,21 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
 - **Name import**: names textarea + mode select; 「名前をコピーして GitHub を開く」 opens the workflow page (`GH_WF`) synchronously
   and copies the names (GitHub cannot prefill `workflow_dispatch` inputs). Cards have 「Wikiから取り直す」 (same, refresh mode,
   `page` or true name) and a kagemiya link (`eucEncode`, same as the game).
-- Persists in `localStorage`: `hgw.roster.v2` (**lean** servants — `index.html`'s 名簿ツールの名簿を使う rebuilds them with
+- Persists in `localStorage`: `hgw.roster.v2` (**lean** servants — `index.html`'s リストツールで作ったリストを使う rebuilds them with
   `fromJSON`), `hgw.overrides.v1` (includes the published overrides after a sync), `hgw.roster.base`, `hgw.roster.view`, `hgw.roster.sel`.
   `[hidden]` is forced to `display: none` (the `.row` flex rule used to override it).
 
 ---
+
+`ranking.html` (spoiler page, linked from the intro's last `.foot.spoil` paragraph; `#rankLink` gets `?data=local` when the game
+uses the roster tool's data): loads like the game (`loadPublished`, or `loadLocal` with `?data=local`), computes per servant the grade
+and mean 1-on-1 win rate (same as the opening), 優勝率 = `w/n` and 生存 = `median(curveOf())` from the survival tally (data/survival.json
+if the fingerprint matches, else `hgw.survival.v1`, else it tops up to 800 wars in chunks like the lore dialog and saves to the same key),
+power, NP peak, and five abilities from stats + `effectSummary` (passive + onNP×0.5, terrain-bound ×0.5): 攻め (str, power, crit,
+pierce, instakill, power_vs, debuff, initiative), 守り (end, guard, evade, magic_guard, mental_guard, master_guard), 粘り (end, luk, guts,
+escape, regen, solo), 隠密 (agi, stealth, conceal), 索敵 (agi, detect, intel, reveal), each graded by rank within the roster (S–E) with
+a bar. Sortable headers / select, class filter, search; a row opens stats, notable effects, NPs and hardest/easiest opponents. The table
+scrolls inside `.tbl` (sticky name column), so the page itself never overflows.
 
 ## 9. Tests and verification
 

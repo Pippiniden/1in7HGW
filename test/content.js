@@ -36,7 +36,7 @@ assert.ok(!('_wiki' in lean) && !('contentEdited' in lean));
 assert.deepStrictEqual(lean.voice, plain.voice);
 assert.strictEqual(lean.nps.length, plain.nps.length);
 
-// 3) 名簿に保存した形（_wiki 付き）から組み直しても同じ
+// 3) リストに保存した形（_wiki 付き）から組み直しても同じ
 const again = B.fromJSON(JSON.parse(JSON.stringify(edited)));
 assert.deepStrictEqual(skillNames(again), skillNames(edited));
 

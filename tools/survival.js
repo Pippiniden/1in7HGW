@@ -3,9 +3,9 @@
  *
  *   node tools/survival.js            … 3000回（既定）の全自動の聖杯戦争から集計して data/survival.json に書く
  *   node tools/survival.js 1000       … 回数を指定
- *   node tools/survival.js --check    … 今の名簿と data/survival.json の指紋が合っているかだけ確かめる
+ *   node tools/survival.js --check    … 今のリストと data/survival.json の指紋が合っているかだけ確かめる
  *
- * 名簿の読み込みはゲームと同じ（js/data.js の loadPublished）。名簿（servants.json・overrides.json・packs）を
+ * リストの読み込みはゲームと同じ（js/data.js の loadPublished）。リスト（servants.json・overrides.json・packs）を
  * 変えたら作り直す。作り直さなくてもゲームは動き、指紋が合わなければ画面の側で少しずつ集計し直す。
  */
 'use strict';
@@ -30,7 +30,7 @@ globalThis.fetch = async url => {
   if (args.includes('--check')) {
     const cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
     const ok = cur && cur.fp === fp;
-    console.log(ok ? `data/survival.json は今の名簿と合っています（${fp}、${cur.wars}回）` : `data/survival.json は今の名簿と合っていません（名簿 ${fp} / ファイル ${cur ? cur.fp : 'なし'}）`);
+    console.log(ok ? `data/survival.json は今のリストと合っています（${fp}、${cur.wars}回）` : `data/survival.json は今のリストと合っていません（リスト ${fp} / ファイル ${cur ? cur.fp : 'なし'}）`);
     process.exitCode = ok ? 0 : 1;
     return;
   }

@@ -1,10 +1,10 @@
 /* 生存曲線：英霊ごとに「何日目まで生き残れるか」
  *
- * 名簿から毎回ランダムに七騎を選んで、全自動の聖杯戦争をたくさん回し（既定の設定：30日・クラスごとに一騎・
+ * リストから毎回ランダムに七騎を選んで、全自動の聖杯戦争をたくさん回し（既定の設定：30日・クラスごとに一騎・
  * エクストラときどき・マスターはいない観測者として）、英霊ごとに脱落した日を数える。
  * ある一回の戦争ではなく、どんな顔ぶれに呼ばれても、という総合的な見込み。
  *
- * 集計は data/survival.json に置いておける（tools/survival.js で作る）。名簿が変わっていれば（指紋が違えば）
+ * 集計は data/survival.json に置いておける（tools/survival.js で作る）。リストが変わっていれば（指紋が違えば）
  * ゲームの画面が手元で少しずつ回して作り直す。
  *
  * 集計の形（JSONのまま保存できる）：
@@ -15,7 +15,7 @@
 (function (G) {
   'use strict';
 
-  /** 名簿の指紋（index.html の記録の照合と同じ式）。名簿の顔ぶれと強さが変われば変わる */
+  /** リストの指紋（index.html の記録の照合と同じ式）。リストの顔ぶれと強さが変われば変わる */
   function fingerprint(roster) {
     let h = 2166136261;
     for (const s of roster) { const t = s.id + '|' + s.power + '|' + (s.npPeak || 0) + ';'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } }
@@ -72,7 +72,7 @@
     for (let d = 1; d <= days; d++) { gone += t.d[d - 1] || 0; s.push(1 - gone / t.n); }
     return s;
   }
-  /** 名簿全体（登場回数で重み付け）の生存曲線。比べる目安に使う */
+  /** リスト全体（登場回数で重み付け）の生存曲線。比べる目安に使う */
   function overall(stats) {
     const all = { n: 0, w: 0, d: [] };
     for (const t of Object.values(stats.servants)) {

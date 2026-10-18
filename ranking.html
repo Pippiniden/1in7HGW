@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>英霊の強さランキング</title>
+<meta name="description" content="聖杯戦争 観戦記に登場する英霊の、評価・優勝率・生き残る日数・戦闘力・宝具の威力・スキルを加味した能力のランキング。">
+<meta name="theme-color" content="#050d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と書体はゲーム（index.html）にそろえる */
+:root {
+  --void: #050d22;
+  --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85);
+  --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4; --gold: #ffd84a; --seal: #ff4f72; --lav: #b9a6d9; --slate: #9fb7d8;
+  --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif;
+  --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; color: var(--ice); font: 14px/1.7 var(--gothic);
+  background:
+    repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #15367a 0%, transparent 62%),
+    var(--void);
+  background-attachment: fixed;
+}
+a { color: var(--cyan); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding: max(18px, env(safe-area-inset-top)) 16px 48px; }
+header h1 { font: 700 26px/1.3 var(--mincho); margin: 0; letter-spacing: .06em; }
+header .en { font-family: var(--en); letter-spacing: .2em; color: var(--cyan); font-size: 13px; text-transform: uppercase; }
+header p { color: var(--mute); margin: 6px 0 0; font-size: 13px; }
+header .back { font-size: 13px; }
+.warn { margin: 14px 0; border: 1px solid rgba(255, 79, 114, .5); background: rgba(255, 79, 114, .08); padding: 10px 12px; font-size: 13px; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); padding: 12px 14px; min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 14px 0 10px; }
+.tools input, .tools select { background: var(--inset); border: 1px solid var(--line); padding: 7px 10px; min-width: 0; }
+.tools input { flex: 1 1 220px; }
+.tools select { flex: 0 1 auto; }
+.tools .cnt { color: var(--mute); font-size: 12px; }
+.status { color: var(--mute); font-size: 12px; margin: 0 0 8px; }
+/* 表（狭い画面では表の中だけ横に動かす。真名の列は左に残す） */
+.tbl { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); background: rgba(3, 14, 38, .55); }
+table { border-collapse: collapse; width: 100%; min-width: 980px; font-size: 13px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid rgba(80, 196, 255, .14); text-align: right; white-space: nowrap; }
+th { font-size: 11px; color: var(--mute); font-weight: 500; position: sticky; top: 0; background: #0a1f4a; cursor: pointer; user-select: none; }
+th.on { color: var(--gold); }
+th.on::after { content: " ▼"; font-size: 9px; }
+th.on.asc::after { content: " ▲"; }
+th.l, td.l { text-align: left; }
+td.nm, th.nm { position: sticky; left: 0; background: #08193d; z-index: 1; text-align: left; }
+th.nm { z-index: 2; background: #0a1f4a; }
+td.nm button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 6px; max-width: 220px; }
+td.nm .t { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
+td.nm .c { font-size: 11px; color: var(--mute); }
+td.nm img { width: 20px; height: 20px; flex: none; }
+tr.row:hover td { background: rgba(62, 230, 255, .06); }
+tr.row:hover td.nm { background: #0c2350; }
+tr.row.open td { background: rgba(62, 230, 255, .08); }
+.rk { font-family: var(--en); color: var(--mute); }
+.g { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 4px; font: 700 14px/1 var(--en); color: var(--sel-ink); background: var(--cyan); }
+.g.S { background: var(--gold); } .g.C { background: var(--slate); } .g.D { background: var(--lav); } .g.E { background: var(--seal); color: #fff; }
+.g.sm { min-width: 20px; height: 18px; font-size: 12px; }
+.bar { display: inline-block; vertical-align: middle; width: 54px; height: 6px; background: rgba(3, 14, 38, .9); border: 1px solid var(--line); margin-left: 6px; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); }
+.num { font-family: var(--en); font-size: 15px; }
+.dim { color: var(--mute); }
+/* 開いた行 */
+tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, .7); }
+.more .box { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 18px; padding: 4px 2px; position: sticky; left: 8px; max-width: min(100vw - 48px, 1180px); }
+.more h4 { margin: 0 0 4px; font-size: 12px; color: var(--gold); font-weight: 500; }
+.more ul { margin: 0; padding-left: 18px; }
+.stl { display: grid; grid-template-columns: repeat(6, auto); gap: 2px 10px; justify-content: start; }
+.stl span { color: var(--mute); font-size: 11px; }
+.stl b { font-family: var(--en); font-size: 15px; }
+.chip { display: inline-block; border: 1px solid var(--line); padding: 0 6px; margin: 1px 3px 1px 0; font-size: 12px; }
+.chip.neg { color: var(--seal); border-color: rgba(255, 79, 114, .5); }
+@media (max-width: 820px) { .more .box { grid-template-columns: minmax(0, 1fr); } }
+.legend { margin-top: 16px; font-size: 12px; color: var(--mute); }
+.legend dl { display: grid; grid-template-columns: 8em minmax(0, 1fr); gap: 4px 10px; margin: 6px 0 0; }
+.legend dt { color: var(--ice); }
+.legend dd { margin: 0; }
+@media (max-width: 560px) { .legend dl { grid-template-columns: minmax(0, 1fr); } .legend dd { margin-bottom: 4px; } header h1 { font-size: 22px; } }
+.spin { display: inline-block; width: 10px; height: 10px; border: 2px solid var(--cyan); border-right-color: transparent; border-radius: 50%; animation: sp 0.8s linear infinite; vertical-align: -1px; margin-right: 4px; }
+@keyframes sp { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="en">Ranking</span>
+    <h1>英霊の強さランキング</h1>
+    <p><a class="back" href="index.html">← 聖杯戦争へ戻る</a></p>
+  </header>
+  <p class="warn">このページには、すべての英霊の真名・クラス・強さが載っています。戦争の中で真名を推し量る楽しみを残したいときは、見ないでおいてください。</p>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="真名・クラス・元ネタで探す" autocomplete="off" aria-label="探す">
+    <select id="cls" aria-label="クラスで絞る"><option value="">すべてのクラス</option></select>
+    <select id="sortSel" aria-label="並べ方"></select>
+    <span class="cnt" id="cnt"></span>
+  </div>
+  <p class="status" id="status">読み込んでいます…</p>
+  <div class="tbl"><table><thead><tr id="head"></tr></thead><tbody id="body"></tbody></table></div>
+
+  <section class="legend panel">
+    <b>見方</b>
+    <dl>
+      <dt>評価</dt><dd>リストの全騎と1対1で戦った場合の平均勝率の順位で決めた S〜E の6段階（ゲームの開戦時の評価と同じ）。</dd>
+      <dt>優勝率</dt><dd>七騎がそろった聖杯戦争を、マスターも含めておまかせで何千回も戦わせ、その英霊が出た戦争のうち最後まで勝ち残った割合。くじ運や組み合わせも込みの数字です。</dd>
+      <dt>生存</dt><dd>同じ集計で、半分以上が脱落するまでの日数（中央値）。「最後まで」は、出た戦争の半分以上で最後の日まで残ったもの。</dd>
+      <dt>平均勝率</dt><dd>リストの全騎と1対1で戦った場合の勝ちやすさ（宝具を使う・使わないの平均）。</dd>
+      <dt>戦闘力・宝具</dt><dd>ステータスとスキルから出した戦いの強さと、いちばん強い攻撃宝具の威力。</dd>
+      <dt>攻め・守り・粘り・隠密・索敵</dt><dd>ステータスとスキル・宝具の効果を合わせた得意分野。攻め（筋力・戦闘力の上昇・クリティカル・防御無視・即死・特攻）、守り（耐久・被ダメージ軽減・回避・魔術耐性）、粘り（致命傷耐性・離脱・自己回復・幸運）、隠密（敏捷・気配遮断・真名の秘匿）、索敵（索敵・情報収集・看破）。文字はリストの中での順位で、評価と同じ S〜E。</dd>
+    </dl>
+  </section>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script src="js/names.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/data.js"></script>
+<script src="js/survival.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, B = H.build;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 残せなくてもよい */ } } };
+  const SURV_KEY = 'hgw.survival.v1', SURV_TARGET = 800, SURV_CHUNK = 4; // ゲームの解説の生存曲線と同じ集計を使う（同じブラウザなら共有）
+  let roster = [], masters = [], rows = [], surv = null, sortKey = null, asc = false, openId = null;
+
+  // ---------- 列 ----------
+  // v：並べ替えに使う値（大きいほど上）、html：表に出す中身
+  const pctFmt = v => v == null ? '<span class="dim">—</span>' : `<span class="num">${(v * 100).toFixed(v < 0.1 ? 1 : 0)}</span><span class="dim">%</span>`;
+  const gradeChip = (g, sm) => `<span class="g ${g}${sm ? ' sm' : ''}">${g}</span>`;
+  const ABIL = [['atk', '攻め'], ['def', '守り'], ['tough', '粘り'], ['stealth', '隠密'], ['scout', '索敵']];
+  const COLS = [
+    { k: 'rank', t: '#', cls: '', sort: false },
+    { k: 'name', t: '英霊', cls: 'nm', v: r => r.sv.trueName, str: true },
+    { k: 'grade', t: '評価', v: r => r.rate, html: r => gradeChip(r.grade) },
+    { k: 'win', t: '優勝率', v: r => r.win, html: r => pctFmt(r.win) + (r.n ? `<span class="dim" title="集計した戦争のうち、この英霊が出た回数" style="font-size:11px">／${r.n}回</span>` : '') },
+    { k: 'life', t: '生存', v: r => r.life, html: r => r.life == null ? '<span class="dim">—</span>' : r.lifeAll ? '<span class="num">最後まで</span>' : `<span class="num">${r.life}</span><span class="dim">日</span>` },
+    { k: 'rate', t: '平均勝率', v: r => r.rate, html: r => pctFmt(r.rate) },
+    { k: 'power', t: '戦闘力', v: r => r.sv.power, html: r => `<span class="num">${r.sv.power}</span>` },
+    { k: 'np', t: '宝具', v: r => r.sv.npPeak || 0, html: r => r.sv.npPeak ? `<span class="num">${r.sv.npPeak}</span>` : '<span class="dim">—</span>' },
+    ...ABIL.map(([k, t]) => ({ k, t, v: r => r.ab[k], html: r => `${gradeChip(r.abG[k], true)}<span class="bar"><i style="width:${Math.round(r.abW[k] * 100)}%"></i></span>` })),
+  ];
+  const colOf = k => COLS.find(c => c.k === k);
+
+  // ---------- 強さの計算 ----------
+  // ゲームの開戦時の評価と同じ（index.html の strengthTable）：全騎と1対1で戦った平均勝率の順位
+  function rates() {
+    const ids = roster.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)), REF = 120;
+    const refs = ids.length <= REF ? ids : Array.from({ length: REF }, (_, i) => ids[Math.floor(i * ids.length / REF)]);
+    const m = new Map();
+    for (const a of roster) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } m.set(a.id, n ? t / n : 0.5); }
+    return m;
+  }
+  // スキル・宝具の効果の合計（宝具を使ったときだけの効果は半分、場所を選ぶ効果も半分に数える）
+  function effOf(sv, id) {
+    let t = 0;
+    for (const e of Object.values(sv.effectSummary || {})) if (e.id === id) t += ((e.passive || 0) + (e.onNP || 0) * 0.5) * (e.params && e.params.cond ? 0.5 : 1);
+    return t;
+  }
+  function abilities(sv) {
+    const d = k => B.statDev((sv.score || {})[k] || 32), f = id => effOf(sv, id);
+    return {
+      atk: d('str') * 0.5 + f('power') + f('crit') * 0.5 + f('pierce') * 0.4 + f('instakill') * 2 + f('power_vs') * 0.3 + f('debuff') * 0.5 + f('initiative') * 0.3,
+      def: d('end') * 0.5 + f('guard') + f('evade') + f('magic_guard') * 0.4 + f('mental_guard') * 0.2 + f('master_guard') * 0.3,
+      tough: d('end') * 0.2 + d('luk') * 0.2 + f('guts') + f('escape') * 0.5 + f('regen') * 0.5 + f('solo') * 0.05,
+      stealth: d('agi') * 0.2 + f('stealth') + f('conceal') * 0.5,
+      scout: d('agi') * 0.1 + f('detect') + f('intel') + f('reveal') * 0.5,
+    };
+  }
+  // リストの中での順位 → S〜E（上から何割にいるか。config.js の GRADES）
+  function gradeIn(vals, v) { const n = vals.length; return H.gradeOfPct(vals.filter(x => x > v + 1e-9).length / Math.max(1, n - 1)); }
+  function compute() {
+    const R = rates(), all = [...R.values()];
+    rows = roster.map(sv => ({ sv, rate: R.get(sv.id), ab: abilities(sv) }));
+    for (const r of rows) r.grade = gradeIn(all, r.rate);
+    for (const [k] of ABIL) {
+      const vals = rows.map(r => r.ab[k]), lo = Math.min(...vals), hi = Math.max(...vals);
+      for (const r of rows) { (r.abG = r.abG || {})[k] = gradeIn(vals, r.ab[k]); (r.abW = r.abW || {})[k] = hi > lo ? (r.ab[k] - lo) / (hi - lo) : 0; }
+    }
+    applySurv();
+  }
+  // 優勝率・生存日数（生存曲線の集計から）
+  function applySurv() {
+    for (const r of rows) {
+      const t = surv && surv.servants[r.sv.id];
+      if (!t || !t.n) { r.win = r.life = null; r.n = 0; r.lifeAll = false; continue; }
+      const c = H.survival.curveOf(t, surv.days), md = H.survival.median(c);
+      r.n = t.n; r.win = t.w / t.n; r.lifeAll = md == null; r.life = md == null ? surv.days + 1 : md;
+    }
+  }
+
+  // ---------- 表示 ----------
+  function head() {
+    $('#head').innerHTML = COLS.map(c => `<th class="${c.cls || ''}${c.k === 'name' ? ' l' : ''}${c.k === sortKey ? ' on' + (asc ? ' asc' : '') : ''}" data-k="${c.k}"${c.sort === false ? '' : ' tabindex="0" role="button"'}>${esc(c.t)}</th>`).join('');
+  }
+  function render() {
+    const q = $('#q').value.trim().normalize('NFKC').toLowerCase(), cls = $('#cls').value;
+    const c = colOf(sortKey) || colOf('rate');
+    let list = rows.filter(r => (!cls || r.sv.class.key === cls) && (!q || [r.sv.trueName, r.sv.class.label, r.sv.origin, (r.sv.aliases || []).join(' ')].join(' ').normalize('NFKC').toLowerCase().includes(q)));
+    list.sort((a, b) => {
+      const x = c.v(a), y = c.v(b);
+      if (c.str) return asc ? String(x).localeCompare(String(y), 'ja') : String(y).localeCompare(String(x), 'ja');
+      const nx = x == null ? -Infinity : x, ny = y == null ? -Infinity : y;
+      return (asc ? nx - ny : ny - nx) || (b.rate - a.rate);
+    });
+    $('#cnt').textContent = `${list.length} / ${rows.length}騎`;
+    $('#body').innerHTML = list.map((r, i) => {
+      const s = r.sv;
+      const tds = COLS.map(col => col.k === 'rank' ? `<td class="rk">${i + 1}</td>`
+        : col.k === 'name' ? `<td class="nm"><button data-open="${esc(s.id)}" aria-expanded="${openId === s.id}"><img src="${H.classIcon(s.class.key)}" alt="" width="20" height="20" loading="lazy"><span><span class="t">${esc(s.trueName)}</span> <span class="c">${esc(s.class.label)}</span></span></button></td>`
+        : `<td>${col.html(r)}</td>`).join('');
+      return `<tr class="row${openId === s.id ? ' open' : ''}">${tds}</tr>` + (openId === s.id ? `<tr class="more"><td colspan="${COLS.length}">${more(r)}</td></tr>` : '');
+    }).join('');
+  }
+  // 開いた行：ステータス・宝具・目立つ効果・勝ちにくい相手
+  function more(r) {
+    const s = r.sv, STJA = B.STAT_JA;
+    const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(H.rank.label(s.ranks[k]))}</b>`).join('');
+    const nps = (s.nps || []).map(n => `<li>『${esc(n.name)}』 <span class="dim">${esc(H.rank.label(n.rank))}・${esc(n.typeRaw || '種別不明')}</span> ${n.disabled ? '<span class="chip neg">使えない</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}</li>`).join('') || '<li class="dim">なし</li>';
+    const effs = Object.values(s.effectSummary || {}).filter(e => e.id !== 'tag' && Math.abs(e.passive) >= 0.05).sort((a, b) => Math.abs(b.passive) - Math.abs(a.passive)).slice(0, 8)
+      .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc(e.name + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + (e.params && e.params.cond ? '（' + e.params.cond + '）' : ''))}</span>`).join('') || '<span class="dim">なし</span>';
+    const foes = rows.filter(x => x !== r).map(x => [x, (B.battleOdds(s, x.sv, {}).pA + B.battleOdds(s, x.sv, { np: true }).pA) / 2]).sort((a, b) => a[1] - b[1]);
+    const foe = l => l.map(([x, p]) => `<li>${esc(x.sv.trueName)} <span class="dim">（${esc(x.sv.class.label)}）${Math.round(p * 100)}%</span></li>`).join('');
+    return `<div class="box"><div><h4>ステータス</h4><div class="stl">${st}</div><h4 style="margin-top:8px">目立つ効果（スキル・宝具から）</h4>${effs}</div>
+      <div><h4>宝具</h4><ul>${nps}</ul>${s.origin ? `<h4 style="margin-top:8px">元ネタ</h4>${esc(s.origin)}` : ''}</div>
+      <div><h4>勝ちにくい相手（1対1）</h4><ul>${foe(foes.slice(0, 3))}</ul><h4 style="margin-top:8px">勝ちやすい相手</h4><ul>${foe(foes.slice(-3).reverse())}</ul></div></div>`;
+  }
+
+  // ---------- 操作 ----------
+  function setSort(k) {
+    const c = colOf(k); if (!c || c.sort === false) return;
+    if (sortKey === k) asc = !asc; else { sortKey = k; asc = !!c.str; }
+    $('#sortSel').value = k; head(); render();
+  }
+  $('#head').addEventListener('click', e => { const th = e.target.closest('th[data-k]'); if (th) setSort(th.dataset.k); });
+  $('#head').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('th[data-k]')) { e.preventDefault(); setSort(e.target.dataset.k); } });
+  $('#sortSel').addEventListener('change', e => { sortKey = null; setSort(e.target.value); });
+  $('#body').addEventListener('click', e => { const b = e.target.closest('[data-open]'); if (!b) return; openId = openId === b.dataset.open ? null : b.dataset.open; render(); });
+  $('#q').addEventListener('input', render);
+  $('#cls').addEventListener('change', render);
+
+  // ---------- 生存曲線の集計（公開している集計 → このブラウザに残した集計 → 足りなければ少しずつ回す） ----------
+  async function loadSurv() {
+    const fp = H.survival.fingerprint(roster);
+    if (/^https?:$/.test(location.protocol)) {
+      try { const r = await fetch('data/survival.json', { cache: 'no-cache' }); if (r.ok) { const d = await r.json(); if (d && d.fp === fp && d.format === 'hgw-survival') surv = d; } } catch (e) { /* 手元で集計する */ }
+    }
+    if (!surv) { const c = store.get(SURV_KEY); if (c && c.fp === fp && c.format === 'hgw-survival') surv = c; }
+    if (surv && surv.wars >= SURV_TARGET) { applySurv(); render(); status(); return; }
+    // 足りないぶんを、画面を止めないよう数戦ずつ回す
+    const run = H.survival.runner(roster, { stats: surv, masters });
+    surv = run.stats;
+    let last = surv.wars;
+    const tick = () => {
+      if (run.stats.wars >= SURV_TARGET) { store.set(SURV_KEY, run.stats); surv = run.stats; applySurv(); render(); status(); return; }
+      run.step(SURV_CHUNK); surv = run.stats;
+      if (surv.wars - last >= 40) { last = surv.wars; store.set(SURV_KEY, surv); applySurv(); render(); }
+      status(); setTimeout(tick, 0);
+    };
+    applySurv(); render(); status(); setTimeout(tick, 30);
+  }
+  function status() {
+    const w = surv ? surv.wars : 0;
+    $('#status').innerHTML = `${roster.length}騎 ・ 優勝率と生存日数は ${w.toLocaleString()} 回の聖杯戦争の集計` + (w < SURV_TARGET ? ` <span class="spin"></span>集計中（${SURV_TARGET}回まで。途中の数字は揺れます）` : '') + (dataLabel ? ` ・ ${esc(dataLabel)}` : '');
+  }
+
+  // ---------- 読み込み ----------
+  let dataLabel = '';
+  (async () => {
+    const qs = new URLSearchParams(location.search);
+    try {
+      let res;
+      if (qs.get('data') === 'local') { res = H.data.loadLocal(); dataLabel = 'リストツールで作ったリスト'; }
+      else if (/^https?:$/.test(location.protocol)) res = await H.data.loadPublished('data/');
+      else { $('#status').textContent = 'ファイルを直接開いているため、データを読めません。サイトから開いてください。'; return; }
+      roster = res.servants; masters = res.masters || [];
+      if (!roster.length) { $('#status').textContent = '英霊がいません'; return; }
+    } catch (e) { $('#status').textContent = 'データを読めませんでした：' + e.message; return; }
+    const keys = Object.keys(H.CONFIG.CLASS_DEFS).filter(k => roster.some(s => s.class.key === k));
+    $('#cls').innerHTML = '<option value="">すべてのクラス</option>' + keys.map(k => `<option value="${k}">${esc(H.classDef(k).label)}（${roster.filter(s => s.class.key === k).length}）</option>`).join('');
+    $('#sortSel').innerHTML = COLS.filter(c => c.sort !== false).map(c => `<option value="${c.k}">${esc(c.t)}で並べる</option>`).join('');
+    compute(); sortKey = 'rate'; asc = false; $('#sortSel').value = 'rate'; head(); render(); status();
+    await loadSurv();
+    if (sortKey === 'rate' && rows.some(r => r.win != null)) { sortKey = null; setSort('win'); }
+  })();
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+</script>
+</body>
+</html>

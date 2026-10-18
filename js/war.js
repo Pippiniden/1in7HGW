@@ -1,11 +1,11 @@
-/* 聖杯戦争の組み合わせを決める（名簿から7騎＋α）
+/* 聖杯戦争の組み合わせを決める（リストから7騎＋α）
  * ルールは config.js の WAR で変えられる。 */
 (function (G) {
   'use strict';
   /**
    * roster: 組み立て済みサーヴァントの配列 / rnd: 0〜1 の乱数関数
    * cfg: config.js の WAR を上書きする（extra: false でエクストラクラスを一切入れない。代役にも使わない）
-   *      pick: 'open' で、クラスを気にせず名簿の全騎から均等に7騎を選ぶ（同じクラスが重なってもよい）
+   *      pick: 'open' で、クラスを気にせずリストの全騎から均等に7騎を選ぶ（同じクラスが重なってもよい）
    * 戻り値: [{ slot: 'saber', servant, substitute: bool }]
    */
   function composeWar(roster, rnd, cfg) {
@@ -18,7 +18,7 @@
     const pool = cls => roster.filter(s => !used.has(s.id) && s.class.key === cls);
     const extras = () => roster.filter(s => !used.has(s.id) && isExtra(s));
     const slots = cfg.slots.slice();
-    // クラス被り無視：名簿の全騎から、重ならないように同じ確率で選ぶ
+    // クラス被り無視：リストの全騎から、重ならないように同じ確率で選ぶ
     if (cfg.pick === 'open') {
       const pool = roster.slice();
       for (let i = 0; i < slots.length && pool.length; i++) {
@@ -48,7 +48,7 @@
     });
     return out;
   }
-  // クラスごとの人数（名簿の偏りの確認用）
+  // クラスごとの人数（リストの偏りの確認用）
   function classCounts(roster) {
     const c = {};
     for (const k of Object.keys(G.CONFIG.CLASS_DEFS)) c[k] = 0;

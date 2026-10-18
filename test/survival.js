@@ -37,11 +37,11 @@ for (const [id, t] of Object.entries(st.servants)) {
   const s = S.curveOf(t, st.days);
   ok(s[0] === 1 && s.every((v, i) => !i || v <= s[i - 1] + 1e-12) && s[st.days] >= t.w / t.n - 1e-9, `${id}: 曲線がおかしい`);
 }
-// 同じ名簿・同じ回数なら同じ集計（続きからでも同じ）
+// 同じリスト・同じ回数なら同じ集計（続きからでも同じ）
 const r2 = S.runner(roster); r2.step(60);
 const r3 = S.runner(roster, { stats: JSON.parse(JSON.stringify(r2.stats)) }); r3.step(60);
 ok(JSON.stringify(r3.stats.servants) === JSON.stringify(st.servants), '途中から続けた集計が一致しない');
-// 公開している集計が今の名簿と合っているか（合っていなくてもゲームは動く。作り直しは node tools/survival.js）
+// 公開している集計が今のリストと合っているか（合っていなくてもゲームは動く。作り直しは node tools/survival.js）
 const pub = fs.existsSync(__dirname + '/../data/survival.json') ? JSON.parse(fs.readFileSync(__dirname + '/../data/survival.json', 'utf8')) : null;
 console.log(pub ? `data/survival.json: ${pub.wars}回・指紋 ${pub.fp}` : 'data/survival.json はありません');
 console.log(fail ? `NG ${fail}件` : 'OK：名前は展開を変えない／集計の数と曲線が合っている');
