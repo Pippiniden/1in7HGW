@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>サーヴァント名簿</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
@@ -81,6 +80,7 @@ details.sv[open] > summary { border-bottom: 1px solid var(--rule); border-radius
 details.sv.flash > summary { animation: flash 1.2s ease-out; }
 @keyframes flash { from { background: var(--warn-bg); } to { background: transparent; } }
 .cls { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.cls .ci { width: 16px; height: 16px; vertical-align: -3px; margin: 0 4px 0 -4px; border-radius: 3px; }
 .cls.ex { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .body { padding: 12px 14px 16px; min-width: 0; }
 .meta { color: var(--sub); font-size: 13px; }
@@ -207,7 +207,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </head>
 <body>
 <header>
-  <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a></h1>
+  <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
   <p>開くと公開中の名簿を読み込みます。Wikiのページを貼り付けるか、書き出したJSONを読み込むと名簿に足せます。名簿と手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <main>
@@ -229,6 +229,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       </div>
       <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出した名簿）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
       <div class="status" id="status"></div>
+      <div class="box warn" id="reqBox" hidden></div>
+      <div class="hint" style="margin-top:6px">プレイヤーからの申請（<a href="submit.html" target="_blank" style="color:var(--accent)">申請フォーム</a>で作ったもの）は、Issue の「管理者向け」の枠の中身をここに貼り付けるか、申請のファイルを「ファイルを読む」で読むと反映されます。</div>
       <div class="gh">
         <h4>ページ名で取り込む（GitHub）</h4>
         <textarea id="ghNames" class="names" spellcheck="false" placeholder="ルーカン、ペンテシレイア&#10;（「、」や改行で区切る。URLでもよい）"></textarea>
@@ -521,7 +523,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#cnt').textContent = roster.length ? `${shown.length} / ${roster.length}騎` : '';
     $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
-      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="sumname">${mark(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開の変更</span>' : ''}${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
+      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="16" height="16" loading="lazy">${esc(s.class.label)}</span><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="sumname">${mark(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開の変更</span>' : ''}${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
     }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
   }
   $('#q').addEventListener('input', e => { query = e.target.value.trim(); renderList(); });
@@ -616,8 +618,40 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     pages.forEach((p, i) => { try { out.push(B.importServant(p.text || p, { title: p.title })); } catch (e) { errs.push((p.title || (i + 1) + 'ページ目') + '：' + e.message); console.error(e); } });
     return { out, errs };
   }
+  // ---------- プレイヤーからの申請（submit.html の hgw-request） ----------
+  // Issue の本文（```hgw-request … ``` の枠）でも、JSON だけでも、申請のファイルでも読める
+  function findRequest(text) {
+    const m = String(text).match(/```hgw-request\s*([\s\S]*?)```/);
+    const raw = (m ? m[1] : String(text)).trim();
+    if (!raw.startsWith('{')) return null;
+    try { const d = JSON.parse(raw); return d && d.format === 'hgw-request' ? d : null; } catch (e) { return null; }
+  }
+  function applyRequest(req) {
+    const notes = [];
+    let sv = null;
+    if (req.wiki) { sv = B.importServant(req.wiki, { title: req.page || null }); const r = upsert([sv]); open.add(sv.id); notes.push(r.add ? '英霊を1騎追加' : '英霊を1騎置き換え'); }
+    let n = 0;
+    for (const t of Object.keys(req.overrides || {})) if (TABLES[t]) for (const [k, v] of Object.entries(req.overrides[t])) { TABLES[t][k] = v; n++; }
+    if (n) { ovStore(); ovVer++; notes.push(`手直し ${n}件`); }
+    rebuildAll(); save(); render();
+    if (req.kind === 'add' && !req.wiki && req.page) {
+      $('#ghNames').value = req.page; $('#ghMode').value = 'add'; $('#ghMode').onchange();
+      notes.push(`ページのテキストが無いので、下の「ページ名で取り込む」に「${req.page}」を入れました`);
+    }
+    const who = [req.from, req.contact].filter(Boolean).join(' ／ ');
+    $('#reqBox').hidden = false;
+    $('#reqBox').innerHTML = `<b>${req.kind === 'add' ? '追加申請' : '調整の希望'}：${esc(req.class ? req.class + '「' + req.servant + '」' : req.servant)}</b>${who ? `<div>申請者：${esc(who)}</div>` : ''}`
+      + `<div>${esc(notes.join('・') || '反映するものはありません（文面だけの申請です）')}</div>`
+      + (req.reason ? `<div style="margin-top:4px;white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : '')
+      + (req.content ? `<div style="margin-top:4px;white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : '')
+      + `<div class="hint" style="margin-top:4px">反映した内容は未公開の変更です。確かめてから「公開用に保存」「手直し表を保存」で公開してください。</div>`;
+    status('申請を取り込みました');
+    const id = sv ? sv.id : req.id || (roster.find(s => s.trueName === req.servant) || {}).id;
+    if (id) jumpTo(id);
+  }
   function fromJsonText(t, name) {
     const d = JSON.parse(t);
+    if (d && d.format === 'hgw-request') return { request: d, list: [], harvested: 0 };
     const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
     if (!list) throw new Error('名簿の形式ではありません');
     const n = B.harvestOverrides(list);
@@ -629,6 +663,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     status(`追加 ${res.add}騎・置き換え ${res.rep}騎` + (extra || '') + (errs.length ? ' / 失敗：' + errs.join('、') : ''));
   }
   $('#add').onclick = () => {
+    const req = findRequest($('#src').value);
+    if (req) { try { applyRequest(req); $('#src').value = ''; } catch (e) { status('申請を読めませんでした：' + e.message); } return; }
     const pages = splitPages($('#src').value); if (!pages.length) return;
     const { out, errs } = fromText(pages);
     const res = upsert(out); out.forEach(s => open.add(s.id));
@@ -640,7 +676,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     for (const f of fs) {
       try {
         const t = await f.text();
-        if (/\.json$/i.test(f.name) || /^\s*[\[{]/.test(t)) { const r = fromJsonText(t, f.name); all.push(...r.list); harvested += r.harvested; }
+        if (/\.json$/i.test(f.name) || /^\s*[\[{]/.test(t)) { const r = fromJsonText(t, f.name); if (r.request) { applyRequest(r.request); continue; } all.push(...r.list); harvested += r.harvested; }
         else { const r = fromText(splitPages(t).map((p, i, a) => ({ title: a.length > 1 ? null : f.name.replace(/\.[^.]+$/, ''), text: p }))); all.push(...r.out); errs.push(...r.errs); }
       } catch (err) { errs.push(f.name + '：' + err.message); }
     }

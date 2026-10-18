@@ -140,4 +140,6 @@
   G.classWeights = key => Object.assign({ str: 1, end: 1, agi: 1, mag: 1, luk: 1 }, G.classDef(key).weights || {});
   // 補助：通常7騎の枠を持つクラスの一覧
   G.standardClasses = () => Object.keys(CLASS_DEFS).filter(k => CLASS_DEFS[k].slot === 'standard');
+  // クラスのアイコン（img/classes/{クラス}.webp）。七騎のクラス以外（ルーラーなどエクストラクラス）は星の印（extra.webp）
+  G.classIcon = key => 'img/classes/' + (CLASS_DEFS[key] && CLASS_DEFS[key].slot === 'standard' ? key : 'extra') + '.webp';
 })(globalThis.HGW = globalThis.HGW || {});
