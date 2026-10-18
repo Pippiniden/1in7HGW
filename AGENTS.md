@@ -108,7 +108,7 @@ img/scenes/
   README.md         Background image spec: sizes, filenames, AI image prompts (Japanese)
   *.webp            (optional) {scene}-day.webp / {scene}-night.webp
 js/
-  config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K
+  config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K, VOICE_SLOTS
   rank.js           Rank string ("A+", "C~A", "B(狂化時A)", "-", "EX") → numeric object
   parser.js         Wiki markup → structured servant (parsePage, parseServant, finalize, parseClass)
   effects.js        Effect primitives, skill dictionary, keyword rules, override tables, resolveSkill/resolveNP
@@ -136,13 +136,14 @@ test/
   content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   survival.js       Survival tally sanity + playerName never changes the outcome
+  voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
   focus.js          Win rate per constant focus by servant grade vs REC_FOCUS (reads the table from index.html)
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
 
-Current data: 64 servants (saber 12, lancer 10, rider 10, berserker 9, assassin 8, caster 6, archer 5,
-ruler 1, extra 3).
+Current data: 75 servants (saber 13, rider 11, lancer 10, berserker 10, caster 9, assassin 9, archer 6,
+ruler 2, extra 5); 40 of them have voice lines.
 
 ---
 
@@ -563,6 +564,18 @@ learned by deduction, NPs, scouting, battle insight, relations, alliance, or con
   {A} {B} {where} {W} {O} {by} {c} …`). `line(key, vars)` in the engine picks one by an FNV hash of
   `seed:lineN:entries.length` — **not** `rnd()` — so adding/editing variants never changes a war's outcome. Only the
   keys/vars each call passes are available; a missing var leaves `{x}` in the text.
+- **Voice lines (セリフ)**: `sv.voice` is `{ wiki heading: [lines] }` with free-form headings (two wiki templates: the
+  FGO-like 召喚/開始/宝具/戦闘不能/勝利/会話/絆… and a short one 自己紹介/戦闘開始/アタック/ダメージ/消滅/敗北/マイルーム…).
+  The game reads them only through **scenes** in `G.VOICE_SLOTS` (`config.js`): `{ key, aliases, use }` — 召喚(自己紹介),
+  開始(戦闘開始), 宝具, 戦闘不能(消滅・退場), 敗北, 勝利, 聖杯について(願い), 会話(マイルーム・主従関係), 好きなこと, 嫌いなこと, 絆.
+  `G.voiceLines(sv, key)` pools the key heading and its aliases; `G.npVoiceLines(sv, np)` = 宝具 lines naming that NP (else
+  lines not naming another NP). `G.VOICE_UNUSED` lists template headings the game ignores (shown as such in the roster).
+  The engine's `say(c, [keys])` takes the first scene with lines and picks one by an FNV hash of
+  `seed:v:entries.length:campId:key` (`vpick`) — **not** `rnd()` — so editing lines never changes the outcome. Only the
+  *presence* of 会話/聖杯について/好きなこと/嫌いなこと/絆 matters (it enables life events). `finalQuote` in `index.html` uses
+  `H.voiceLines` too. Uses: summon (player, 召喚), battle head (開始), NP (宝具), death (戦闘不能), end (聖杯について → 勝利),
+  life talk/grail/likes/bondv, final quote (勝利/聖杯について/絆 · 絆/聖杯について/会話 · 戦闘不能/敗北/絆). When you add a new use,
+  add or reuse a slot (with `use` text in Japanese) — `test/voice.js` fails if the code passes a key that is not a slot.
 
 ### 7.9 Log entries (`out.entries`)
 
@@ -739,7 +752,9 @@ and the file via ファイルを読む (`findRequest` / `applyRequest`): imports
 request in `#reqBox`, puts the page name into the GitHub import box when there is no text, and jumps to the servant.
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
-effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; writes
+effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; the voice tab shows one
+field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matches, unused/unknown headings (renamable), and a
+「まとめてテキストで」 mode in the old `見出し：「セリフ」` format; writes
 `CONTENT_OVERRIDES`) (all write overrides), "draw 7" preview, export `servants.json` (lean) and `overrides.json`.
 - **Published roster sync**: on load (http(s) only) it fetches `data/manifest.json` + listed servants/overrides itself
   (`fetchPublished`, not `data.js`). An empty browser roster is replaced by the published one. Otherwise a **three-way merge**
@@ -780,6 +795,7 @@ node test/skills.js             # skill dictionary (canonical names, generic nam
 node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
+node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (N=1000 seeds × 7 focuses, ~40 s)
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
@@ -787,8 +803,8 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (500 wars): errors 0, ~90% decided (draw ~10%), median 19 days (P10 11, P90 30),
-~16.5 battles, ~26 NP uses, ~4.2 command-seal events per war. Interactive: errors 0, **mismatch 0**,
+Baseline with current data (75 servants, 500 wars): errors 0, ~90–92% decided (draw ~8–10%), median 17 days (P10 10,
+P90 30), ~16 battles, ~26 NP uses, ~4 command-seal events per war. Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 
 Before opening a PR, run `sim.js` and `interactive.js` (must be `errors 0`, `mismatch 0`). Compare balance
@@ -805,6 +821,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | Add a class | One entry in `CLASS_DEFS` (`config.js`). |
 | Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`. |
 | Tune what a stat does | `CONFIG.STAT_FX` (see §7.5 Stat roles). Keep Master coefficients smaller than servant ones; update `TIPS` in `index.html` if a role changes. |
+| Voice heading the game should read | Add it to a slot's `aliases` in `VOICE_SLOTS` (`config.js`); a new scene needs a slot + a `say(c, ['key'])` call. |
 | Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. If the name is an ordinary word whose meaning depends on the description, also add it to `GENERIC`. Add canonical names to `test/skills.js`. |
 | Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`). Check with `test/rebuild.js` that existing servants did not change unexpectedly. |
 | Fix one servant | Use `roster.html` (writes `overrides.json`) or edit `data/overrides.json` directly. Prefer overrides over editing `servants.json`. |

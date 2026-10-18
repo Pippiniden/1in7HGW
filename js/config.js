@@ -142,4 +142,49 @@
   G.standardClasses = () => Object.keys(CLASS_DEFS).filter(k => CLASS_DEFS[k].slot === 'standard');
   // クラスのアイコン（img/classes/{クラス}.webp）。七騎のクラス以外（ルーラーなどエクストラクラス）は星の印（extra.webp）
   G.classIcon = key => 'img/classes/' + (CLASS_DEFS[key] && CLASS_DEFS[key].slot === 'standard' ? key : 'extra') + '.webp';
+
+  // ---------- セリフの見出し ----------
+  // Wikiの【セリフ】は「見出し：「セリフ」」の形。見出しは書き手しだいなので、ゲームが使う場面（slot）ごとに
+  // 受け付ける見出しをここにまとめる。key が代表の見出し、aliases の見出しの行も同じ場面の行として一緒に使う。
+  // use は名簿ツールに出す「ゲームで使う場面」の説明。engine.js・index.html で say/voiceLines に渡す key は
+  // かならずここにあるもの（test/voice.js で確かめる）。
+  const VOICE_SLOTS = [
+    { key: '召喚', aliases: ['自己紹介'], use: '開戦の日、あなたがこのサーヴァントを召喚した場面' },
+    { key: '開始', aliases: ['戦闘開始'], use: '夜の戦いが始まる場面（仕掛けた側が言う）' },
+    { key: '宝具', aliases: [], use: '宝具を解放した場面。その宝具の名前（か読み）を含む行を優先し、別の宝具の名前を含む行は使わない' },
+    { key: '戦闘不能', aliases: ['消滅', '退場'], use: '倒れて脱落する場面。倒れて終わったときの最後の一言（結果の画面）' },
+    { key: '敗北', aliases: [], use: '倒れて終わったときの最後の一言（戦闘不能が無いとき）' },
+    { key: '勝利', aliases: [], use: '勝ち残ったときの最後の一言（結果の画面。聖杯についてが無ければ結末の記録にも）' },
+    { key: '聖杯について', aliases: ['願い'], use: '日常（聖杯の話）・勝ち残って聖杯が降臨する結末の記録' },
+    { key: '会話', aliases: ['マイルーム', '主従関係'], use: '日常（何気ない会話）・生き残って終わったときの最後の一言' },
+    { key: '好きなこと', aliases: [], use: '日常（好きなものの話）' },
+    { key: '嫌いなこと', aliases: [], use: '日常（好きなものの話。好きなことが無いとき）' },
+    { key: '絆', aliases: [], use: '日常（絆が深まったとき）・終わったときの最後の一言（ほかの場面が無いとき）' },
+  ];
+  // ゲームでは使わないが、よく使われるテンプレートの見出し（名簿ツールで「使わない見出し」と分かるように）
+  const VOICE_UNUSED = [
+    ['戦闘中の掛け声', ['スキル', '選択', '攻撃', 'アタック', 'EX', '宝具選択', '小ダメージ', 'ダメージ', '大ダメージ']],
+    ['成長', ['レベルアップ', '霊基再臨', '第一再臨', '第二再臨', '第三再臨', '最終']],
+    ['行事・その他', ['イベント', '誕生日', '放置']],
+  ];
+  const VOICE_OF = {};
+  for (const s of VOICE_SLOTS) for (const h of [s.key].concat(s.aliases)) VOICE_OF[h] = s.key;
+  G.VOICE_SLOTS = VOICE_SLOTS;
+  G.VOICE_UNUSED = VOICE_UNUSED;
+  // 見出し → それを使う場面の key（使わない見出しは null）
+  G.voiceSlotOf = heading => VOICE_OF[heading] || null;
+  // 場面の行をすべて（代表の見出し → 別名の順）
+  G.voiceLines = (sv, key) => {
+    const v = (sv && sv.voice) || {}, s = VOICE_SLOTS.find(x => x.key === key);
+    return [].concat(...(s ? [s.key].concat(s.aliases) : [key]).map(h => v[h] || [])).filter(l => l && String(l).trim());
+  };
+  // 宝具を解放したときに使える行（その宝具の名前・読みを含む行を優先。別の宝具の名前を含む行は除く）
+  G.npVoiceLines = (sv, np) => {
+    const lines = G.voiceLines(sv, '宝具');
+    const flat = l => String(l).replace(/[\s・]/g, '');
+    const keys = [np.name, np.reading].filter(Boolean).map(flat);
+    const others = ((sv && sv.nps) || []).filter(n => n !== np && n.name !== np.name).flatMap(n => [n.name, n.reading]).filter(x => x && x.length >= 2).map(flat);
+    const mine = lines.filter(l => keys.some(k => flat(l).includes(k)));
+    return mine.length ? { lines: mine, named: true } : { lines: lines.filter(l => !others.some(k => flat(l).includes(k))), named: false };
+  };
 })(globalThis.HGW = globalThis.HGW || {});

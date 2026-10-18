@@ -2140,9 +2140,10 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (youId == null || !result) return null;
     const me = lastSnap.find(c => c.you); if (!me) return null;
     const sv = servantOf(me.id); if (!sv || !sv.voice) return null;
-    const keys = result.winner === me.id ? ['勝利', '聖杯について', '絆'] : me.alive ? ['絆', '聖杯について', '会話'] : ['戦闘不能', '消滅', '敗北', '絆'];
+    // 場面の名前は config.js の VOICE_SLOTS（戦闘不能には消滅も含む）
+    const keys = result.winner === me.id ? ['勝利', '聖杯について', '絆'] : me.alive ? ['絆', '聖杯について', '会話'] : ['戦闘不能', '敗北', '絆'];
     for (const k of keys) {
-      const lines = (sv.voice[k] || []).filter(Boolean); if (!lines.length) continue;
+      const lines = H.voiceLines(sv, k); if (!lines.length) continue;
       let h = 2166136261; const t = seed + ':last:' + k; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
       return { who: `${me.label}「${sv.trueName}」`, text: lines[(h >>> 0) % lines.length] };
     }
