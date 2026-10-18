@@ -1,4 +1,4 @@
-for (const f of ["config","rank","parser","effects","master","build"]) { try { require("../js/"+f+".js"); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } }
+for (const f of ["config","rank","parser","effects","fgoskills","master","build"]) { try { require("../js/"+f+".js"); } catch (e) { if (e.code !== 'MODULE_NOT_FOUND') throw e; } }
 const L=HGW.rank.label, fs=require('fs');
 for (const f of process.argv.slice(2)) {
   const sv=HGW.parser.parseServant(fs.readFileSync(f,"utf8"));

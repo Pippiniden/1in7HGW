@@ -1,6 +1,6 @@
 // 内容の手直し（overrides.json の content / effects.js の CONTENT_OVERRIDES）の確認
 // 使い方: node test/content.js
-for (const f of ['config', 'rank', 'parser', 'effects', 'build']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build']) require('../js/' + f + '.js');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const H = globalThis.HGW, B = H.build, E = H.effects;
 

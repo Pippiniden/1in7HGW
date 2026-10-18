@@ -4,7 +4,7 @@
 //  2) 見出しが二つの場面にまたがらない／使わない見出しの表と重ならない
 //  3) セリフを足したり消したりしても、戦争の展開（勝敗・脱落・戦いの数）は変わらない
 //  4) いまのデータで、ゲームで使う場面ごとに何騎がセリフを持っているか
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
 const fs = require('fs'), H = HGW;
 const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(H.build.fromJSON);
 let fail = 0;

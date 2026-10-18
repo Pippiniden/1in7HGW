@@ -8,12 +8,12 @@
  * js/ にファイルを足したら PRECACHE にも足す。
  */
 'use strict';
-const VERSION = 'v5';
+const VERSION = 'v6';
 const CACHE = 'hgw-' + VERSION;
 const FONT_CACHE = 'hgw-fonts';
 const PRECACHE = [
   './', 'index.html', 'roster.html', 'submit.html', 'ranking.html', 'manifest.webmanifest',
-  'js/config.js', 'js/rank.js', 'js/parser.js', 'js/effects.js', 'js/build.js', 'js/master.js', 'js/war.js', 'js/voiceedit.js',
+  'js/config.js', 'js/rank.js', 'js/parser.js', 'js/effects.js', 'js/fgoskills.js', 'js/build.js', 'js/master.js', 'js/war.js', 'js/voiceedit.js',
   'js/names.js', 'js/scenes.js', 'js/personas.js', 'js/engine.js', 'js/data.js', 'js/survival.js',
   'data/manifest.json', 'data/servants.json', 'data/overrides.json', 'data/survival.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',

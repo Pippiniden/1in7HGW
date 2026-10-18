@@ -227,6 +227,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 <script src="js/rank.js"></script>
 <script src="js/parser.js"></script>
 <script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
 <script src="js/build.js"></script>
 <script src="js/master.js"></script>
 <script src="js/war.js"></script>
@@ -349,7 +350,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 
   // ---------- 表示 ----------
   const STRENGTH = [['とても弱く', 0.4], ['弱く', 0.7], ['ふつう', 1], ['強く', 1.4], ['とても強く', 2]];
-  const SRC = { dict: ['辞書', 'ok'], override: ['手直し', 'ok'], 'servant-override': ['手直し', 'ok'], spec: ['指定', 'ok'], 'dict-partial': ['辞書＋推定', 'guess'], keyword: ['推定', 'guess'], compound: ['参照', 'guess'], type: ['種別のみ', 'guess'], default: ['仮', 'def'], lost: ['喪失', 'ok'] };
+  const SRC = { dict: ['辞書', 'ok'], override: ['手直し', 'ok'], 'servant-override': ['手直し', 'ok'], spec: ['指定', 'ok'], 'dict-partial': ['辞書＋推定', 'guess'], keyword: ['推定', 'guess'], compound: ['参照', 'guess'], type: ['種別のみ', 'guess'], default: ['仮', 'def'], lost: ['喪失', 'ok'], fgo: ['FGOより', 'guess'] };
   const MS = H.master.MASTER_STATS;
   // ゲームがどう判断したか（ことばで）
   function whyOf(kind, it) {
@@ -361,6 +362,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       compound: `説明に出てくるスキル（${m || ''}）を手がかりに判断しました（推定）`,
       type: '説明から効果を読み取れなかったので、宝具の種別だけから判断しました',
       default: '何の効果か読み取れなかったので、仮に小さな強化にしています',
+      fgo: `辞書にも説明にも手がかりが無いので、FGO の同名スキル「${m || it.name}」の働きを借りました（推定）`,
       lost: '失われた（または他のスキルにまとめられた）スキルとして、効果なしにしました',
       override: '管理者が手直し済みです', 'servant-override': '管理者が手直し済みです', spec: '指定どおりです',
     }[it.effectSource] || '';

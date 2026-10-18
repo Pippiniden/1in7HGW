@@ -4,7 +4,7 @@
 //  2) どの部品にも「誰に掛かるか・何が起きるか」の説明（EFFECT_INFO）がある
 //  3) 宝具の効果：戦いの効果は使ったときだけ、昼・偵察などの効果は持っているだけで働く
 //  4) 真名・クラスの手直し（CONTENT_OVERRIDES[Wikiの真名].identity）：組み立てると変わり、書き出すと Wiki の値に戻る
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
 const fs = require('fs'), H = HGW, E = H.effects, B = H.build;
 let fail = 0;
 const ok = (cond, msg) => { if (!cond) { fail++; console.error('NG:', msg); } };
