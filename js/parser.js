@@ -55,6 +55,25 @@
   }
   const HEADER_RE = /^([*!]{1,4})\s*(.*)$/;
 
+  // ---------- FGO風の欄（ゲームでは使わない） ----------
+  // 【FGO風性能】のような見出しの下には、レア度・霊基再臨・基本ステータス・所有カード・所有スキル・クラススキル・
+  // アペンドスキル（Skill1〜）・宝具・攻撃モーションなどが並ぶ。中の「クラススキル」「宝具」の見出しで本来の欄に
+  // 切り替わってしまわないよう、この欄の中の見出しは項目として読み捨てる（次の同じ深さの見出しで抜ける）。
+  const FGO_HEAD = /FGO|Grand\s*Order|グランドオーダー|ソシャゲ風|ゲーム風|^性能$/i;
+  // FGO風の欄に出てくる項目の名前（見出しが無くても、これが出たらそこから先はFGO風の欄とみなす）。
+  // FGO_STRONG はどの欄に出てもFGO風とみなす（解説の続きに並ぶこともある）。霊基再臨・性能などは解説にも出るので、
+  // スキル・宝具の欄の中に出たときだけ
+  const FGO_STRONG = /FGO|^(アペンドスキル|所有スキル|所有カード|基本ステータス|攻撃モーション|絆礼装|レア度)|^☆\s*\d|^(skill|スキル)\s*\d/i;
+  const FGO_ITEM = /FGO|^(アペンドスキル|所有スキル|所有カード|基本ステータス|攻撃モーション|霊基再臨|絆礼装|レア度|ILLUST$|SKILL$|カード(性能|構成)?$|性能(概要|解説)?$|スキル強化|宝具強化|(バトル|攻撃)ボイス)|^☆\s*\d|^(skill|スキル)\s*\d|^第[一二三四1-4]再臨/i;
+  const normHead = t => R.normalize(stripMarkup(t)).replace(/^[【\[■□◆◇●○\s]+|[】\]\s]+$/g, '').trim();
+  const isFgoHead = t => FGO_HEAD.test(normHead(t));
+  const isFgoItemName = t => FGO_ITEM.test(normHead(t));
+  const isFgoStrong = t => FGO_STRONG.test(normHead(t));
+  // 説明がFGO風の表（Lv.1〜・HP/ATK・Buster/Quick/Arts・Hit数 など）
+  const FGO_TABLE = /\|\s*(Lv\.?\s*1|HP|ATK|COST|Buster|Quick|Arts|Hit数|CT|段階|能力値)\s*\|/i;
+  // FGO風の性能の書き方（カード・ターン数・NP・スターなど）
+  const FGO_TEXT = /カード性能|NP(獲得|チャージ|を?増や)|スター(発生|集中|獲得)|無敵貫通|オーバーチャージ|[(（]\d+T[)）、,，]|種類[:：]\s*(クイック|バスター|アーツ|Quick|Buster|Arts)|宝具威力アップ/i;
+
   // スキル行「名前：A」の判定（ランク部分が本当にランクらしいときだけ）
   const RANK_TOKEN = /^(?:EX|[A-E]|-|―|ー|\?|測定不能|規格外|なし)[A-E+\-~()?/\w\s぀-ヿ一-鿿]{0,24}$/i;
   function splitNameRank(s) {
@@ -80,7 +99,7 @@
     const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n');
     const page = { info: [], sections: [] };
     let sec = { key: 'info', title: '(先頭)', lines: [], items: [] }; page.sections.push(sec);
-    let item = null;
+    let item = null, fgoLv = 0; // fgoLv：FGO風の欄の中にいるとき、その欄の見出しの深さ（それより深い見出しは欄の中）
     const newSection = (key, title) => { sec = { key, title, lines: [], items: [] }; page.sections.push(sec); item = null; };
     const newItem = (title) => { item = { title, lines: [] }; sec.items.push(item); };
 
@@ -89,7 +108,10 @@
       const h = line.match(HEADER_RE);
       const bare = !h && /^\s*【[^】]{1,14}】\s*$/.test(line) ? line.trim() : null; // 記号なしの見出し「【宝具】」
       if (h || bare) {
-        const text = h ? h[2] : bare;
+        const text = h ? h[2] : bare, lv = h ? h[1].length : 1;
+        if (fgoLv) { if (lv > fgoLv) { newItem(text); continue; } fgoLv = 0; }
+        if (lv === 1 && isFgoHead(text)) { newSection('fgo', stripMarkup(text)); fgoLv = 1; continue; }
+        if (lv >= 2 && (['skills', 'classSkills', 'np', 'other'].includes(sec.key) ? isFgoItemName(text) : sec.key !== 'info' && isFgoStrong(text))) { newSection('fgo', stripMarkup(text)); fgoLv = lv - 1; continue; }
         const key = sectionKeyOf(text);
         if (key && !looksLikeSkillLine(text)) { newSection(key, stripMarkup(text)); continue; }
         if (h && h[1].length === 1 && !looksLikeSkillLine(text)) { newSection('other', stripMarkup(text)); continue; }
@@ -97,11 +119,13 @@
       }
       // 見出し記号なしで書かれた項目の始まり
       if ((sec.key === 'skills' || sec.key === 'classSkills') && looksLikeSkillLine(line)) { newItem(line); continue; }
-      if ((sec.key === 'np' || sec.key === 'weapon') && /^\s*[『「]/.test(line) && stripMarkup(line).length <= 60) { newItem(line); continue; }
+      // 宝具名らしい行：『…』で始まる行か、「…」だけの短い行（中に句読点や！？があるものは詠唱・セリフなので説明のまま）
+      if ((sec.key === 'np' || sec.key === 'weapon') && stripMarkup(line).length <= 60 && (/^\s*『/.test(line) || /^\s*「[^」。、！？!?]{1,30}」\s*$/.test(stripMarkup(line)))) { newItem(line); continue; }
       (item ? item.lines : sec.lines).push(line);
     }
     // 【キー】値 の組を集める（基本情報セクション＋どこにあっても拾う一人称など）
     for (const s of page.sections) {
+      if (s.key === 'fgo') continue;
       const src = s.key === 'info' ? s.lines.concat(...s.items.map(i => [i.title, ...i.lines])) : s.lines;
       for (const l of src) {
         const re = /【([^】]{1,20})】\s*([^【]*)/g; let m;
@@ -289,7 +313,7 @@
     }
     // ステータス：「筋力」と「耐久」を含む行を全部拾い、最初を本体、残りを別形態として持つ
     const allLines = [];
-    for (const s of page.sections) if (!['np', 'skills', 'classSkills', 'weapon', 'relations', 'voice'].includes(s.key)) allLines.push(...s.lines, ...[].concat(...s.items.map(i => [i.title, ...i.lines])));
+    for (const s of page.sections) if (!['np', 'skills', 'classSkills', 'weapon', 'relations', 'voice', 'fgo'].includes(s.key)) allLines.push(...s.lines, ...[].concat(...s.items.map(i => [i.title, ...i.lines])));
     const parsedStats = collectStats(allLines);
     if (parsedStats.length) {
       sv.stats = parsedStats[0].stats;
@@ -310,6 +334,7 @@
         const t = stripMarkup(body.join('\n')); if (t) sv.text[s.key] = sv.text[s.key] ? sv.text[s.key] + '\n\n' + t : t;
       }
       if (s.key === 'relations') for (const p of collectPairs(body)) sv.relations.push({ name: p.key, text: p.value });
+      if (s.key === 'fgo') continue;
       collectVoice(body, sv.voice);
       if (s.key !== 'relations' && s.key !== 'np' && s.key !== 'skills' && s.key !== 'classSkills') {
         for (const p of collectPairs(body)) for (const [pk, re] of PROFILE_KEYS) if (re.test(p.key) && !sv.profile[pk]) sv.profile[pk] = p.value;
@@ -319,6 +344,9 @@
     if (!sv.nps.length) warnings.push('宝具が見つかりません');
     for (const sk of sv.classSkills.concat(sv.skills)) if (sk.rankRaw && sk.rank.base == null && !sk.rank.none) warnings.push(`スキル「${sk.name}」のランク「${sk.rankRaw}」を読めませんでした`);
 
+    // 読み飛ばしたFGO風の欄（見出しごと）。外した項目と同じく sv.skippedItems に残す（公開用のデータには入らない）
+    const fgoSecs = page.sections.filter(s => s.key === 'fgo');
+    if (fgoSecs.length) sv.skippedItems = fgoSecs.map(s => ({ list: 'section', name: s.title, why: 'fgo' }));
     sv.id = (sv.class.key || 'extra') + ':' + (sv.trueName || 'unknown');
     if (!opts.noSource) sv.sourceText = String(text || '');
     return finalize(sv);
@@ -330,7 +358,40 @@
    *   - 宝具・スキルの説明文中に書かれた別のステータス（【筋力：B 耐久：C …】）を別ステータスとして拾う
    */
   const READING_RE = /^[\u30A0-\u30FF\u3040-\u309Fー・=＝\s\w.'’&!?！？-]+$/;
+  /**
+   * 読み取りの間違いを取り除く（古いデータにも、読み込むたびに掛かる）。取り除いたものは sv.skippedItems に残す。
+   *   - FGO風の欄の項目（Skill1〜・アペンドスキル・所有カード・攻撃モーション、説明がFGO風の表や性能の書き方のもの）：
+   *     その項目から先の、ランクの無い項目と、すでに出た名前の項目をスキル・宝具から外す（ランクの無い同じ名前の項目も外す）
+   *   - 宝具の説明の中の詠唱・セリフの行が宝具として読まれたもの（ランクも種別も無く、文のような名前・説明なし）：
+   *     ひとつ前の宝具の説明に戻す
+   */
+  function cleanItems(sv) {
+    const skipped = sv.skippedItems || [];
+    const note = (list, name, why) => { if (!skipped.some(x => x.list === list && x.name === name && x.why === why)) skipped.push({ list, name, why }); };
+    const blank = v => !String(v == null ? '' : v).trim();
+    const isFgo = x => isFgoItemName(x.name || '') || (blank(x.rankRaw) && (FGO_TABLE.test(x.desc || '') || FGO_TEXT.test(x.desc || '') || /^\s*\|\|/.test(x.desc || '')));
+    const seen = new Set();
+    for (const [key, isNp] of [['classSkills', false], ['skills', false], ['nps', true]]) {
+      const list = sv[key] || [];
+      let zone = false; const out = [];
+      for (const x of list) {
+        const fg = isFgo(x); if (fg) zone = true;
+        const noRank = blank(x.rankRaw) && (!isNp || blank(x.typeRaw));
+        // FGO風の項目・その先のランクの無い項目・すでに出た名前でランクの無い項目（FGO風の欄の同じ宝具など）
+        if (fg || (zone && (noRank || seen.has(key + ':' + x.name))) || (noRank && seen.has(key + ':' + x.name))) { note(isNp ? 'nps' : 'skills', x.name, 'fgo'); continue; }
+        if (isNp && noRank && out.length && (/[。！？!?、]/.test(x.name) || String(x.name).length > 24 || blank(x.desc))) {
+          const prev = out[out.length - 1];
+          prev.desc = [prev.desc, x.name, x.desc].filter(t => !blank(t)).join('\n');
+          note('nps', x.name, 'merged'); continue;
+        }
+        seen.add(key + ':' + x.name); out.push(x);
+      }
+      sv[key] = out;
+    }
+    if (skipped.length) sv.skippedItems = skipped;
+  }
   function finalize(sv) {
+    cleanItems(sv);
     for (const np of sv.nps || []) {
       if (np.reading) continue;
       const m = String(np.name || '').match(/^(.+?)\s*[(（]([^()（）]+)[)）]\s*$/);

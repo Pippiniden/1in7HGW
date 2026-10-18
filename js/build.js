@@ -260,6 +260,7 @@
   function toLean(sv) {
     const o = restoreWiki(JSON.parse(JSON.stringify(sv)));
     for (const k of DERIVED) delete o[k];
+    // skippedItems（読み取りで外した項目の記録。parser.js の cleanItems）は残す。外した後の内容と一緒に公開する
     for (const it of (o.classSkills || []).concat(o.skills || [], o.nps || [])) for (const k of ITEM_DERIVED) delete it[k];
     return o;
   }

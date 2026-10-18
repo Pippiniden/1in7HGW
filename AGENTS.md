@@ -138,6 +138,7 @@ test/
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   survival.js       Survival tally sanity + playerName never changes the outcome
   voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
+  fgo.js            FGO-style blocks / chant lines are not read as skills or NPs; old data is cleaned at load
   focus.js          Win rate per constant focus by servant grade vs REC_FOCUS (reads the table from index.html)
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
@@ -201,6 +202,24 @@ serial with a 1.5 s gap.
 
 Pages deviate from the template often; the parser is deliberately tolerant (regex section/key matching,
 `SECTIONS`, `INFO_KEYS`, `PROFILE_KEYS` in `parser.js`). Struck-through text (`%%…%%`) is dropped by default.
+
+**FGO-style blocks** (many pages add `*【FGO風性能】` with レア度, 霊基再臨, 基本ステータス, 所有カード, 所有スキル (`***Skill1：…`),
+クラススキル, アペンドスキル, 宝具, 攻撃モーション, 性能解説 …) are not game data. `parsePage` opens a section `'fgo'` at a level-1
+heading matching `FGO_HEAD`, or at a deeper heading that is an FGO item name (`FGO_ITEM` inside skills/classSkills/np/other sections;
+the stronger `FGO_STRONG` — FGO, アペンドスキル, 所有スキル/カード, 基本ステータス, 攻撃モーション, 絆礼装, レア度, ☆N, SkillN — in any
+section but info); headings deeper than that level stay inside it as items (so its 「クラススキル」「宝具」 no longer switch sections),
+and it ends at the next heading of the same or a shallower level. `'fgo'` sections give no skills/NPs/stats/info/text/voice and are
+recorded in `sv.skippedItems` as `{ list: 'section', name, why: 'fgo' }`. In the 宝具 section a bare line becomes an NP item only if it
+starts with 『 or is a short 「…」 without 。、！？ (longer 「…」 lines are chants and stay in the description).
+**`finalize` → `cleanItems`** repairs data that was already imported (lean JSON has no source text, so this runs at every load):
+in classSkills/skills/nps, an FGO item (name matches `FGO_ITEM`, or no rank and a description that is an FGO table / FGO wording —
+`FGO_TABLE`, `FGO_TEXT`, `||…`) starts a zone in which items with no rank (NPs: no rank and no type) or a name seen earlier are dropped;
+a rankless repeat of an earlier name is dropped anywhere; an NP with no rank and no type whose name looks like a sentence (。！？、, > 24
+chars) or that has no description is merged into the previous NP's description (`why: 'merged'`). Removed items are listed in
+`sv.skippedItems` (`{ list: 'skills'|'nps', name, why: 'fgo'|'merged' }`), which is kept in lean data and shown in the roster detail
+(「読み取りで外した項目」), in submit.html's judgement and in the import workflow's PR body. On the current data this removes 85 items
+from 16 servants (their power / NP peak drop accordingly; e.g. タリエシン's and フリッツ・デュケイン's only "attack NPs" were chant lines /
+FGO entries). `test/fgo.js` covers both paths.
 `roster.html` accepts several pages pasted together separated by a line of `=====`.
 
 ### 4.2 Rank object (`rank.js`)
@@ -224,7 +243,7 @@ class {key,label,raw,standard,sub}, origin, sex, alignment, attribute, traits, s
 nps [{name, reading, rankRaw, rank, typeRaw, typeKey, range, maxTargets, desc, …}], weapons, profile
 {likes, dislikes, wish, imageColor, specialty, firstPerson…}, relations [{name,text}], voice {heading:[lines]},
 text {commentary, personality, comment, voice, other}, info (all 【key】 pairs), warnings, body, page?`
-(`page` = kagemiya page title, set by `tools/kagemiya.js`). The browser roster may also hold `_wiki` (see 4.5).
+(`page` = kagemiya page title, set by `tools/kagemiya.js`), `skippedItems?` (see 4.1). The browser roster may also hold `_wiki` (see 4.5).
 
 Derived fields (added by `buildServant`, stripped by `toLean`): `contentEdited, ranks, score, statSource, tags, allSkills
 (with .effects/.effectSource/.matched/.group), nps[].{attackResolved, power, burst, cost, exposure, multi,
@@ -815,6 +834,7 @@ node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
 node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
+node test/fgo.js                # FGO-style blocks and chant lines are not read as skills/NPs (parse + load-time cleanup)
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (N=1000 seeds × 7 focuses, ~40 s)
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
