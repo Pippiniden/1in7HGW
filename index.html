@@ -393,19 +393,31 @@ body.watching .war { display: block; }
 .opening .rowsel button[aria-pressed="true"] .rec { color: var(--sel-ink); }
 .opening .note2 { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
 /* 名前をつける（開戦の案内の1枚目） */
-.namefield { display: grid; gap: 6px; margin: 0 0 14px; padding: 10px 12px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.namefield { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0 0 14px; padding: 10px 12px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
 .namefield .lbl, .wordin .lbl { font-size: 12px; color: var(--mute); }
 .namefield .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .namefield input, .wordin input { flex: 1 1 200px; min-width: 0; background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 12px; font: 500 18px var(--gothic); }
 .wordin input { width: 100%; font: 500 16px var(--mincho); }
 .namefield input:focus, .wordin input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
-.namefield .btn { min-height: 34px; font-size: 12px; --cut: 7px; }
+.namefield .row > * { min-width: 0; }
+/* 長い名前でも折り返して、画面からはみ出さない */
+.namefield .btn { min-height: 34px; font-size: 12px; --cut: 7px; white-space: normal; max-width: 100%; text-align: left; line-height: 1.5; }
 .namefield .hint2 { font-size: 12px; color: var(--mute); margin: 0; }
 .wordin { display: grid; gap: 6px; margin: 0 0 4px; }
 .words .dlg-foot #wordOff { margin-right: auto; }
 /* 画像のプレビュー */
 .imgdlg { background: rgba(2, 6, 16, .86); }
 .imgdlg .dlg-in { width: min(760px, 100%); }
+.imgdlg .dlg-foot #imgBack { margin-right: auto; }
+/* 画像の選択（3パターン） */
+.imgpick { display: grid; gap: 8px; }
+.imgpick .lead4 { margin: 0 0 4px; font-size: 13px; color: var(--mute); }
+.imgopt { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 14px; align-items: center; text-align: left; cursor: pointer; padding: 8px; border: 0; color: var(--ice);
+  background: linear-gradient(90deg, rgba(20, 70, 150, .55), rgba(10, 36, 86, .45)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.imgopt:hover, .imgopt:focus-visible { box-shadow: inset 0 0 0 1px var(--cyan); outline: none; }
+.imgopt img { grid-row: span 2; width: 112px; height: 84px; object-fit: cover; object-position: top; display: block; box-shadow: inset 0 0 0 1px var(--line); background: var(--void); }
+.imgopt b { font-size: 15px; align-self: end; }
+.imgopt small { font-size: 12px; color: var(--mute); align-self: start; }
 .imgwrap { background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; max-height: 62vh; overflow: auto; }
 .imgwrap img { display: block; width: 100%; height: auto; }
 /* 生存曲線（サーヴァントの解説） */
@@ -774,9 +786,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   <section class="dlg-in panel">
     <div class="dlg-head"><i class="chev"></i><span class="en">Image</span><span class="step" id="imgSub"></span></div>
     <div class="band" id="imgTitle">画像</div>
-    <div class="opbody"><div class="imgwrap"><img id="imgPrev" alt=""></div>
-      <p class="note2" id="imgNote">画像を長押し（パソコンは右クリック）しても保存できます。</p></div>
-    <div class="dlg-foot"><button class="btn" id="imgClose">閉じる</button><button class="btn" id="imgShare" hidden>共有する</button><button class="btn primary" id="imgSave">保存する</button></div>
+    <div class="opbody">
+      <div id="imgPick"></div>
+      <div id="imgView" hidden><div class="imgwrap"><img id="imgPrev" alt=""></div>
+        <p class="note2" id="imgNote">画像を長押し（パソコンは右クリック）しても保存できます。</p></div>
+    </div>
+    <div class="dlg-foot"><button class="btn" id="imgBack" hidden>← 選び直す</button><button class="btn" id="imgClose">閉じる</button><button class="btn" id="imgShare" hidden>共有する</button><button class="btn primary" id="imgSave" hidden>保存する</button></div>
   </section>
 </div>
 <div class="toast panel" id="toast" role="status"></div>
@@ -1208,7 +1223,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、くじで決まった名前になる）</label>
           <div class="row"><input type="text" id="opName" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="next" value="${esc(m.name || snap.master)}">
             ${playerName ? '<button class="btn" id="opNameReset" type="button">くじの名前に戻す</button>' : ''}
-            ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last)}」</button>` : ''}</div>
+            ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last.length > 12 ? last.slice(0, 12) + '…' : last)}」</button>` : ''}</div>
           <p class="hint2">名前を変えても、戦争の展開は変わらない。</p></div>
         <p class="say">${esc(out.city)}。${esc(meta.base)}を拠点に、あなたは聖杯戦争に臨む。手の甲には三画の令呪が刻まれている。</p>
         <dl class="opkv">
@@ -1238,7 +1253,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         ${ranks}
         <ul class="notes">${ev.good.map(t => `<li>${esc(t)}</li>`).join('')}${ev.bad.map(t => `<li class="neg">${esc(t)}</li>`).join('')}</ul>
         ${sv && sv.text && sv.text.commentary ? `<p class="txt2">${esc(excerpt(sv.text.commentary, 90))}</p>` : ''}
-        <div class="links"><button class="btn" id="opLore">解説と生存曲線を見る</button><button class="btn" id="opCard">この評価を画像にする</button></div>
+        <div class="links"><button class="btn" id="opLore">解説と生存曲線を見る</button></div>
         <p class="note2">ステータス・スキル・宝具から見た、この英霊そのものの強さの目安です。今回の顔ぶれとの相性は含みません。</p>`
         : `${ranks}<p class="note2">この英霊は名簿に見当たらないため、評価を出せません。</p>`;
     } else {
@@ -1285,7 +1300,6 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
   $('#opBody').addEventListener('click', e => {
     if (e.target.closest('#opLore')) { const me = lastSnap.find(c => c.you); if (me) openLore(me.id); return; }
-    if (e.target.closest('#opCard')) { cardImage('servant'); return; }
     if (e.target.closest('#opNameReset')) { applyName(''); renderOpening(); $('#opName').focus(); return; }
     if (e.target.closest('#opNameLast')) { applyName(settings0.name); renderOpening(); $('#opName').focus(); return; }
     const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f);
@@ -2085,7 +2099,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       ${decisionSection()}
       ${wordsSection()}
       ${hlTimeline()}
-      <div class="acts"><button class="btn primary" id="again">別の聖杯戦争を始める</button><button class="btn" id="share">この戦争のリンクをコピー</button>${youId != null ? '<button class="btn" id="mine">自陣営の記録を見る</button>' : ''}<button class="btn" id="csv2">記録をCSVで保存</button><button class="btn" id="card1">結末を画像にする</button>${youId != null ? '<button class="btn" id="card2">サーヴァントの評価を画像にする</button>' : ''}<button class="btn" id="back">最初の画面へ</button></div>
+      <div class="acts"><button class="btn primary" id="again">別の聖杯戦争を始める</button><button class="btn" id="share">この戦争のリンクをコピー</button>${youId != null ? '<button class="btn" id="mine">自陣営の記録を見る</button>' : ''}<button class="btn" id="csv2">記録をCSVで保存</button><button class="btn" id="cardBtn">画像にする</button><button class="btn" id="back">最初の画面へ</button></div>
     </div></section>`;
     $('#result').querySelectorAll('[data-lore]').forEach(b => b.onclick = () => openLore(+b.dataset.lore));
     bindBondHover();
@@ -2094,8 +2108,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     store.set(SAVE_KEY, null);
     addHistory();
     $('#csv2').onclick = exportCsv;
-    $('#card1').onclick = () => cardImage('result');
-    const c2 = $('#card2'); if (c2) c2.onclick = () => cardImage('servant');
+    $('#cardBtn').onclick = openImages;
     const mine = $('#mine'); if (mine) mine.onclick = () => { setLogFilter('you'); $('#logWrap').classList.add('open'); $('#logMore').setAttribute('aria-expanded', 'true'); syncLog(); $('#logWrap').scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); };
     $('#again').onclick = () => { $('#seed').value = ''; start(); };
     $('#back').onclick = quit;
@@ -2183,13 +2196,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     ctx.shadowBlur = 0;
   }
   // 見出し（英字の帯・金の山形・題）。戻り値は次に描く位置
-  function cardHead(ctx, en, right, title) {
-    const { W, P } = CV;
+  // 見出し（英字の帯・金の山形・題）。top は帯の上端（つなげた画像の2枚目では途中から描く）。戻り値は次に描く位置
+  function cardHead(ctx, en, right, title, top) {
+    const { W, P } = CV, T = top == null ? P : top;
     setFont(ctx, 700, 22, CF.en); spacing(ctx, 4); ctx.fillStyle = CC.cyan; ctx.textAlign = 'left';
-    ctx.shadowColor = 'rgba(62, 230, 255, .55)'; ctx.shadowBlur = 10; ctx.fillText(en, P, P + 20); ctx.shadowBlur = 0;
-    spacing(ctx, 0); setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.textAlign = 'right'; ctx.fillText(right, W - P, P + 20); ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(62, 230, 255, .55)'; ctx.shadowBlur = 10; ctx.fillText(en, P, T + 20); ctx.shadowBlur = 0;
+    spacing(ctx, 0); setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.textAlign = 'right'; ctx.fillText(right, W - P, T + 20); ctx.textAlign = 'left';
     // 金の山形
-    const cx = P, cy = P + 48;
+    const cx = P, cy = T + 48;
     ctx.fillStyle = CC.gold; ctx.beginPath();
     for (const ox of [0, 14]) { ctx.moveTo(cx + ox, cy); ctx.lineTo(cx + ox + 9, cy); ctx.lineTo(cx + ox + 20, cy + 14); ctx.lineTo(cx + ox + 9, cy + 28); ctx.lineTo(cx + ox, cy + 28); ctx.lineTo(cx + ox + 11, cy + 14); ctx.closePath(); }
     ctx.fill();
@@ -2197,6 +2211,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const y = cy + 52;
     ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
     return y + 28;
+  }
+  // つなげた画像の区切り（シアンの二重線と、中央の菱形）
+  function cardDivider(ctx, y) {
+    const { W, P } = CV;
+    ctx.strokeStyle = 'rgba(62, 230, 255, .55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(W - P, y); ctx.stroke();
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 6.5); ctx.lineTo(W - P, y + 6.5); ctx.stroke();
+    ctx.fillStyle = CC.gold; ctx.save(); ctx.translate(W / 2, y + 3); ctx.rotate(Math.PI / 4); ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+    return y + 34;
   }
   function cardFoot(ctx, y, left) {
     const { W, P } = CV;
@@ -2228,8 +2250,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     ctx.fillStyle = color; ctx.shadowColor = color; ctx.shadowBlur = 8; ctx.fillRect(x, y, Math.max(3, Math.min(1, ratio) * w), h); ctx.shadowBlur = 0;
   }
 
-  // 結末のまとめ
-  function drawResultCard(ctx) {
+  // 結末のまとめ（o.foot === false なら下の帯を描かずに、次に描く位置を返す）
+  function drawResultCard(ctx, o) {
+    o = o || {};
     const { W, P } = CV;
     const w = result.winner != null ? result.camps[result.winner] : null, you = result.you != null ? result.camps[result.you] : null;
     let y = cardHead(ctx, 'HOLY GRAIL WAR ／ RESULT', `${out.city} ・ ${result.days}日間`, '聖杯戦争 観戦記');
@@ -2263,7 +2286,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const won = c.id === result.winner, mine = !!(lastSnap[c.id] && lastSnap[c.id].you) || c.id === youId;
       const fate = won ? '聖杯を手にした' : c.fate ? c.fate.text : '';
       setFont(ctx, 500, 22, CF.go);
-      const cells = [c.label, c.trueName, c.master, fate].map((t, i) => wrapText(ctx, t, widths[i]).slice(0, i === 3 ? 3 : 2));
+      const cells = [c.label, c.trueName, c.master, fate].map((t, i) => { const max = i === 3 ? 4 : 2, l = wrapText(ctx, t, widths[i]); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });
       const h = Math.max(...cells.map(l => l.length)) * 31 + 16;
       if (mine) { ctx.fillStyle = 'rgba(62, 230, 255, .12)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, h); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, h); }
       ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + h + 0.5); ctx.lineTo(W - P, y + h + 0.5); ctx.stroke();
@@ -2274,15 +2297,16 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       });
       y += h;
     }
-    return cardFoot(ctx, y + 24, `SEED ${seed}`);
+    return o.foot === false ? y + 24 : cardFoot(ctx, y + 24, `SEED ${seed}`);
   }
-  // 呼んだサーヴァントの評価（開戦の案内の2枚目と同じ内容）
-  function drawServantCard(ctx) {
+  // 呼んだサーヴァントの評価（開戦の案内の2枚目と同じ内容と、生存曲線）。o.top を渡すと、その位置から続けて描く
+  function drawServantCard(ctx, o) {
+    o = o || {};
     const { W, P } = CV;
-    const id = op ? op.snap.id : youId, meta = op ? op.meta : metaOf(id), m = meta.master || {};
-    const sv = op ? op.sv : servantOf(id), ev = op ? op.ev : sv ? evaluate(sv) : null;
+    const id = youId, meta = metaOf(id), m = meta.master || {};
+    const sv = servantOf(id), ev = sv ? evaluate(sv) : null;
     const label = (out.camps[id] || {}).label || (sv ? sv.class.label : '');
-    let y = cardHead(ctx, 'SERVANT APPRAISAL', `${out.city} ・ SEED ${seed}`, '呼んだサーヴァント');
+    let y = cardHead(ctx, 'SERVANT APPRAISAL', o.top != null ? '開戦時の評価' : `${out.city} ・ SEED ${seed}`, '呼んだサーヴァント', o.top);
     setFont(ctx, 700, 46, CF.go); ctx.fillStyle = CC.ice; y = para(ctx, `${label}「${meta.trueName}」`, P, y, W - P * 2, 60);
     setFont(ctx, 500, 22, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, `マスター ${m.name || ''}${m.originLabel ? '・' + m.originLabel : ''}`, P, y + 2, W - P * 2, 34) + 18;
     if (ev) {
@@ -2348,51 +2372,77 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     }
     return cardFoot(ctx, y + 10, `SEED ${seed}`);
   }
+  // 画像は3パターン（結末のまとめ・サーヴァントの評価・両方をつなげた一枚）。戦争が終わってから作れる
+  const CARD_KINDS = {
+    result: { title: '結末のまとめ', desc: '勝者・あなたの歩み・最後の一言・七陣営の結末', file: '結末' },
+    servant: { title: 'サーヴァントの評価', desc: '呼んだ英霊の開戦時の評価と、生存曲線', file: '評価' },
+    both: { title: '両方をつなげた一枚', desc: '結末のまとめの下に、サーヴァントの評価をつなげる', file: '結末と評価' },
+  };
   // 描いた内容の高さに合わせて、背景つきの画像にする
-  async function cardImage(kind) {
-    if (!out || !out.meta) return;
-    if (kind === 'result' && !result) return;
-    toast('画像を作っています…');
-    if (kind === 'servant') await survQuick();
-    const text = JSON.stringify(out.meta) + JSON.stringify(result ? result.camps : '') + words.map(w => w.text).join('') + (finalQuote() || { text: '' }).text
-      + Object.values(GRADE).join('') + '聖杯戦争観戦記呼んだサーヴァント名簿騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として七騎の戦いを見届けたすべてを知る観測者下した大きな決断は回';
-    await cardFonts(text + (op && op.ev ? op.ev.good.join('') + op.ev.bad.join('') : '') + (youId != null && servantOf(youId) ? evaluate(servantOf(youId)).good.join('') + evaluate(servantOf(youId)).bad.join('') : ''));
-    const draft = document.createElement('canvas'); draft.width = CV.W; draft.height = 2600;
+  async function makeCard(kind) {
+    const draft = document.createElement('canvas'); draft.width = CV.W; draft.height = 4400;
     const dctx = draft.getContext('2d'); dctx.textBaseline = 'alphabetic';
     let h;
-    try { h = Math.ceil(kind === 'result' ? drawResultCard(dctx) : drawServantCard(dctx)); }
-    catch (e) { toast('画像を作れませんでした：' + e.message); return; }
-    const cv = document.createElement('canvas'); cv.width = CV.W; cv.height = Math.min(2600, h + 30);
+    if (kind === 'result') h = drawResultCard(dctx);
+    else if (kind === 'servant') h = drawServantCard(dctx);
+    else { const y = cardDivider(dctx, drawResultCard(dctx, { foot: false }) + 6); h = drawServantCard(dctx, { top: y }); }
+    const cv = document.createElement('canvas'); cv.width = CV.W; cv.height = Math.min(draft.height, Math.ceil(h) + 30);
     const ctx = cv.getContext('2d'); cardBg(ctx, cv.width, cv.height); ctx.drawImage(draft, 0, 0);
     const blob = await new Promise(r => cv.toBlob(r, 'image/png'));
-    if (!blob) { toast('画像を作れませんでした'); return; }
-    const me = youId != null ? metaOf(youId).trueName : '';
-    const name = kind === 'result' ? `聖杯戦争_結末_${out.city}_${seed}.png` : `聖杯戦争_${cleanName(me) || 'サーヴァント'}_評価_${seed}.png`;
-    showImage(blob, name, kind === 'result' ? '結末のまとめ' : '呼んだサーヴァントの評価');
+    if (!blob) throw new Error('PNGにできませんでした');
+    return { kind, blob, url: URL.createObjectURL(blob), name: `聖杯戦争_${CARD_KINDS[kind].file}_${out.city}_${seed}.png`, title: CARD_KINDS[kind].title };
   }
-  let imgUrl = null, imgBlob = null, imgName = '';
-  function showImage(blob, name, title) {
-    if (imgUrl) URL.revokeObjectURL(imgUrl);
-    imgBlob = blob; imgName = name; imgUrl = URL.createObjectURL(blob);
-    $('#imgPrev').src = imgUrl; $('#imgPrev').alt = title; $('#imgTitle').textContent = title; $('#imgSub').textContent = 'PNG';
+  let cards = {}, imgCur = null;
+  // 「画像にする」：作れるものをまとめて作り、小さな見本から選んでもらう（観測者は結末のまとめだけ）
+  async function openImages() {
+    if (!out || !result) return;
+    const kinds = youId != null ? ['result', 'servant', 'both'] : ['result'];
+    $('#imgTitle').textContent = '画像にする'; $('#imgSub').textContent = 'PNG';
+    $('#imgPick').innerHTML = '<p class="note2">画像を作っています…</p>'; showImgPick(true);
+    $('#imgDlg').classList.add('on');
+    await survQuick();
+    const sv = youId != null ? servantOf(youId) : null, ev = sv ? evaluate(sv) : null;
+    await cardFonts(JSON.stringify(out.meta) + JSON.stringify(result.camps) + words.map(w => w.text).join('') + (finalQuote() || { text: '' }).text
+      + (ev ? ev.good.join('') + ev.bad.join('') : '') + Object.values(GRADE).join('')
+      + '聖杯戦争観戦記呼んだサーヴァント開戦時の評価名簿騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として七騎の戦いを見届けたすべてを知る観測者下した大きな決断は回のちにと契約した失い');
+    for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
+    cards = {};
+    try { for (const k of kinds) cards[k] = await makeCard(k); }
+    catch (e) { $('#imgPick').innerHTML = `<p class="note2">画像を作れませんでした：${esc(e.message)}</p>`; return; }
+    if (!$('#imgDlg').classList.contains('on')) return;
+    if (kinds.length === 1) return showCard('result', true);
+    $('#imgPick').innerHTML = `<div class="imgpick"><p class="lead4">どの画像にするか選んでください。</p>${kinds.map(k =>
+      `<button class="imgopt" data-card="${k}"><img src="${cards[k].url}" alt=""><b>${esc(CARD_KINDS[k].title)}</b><small>${esc(CARD_KINDS[k].desc)}</small></button>`).join('')}</div>`;
+    const first = $('#imgPick .imgopt'); if (first) first.focus({ preventScroll: true });
+  }
+  function showImgPick(on) {
+    $('#imgPick').hidden = !on; $('#imgView').hidden = on;
+    $('#imgSave').hidden = on; $('#imgShare').hidden = true; $('#imgBack').hidden = true;
+  }
+  function showCard(kind, only) {
+    const c = cards[kind]; if (!c) return;
+    imgCur = c; showImgPick(false);
+    $('#imgPrev').src = c.url; $('#imgPrev').alt = c.title; $('#imgTitle').textContent = c.title;
     let can = false;
-    try { can = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], name, { type: 'image/png' })] })); } catch (e) { can = false; }
-    $('#imgShare').hidden = !can;
-    $('#imgDlg').classList.add('on'); $('#toast').classList.remove('on');
+    try { can = !!(navigator.canShare && navigator.canShare({ files: [new File([c.blob], c.name, { type: 'image/png' })] })); } catch (e) { can = false; }
+    $('#imgShare').hidden = !can; $('#imgBack').hidden = !!only;
+    $('#imgDlg .dlg-in').scrollTop = 0;
     $('#imgSave').focus({ preventScroll: true });
   }
+  $('#imgPick').addEventListener('click', e => { const b = e.target.closest('[data-card]'); if (b) showCard(b.dataset.card); });
+  $('#imgBack').onclick = () => { $('#imgTitle').textContent = '画像にする'; showImgPick(true); const b = $('#imgPick .imgopt'); if (b) b.focus({ preventScroll: true }); };
   function closeImg() { $('#imgDlg').classList.remove('on'); }
   $('#imgClose').onclick = closeImg;
   $('#imgDlg').addEventListener('click', e => { if (e.target.id === 'imgDlg') closeImg(); });
   $('#imgSave').onclick = () => {
-    if (!imgUrl) return;
-    const a = document.createElement('a'); a.href = imgUrl; a.download = imgName;
+    if (!imgCur) return;
+    const a = document.createElement('a'); a.href = imgCur.url; a.download = imgCur.name;
     document.body.appendChild(a); a.click(); a.remove();
     toast('画像を保存しました');
   };
   $('#imgShare').onclick = async () => {
-    if (!imgBlob) return;
-    try { await navigator.share({ files: [new File([imgBlob], imgName, { type: 'image/png' })], title: '聖杯戦争 観戦記' }); }
+    if (!imgCur) return;
+    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '聖杯戦争 観戦記' }); }
     catch (e) { if (e && e.name !== 'AbortError') toast('共有できませんでした。「保存する」を使ってください'); }
   };
 

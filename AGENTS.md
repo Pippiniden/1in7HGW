@@ -113,7 +113,8 @@ js/
   build.js          Parsed servant → game servant (scores, effects, power); toLean/fromJSON; battleOdds
   master.js         Master structure, origins, createMaster, parseMasterText
   war.js            composeWar: pick 7 (+extra) servants for one war
-  names.js          Name pools, cities, places (terrain + scene), church name, wishes
+  names.js          Name pools, cities, places (terrain + scene), church name, wishes. Names/cities are picked with a
+                    fixed number of rnd() calls, so adding entries changes only text; adding places changes outcomes (shuffle + terrain)
   scenes.js         Scene categories + fallback chain for background images
   personas.js       Master personalities and their behavioural biases
   engine.js         The simulation (generator), ~870 lines
@@ -677,11 +678,14 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   record replays and URL replays with `c`/`f`. Result: `lastWordHtml()` (servant's final voice line by situation — 勝利/聖杯について/
   絆 when won, 絆/聖杯について/会話 when alive, 戦闘不能/消滅/敗北/絆 when gone — picked by an FNV hash of the seed, plus your latest
   word) and `wordsSection()`.
-- **Images** (`cardImage('result'|'servant')`): drawn on a canvas (1200px wide, height fits the content: drawn on a draft canvas,
-  then copied over `cardBg`), fonts loaded first with `document.fonts.load(…, text)` (falls back to system fonts offline). Result
-  card: winner, your camp's arc (handles recontract), bond, final quotes, seven-camp table, seed. Servant card: the opening's
-  rating of the servant you summoned (`youId`; uses `op` while the opening is open) plus its survival curve when a tally is at hand
-  (`survQuick()`). `#imgDlg` previews the PNG with 保存する (download) and 共有する (Web Share with files, only when `canShare`).
+- **Images** (only after the war ends: result panel 「画像にする」 → `openImages()`): renders all available cards at once and shows
+  them as thumbnails in `#imgDlg` (`#imgPick`, buttons `[data-card]`) — `result` (結末のまとめ), `servant` (呼んだサーヴァントの評価:
+  the opening rating of the servant summoned in camp `youId` plus its survival curve when `survQuick()` finds a tally) and
+  `both` (result card without its footer, `cardDivider`, then the servant card continued with `cardHead(…, top)`). Observers get
+  `result` only and skip the picker. Picking one shows the preview (`#imgView`) with ← 選び直す / 保存する (download) / 共有する
+  (Web Share with files, only when `canShare`). `makeCard(kind)` draws on a 4400px draft canvas, then copies it over `cardBg` at
+  the content height (1200px wide); fonts are loaded first with `document.fonts.load(…, text)` (system fonts offline). There is no
+  image button in the opening.
 - **Survival curve in the lore dialog** (`#survBox`, `renderSurvival`): `survQuick()` uses `data/survival.json` when its `fp`
   matches the roster, else the browser cache `hgw.survival.v1`; `loadSurvival()` then tops up to `SURV_TARGET` (800) wars in
   chunks of `SURV_CHUNK` (3) with `setTimeout` gaps (longer while a war is playing), saving every 60 wars and redrawing with
