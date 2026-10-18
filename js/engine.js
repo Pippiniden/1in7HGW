@@ -159,10 +159,20 @@
       const e = Object.assign({ day, phase, kind, text, ids, you: !!you && ids.includes(you.id) }, extra || {});
       if (phase === 'night' && tonight.rain) e.weather = 'rain';
       else if (phase === 'night' && tonight.moon) e.weather = 'moon';
+      else if (phase === 'night' && tonight.fog) e.weather = 'fog';
       e.snap = snap();
       entries.push(e);
       if (you && ids.includes(you.id) && /battle|death|cs/.test(kind)) you.notable = true;
       return e;
+    }
+    // 文面（names.js の LINES）から1つ選んで {…} を埋める。乱数は使わず、シードと記録の位置で決まるので、
+    // 文面を足しても戦争の展開は変わらない
+    let lineN = 0;
+    function line(key, vars) {
+      const list = (G.LINES && G.LINES[key] && G.LINES[key].length) ? G.LINES[key] : [key];
+      let h = 2166136261; const t = seed + ':' + (lineN++) + ':' + entries.length;
+      for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return list[(h >>> 0) % list.length].replace(/\{(\w+)\}/g, (m, k) => vars && vars[k] != null ? vars[k] : m);
     }
     const voice = (c, keys) => { for (const k of keys) { const v = c.sv.voice && c.sv.voice[k]; if (v && v.length) return pick(v); } return null; };
     const say = (c, keys) => { const v = voice(c, keys); return v ? { who: nm(c), text: v } : null; };
@@ -244,7 +254,7 @@
         : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${nm(c)}は消滅した。`
         : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
         : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${nm(c)}は消滅した。`
-        : `${nm(by)}がとどめを刺した。${nm(c)}は消滅した。`;
+        : line('blow', { by: nm(by), c: nm(c) });
       log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
       if (c.you && c.masterAlive) {
@@ -359,7 +369,7 @@
       a.fought = b.fought = true; a.battles++; b.battles++;
       a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set(); a.lastNP = b.lastNP = null;
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
-      log('battle', `${ctx.rain ? '雨の' : ''}${where}で、${nm(a)}と${nm(b)}が激突した。`, [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
+      log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
       const rt = related(a, b);
       if (rt) {
@@ -426,11 +436,11 @@
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
           const agi = sd(weaker, 'agi') - sd(other, 'agi');
           if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
-            log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : `${sn(weaker)}は退いた。${sn(other)}は深追いしなかった。`, [weaker.id, other.id]); break;
+            log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : line('retreat', { W: sn(weaker), O: sn(other) }), [weaker.id, other.id]); break;
           } else if (eff(other, 'pin', ctx.terrain) > 0.1) log('battle', `退こうとした${sn(weaker)}の行く手を、${sn(other)}が阻んだ。`, [weaker.id, other.id]);
           else if (agi <= -0.6) log('battle', `退こうとした${sn(weaker)}に、${sn(other)}の速さが追いすがった。`, [weaker.id, other.id]);
         }
-        if (round === ENG.rounds) log('battle', '夜明けが近づき、両者は刃を収めた。', [a.id, b.id]);
+        if (round === ENG.rounds) log('battle', line('dawn'), [a.id, b.id]);
       }
       if (ctx.home) a.knowLoc.add(ctx.home.id);
       // 戦いぶりから、相手のマスターの性格が見えてくる
@@ -470,47 +480,79 @@
       if ((v['好きなこと'] || v['嫌いなこと'] || []).length) opt.likes = 1.5;
       if (c.bond >= 70 && (v['絆'] || []).length && !c.lifeSeen.has('bondv')) opt.bondv = 3;
       opt.outing = 1; opt.master = 1.5;
+      opt.train = 1; opt.watch = 1; opt.stars = 0.8; opt.quarrel = 0.5;
+      if (sv.text && firstSentence(sv.text.personality, 70) && (c.tales || 0) < 2) opt.tale = 1.2;
+      if (c.hp < 70) opt.care = 2;
       const k = wpick(opt); c.lifeSeen.add(k === 'bondv' ? 'bondv' : k);
       const S = sn(c), M = mn(c);
-      if (k === 'meal') { bondUp(c, 5); c.hp = Math.min(100, c.hp + 5); log('life', `${M}は${S}と食卓を囲んだ。${S}の好きなものは「${pf.likes}」らしい。`, [c.id]); }
-      else if (k === 'talk') { bondUp(c, 4); log('life', `夜更け、${S}がぽつりと話しかけてきた。`, [c.id], { quote: say(c, ['会話']) }); }
-      else if (k === 'dream') { c.dreams++; bondUp(c, 8); log('life', `${M}は夢を見た。遠い昔の、${S}の記憶——${firstSentence(sv.text.commentary, 70)}。`, [c.id]); }
-      else if (k === 'dislike') { bondUp(c, 1); log('life', `${S}が露骨に顔をしかめた。どうやら「${pf.dislikes}」が苦手らしい。`, [c.id]); }
-      else if (k === 'grail') { bondUp(c, 3); const q = say(c, ['聖杯について']); log('life', `${M}は${S}に、聖杯に何を願うのか尋ねた。` + (q ? '' : `答えは「${pf.wish}」だった。`), [c.id], { quote: q }); }
-      else if (k === 'likes') { bondUp(c, 3); log('life', `何気ない会話の中で、${S}の好みが少し分かった。`, [c.id], { quote: say(c, ['好きなこと', '嫌いなこと']) }); }
-      else if (k === 'bondv') { bondUp(c, 5); log('life', `${S}が${M}の隣に立った。`, [c.id], { quote: say(c, ['絆']) }); }
+      const V = { S, M, likes: pf.likes, dislikes: pf.dislikes };
+      if (k === 'meal') { bondUp(c, 5); c.hp = Math.min(100, c.hp + 5); log('life', line('meal', V), [c.id]); }
+      else if (k === 'talk') { bondUp(c, 4); log('life', line('talk', V), [c.id], { quote: say(c, ['会話']) }); }
+      else if (k === 'dream') { c.dreams++; bondUp(c, 8); log('life', line('dream', Object.assign({ dream: firstSentence(sv.text.commentary, 70) }, V)), [c.id]); }
+      else if (k === 'dislike') { bondUp(c, 1); log('life', line('dislike', V), [c.id]); }
+      else if (k === 'grail') { bondUp(c, 3); const q = say(c, ['聖杯について']); log('life', line('grail', V) + (q ? '' : `答えは「${pf.wish}」だった。`), [c.id], { quote: q }); }
+      else if (k === 'likes') { bondUp(c, 3); log('life', line('likes', V), [c.id], { quote: say(c, ['好きなこと', '嫌いなこと']) }); }
+      else if (k === 'bondv') { bondUp(c, 5); log('life', line('bondv', V), [c.id], { quote: say(c, ['絆']) }); }
       else if (k === 'master') {
-        const t = { civilian: `${M}は久しぶりに学校へ顔を出した。日常は、まだそこにあった。`, noble: `${M}は家の書庫で、聖杯戦争の古い記録を読み返した。`, mercenary: `${M}は武器と礼装の手入れに一日を費やした。`, newblood: `${M}は工房で新しい術式を試した。`, irregular: `${M}は自分の異能を確かめるように、街の外れを歩いた。` }[c.master.origin] || `${M}は静かに一日を過ごした。`;
-        c.mana = Math.min(c.manaMax, c.mana + 5); log('life', t, [c.id]);
+        const key = { civilian: 'masterCivilian', noble: 'masterNoble', mercenary: 'masterMercenary', newblood: 'masterNewblood', irregular: 'masterIrregular' }[c.master.origin] || 'masterOther';
+        c.mana = Math.min(c.manaMax, c.mana + 5); log('life', line(key, V), [c.id]);
       } else if (k === 'outing') {
-        if (chance(0.6)) { bondUp(c, 8); c.wander = true; log('life', `${S}にせがまれて、${M}は昼の街を一緒に歩いた。${S}は何を見ても楽しそうだった。`, [c.id]); }
-        else { bondUp(c, -2); log('life', `街に出たがる${S}を、${M}はなだめて拠点に留めた。`, [c.id]); }
+        if (chance(0.6)) { bondUp(c, 8); c.wander = true; log('life', line('outing', V), [c.id]); }
+        else { bondUp(c, -2); log('life', line('outingNo', V), [c.id]); }
       }
+      // 増やした日常
+      else if (k === 'train') { bondUp(c, 3); log('life', line('train', V), [c.id]); }
+      else if (k === 'tale') { c.tales = (c.tales || 0) + 1; bondUp(c, 4); log('life', line('tale', Object.assign({ tale: firstSentence(sv.text.personality, 70) }, V)), [c.id]); }
+      else if (k === 'care') { bondUp(c, 3); c.hp = Math.min(100, c.hp + 8); log('life', line('care', V), [c.id]); }
+      else if (k === 'quarrel') { bondUp(c, -3); log('life', line('quarrel', V), [c.id]); }
+      else if (k === 'watch') { bondUp(c, 4); log('life', line('watch', V), [c.id]); }
+      else if (k === 'stars') { bondUp(c, 4); log('life', line('stars', V), [c.id]); }
     }
 
     // ---------- 街の出来事 ----------
     function* worldEvent() {
       const alive = active();
-      const o = { leyline: 2, rain: 2, moon: 1.5, familiar: 2, festival: 0.8 };
+      const o = { leyline: 2, rain: 2, moon: 1.5, familiar: 2, festival: 0.8, fog: 1.2, tremor: day >= 3 ? 1 : 0, disturb: 0.8, patrol: day >= 3 ? 0.8 : 0 };
       if (witnessed.length) o.witness = 4;
       const bountyCand = alive.filter(c => !c.bounty && (c.kills.length >= 2 || c.warned >= 2));
       if (day >= 4 && bountyCand.length && !camps.some(c => c.bounty && c.alive)) o.bounty = 3;
       if (you && you.alive && you.masterAlive && alive.length > 2) o.spot = 1.2;
+      // 噂：まだ拠点の分からない敵がいれば、その拠点にまつわる噂が流れてくる
+      const rumorT = you && you.alive && you.masterAlive ? alive.filter(x => x !== you && !you.knowLoc.has(x.id)) : [];
+      if (rumorT.length) o.rumor = 1;
       const k = wpick(o);
-      if (k === 'leyline') { for (const c of alive) c.mana = Math.min(c.manaMax, c.mana + 25); log('world', `${city}の霊脈が騒いでいる。どの陣営にも魔力が満ちた。`, []); }
-      else if (k === 'rain') { tonight.rain = true; log('world', '夕方から雨になった。今夜はどこもかしこも水辺だ。', []); }
-      else if (k === 'moon') { tonight.moon = true; log('world', '今夜は満月。英霊たちの血がざわめく。', []); }
-      else if (k === 'festival') { tonight.calm = true; log('world', '街は祭りで賑わっている。人目が多すぎて、今夜はどの陣営も動けないだろう。', []); }
+      if (k === 'leyline') { for (const c of alive) c.mana = Math.min(c.manaMax, c.mana + 25); log('world', line('leyline', { city }), []); }
+      else if (k === 'rain') { tonight.rain = true; log('world', line('rain', { city }), []); }
+      else if (k === 'moon') { tonight.moon = true; log('world', line('moon', { city }), []); }
+      else if (k === 'festival') { tonight.calm = true; log('world', line('festival', { city }), []); }
+      // 霧：今夜は互いを見つけにくい / 鳴動：今夜はどの陣営も出撃しやすい / 霊脈の乱れ：魔力が減る / 巡回：今夜は出撃を控える
+      else if (k === 'fog') { tonight.fog = true; log('world', line('fog', { city }), []); }
+      else if (k === 'tremor') { tonight.stir = true; log('world', line('tremor', { city }), []); }
+      else if (k === 'disturb') { for (const c of alive) c.mana = Math.max(0, c.mana - 15); log('world', line('disturb', { city }), []); }
+      else if (k === 'patrol') { tonight.patrol = true; log('world', line('patrol', { city }), []); }
+      else if (k === 'rumor') {
+        const t = pick(rumorT);
+        const a = yield* ask(you, 'event', {
+          title: '街の噂',
+          body: `「夜中に${t.base.name}のあたりで、妙な光を見た」——そんな噂を耳にした。`,
+          options: [{ k: 'chase', label: '噂をたどる', sub: '敵の拠点かもしれない。こちらが見つかる危険もある' }, { k: 'ignore', label: '聞き流す', sub: '関わらない' }],
+        }, () => chance(0.5) ? 'chase' : 'ignore');
+        if (a === 'chase') {
+          if (chance(clamp(0.55 + eff(you, 'intel') * 0.5 + FX.mCraftScout * md(you, 'craft') - eff(t, 'stealth') * 0.5, 0.1, 0.9))) { you.knowLoc.add(t.id); log('scout', `噂をたどった先は、${t.label}の拠点「${t.base.name}」だった。`, [you.id, t.id]); }
+          else if (chance(0.3)) { t.knowLoc.add(you.id); log('event', '噂の場所には何もなかった。帰り道、誰かに見られていた気がする。', [you.id, t.id]); }
+          else log('event', '噂は噂にすぎなかった。', [you.id]);
+        } else log('event', `${mn(you)}は噂を聞き流した。`, [you.id]);
+      }
       else if (k === 'familiar') {
         const a = pick(alive), t = pick(alive.filter(x => x !== a));
-        if (t) { a.knowLoc.add(t.id); if (a.you) log('scout', `放っていた使い魔が、${t.label}の拠点「${t.base.name}」を見つけた。`, [a.id, t.id]); else if (t.you) log('world', `拠点の周りを使い魔がうろついていた。どこかの陣営に見つかったかもしれない。`, [t.id]); else log('world', '夜の街を、誰かの使い魔が飛んでいく。', []); }
+        if (t) { a.knowLoc.add(t.id); if (a.you) log('scout', `放っていた使い魔が、${t.label}の拠点「${t.base.name}」を見つけた。`, [a.id, t.id]); else if (t.you) log('world', `拠点の周りを使い魔がうろついていた。どこかの陣営に見つかったかもしれない。`, [t.id]); else log('world', line('familiar'), []); }
       } else if (k === 'witness') {
         const id = pick(witnessed); witnessed = [];
         const c = camps[id];
-        if (c && c.alive) { c.warned++; log('world', `昨夜の宝具の光は街の人々に目撃された。監督役が隠蔽に奔走し、${c.label}の陣営に警告を出した。`, [c.id]); }
+        if (c && c.alive) { c.warned++; log('world', line('witness', { label: c.label }), [c.id]); }
       } else if (k === 'bounty') {
         const t = pick(bountyCand); t.bounty = true;
-        log('world', `監督役が${nm(t)}に討伐令を出した。討ち取った陣営には追加の令呪が与えられる。`, [t.id], { big: true });
+        log('world', line('bounty', { name: nm(t) }), [t.id], { big: true });
         if (you && you.alive && you !== t) {
           const a = yield* ask(you, 'event', {
             title: `${t.label}への討伐令`,
@@ -749,19 +791,19 @@
           if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
           if (c.ally != null) { camps[c.ally].knowLoc.add(t.id); if (nameHit) camps[c.ally].knowName.add(t.id); }
           if (c.you && (newLoc || nameHit)) log('scout', `偵察の結果、${t.label}の拠点は「${t.base.name}」だと突き止めた。` + (nameHit ? `さらに真名が「${t.sv.trueName}」だと分かった。` : ''), [c.id, t.id]);
-          else if (c.you) log('day', `${sn(c)}は街を偵察した。目新しい手がかりはなかった。`, [c.id]);
-        } else if (c.you) log('day', `${sn(c)}は街を偵察したが、手がかりは得られなかった。`, [c.id]);
+          else if (c.you) log('day', line('scoutNone', { S: sn(c) }), [c.id]);
+        } else if (c.you) log('day', line('scoutFail', { S: sn(c) }), [c.id]);
       } else if (act === 'fortify') {
         if (chance(clamp(0.5 + eff(c, 'territory') + eff(c, 'resource') * 0.5 + FX.mCraftFort * md(c, 'craft'), 0.2, 0.95))) {
           c.workshop = Math.min(5, c.workshop + 1);
-          if (c.you || c.workshop >= 3) log('day', `${sn(c)}の陣営は拠点「${c.base.name}」の守りを固めた（工房${c.workshop}）。`, [c.id]);
-        } else if (c.you) log('day', `拠点の強化は思うように進まなかった。`, [c.id]);
+          if (c.you || c.workshop >= 3) log('day', line('fortify', { S: sn(c), base: c.base.name, ws: c.workshop }), [c.id]);
+        } else if (c.you) log('day', line('fortifyFail', { S: sn(c) }), [c.id]);
         if (chance(eff(c, 'craft'))) { c.items++; if (c.you) log('day', `${sn(c)}が戦いに役立つ道具を用意した。`, [c.id]); }
       } else if (act === 'rest') {
         c.hp = Math.min(100, c.hp + ENG.restHeal + eff(c, 'regen') * 60);
         c.mhp = Math.min(c.mhpMax, c.mhp + 15 + eff(c, 'heal_other') * 60);
         c.mana = Math.min(c.manaMax, c.mana + 10);
-        if (c.you) log('day', `${sn(c)}の陣営は拠点で傷と魔力の回復に努めた。`, [c.id]);
+        if (c.you) log('day', line('rest', { S: sn(c) }), [c.id]);
       } else if (act === 'ally') {
         const cand = alive.filter(x => x !== c && x.alive && x.ally == null && x.masterAlive);
         if (!cand.length) return;
@@ -778,7 +820,7 @@
         else if (t.you) log('day', `${mn(t)}は${c.label}の陣営からの申し出を断った。`, [t.id, c.id]);
       } else if (act === 'hide') {
         c.hidden = true;
-        if (c.you) log('day', `${sn(c)}の陣営は気配を殺し、息を潜めた。`, [c.id]);
+        if (c.you) log('day', line('hide', { S: sn(c) }), [c.id]);
       }
     }
 
@@ -792,7 +834,7 @@
       const finale = day > ENG.maxDays - ENG.finaleDays;
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
-        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
+        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
         p = clamp(p, 0.05, 0.95);
         const F = focusOf(c);
         if (c.restNight) { c.restNight = false; c.hunting = false; }
@@ -818,8 +860,8 @@
         const assault = h.assault != null && t.id === h.assault;
         h.assault = null;
         const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0)
-          + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck'), 0.05, 0.95);
-        if (!chance(pf)) { if (h.you) log('night', `${sn(h)}は夜の街を巡ったが、敵の気配はつかめなかった。`, [h.id]); continue; }
+          + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck') - (tonight.fog ? 0.15 : 0), 0.05, 0.95);
+        if (!chance(pf)) { if (h.you) log('night', line('huntMiss', { S: sn(h) }), [h.id]); continue; }
         any = true;
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
@@ -832,11 +874,12 @@
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain });
         yield* checkFallen();
       }
-      if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', '静かな夜だった。どこかで誰かが、息を潜めている。', []);
+      if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', line('quietNight'), []);
     }
 
     // ---------- 開幕 ----------
     log('prologue', `${city}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });
+    if (opts.war && opts.war.pick === 'open') log('prologue', '今回の聖杯戦争では、七つのクラスの決まりが働いていない。同じクラスの英霊が並び立つこともある。', []);
     for (const c of camps) {
       const who = `${mn(c)}（${c.master.originLabel}）`;
       const sub = c.extra ? `本来は${G.classDef(c.slot).label}の枠に、${c.sv.class.label}が割り込んだ。` : c.substitute ? `${G.classDef(c.slot).label}の枠に、${c.sv.class.label}のサーヴァントが応えた。` : '';
@@ -880,7 +923,7 @@
       const f = yield { type: 'tick', day };
       if (you && FOCUS[f]) you.focus = f;
       const head = log('dayhead', `${day}日目`, [], { head: true }), n0 = entries.length;
-      if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', '聖杯の降臨が近い。残るサーヴァントたちが動き出した。', [], { big: true }); }
+      if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', line('finale'), [], { big: true }); }
       yield* dayPhase();
       yield* checkFallen();
       if (active().length > 1) yield* nightPhase();
