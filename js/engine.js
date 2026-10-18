@@ -177,20 +177,20 @@
       for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
       return list[(h >>> 0) % list.length].replace(/\{(\w+)\}/g, (m, k) => vars && vars[k] != null ? vars[k] : m);
     }
-    const voice = (c, keys) => { for (const k of keys) { const v = c.sv.voice && c.sv.voice[k]; if (v && v.length) return pick(v); } return null; };
+    // セリフ（config.js の VOICE_SLOTS の場面ごと。別名の見出しの行も使う）。選び方は乱数ではなく、シード・記録の位置・
+    // 陣営・場面で決まるので、セリフを足したり直したりしても戦争の展開は変わらない
+    const vpick = (lines, c, key) => {
+      let h = 2166136261; const t = seed + ':v:' + entries.length + ':' + c.id + ':' + key;
+      for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+      return lines[(h >>> 0) % lines.length];
+    };
+    const voice = (c, keys) => { for (const k of keys) { const v = G.voiceLines(c.sv, k); if (v.length) return vpick(v, c, k); } return null; };
     const say = (c, keys) => { const v = voice(c, keys); return v ? { who: nm(c), text: v } : null; };
     const bondUp = (c, n) => { c.bond = clamp(c.bond + (n > 0 ? n * (PER(c).bond || 1) : n), 0, 100); };
     // 宝具のセリフは、その宝具の名前を含むものを優先。別の宝具の名前を叫んでいるものは使わない
     const sayNP = (c, np) => {
-      const lines = (c.sv.voice && c.sv.voice['宝具']) || [];
-      if (!lines.length) return null;
-      const keys = [np.name, np.reading].filter(Boolean).map(x => x.replace(/[\s・]/g, ''));
-      const others = (c.sv.nps || []).filter(n => n !== np).flatMap(n => [n.name, n.reading]).filter(x => x && x.length >= 2).map(x => x.replace(/[\s・]/g, ''));
-      const flat = l => l.replace(/[\s・]/g, '');
-      const mine = lines.filter(l => keys.some(k => flat(l).includes(k)));
-      const neutral = lines.filter(l => !others.some(k => flat(l).includes(k)));
-      const pool = mine.length ? mine : neutral;
-      return pool.length ? { who: nm(c), text: pick(pool) } : null;
+      const pool = G.npVoiceLines(c.sv, np).lines;
+      return pool.length ? { who: nm(c), text: vpick(pool, c, '宝具:' + np.name) } : null;
     };
 
     // ---------- 判断 ----------
@@ -258,7 +258,7 @@
         : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
         : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${nm(c)}は消滅した。`
         : line('blow', { by: nm(by), c: nm(c) });
-      log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能', '消滅', '退場']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
+      log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
       if (c.you && c.masterAlive) {
         // プレイヤーのマスターは、運が悪ければその場で巻き込まれる
@@ -372,7 +372,7 @@
       a.fought = b.fought = true; a.battles++; b.battles++;
       a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set(); a.lastNP = b.lastNP = null;
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
-      log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始', '戦闘開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
+      log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
       const rt = related(a, b);
       if (rt) {
@@ -473,15 +473,15 @@
     // ---------- 日常 ----------
     // プレイヤーの陣営で時々起きる。Wikiの好物・苦手・セリフ・解説を使う
     function* lifeEvent(c) {
-      const sv = c.sv, pf = sv.profile || {}, v = sv.voice || {};
+      const sv = c.sv, pf = sv.profile || {}, has = k => G.voiceLines(sv, k).length > 0;
       const opt = {};
       if (pf.likes) opt.meal = 3;
-      if ((v['会話'] || []).length) opt.talk = 3;
+      if (has('会話')) opt.talk = 3;
       if (sv.text && sv.text.commentary && c.dreams < 2) opt.dream = c.dreams === 0 ? 3 : 1.5;
       if (pf.dislikes && !c.lifeSeen.has('dislike')) opt.dislike = 1.5;
-      if ((v['聖杯について'] || []).length || pf.wish) opt.grail = c.lifeSeen.has('grail') ? 0.3 : 2;
-      if ((v['好きなこと'] || v['嫌いなこと'] || []).length) opt.likes = 1.5;
-      if (c.bond >= 70 && (v['絆'] || []).length && !c.lifeSeen.has('bondv')) opt.bondv = 3;
+      if (has('聖杯について') || pf.wish) opt.grail = c.lifeSeen.has('grail') ? 0.3 : 2;
+      if (has('好きなこと') || has('嫌いなこと')) opt.likes = 1.5;
+      if (c.bond >= 70 && has('絆') && !c.lifeSeen.has('bondv')) opt.bondv = 3;
       opt.outing = 1; opt.master = 1.5;
       opt.train = 1; opt.watch = 1; opt.stars = 0.8; opt.quarrel = 0.5;
       if (sv.text && firstSentence(sv.text.personality, 70) && (c.tales || 0) < 2) opt.tale = 1.2;
