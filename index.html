@@ -379,7 +379,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px); }
 .grade .g.S { background: linear-gradient(135deg, var(--gold), #fff3c4); }
 .grade .g.C { background: linear-gradient(135deg, #9fb7d8, #dfe9f7); }
-.grade .g.D { background: linear-gradient(135deg, var(--seal), #ff9db1); }
+.grade .g.D { background: linear-gradient(135deg, #b9a6d9, #e9e0f8); }
+.grade .g.E { background: linear-gradient(135deg, var(--seal), #ff9db1); }
 .grade .verdict { font: 700 17px/1.5 var(--gothic); align-self: end; }
 .grade .gsub { font-size: 12px; color: var(--mute); align-self: start; }
 .meters { display: grid; gap: 8px; margin: 0 0 12px; }
@@ -620,7 +621,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
           <label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎</label>
           <label><input type="radio" name="pick" value="open"><span class="ico"></span>全騎から均等に</label>
         </div>
-        <p class="hint">「全騎から均等に」では、クラスを気にせず名簿の全員から同じ確率で七騎が選ばれる。同じクラスが何騎も並ぶことがある。</p>
+        <p class="hint">「全騎から均等に」では、クラスを気にせずリストの全員から同じ確率で七騎が選ばれる。同じクラスが何騎も並ぶことがある。</p>
       </div>
       <div class="field"><span class="lbl">エクストラクラス</span>
         <div class="rowsel choices2" role="radiogroup">
@@ -651,7 +652,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <button class="btn" id="installBtn" hidden>アプリとして追加する</button>
     <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
   </div>
-  <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァント名簿</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。</p>
+  <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。</p>
+  <p class="foot spoil">すべての英霊の真名・強さ・優勝率を見比べる<a href="ranking.html" id="rankLink">強さランキング</a>もあります（真名が分かってしまうので、戦争の中で推し量りたい人は開かないでください）。</p>
 </section>
 
 <section class="war">
@@ -835,10 +837,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // ---------- データ ----------
   function dataReady(res, label) {
     roster = res.servants; masters = res.masters || []; source = label;
+    const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
-    const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">名簿ツールの名簿（${H.data.hasLocal()}騎）を使う</a>` : '';
+    const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
     const pub = label === 'local' ? ` ・ <a href="#" id="usePub">公開データに戻す</a>` : '';
-    $('#data').innerHTML = roster.length >= 2 ? `<b>${roster.length}</b> 騎のサーヴァントから七騎が選ばれる（${label === 'local' ? 'このブラウザの名簿' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}`
+    $('#data').innerHTML = roster.length >= 2 ? `<b>${roster.length}</b> 騎のサーヴァントから七騎が選ばれる（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}`
       : `サーヴァントが足りません（${roster.length}騎）。${err}`;
     $('#go').disabled = roster.length < 2;
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
@@ -846,7 +849,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   }
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
-      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">名簿ツールの名簿（${H.data.hasLocal()}騎）を使う</a>` : '');
+      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
     $('#pick').onchange = async e => dataReady(await H.data.loadFiles(e.target.files), 'files');
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
   }
@@ -1138,19 +1141,22 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     S: '聖杯に最も近い一騎。正面からの勝負で後れを取る相手はほとんどいない',
     A: '有力な優勝候補。多くの英霊と互角以上に渡り合える',
     B: '並み以上の力を持つ。戦い方しだいで十分に勝ち残れる',
-    C: '正面からでは分の悪い相手も多い。策と運が要る',
-    D: '勝ち残るのは至難。戦いを避けて機を待つ戦い方が向く',
+    C: '多くの英霊と五分に渡り合う。戦い方と巡り合わせが勝敗を分ける',
+    D: '正面からでは分の悪い相手も多い。策と運が要る',
+    E: '勝ち残るのは至難。戦いを避けて機を待つ戦い方が向く',
   };
   // 最初の方針のおすすめ。同じ戦争を方針だけ変えて回し、方針を変えずに最後まで戦ったときに最も勝ちやすかったもの
   // （node test/focus.js で確かめられる。2000戦では、おまかせ 16% に対して、以前の特徴ごとのおすすめは 10% だった）。
   // おまかせは陣営の戦略に沿って、その晩の霊基や相手との力の差を見て出撃を決めるので、方針で毎晩の動きを固定するより強い。
-  // 評価Bの英霊だけは、休養（出撃せずに傷を癒やす）で他の陣営どうしの潰し合いを待つほうが、わずかに勝ちやすい
+  // 評価B〜Dの英霊は、休養（出撃せずに傷を癒やす）で他の陣営どうしの潰し合いを待つほうが勝ちやすい。評価Eはどれでも
+  // ほとんど勝てないが、潜伏がいちばん長く残れる（評価は S〜E の6段階。区切りは config.js の GRADES）
   const REC_FOCUS = {
     S: ['auto', '戦略どおりに動かすのが最も勝ちやすい。攻めに固定すると、傷を負った夜まで出撃してしまう'],
     A: ['auto', '戦略どおりに動かすのが最も勝ちやすい。攻めや守りに固定すると、勝てる戦いを逃しやすい'],
     B: ['rest', '無理に出撃せず力を蓄え、ほかの陣営が潰し合うのを待つほうが、わずかに勝ちやすい'],
-    C: ['auto', '戦略どおりに動かすのが最も勝ちやすい。方針で縛っても、勝ち残る見込みは上がらない'],
-    D: ['auto', 'どの方針でも勝ち残るのは難しい。戦略どおりに動かすのが、まだ見込みがある'],
+    C: ['rest', '正面から挑むより、力を蓄えてほかの陣営が潰し合うのを待つほうが勝ちやすい'],
+    D: ['rest', '分の悪い相手が多い。出撃を控えて傷を癒やし、残りが減るのを待つのがまだ見込みがある'],
+    E: ['hide', 'どの方針でも勝ち残るのは難しい。潜伏して見つからずにいれば、最も長く戦いに残れる'],
   };
   // マスターの能力値（0〜100）をランクの表記に
   function scoreRank(v) {
@@ -1159,8 +1165,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     let best = L[0]; for (const l of L) if (v >= S[l] - 4) best = l;
     return best + (v - S[best] >= 7 ? '+' : '');
   }
-  // 名簿の全騎と1対1で戦ったときの平均勝率（宝具あり・なしの平均）。名簿ごとに一度だけ計算する
-  // 64騎で約0.1秒。名簿が大きいときは、比べる相手を名簿から等間隔に選んだ REF_MAX 騎に絞る（計算量は 騎数×REF_MAX）
+  // リストの全騎と1対1で戦ったときの平均勝率（宝具あり・なしの平均）。リストごとに一度だけ計算する
+  // 64騎で約0.1秒。リストが大きいときは、比べる相手をリストから等間隔に選んだ REF_MAX 騎に絞る（計算量は 騎数×REF_MAX）
   const strengthCache = new WeakMap(), REF_MAX = 120;
   function strengthTable() {
     if (strengthCache.has(roster)) return strengthCache.get(roster);
@@ -1179,14 +1185,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function evaluate(sv) {
     const T = strengthTable(), n = roster.length, rate = T.rates.has(sv.id) ? T.rates.get(sv.id) : 0.5;
     const rank = rankIn(T.sorted, rate), pct = (rank - 1) / Math.max(1, n - 1);
-    const grade = pct <= 0.1 ? 'S' : pct <= 0.3 ? 'A' : pct <= 0.6 ? 'B' : pct <= 0.85 ? 'C' : 'D';
+    const grade = H.gradeOfPct(pct);
     const eff = id => Object.values(sv.effectSummary || {}).filter(e => e.id === id && !(e.params && e.params.cond)).reduce((t, e) => t + e.passive, 0);
     const good = [], bad = [];
     const STJA = H.build.STAT_JA, high = H.build.STAT_KEYS.filter(k => k !== 'np' && sv.score[k] >= 46).sort((a, b) => sv.score[b] - sv.score[a]).slice(0, 2);
     if (high.length) good.push(`${high.map(k => STJA[k]).join('・')}が高い`);
     const atk = (sv.nps || []).filter(x => x.attackResolved && !x.disabled).sort((a, b) => b.power - a.power)[0];
     const npRank = rankIn(T.nps, sv.npPeak || 0);
-    if (atk && npRank / n <= 0.3) good.push(`宝具『${atk.name}』の威力は名簿でも上位（${npRank}位）`);
+    if (atk && npRank / n <= 0.3) good.push(`宝具『${atk.name}』の威力はリストでも上位（${npRank}位）`);
     if (eff('instakill') > 0) good.push('一撃で決着をつける手段を持つ');
     if (eff('guts') >= 0.25) good.push('致命傷を受けても踏みとどまりやすい');
     if (eff('magic_guard') >= 0.3) good.push('魔術に対する守りが固い');
@@ -1258,7 +1264,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const ranks = `<div class="ranks">${meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], sv ? sv.class.key : '')}><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
       $('#opBody').innerHTML = ev ? `
         <div class="grade"><span class="g ${ev.grade}">${ev.grade}</span><span class="verdict">${esc(GRADE[ev.grade])}</span>
-          <span class="gsub">名簿の${ev.n}騎と1対1で戦った場合の平均勝率 ${Math.round(ev.rate * 100)}%（${ev.rank}位）</span></div>
+          <span class="gsub">リストの${ev.n}騎と1対1で戦った場合の平均勝率 ${Math.round(ev.rate * 100)}%（${ev.rank}位）</span></div>
         <div class="meters">
           ${meterRow('平均勝率', ev.rate, 1, Math.round(ev.rate * 100) + '%', ev.rank, 'ev.rate')}
           ${meterRow('基礎戦闘力', ev.power, ev.maxPower, String(ev.power), ev.powerRank, 'ev.power')}
@@ -1269,7 +1275,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         ${sv && sv.text && sv.text.commentary ? `<p class="txt2">${esc(excerpt(sv.text.commentary, 90))}</p>` : ''}
         <div class="links"><button class="btn" id="opLore">解説と生存曲線を見る</button></div>
         <p class="note2">ステータス・スキル・宝具から見た、この英霊そのものの強さの目安です。今回の顔ぶれとの相性は含みません。</p>`
-        : `${ranks}<p class="note2">この英霊は名簿に見当たらないため、評価を出せません。</p>`;
+        : `${ranks}<p class="note2">この英霊はリストに見当たらないため、評価を出せません。</p>`;
     } else {
       $('#opEn').textContent = 'Focus'; $('#opBand').textContent = '最初の方針';
       $('#opTitle').textContent = '一日目をどう動くか';
@@ -1545,7 +1551,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
     const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
     if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
-    try { const u = eucEncode(sv.page || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
     links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
     return `<div class="links">${links.join('')}</div>`;
   }
@@ -1570,7 +1576,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         ${sv.profile && sv.profile.wish ? `<dt>願い</dt><dd>${esc(sv.profile.wish)}</dd>` : ''}
       </dl>
       ${body ? `<p class="txt2">${esc(excerpt(body, 160))}</p>${excerpt(body, 160).length < body.replace(/\s*\n\s*/g, '').length ? `<details><summary>解説をすべて読む</summary><p class="txt2">${esc(body)}</p></details>` : ''}`
-        : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '<p class="note2">この英霊の解説は名簿にありません。下のリンクから調べられます。</p>'}
+        : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '<p class="note2">この英霊の解説はリストにありません。下のリンクから調べられます。</p>'}
       ${body && person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(person)}</p></details>` : ''}
       <section class="surv" id="survBox" aria-label="生存曲線"></section>
       ${loreLinks(sv)}`;
@@ -1592,12 +1598,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#camps').addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('li[data-lore]')) { e.preventDefault(); openLore(+e.target.dataset.lore); } });
 
   // ---------- 生存曲線 ----------
-  // 英霊ごとに「何日目まで生き残れるか」。名簿から毎回ランダムに七騎を選んで全自動で戦わせた、総合的な見込み（js/survival.js）。
-  // 集計は data/survival.json（tools/survival.js で作る）を使い、名簿が違えば（指紋が合わなければ）ここで少しずつ回して作り、
+  // 英霊ごとに「何日目まで生き残れるか」。リストから毎回ランダムに七騎を選んで全自動で戦わせた、総合的な見込み（js/survival.js）。
+  // 集計は data/survival.json（tools/survival.js で作る）を使い、リストが違えば（指紋が合わなければ）ここで少しずつ回して作り、
   // このブラウザに残す（hgw.survival.v1）。回している間も、途中までの集計で曲線を出す
   const SURV_KEY = 'hgw.survival.v1', SURV_TARGET = 800, SURV_CHUNK = 3;
   let survStats = null, survRunning = false, survFileTried = null, loreSv = null;
-  // 今の名簿に合った集計（無ければ null）。描くときに使う
+  // 今のリストに合った集計（無ければ null）。描くときに使う
   function survReady() { return survStats && survStats.fp === H.survival.fingerprint(roster) ? survStats : null; }
   // すぐ手に入る集計（公開している集計か、このブラウザに残した集計）を読む。回しはしない
   async function survQuick() {
@@ -1650,7 +1656,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const area = `${path(s)}L${x(days)},${y(0)}L${x(0)},${y(0)}Z`;
     const mdMark = md ? `<line x1="${x(md)}" x2="${x(md)}" y1="${y(0.5)}" y2="${y(0)}" stroke="var(--cyan)" stroke-dasharray="2 3"/>` : '';
     box.innerHTML = `${head}
-      <p class="ssum">${md ? `半数が脱落するのは <b>${md}</b> 日目` : `${days}日目まで半数以上が残る`}（名簿全体では${mdAvg ? mdAvg + '日目' : days + '日を超える'}）。${days}日目まで残る見込み <b>${Math.round(s[days] * 100)}%</b>、聖杯を手にする見込み <b>${Math.round(t.w / t.n * 100)}%</b>。</p>
+      <p class="ssum">${md ? `半数が脱落するのは <b>${md}</b> 日目` : `${days}日目まで半数以上が残る`}（リスト全体では${mdAvg ? mdAvg + '日目' : days + '日を超える'}）。${days}日目まで残る見込み <b>${Math.round(s[days] * 100)}%</b>、聖杯を手にする見込み <b>${Math.round(t.w / t.n * 100)}%</b>。</p>
       ${prog}
       <svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="生存曲線。${md ? '半数が脱落するのは' + md + '日目' : ''}。${days}日目まで残る見込み${Math.round(s[days] * 100)}%">
         ${grid}${xt.join('')}${mdMark}
@@ -1658,8 +1664,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         <path d="${path(avg)}" fill="none" stroke="var(--mute)" stroke-width="1.5" stroke-dasharray="5 4"/>
         <path d="${path(s)}" fill="none" stroke="var(--cyan)" stroke-width="2.5" stroke-linejoin="round"/>
       </svg>
-      <div class="slegend"><span><i></i>${esc(cleanName(loreSv.trueName))}</span><span><i class="avg"></i>名簿全体の平均</span></div>
-      <p class="snote">今回の戦争ではなく、名簿から毎回ランダムに七騎を選んで全自動で戦わせた${st.wars}回の聖杯戦争（${days}日・クラスごとに一騎）のうち、この英霊が呼ばれた${t.n}回の集計。曲線は、その日の終わりにまだ脱落していない割合。</p>
+      <div class="slegend"><span><i></i>${esc(cleanName(loreSv.trueName))}</span><span><i class="avg"></i>リスト全体の平均</span></div>
+      <p class="snote">今回の戦争ではなく、リストから毎回ランダムに七騎を選んで全自動で戦わせた${st.wars}回の聖杯戦争（${days}日・クラスごとに一騎）のうち、この英霊が呼ばれた${t.n}回の集計。曲線は、その日の終わりにまだ脱落していない割合。</p>
       <details class="num"><summary>日ごとの値を見る</summary><p>${s.map((v, d) => `${d ? 'D' + d : '開戦'}:${Math.round(v * 100)}%`).join('　')}</p></details>`;
   }
 
@@ -1684,7 +1690,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     'm.body': { t: '体力', d: 'マスター自身の命の強さ。刃や奇襲が届いても、生き延びやすい。' },
     'm.mind': { t: '精神', d: '心の強さ。令呪が揺らがずに届き、奮い立たせる令呪の力も増す。サーヴァントが魅了や幻惑に呑まれにくく、制御の難しい英霊も抑えやすい。' },
     'm.luck': { t: '幸運', d: '巡り合わせ。夜の街で敵に見つかりにくく、マスターを狙う刃や奇襲をかわしやすい。' },
-    'ev.rate': { t: '平均勝率', d: '名簿の全騎と1対1で戦った場合の勝ちやすさ。S〜Dの評価はこれで決まる。今回の顔ぶれとの相性は含まない。' },
+    'ev.rate': { t: '平均勝率', d: 'リストの全騎と1対1で戦った場合の勝ちやすさ。S〜Eの評価はこれで決まる。今回の顔ぶれとの相性は含まない。' },
     'ev.power': { t: '基礎戦闘力', d: 'ステータスとスキルから見た、英霊そのものの戦闘力。夜の戦いでは、この差が勝ちやすさを大きく左右する。' },
     'ev.np': { t: '宝具の威力', d: '攻撃に使える最も強い宝具の力。宝具のランクと種別に、魔力や宝具を強めるスキルが加わる。解放した打ち合いで、戦闘力に上乗せされる。' },
   };
@@ -1741,7 +1747,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
     set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
   };
-  // 名簿の指紋。名簿が変わると同じシードでも別の戦争になるので、再現の前に見比べる
+  // リストの指紋。リストが変わると同じシードでも別の戦争になるので、再現の前に見比べる
   // （式は js/survival.js の fingerprint。生存曲線の集計の照合にも使う）
   const rosterFp = () => H.survival.fingerprint(roster);
   const loadHistory = () => { const l = store.get(HIST_KEY); return Array.isArray(l) ? l.filter(validRecord) : []; };
@@ -1797,7 +1803,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function checkData(r) {
     if (r.data === 'local' && source !== 'local' && H.data.hasLocal()) dataReady(H.data.loadLocal(), 'local');
     if (roster.length < 2) { toast('サーヴァントのデータがまだ読み込まれていません'); return false; }
-    if (r.fp && r.fp !== rosterFp()) return confirm('サーヴァントの名簿が、この記録のときから変わっています。同じ展開にならないことがありますが、続けますか？');
+    if (r.fp && r.fp !== rosterFp()) return confirm('サーヴァントのリストが、この記録のときから変わっています。同じ展開にならないことがありますが、続けますか？');
     return true;
   }
   function resume() {
@@ -1843,7 +1849,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         : w ? `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。` : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
-        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ 名簿ツールの名簿' : ''}</div>
+        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
         <p class="rr">${esc(res)}</p>
         ${lastW ? `<p class="rw">「${esc(lastW.text)}」</p>` : ''}
         <div class="ra"><button class="btn" data-rec="${i}" data-how="full">最初から見る</button><button class="btn" data-rec="${i}" data-how="end">結末だけ見る</button><button class="btn" data-rec="${i}" data-how="link">リンクをコピー</button>
@@ -2263,7 +2269,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     para(ctx, '「' + text + '」', x, y + 34, w, 40, 4);
     return y + h + 14;
   }
-  const GRADE_BG = { S: [CC.gold, '#fff3c4'], A: [CC.cyan, CC.cyan2], B: [CC.cyan, CC.cyan2], C: ['#9fb7d8', '#dfe9f7'], D: [CC.seal, '#ff9db1'] };
+  const GRADE_BG = { S: [CC.gold, '#fff3c4'], A: [CC.cyan, CC.cyan2], B: [CC.cyan, CC.cyan2], C: ['#9fb7d8', '#dfe9f7'], D: ['#b9a6d9', '#e9e0f8'], E: [CC.seal, '#ff9db1'] };
   function bar(ctx, x, y, w, h, ratio, color) {
     ctx.fillStyle = 'rgba(3, 14, 38, .85)'; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
@@ -2344,7 +2350,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       setFont(ctx, 700, 30, CF.go); ctx.fillStyle = CC.ice;
       let ry = para(ctx, GRADE[ev.grade], rx, gy + 6, rw, 44, 3) + 8;
       setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute;
-      ry = para(ctx, `名簿の${ev.n}騎と1対1で戦った場合の平均勝率 ${Math.round(ev.rate * 100)}%（${ev.rank}位）`, rx, ry, rw, 30);
+      ry = para(ctx, `リストの${ev.n}騎と1対1で戦った場合の平均勝率 ${Math.round(ev.rate * 100)}%（${ev.rank}位）`, rx, ry, rw, 30);
       y = Math.max(gy + gs, ry) + 28;
       // 三つの目安
       const rows = [['平均勝率', ev.rate, 1, Math.round(ev.rate * 100) + '%', ev.rank], ['基礎戦闘力', ev.power, ev.maxPower, String(ev.power), ev.powerRank], ['宝具の威力', ev.npPeak, ev.maxNp, ev.npPeak ? String(ev.npPeak) : '—', ev.npPeak ? ev.npRank : 0]];
@@ -2390,7 +2396,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       ctx.strokeStyle = CC.cyan; ctx.lineWidth = 4; ctx.shadowColor = CC.cyan; ctx.shadowBlur = 8; path(s); ctx.stroke(); ctx.shadowBlur = 0;
       setFont(ctx, 500, 16, CF.go); ctx.fillStyle = CC.mute; ctx.textAlign = 'right';
       ctx.fillText('100%', x0 - 12, Y(1) + 6); ctx.fillText('50%', x0 - 12, Y(0.5) + 6); ctx.fillText('0%', x0 - 12, Y(0) + 6);
-      ctx.fillText(`${st.days}日目`, x1, Y(0) + 24); ctx.fillText('点線：名簿全体の平均', x1, Y(1) - 10); ctx.textAlign = 'left';
+      ctx.fillText(`${st.days}日目`, x1, Y(0) + 24); ctx.fillText('点線：リスト全体の平均', x1, Y(1) - 10); ctx.textAlign = 'left';
       ctx.fillText('開戦', x0, Y(0) + 24);
       y += ch + 34;
     }
@@ -2438,7 +2444,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const sv = youId != null ? servantOf(youId) : null, ev = sv ? evaluate(sv) : null;
     await cardFonts(JSON.stringify(out.meta) + JSON.stringify(result.camps) + words.map(w => w.text).join('') + (finalQuote() || { text: '' }).text
       + (ev ? ev.good.join('') + ev.bad.join('') : '') + Object.values(GRADE).join('')
-      + '聖杯戦争観戦記呼んだサーヴァント開戦時の評価名簿騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として七騎の戦いを見届けたすべてを知る観測者下した大きな決断は回のちにと契約した失い');
+      + '聖杯戦争観戦記呼んだサーヴァント開戦時の評価リスト騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として七騎の戦いを見届けたすべてを知る観測者下した大きな決断は回のちにと契約した失い');
     for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
     cards = {};
     try { for (const k of kinds) cards[k] = await makeCard(k); }

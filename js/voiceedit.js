@@ -1,4 +1,4 @@
-// セリフの編集欄（場面ごと）。名簿ツール（roster.html）と申請フォーム（submit.html）で使う。
+// セリフの編集欄（場面ごと）。リストツール（roster.html）と申請フォーム（submit.html）で使う。
 // 場面は config.js の VOICE_SLOTS。別名の見出しの行も同じ場面の行として使われる。
 //   HGW.voiceEdit.mount(el, voice, { nps })  el の中に編集欄を作る
 //   HGW.voiceEdit.read(el)                    → { voice: {見出し: [行]}, bad: [読めない行] }

@@ -137,7 +137,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       <button role="tab" id="tabAdd" aria-selected="true">新しい英霊を申請</button>
       <button role="tab" id="tabAdj" aria-selected="false">登録済みの英霊の調整を希望</button>
     </div>
-    <p class="hint" id="pubNote" style="margin:10px 0 0">公開中の名簿を読み込んでいます…</p>
+    <p class="hint" id="pubNote" style="margin:10px 0 0">公開中のリストを読み込んでいます…</p>
   </section>
 
   <!-- 新しい英霊 -->
@@ -166,7 +166,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     <div id="svHead"></div>
     <div id="judge"></div>
     <div class="kpis" id="kpis"></div>
-    <p class="hint" style="margin:0">評価 S〜D はゲームの開戦時の評価と同じ式（公開中の名簿の全騎と1対1で戦った平均勝率の順位）。</p>
+    <p class="hint" style="margin:0">評価 S〜E はゲームの開戦時の評価と同じ式（公開中のリストの全騎と1対1で戦った平均勝率の順位）。</p>
     <h3>ステータス<span class="hint">（空欄はWikiの値のまま。「A+」「C~A」のようにランクで）</span></h3>
     <div class="stats" id="stats"></div>
     <div class="note" id="statNote"></div>
@@ -243,16 +243,16 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   let drop = new Set(), notes = {}, cedit = {}, contentFor = null;
   function resetEdits() { prop = { servant: {}, stats: {}, np: {} }; drop = new Set(); notes = {}; cedit = {}; contentFor = null; }
 
-  // ---------- 公開中の名簿 ----------
+  // ---------- 公開中のリスト ----------
   (async () => {
-    if (!/^https?:$/.test(location.protocol)) { $('#pubNote').textContent = 'ファイルを直接開いているため、公開中の名簿を読めません（評価は出ず、調整の希望は登録済みの英霊を選べません）。'; return; }
+    if (!/^https?:$/.test(location.protocol)) { $('#pubNote').textContent = 'ファイルを直接開いているため、公開中のリストを読めません（評価は出ず、調整の希望は登録済みの英霊を選べません）。'; return; }
     try {
       const res = await H.data.loadPublished('data/');
       roster = res.servants;
-      $('#pubNote').textContent = `公開中の名簿：${roster.length}騎。評価はこの名簿と比べて出します。`;
+      $('#pubNote').textContent = `公開中のリスト：${roster.length}騎。評価はこのリストと比べて出します。`;
       $('#svList').innerHTML = roster.map(s => `<option value="${esc(label(s))}"></option>`).join('');
       if (mode === 'add') parseWiki(); else pickServant();
-    } catch (e) { $('#pubNote').textContent = '公開中の名簿を読めませんでした（' + e.message + '）。'; }
+    } catch (e) { $('#pubNote').textContent = '公開中のリストを読めませんでした（' + e.message + '）。'; }
   })();
   const label = s => `${s.trueName}（${s.class.label}）`;
 
@@ -285,7 +285,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       const same = base && base.trueName === sv.trueName;
       base = sv; if (!same) resetEdits();
       const dup = roster.find(s => s.id === sv.id);
-      $('#parseNote').textContent = `読み取りました：${sv.class.label}「${sv.trueName}」` + (dup ? '。同じクラス・真名の英霊がすでに名簿にあります（申請すると置き換えになります）' : '');
+      $('#parseNote').textContent = `読み取りました：${sv.class.label}「${sv.trueName}」` + (dup ? '。同じクラス・真名の英霊がすでにリストにあります（申請すると置き換えになります）' : '');
     } catch (e) { base = cur = null; $('#parseNote').textContent = '読み取れませんでした：' + e.message; $('#parseNote').className = 'status err'; }
     showEdit();
   }
@@ -338,7 +338,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     if (r == null) return '—';
     const others = roster.filter(s => s.id !== sv.id).map(s => rates.get(s.id));
     const pct = others.filter(x => x > r + 1e-9).length / Math.max(1, others.length);
-    return pct <= 0.1 ? 'S' : pct <= 0.3 ? 'A' : pct <= 0.6 ? 'B' : pct <= 0.85 ? 'C' : 'D';
+    return H.gradeOfPct(pct);
   }
 
   // ---------- 表示 ----------
@@ -434,7 +434,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     const icon = `<img class="ci" src="${H.classIcon(base.class.key)}" alt="">`;
     $('#svHead').innerHTML = `<div class="svh">${icon}<b>${esc(base.class.label)}「${esc(base.trueName)}」</b><span class="meta">${esc([base.origin, base.alignment, base.attribute && base.attribute + '属性'].filter(Boolean).join(' ・ '))}</span></div>`;
     const kpi = (t, a, b, fmt) => { const d = b - a; return `<div class="kpi">${t}<b>${fmt(a)}${Math.abs(d) > 1e-9 ? ` → <span class="${d > 0 ? 'up' : 'down'}">${fmt(b)}</span>` : ''}</b></div>`; };
-    const gv = { S: 5, A: 4, B: 3, C: 2, D: 1, '—': 0 };
+    const gv = { S: 6, A: 5, B: 4, C: 3, D: 2, E: 1, '—': 0 };
     $('#kpis').innerHTML = `<div class="kpi">評価<b><span class="grade ${g0}">${g0}</span>${g0 !== g1 ? ` → <span class="grade ${g1}">${g1}</span> <span class="${gv[g1] > gv[g0] ? 'up' : 'down'}">${gv[g1] > gv[g0] ? '↑' : '↓'}</span>` : ''}</b></div>`
       + (r0 == null ? '<div class="kpi">平均勝率<b>—</b></div>' : kpi('平均勝率', r0, r1, v => Math.round(v * 100) + '%'))
       + kpi('戦闘力', base.power, cur.power, v => String(v)) + kpi('宝具の威力', base.npPeak || 0, cur.npPeak || 0, v => v ? String(v) : '—');
@@ -560,7 +560,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     const sv = base;
     const ov = {}; for (const t in prop) if (Object.keys(prop[t]).length) ov[t] = prop[t];
     // 内容の書き換え（変えたところだけ）。セリフ・解説・プロフィールは見出し・項目ごと（[] や '' は消す）、因縁はまるごと。
-    // drop は読み取りの間違いとして消してほしいスキル・宝具（番号と名前）。contentBase は Wikiの内容の目印（名簿ツールで、あとからWikiが変わったか見分ける）
+    // drop は読み取りの間違いとして消してほしいスキル・宝具（番号と名前）。contentBase は Wikiの内容の目印（リストツールで、あとからWikiが変わったか見分ける）
     const ce = {};
     if (sv && cedit.voice) ce.voice = patchOf(B.contentOf(sv, 'voice'), cedit.voice, []);
     if (sv && cedit.text) ce.text = patchOf(B.contentOf(sv, 'text'), cedit.text, '');
@@ -573,7 +573,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     return {
       format: 'hgw-request', version: 1, at: new Date().toISOString(), kind: mode === 'add' ? 'add' : 'adjust',
       servant: sv ? sv.trueName : (page || ''), class: sv ? sv.class.label : '', id: sv ? sv.id : undefined,
-      page: mode === 'add' ? (page || undefined) : (sv && sv.page) || undefined,
+      page: mode === 'add' ? (page || undefined) : (sv && B.pageOf(sv)) || undefined,
       wiki: mode === 'add' && $('#wiki').value.trim() && !(page && $('#same').checked) ? $('#wiki').value.trim() : undefined,
       overrides: Object.keys(ov).length ? ov : undefined,
       contentEdit: Object.keys(ce).length ? ce : undefined, drop: Object.keys(dr).length ? dr : undefined, contentBase: Object.keys(cb).length ? cb : undefined,
@@ -635,7 +635,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     if (req.reason) L.push('', req.kind === 'add' ? '### 補足' : '### 理由', req.reason);
     if (req.content) L.push('', '### そのほか直してほしいこと', req.content);
     const machine = Object.assign({}, req); if (!withWiki) delete machine.wiki; if (!withContent) { delete machine.contentEdit; if (!machine.drop) delete machine.contentBase; }
-    L.push('', '### 管理者向け', '名簿ツール（roster.html）の「取り込み」の欄に、下の枠の中身をそのまま貼り付けて「名簿に追加」を押すと反映されます。', '', '```hgw-request', JSON.stringify(machine), '```');
+    L.push('', '### 管理者向け', 'リストツール（roster.html）の「取り込み」の欄に、下の枠の中身をそのまま貼り付けて「リストに追加」を押すと反映されます。', '', '```hgw-request', JSON.stringify(machine), '```');
     return L.join('\n');
   }
   const titleOf = req => `${req.kind === 'add' ? '【追加申請】' : '【調整の希望】'}${req.class ? req.class + '「' + req.servant + '」' : req.servant}`;
@@ -677,7 +677,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     catch (e) { $('#body').select(); $('#outNote').textContent = 'コピーできませんでした。文面を選んであるので、コピーしてください'; }
   };
 
-  // 名簿ツールやゲームから「?servant=真名」で開いたときは、その英霊の調整を開く
+  // リストツールやゲームから「?servant=真名」で開いたときは、その英霊の調整を開く
   const qs = new URLSearchParams(location.search);
   if (qs.get('servant')) { $('#pick').value = qs.get('servant'); setMode('adjust'); }
   else showEdit();

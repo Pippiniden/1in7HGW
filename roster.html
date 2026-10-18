@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>サーヴァント名簿</title>
+<title>サーヴァントリスト</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -70,6 +70,12 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 .matchup button { background: none; border: 0; padding: 1px 0; color: inherit; cursor: pointer; text-align: left; display: flex; justify-content: space-between; width: 100%; gap: 6px; font-size: 13px; }
 .matchup button:hover span:first-child { color: var(--accent); text-decoration: underline; }
 .reqnote { margin-top: 10px; }
+.pagebox { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; font-size: 12px; border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; }
+.pagebox label { display: flex; gap: 6px; align-items: center; color: var(--sub); flex: 1 1 260px; min-width: 0; }
+.pagebox input { flex: 1; min-width: 0; }
+.pagebox p { margin: 0; flex-basis: 100%; }
+.pagebox.warn { background: var(--warn-bg); border-color: transparent; }
+.pagebox.warn p { color: var(--warn-ink); }
 .dacts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
 .dacts a { color: var(--accent); }
 .dacts .sp { flex: 1; }
@@ -174,8 +180,8 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .badge.new { background: var(--accent); color: var(--accent-ink); }
 .badge.chg { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .grade { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 800; background: var(--chip); color: var(--ink); }
-.grade.S { background: #c99a1c; color: #fff; } .grade.A { background: var(--accent); color: var(--accent-ink); } .grade.D { color: var(--sub); }
-/* 公開中の名簿との違い */
+.grade.S { background: #c99a1c; color: #fff; } .grade.A { background: var(--accent); color: var(--accent-ink); } .grade.D, .grade.E { color: var(--sub); }
+/* 公開中のリストとの違い */
 .sync { font-size: 13px; }
 .sync ul { margin: 4px 0 0; padding-left: 18px; }
 .sync .ok { color: var(--ok); }
@@ -243,11 +249,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </head>
 <body>
 <header>
-  <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
-  <p>開くと公開中の名簿を読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。名簿と手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
+  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
+  <p>開くと公開中のリストを読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。リストと手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <nav class="views" id="views" role="tablist" aria-label="画面">
-  <button role="tab" data-v="roster" aria-selected="true">名簿</button>
+  <button role="tab" data-v="roster" aria-selected="true">リスト</button>
   <button role="tab" data-v="import" aria-selected="false">取り込み<i id="impBadge" hidden>●</i></button>
   <button role="tab" data-v="cmp" aria-selected="false">試し戦い</button>
   <button role="tab" data-v="save" aria-selected="false">公開・保存<i id="saveBadge" hidden></i></button>
@@ -281,10 +287,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <h2>取り込み</h2>
       <textarea id="src" style="min-height:260px" spellcheck="false" placeholder="Wikiのページのテキストを貼り付け&#10;複数ページは ===== だけの行で区切る"></textarea>
       <div class="row" style="margin-top:8px">
-        <button class="primary" id="add">名簿に追加</button>
+        <button class="primary" id="add">リストに追加</button>
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
-      <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出した名簿）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
+      <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出したリスト）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
       <div class="status" id="status"></div>
       <div class="box warn" id="reqBox" hidden></div>
       <div class="hint" style="margin-top:6px">プレイヤーからの申請（<a href="submit.html" target="_blank" style="color:var(--accent)">申請フォーム</a>で作ったもの）は、Issue の「管理者向け」の枠の中身をここに貼り付けるか、申請のファイルを「ファイルを読む」で読むと反映されます。</div>
@@ -292,13 +298,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <h4>ページ名で取り込む（GitHub）</h4>
         <textarea id="ghNames" class="names" spellcheck="false" placeholder="ルーカン、ペンテシレイア&#10;（「、」や改行で区切る。URLでもよい）"></textarea>
         <div class="row" style="margin-top:6px">
-          <select id="ghMode"><option value="add">追加（ページ名を指定）</option><option value="refresh">取り直し（空欄なら名簿の全騎）</option></select>
+          <select id="ghMode"><option value="add">追加（ページ名を指定）</option><option value="refresh">取り直し（空欄ならリストの全騎）</option></select>
           <button id="ghGo">名前をコピーして GitHub を開く</button>
         </div>
         <ol class="hint steps">
           <li>開いた画面の「Run workflow」を押す</li>
           <li>「取り込み方」を<b id="ghModeLabel">追加（ページ名を指定）</b>にし、「ページ名」の欄に貼り付けて実行</li>
-          <li>数分でプルリクエストができる。マージしたら、この画面の「公開中の名簿にそろえる」で取り込める</li>
+          <li>数分でプルリクエストができる。マージしたら、この画面の「公開中のリストにそろえる」で取り込める</li>
         </ol>
       </div>
     </section>
@@ -318,17 +324,17 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <select id="cmpTerrain"><option value="">場所：普通</option><option>水辺</option><option>森</option><option>山</option><option>夜</option></select>
       </div>
       <div id="cmpOut" class="odds" style="margin-top:8px"></div>
-      <details class="vsall" id="vsAll"><summary>左の英霊と、名簿の全騎との勝率を見る</summary><div id="vsAllOut"></div></details>
-      <div class="hint" style="margin-top:6px">ステータス・スキル・宝具から見積もった1対1の勝ちやすさです（評価 S〜D はゲームの開戦時の評価と同じ式）。名簿の各騎の「試し戦いの左に／右に」や「対戦の見込み」からも選べます。</div>
+      <details class="vsall" id="vsAll"><summary>左の英霊と、リストの全騎との勝率を見る</summary><div id="vsAllOut"></div></details>
+      <div class="hint" style="margin-top:6px">ステータス・スキル・宝具から見積もった1対1の勝ちやすさです（評価 S〜E はゲームの開戦時の評価と同じ式）。リストの各騎の「試し戦いの左に／右に」や「対戦の見込み」からも選べます。</div>
     </section>
   </section>
   <section class="view" data-view="save" hidden>
     <section class="panel" id="syncPanel">
-      <h2>公開中の名簿</h2>
-      <div id="syncInfo" class="sync">公開中の名簿を確かめています…</div>
+      <h2>公開中のリスト</h2>
+      <div id="syncInfo" class="sync">公開中のリストを確かめています…</div>
       <div class="row" id="syncActs" style="margin-top:8px" hidden>
-        <button class="primary" id="syncPull">公開中の名簿にそろえる</button>
-        <button class="ghost danger sm" id="syncReplace">公開中の名簿で置き換える</button>
+        <button class="primary" id="syncPull">公開中のリストにそろえる</button>
+        <button class="ghost danger sm" id="syncReplace">公開中のリストで置き換える</button>
       </div>
     </section>
     <section class="panel">
@@ -337,10 +343,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="row">
         <button id="saveLean">公開用に保存（data/servants.json）</button>
         <button id="saveOv">手直し表を保存（data/overrides.json）</button>
-        <button id="saveJson">名簿をJSONで保存</button>
+        <button id="saveJson">リストをJSONで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
-      <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">名簿を空にする</button></div>
+      <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">リストを空にする</button></div>
     </section>
   </section>
   <section class="view" data-view="pool" hidden>
@@ -423,19 +429,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const OV_KEY = 'hgw.overrides.v1', ROSTER_KEY = 'hgw.roster.v2';
-  let roster = [], filter = 'all', flag = '', rosterVer = 0; // filter：クラス、flag：要確認あり・未公開・手直し中で絞る； // rosterVer：名簿が変わるたびに増やす（評価や公開中との比較の作り直しに使う）
+  let roster = [], filter = 'all', flag = '', rosterVer = 0; // filter：クラス、flag：要確認あり・未公開・手直し中で絞る； // rosterVer：リストが変わるたびに増やす（評価や公開中との比較の作り直しに使う）
   let sel = null; // 右に出している騎の id
 
   // ---------- 保存領域 ----------
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } } };
-  const TABLES = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES, content: E.CONTENT_OVERRIDES };
+  const TABLES = E.OVERRIDE_TABLES;
   function ovGet() { const o = {}; for (const k in TABLES) o[k] = Object.assign({}, TABLES[k]); return o; }
   function ovSet(o, merge) { for (const k in TABLES) { if (!merge) for (const x of Object.keys(TABLES[k])) delete TABLES[k][x]; Object.assign(TABLES[k], (o && o[k]) || {}); } }
   function ovStore() { store.set(OV_KEY, ovGet()); }
   ovSet(store.get(OV_KEY, null));
 
-  // 名簿は「解析済みの元データ」（公開用と同じ軽い形）を保存し、表示のたびに今の規則で組み直す
-  function save() { rosterVer++; if (!store.set(ROSTER_KEY, roster.map(B.toLean))) status('ブラウザの保存領域がいっぱいで名簿を保存できませんでした。JSONで保存してください'); syncInfo(); }
+  // リストは「解析済みの元データ」（公開用と同じ軽い形）を保存し、表示のたびに今の規則で組み直す
+  function save() { rosterVer++; if (!store.set(ROSTER_KEY, roster.map(B.toLean))) status('ブラウザの保存領域がいっぱいでリストを保存できませんでした。JSONで保存してください'); syncInfo(); }
   function rebuildAll() { rosterVer++; roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
   function upsert(list) {
     let add = 0, rep = 0;
@@ -473,6 +479,27 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const srcBadge = s => `<span class="src ${esc(s)}">${esc(SRC_JA[s] || s)}</span>`;
   const isExtra = s => H.classDef(s.class.key).slot === 'extra';
 
+  // ---------- Wikiのページ名（真名と違うことがある。手直し表 pages に入る） ----------
+  // missing：取り直しで見つからなかった（取り込みツールが pageMissing を付ける）、unknown：取り込んだときのページ名が無い
+  const pageState = s => s.pageMissing ? (E.PAGE_OVERRIDES[s.trueName] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
+  function pageBox(sv, i) {
+    const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[sv.trueName];
+    const msg = st === 'missing' ? `⚠ ${esc(pm.at || '')}の取り直しで、Wikiのページが見つかりませんでした（試した名前：${esc((pm.tried || []).join('、') || sv.trueName)}）。kagemiya で正しいページ名を確かめて入れ、保存してから取り直してください。`
+      : st === 'fixed' ? `ページ名を「${esc(ov)}」に直しました。手直し表を公開してから（または「Wikiから取り直す」で）取り直すと、この印は消えます。`
+      : st === 'unknown' ? `取り込んだときのページ名が残っていません。いまは真名「${esc(sv.trueName)}」で探します。真名とページ名が違うとき（例：ページ名が別の名前）は入れてください。`
+      : ov ? `手直しで「${esc(ov)}」にしています（取り込んだときのページ名：${esc(sv.page || 'なし')}）。` : '取り込み・取り直しは、このページ名で行います。';
+    return `<div class="pagebox${st && st !== 'fixed' ? ' warn' : ''}"><label>Wikiのページ名<input type="text" data-page="${i}" value="${esc(ov || sv.page || '')}" placeholder="${esc(sv.trueName)}（空なら真名で探す）" autocomplete="off"></label><button class="sm" data-pagesave="${i}">保存</button><p class="hint">${msg}</p></div>`;
+  }
+  function savePage(i) {
+    const sv = roster[i], inp = document.querySelector(`[data-page="${i}"]`); if (!sv || !inp) return;
+    const v = inp.value.trim().replace(/^https?:\/\/seesaawiki\.jp\/kagemiya\/d\//, '');
+    let name = v; try { if (/%[0-9A-F]{2}/i.test(v)) name = new TextDecoder('euc-jp').decode(Uint8Array.from(v.replace(/%([0-9A-F]{2})/gi, (m, h) => String.fromCharCode(parseInt(h, 16))), c => c.charCodeAt(0))); } catch (e) { /* そのまま */ }
+    if (!name || name === sv.page) delete E.PAGE_OVERRIDES[sv.trueName]; else E.PAGE_OVERRIDES[sv.trueName] = name;
+    afterEdit(); status(name && name !== sv.page ? `${sv.trueName}のWikiのページ名を「${name}」にしました（手直し表に入ります）` : `${sv.trueName}のWikiのページ名を、取り込んだときのものに戻しました`);
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('[data-pagesave]'); if (b) savePage(+b.dataset.pagesave); });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-page]')) { e.preventDefault(); savePage(+e.target.dataset.page); } });
+
   function body(sv, i) {
     const st = B.STAT_KEYS.map(k => {
       const rk = sv.ranks[k], raw = sv.stats[k] ? sv.stats[k].raw : '', src = sv.statSource[k];
@@ -500,7 +527,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span></div>
       <div class="dacts"><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
-        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
+        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
+      ${pageBox(sv, i)}
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
@@ -520,7 +548,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- 探す・並べ替える ----------
   // かな・カナ、全角・半角、空白と「・」の違いを無視して探す
   const fold = t => String(t || '').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s・･=＝]/g, '');
-  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, s.page,
+  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, B.pageOf(s),
     (s.allSkills || []).map(x => x.name).join(' '), (s.nps || []).map(x => x.name + ' ' + (x.reading || '')).join(' ')].join(' '));
   let query = '', sortBy = 'class';
   const nReviewOf = s => s.review.filter(r => r.kind !== 'class').length;
@@ -540,7 +568,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     return k < 0 ? esc(t) : esc(t.slice(0, k)) + '<mark>' + esc(t.slice(k, k + q.length)) + '</mark>' + esc(t.slice(k + q.length));
   }
 
-  // ---------- 評価（ゲームの開戦時の評価と同じ式：名簿の全騎と1対1で戦った平均勝率の順位で S〜D） ----------
+  // ---------- 評価（ゲームの開戦時の評価と同じ式：リストの全騎と1対1で戦った平均勝率の順位で S〜E） ----------
   let strength = null; // { rates: Map(id → 平均勝率), sorted }
   const REF_MAX = 120;
   function strengthTable() {
@@ -556,7 +584,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function gradeOf(s) {
     const T = strengthTable(), r = rateOf(s), n = roster.length;
     const pct = T.sorted.filter(x => x > r + 1e-9).length / Math.max(1, n - 1);
-    return pct <= 0.1 ? 'S' : pct <= 0.3 ? 'A' : pct <= 0.6 ? 'B' : pct <= 0.85 ? 'C' : 'D';
+    return H.gradeOfPct(pct);
   }
   function render() {
     const counts = H.war.classCounts(roster);
@@ -565,8 +593,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const nReview = roster.filter(s => nReviewOf(s)).length;
     const nChanged = roster.filter(s => pubState(s)).length;
     const nEdited = roster.filter(s => (s.contentEdited || []).length).length;
+    const nPage = roster.filter(s => ['missing', 'unknown'].includes(pageState(s))).length;
     $('#clsSel').innerHTML = `<option value="all">すべてのクラス（${roster.length}）</option>` + present.map(k => `<option value="${k}"${filter === k ? ' selected' : ''}>${esc(H.classDef(k).label)}（${counts[k]}）</option>`).join('');
-    const flags = [['review', '要確認あり', nReview], ['changed', '未公開の追加・変更', nChanged], ['edited', '内容を手直し中', nEdited]].filter(x => x[2]);
+    const flags = [['review', '要確認あり', nReview], ['changed', '未公開の追加・変更', nChanged], ['edited', '内容を手直し中', nEdited], ['page', 'Wikiのページ名を確かめる', nPage]].filter(x => x[2]);
     if (flag && !flags.some(x => x[0] === flag)) flag = '';
     $('#filters').innerHTML = flags.map(([k, t, n]) => `<button class="sm${flag === k ? ' on' : ''}" data-f="${k}" aria-pressed="${flag === k}">${t} ${n}</button>`).join('');
     renderList();
@@ -593,15 +622,15 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function renderList() {
     const f = fold(query);
     const shown = roster.map((s, i) => [s, i]).filter(([s]) => (filter === 'all' || s.class.key === filter)
-      && (!flag || (flag === 'review' ? nReviewOf(s) : flag === 'changed' ? pubState(s) : (s.contentEdited || []).length))
+      && (!flag || (flag === 'review' ? nReviewOf(s) : flag === 'changed' ? pubState(s) : flag === 'page' ? ['missing', 'unknown'].includes(pageState(s)) : (s.contentEdited || []).length))
       && (!f || hay(s).includes(f)));
     shown.sort((x, y) => SORTS[sortBy](x[0], y[0]));
     shownIds = shown.map(([s]) => s.id);
     $('#cnt').textContent = roster.length ? `${shown.length} / ${roster.length}騎` : '';
     $('#list').innerHTML = shown.length ? shown.map(([s]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
-      const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''].join('');
-      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="sumname">${mark(s.trueName)}</span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
+      const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : '', ['missing', 'unknown'].includes(pageState(s)) ? `<span class="badge" title="${pageState(s) === 'missing' ? '取り直しでWikiのページが見つからなかった' : '取り込んだときのページ名が無い'}">ページ名？</span>` : ''].join('');
+      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="sumname">${mark(s.trueName)}</span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
     }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div>';
     // 選んでいる騎が一覧から消えたら、一覧の先頭を選ぶ（スマホで詳細を開いていないときだけ）
     if (!roster.some(x => x.id === sel)) { sel = shownIds[0] || (roster[0] && roster[0].id) || null; renderDetail(); }
@@ -609,7 +638,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // 右（スマホでは一覧の代わり）に、選んだ騎の詳細を出す
   function renderDetail() {
     const i = roster.findIndex(x => x.id === sel), sv = roster[i];
-    if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : '名簿が空です'}</div>`; $('#browse').classList.remove('show'); return; }
+    if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : 'リストが空です'}</div>`; $('#browse').classList.remove('show'); return; }
     const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
     $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="sp"></span>`
       + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
@@ -654,7 +683,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#sort').addEventListener('change', e => { sortBy = e.target.value; renderList(); renderDetail(); });
   // 「/」で検索欄へ（入力中は除く）
   document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.closest('input, textarea, select, dialog')) { e.preventDefault(); showView('roster'); $('#browse').classList.remove('show'); $('#q').focus(); $('#q').select(); } });
-  // 名簿の1騎へ移る（申請・取り込み・試し戦いの一覧などから）
+  // リストの1騎へ移る（申請・取り込み・試し戦いの一覧などから）
   function jumpTo(id) {
     const s = roster.find(x => x.id === id); if (!s) return;
     showView('roster');
@@ -761,7 +790,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const ce = req.contentEdit || {}, dr = req.drop || {};
     if (Object.keys(ce).length || Object.keys(dr).length) {
       const name = req.servant, now = roster.find(x => x.trueName === name);
-      if (!now) notes.push('セリフなどの書き換えは、英霊がまだ名簿にいないので掛けていません（取り込んでから、もう一度この申請を読んでください）');
+      if (!now) notes.push('セリフなどの書き換えは、英霊がまだリストにいないので掛けていません（取り込んでから、もう一度この申請を読んでください）');
       else {
         const wk = B.wikiOf(now), c = Object.assign({}, E.CONTENT_OVERRIDES[name] || {}), cb = Object.assign({}, c.base || {}), secs = [];
         const put = (sec, val) => {
@@ -808,7 +837,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const d = JSON.parse(t);
     if (d && d.format === 'hgw-request') return { request: d, list: [], harvested: 0 };
     const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
-    if (!list) throw new Error('名簿の形式ではありません');
+    if (!list) throw new Error('リストの形式ではありません');
     const n = B.harvestOverrides(list);
     if (n) { ovStore(); ovVer++; }
     return { list: list.map(B.fromJSON), harvested: n };
@@ -853,10 +882,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     try { ovSet(JSON.parse(await f.text()), true); ovStore(); ovVer++; rebuildAll(); save(); render(); status('手直し表を読み込みました'); }
     catch (err) { status('手直し表を読めませんでした：' + err.message); }
   };
-  $('#clearAll').onclick = () => { if (!roster.length || !confirm('名簿を空にします（手直し表は残ります）')) return; roster = []; save(); render(); status('名簿を空にしました'); };
+  $('#clearAll').onclick = () => { if (!roster.length || !confirm('リストを空にします（手直し表は残ります）')) return; roster = []; save(); render(); status('リストを空にしました'); };
   document.addEventListener('click', e => {
     const d = e.target.closest('[data-del]'); if (!d) return;
-    const s = roster[+d.dataset.del]; if (!confirm(`${s.trueName} を名簿から外します`)) return;
+    const s = roster[+d.dataset.del]; if (!confirm(`${s.trueName} をリストから外します`)) return;
     roster.splice(+d.dataset.del, 1); save(); render();
   });
 
@@ -1052,10 +1081,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     delete E.CONTENT_OVERRIDES[ct.sv.trueName]; $('#ct').close(); afterEdit(); status(`${ct.sv.trueName}をWikiの内容に戻しました`);
   };
 
-  // ---------- 公開中の名簿 ----------
-  // 公開中の名簿（data/ の manifest・servants・overrides）を読み、このブラウザの名簿と比べる。
-  // そろえるときは三方向で合わせる：最後にそろえたときの公開中の名簿（BASE_KEY）から、このブラウザで変えたもの（未公開の変更）は残し、
-  // 変えていないものは今の公開中の名簿に置き換える。公開側の更新（Actions の取り込みなど）と、手元の未公開の変更が両立する
+  // ---------- 公開中のリスト ----------
+  // 公開中のリスト（data/ の manifest・servants・overrides）を読み、このブラウザのリストと比べる。
+  // そろえるときは三方向で合わせる：最後にそろえたときの公開中のリスト（BASE_KEY）から、このブラウザで変えたもの（未公開の変更）は残し、
+  // 変えていないものは今の公開中のリストに置き換える。公開側の更新（Actions の取り込みなど）と、手元の未公開の変更が両立する
   const BASE_KEY = 'hgw.roster.base'; // { at, sv: { id: 署名 }, ov: { 表: { キー: JSON } } }
   const sigCache = new WeakMap();
   const sig = sv => { if (!sigCache.has(sv)) sigCache.set(sv, B.hashOf(canonJ(B.toLean(sv)))); return sigCache.get(sv); };
@@ -1133,7 +1162,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     }
     if (moved) { store.set(BASE_KEY, base); planCache = null; }
   }
-  // そろえる：未公開の変更は残し、ほかは公開中の名簿に
+  // そろえる：未公開の変更は残し、ほかは公開中のリストに
   function pullPublished() {
     const pl = plan(); if (!pl) return;
     const local = new Map(roster.map(s => [s.id, s]));
@@ -1143,13 +1172,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     for (const t in TABLES) { ov[t] = {}; for (const [k, src] of Object.entries(pl.ov[t].take)) { const v = src === 'P' ? (pub.ov[t] || {})[k] : (cur[t] || {})[k]; if (v !== undefined) ov[t][k] = v; } }
     const n = pl.sv.fromPub, kept = pl.sv.local;
     applyRoster(next, ov);
-    status(`公開中の名簿にそろえました（追加 ${n.add.length}・更新 ${n.upd.length}・削除 ${n.del.length}、手直し ${pl.nOvPub}件）。未公開の変更（${kept.add.length + kept.upd.length + kept.del.length}騎・手直し ${pl.nOvLocal}件）は残しています`);
+    status(`公開中のリストにそろえました（追加 ${n.add.length}・更新 ${n.upd.length}・削除 ${n.del.length}、手直し ${pl.nOvPub}件）。未公開の変更（${kept.add.length + kept.upd.length + kept.del.length}騎・手直し ${pl.nOvLocal}件）は残しています`);
   }
   function replacePublished(silent) {
     if (!pub) return;
-    if (!silent && !confirm('このブラウザの名簿と手直し表を、公開中のものに置き換えます。未公開の変更は消えます。よろしいですか？')) return;
+    if (!silent && !confirm('このブラウザのリストと手直し表を、公開中のものに置き換えます。未公開の変更は消えます。よろしいですか？')) return;
     applyRoster([...pub.servants.values()], pub.ov);
-    status(`公開中の名簿（${roster.length}騎）を読み込みました`);
+    status(`公開中のリスト（${roster.length}騎）を読み込みました`);
   }
   function applyRoster(list, ov) {
     ovSet(ov); ovStore(); ovVer++;
@@ -1163,7 +1192,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const box = $('#syncInfo'); if (!box) return;
     if (!pub) {
       $('#syncActs').hidden = true;
-      box.innerHTML = pubErr ? `<span class="hint">${esc(pubErr)}</span>` : '公開中の名簿を確かめています…';
+      box.innerHTML = pubErr ? `<span class="hint">${esc(pubErr)}</span>` : '公開中のリストを確かめています…';
       $('#unpub').textContent = '';
       return;
     }
@@ -1177,20 +1206,20 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (a.del.length) items.push(`<li>公開側で削除：${esc(list(a.del))}</li>`);
     if (pl.nOvPub) items.push(`<li>公開側の手直し表の更新 ${pl.nOvPub}件</li>`);
     box.innerHTML = `公開中：<b>${pub.servants.size}</b>騎（${esc(pub.files.join('・'))}）`
-      + (nPub ? `<div style="margin-top:4px">この名簿にまだ入っていない公開側の更新があります。<ul>${items.join('')}</ul></div>` : nLoc ? '' : '<div class="ok" style="margin-top:4px">この名簿は公開中の名簿と同じです。</div>')
+      + (nPub ? `<div style="margin-top:4px">このリストにまだ入っていない公開側の更新があります。<ul>${items.join('')}</ul></div>` : nLoc ? '' : '<div class="ok" style="margin-top:4px">このリストは公開中のリストと同じです。</div>')
       + (nLoc ? `<div style="margin-top:4px">未公開の変更：${[l.add.length && `追加 ${l.add.length}騎`, l.upd.length && `変更 ${l.upd.length}騎`, l.del.length && `外した ${l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}${nPub ? '（そろえても残ります）' : ''}</div>` : '');
     $('#syncActs').hidden = !nPub && !nLoc;
     $('#syncPull').hidden = !nPub;
     $('#unpub').innerHTML = nLoc ? `未公開の変更があります（${[l.add.length + l.upd.length + l.del.length && `${l.add.length + l.upd.length + l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}）。公開するには「公開用に保存」と「手直し表を保存」で書き出し、GitHub の data/ の同じ名前のファイルと置き換えます。` : '';
-    // 画面の上の目印（公開・保存のタブと、名簿の上の知らせ）
+    // 画面の上の目印（公開・保存のタブと、リストの上の知らせ）
     const sb = $('#saveBadge'); sb.hidden = !nPub && !nLoc; sb.textContent = nPub ? '公開側の更新あり' : nLoc ? `未公開 ${l.add.length + l.upd.length + l.del.length + pl.nOvLocal}` : '';
     $('#syncBanner').hidden = !nPub;
-    $('#syncBanner').innerHTML = nPub ? `<span>公開中の名簿に、この名簿にまだ入っていない更新があります（${[a.add.length && `追加 ${a.add.length}騎`, a.upd.length && `更新 ${a.upd.length}騎`, a.del.length && `削除 ${a.del.length}騎`, pl.nOvPub && `手直し ${pl.nOvPub}件`].filter(Boolean).join('・')}）。</span><button class="sm primary" data-pull>公開中の名簿にそろえる</button><button class="sm ghost" data-v2="save">くわしく</button>` : '';
+    $('#syncBanner').innerHTML = nPub ? `<span>公開中のリストに、このリストにまだ入っていない更新があります（${[a.add.length && `追加 ${a.add.length}騎`, a.upd.length && `更新 ${a.upd.length}騎`, a.del.length && `削除 ${a.del.length}騎`, pl.nOvPub && `手直し ${pl.nOvPub}件`].filter(Boolean).join('・')}）。</span><button class="sm primary" data-pull>公開中のリストにそろえる</button><button class="sm ghost" data-v2="save">くわしく</button>` : '';
   }
   async function loadPub() {
-    if (!/^https?:$/.test(location.protocol)) { pubErr = 'ファイルを直接開いているため、公開中の名簿を自動で読めません。「ファイルを読む」で data/servants.json を選んでください。'; syncInfo(); return; }
+    if (!/^https?:$/.test(location.protocol)) { pubErr = 'ファイルを直接開いているため、公開中のリストを自動で読めません。「ファイルを読む」で data/servants.json を選んでください。'; syncInfo(); return; }
     try { pub = await fetchPublished(); pubErr = ''; }
-    catch (e) { pub = null; pubErr = '公開中の名簿を読めませんでした（' + e.message + '）'; syncInfo(); return; }
+    catch (e) { pub = null; pubErr = '公開中のリストを読めませんでした（' + e.message + '）'; syncInfo(); return; }
     if (!roster.length) return replacePublished(true);
     if (!base) { const pl = plan(); if (!pl.sv.fromPub.add.length + pl.sv.fromPub.upd.length + pl.sv.fromPub.del.length + pl.sv.local.add.length + pl.sv.local.upd.length + pl.sv.local.del.length) setBase(); }
     advanceBase(); planCache = null; render();
@@ -1199,7 +1228,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- ページ名で取り込む（GitHub の Actions） ----------
   // GitHub の実行画面には入力を渡せないので、ページ名をコピーしてから開く（貼り付けて実行する）
   const GH_WF = 'https://github.com/Pippiniden/1in7HGW/actions/workflows/kagemiya.yml';
-  const GH_MODE = { add: '追加（ページ名を指定）', refresh: '取り直し（空欄なら名簿の全騎）' };
+  const GH_MODE = { add: '追加（ページ名を指定）', refresh: '取り直し（空欄ならリストの全騎）' };
   $('#ghMode').onchange = () => { $('#ghModeLabel').textContent = GH_MODE[$('#ghMode').value]; };
   function ghOpen() {
     const names = $('#ghNames').value.split(/[、,，\n]+/).map(x => x.trim()).filter(Boolean).join('、');
@@ -1207,13 +1236,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     // ポップアップを止められないよう、開くのは押した瞬間に。コピーはその後ろで済ませる
     window.open(GH_WF, '_blank', 'noopener');
     if (names && navigator.clipboard) navigator.clipboard.writeText(names).then(() => status(`ページ名「${names}」をコピーしました。GitHub の「Run workflow」で貼り付けてください`), () => { $('#ghNames').select(); status('コピーできませんでした。ページ名の欄の文字を選んであるので、コピーして貼り付けてください'); });
-    else status(names ? 'ページ名の欄をコピーして、GitHub の「Run workflow」に貼り付けてください' : '「取り直し」でページ名が空欄なら、名簿の全騎を取り直します');
+    else status(names ? 'ページ名の欄をコピーして、GitHub の「Run workflow」に貼り付けてください' : '「取り直し」でページ名が空欄なら、リストの全騎を取り直します');
   }
   $('#ghGo').onclick = ghOpen;
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-refetch]'); if (!b) return;
     const sv = roster[+b.dataset.refetch]; if (!sv) return;
-    $('#ghNames').value = sv.page || sv.trueName; $('#ghMode').value = 'refresh'; $('#ghMode').onchange();
+    $('#ghNames').value = B.pageOf(sv) || sv.trueName; $('#ghMode').value = 'refresh'; $('#ghMode').onchange();
     ghOpen();
   });
   // kagemiya のページのURL（ページ名は EUC-JP でパーセント符号化）。対応表は初回に作る
@@ -1233,19 +1262,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     }
     return out;
   }
-  const wikiUrl = sv => { try { const u = eucEncode(sv.page || sv.trueName); return u ? 'https://seesaawiki.jp/kagemiya/d/' + u : ''; } catch (e) { return ''; } };
+  const wikiUrl = sv => { try { const u = eucEncode(B.pageOf(sv) || sv.trueName); return u ? 'https://seesaawiki.jp/kagemiya/d/' + u : ''; } catch (e) { return ''; } };
 
   // ---------- 起動 ----------
   roster = store.get(ROSTER_KEY, []);
   sel = store.get(SEL_KEY, null);
   rebuildAll(); render();
   showView(store.get(VIEW_KEY, 'roster'));
-  if (roster.length) $('#status').textContent = `この名簿に ${roster.length}騎`;
+  if (roster.length) $('#status').textContent = `このリストに ${roster.length}騎`;
   loadPub();
 })();
 </script>
 <script>
-// PWA：ゲーム本体と同じサービスワーカー（sw.js）。名簿ツールもオフラインで開ける
+// PWA：ゲーム本体と同じサービスワーカー（sw.js）。リストツールもオフラインで開ける
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 </script>
 </body>

@@ -5,13 +5,13 @@
  *
  *   node tools/kagemiya.js add  ルーカン ペンテシレイア     … 名前（ページ名）を指定して取り込む
  *   node tools/kagemiya.js refresh                           … data/servants.json の全騎をWikiから取り直す
- *   node tools/kagemiya.js refresh ルーカン                  … 名簿にいる騎だけを取り直す
+ *   node tools/kagemiya.js refresh ルーカン                  … リストにいる騎だけを取り直す
  *   node tools/kagemiya.js show ルーカン                     … 取り込まずに、読み取った結果を表示するだけ
  *   オプション: --file data/servants.json（書き込み先） --summary <path>（Markdownの報告） --save-text <dir>（変換したWiki記法を保存）
  *
  * 仕組み：
  *   1) ページ名を EUC-JP でURLにして /d/ページ名 を取得（Seesaa Wiki はブラウザからの直接取得を許していないので、Actions 側で取る）
- *   2) 表示用のHTMLを、名簿ツールに貼り付けるのと同じ Wiki 記法のテキストに戻す（htmlToWiki）
+ *   2) 表示用のHTMLを、リストツールに貼り付けるのと同じ Wiki 記法のテキストに戻す（htmlToWiki）
  *   3) js/parser.js・js/build.js で解析し、公開用の軽いデータ（toLean）にして servants.json に入れる
  *   同じクラス・真名は置き換え。overrides.json の手直し（効果・ステータス・内容の編集）はそのまま残り、読み込み時に掛かる。
  */
@@ -169,7 +169,7 @@ function loadOverrides() {
   const f = path.join(ROOT, 'data', 'overrides.json');
   if (!fs.existsSync(f)) return;
   const o = JSON.parse(fs.readFileSync(f, 'utf8')), E = H.effects;
-  const T = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES, content: E.CONTENT_OVERRIDES };
+  const T = E.OVERRIDE_TABLES;
   for (const k in T) if (T[k]) Object.assign(T[k], o[k] || {});
 }
 
@@ -189,7 +189,7 @@ async function importOne(name) {
 
 // ---------- 報告 ----------
 function line(r) {
-  if (!r.ok) return `| ❌ | [${r.name}](${r.url || '#'}) | — | ${r.error} |`;
+  if (!r.ok) return `| ❌ | [${r.name}](${r.url || '#'}) | — | ${r.error}${r.flagged ? `（試した名前：${(r.tried || [r.name]).join('、')}。リストツールの詳細の「Wikiのページ名」に正しいページ名を入れて、取り直してください）` : ''} |`;
   const s = r.servant, n = s.review.filter(x => x.kind !== 'class').length;
   const note = [r.change, s.warnings.length ? '読み取りの警告 ' + s.warnings.length : '', n ? '要確認 ' + n : ''].filter(Boolean).join('・');
   return `| ${r.change === '変更なし' ? '＝' : '✅'} | [${s.trueName}](${r.url}) | ${s.class.label} | スキル${s.classSkills.length + s.skills.length}・宝具${s.nps.length}・セリフ${Object.values(s.voice).reduce((t, v) => t + v.length, 0)}　${note} |`;
@@ -232,11 +232,13 @@ async function main() {
   // 取り込む対象（ページ名）を決める
   let targets;
   if (o.cmd === 'refresh') {
-    const pick = o.names.length ? list.filter(s => o.names.includes(s.trueName) || o.names.includes(s.page)) : list;
-    const unknown = o.names.filter(n => !list.some(s => s.trueName === n || s.page === n));
-    // ページ名を持っていない古いデータは、真名 →「真名(クラス)」の順に探す
-    const alts = s => s.page ? [] : [s.trueName + '(' + s.class.label + ')', s.trueName + '（' + s.class.label + '）'];
-    targets = pick.map(s => ({ name: s.page || s.trueName, alts: alts(s), prevId: s.id })).concat(unknown.map(n => ({ name: n, notInRoster: true })));
+    // ページ名は、手直し表（overrides.json の pages）→ 取り込んだときのページ名 → 真名 の順
+    const pg = s => H.build.pageOf(s);
+    const pick = o.names.length ? list.filter(s => o.names.includes(s.trueName) || o.names.includes(s.page) || o.names.includes(pg(s))) : list;
+    const unknown = o.names.filter(n => !list.some(s => s.trueName === n || s.page === n || pg(s) === n));
+    // ページ名が分からない騎は、真名 →「真名(クラス)」の順に探す
+    const alts = s => pg(s) ? [] : [s.trueName + '(' + s.class.label + ')', s.trueName + '（' + s.class.label + '）'];
+    targets = pick.map(s => ({ name: pg(s) || s.trueName, alts: alts(s), prevId: s.id })).concat(unknown.map(n => ({ name: n, notInRoster: true })));
   } else targets = o.names.map(n => ({ name: n }));
   targets = targets.filter((t, i, a) => a.findIndex(x => x.name === t.name) === i);
   if (!targets.length) { console.error('取り込むページ名がありません'); process.exit(2); }
@@ -249,15 +251,27 @@ async function main() {
       r = await importOne(t.name);
       for (const alt of t.alts || []) { if (!r.missing) break; await sleep(WAIT_MS); const r2 = await importOne(alt); if (r2.ok) { r2.name = t.name; r = r2; } }
     } catch (e) { r = { ok: false, name: t.name, url: (() => { try { return pageUrl(t.name); } catch (_) { return null; } })(), error: e.message }; }
-    if (r.ok && t.notInRoster && o.cmd === 'refresh') r.change = '名簿に無かったので追加';
+    if (r.ok && t.notInRoster && o.cmd === 'refresh') r.change = 'リストに無かったので追加';
+    if (!r.ok && r.missing) r.tried = [t.name].concat(t.alts || []);
     results.push(r);
     console.log(r.ok ? `✓ ${r.servant.class.label}・${r.servant.trueName}` : `✗ ${t.name}：${r.error}`);
     if (r.ok && o.saveText) { fs.mkdirSync(o.saveText, { recursive: true }); fs.writeFileSync(path.join(o.saveText, r.title.replace(/[\\/:*?"<>|]/g, '_') + '.txt'), r.text); }
   }
 
-  // 名簿に反映（show は反映しない）
+  // リストに反映（show は反映しない）
+  let flagged = 0, newFlags = 0;
   if (o.cmd !== 'show') {
     for (const r of results) {
+      // 取り直しでページが見つからなかった騎には印を付ける（リストツールで分かるように。次に見つかれば消える）
+      if (!r.ok && r.missing) {
+        const t = targets.find(x => x.name === r.name), s = t && t.prevId && list.find(x => x.id === t.prevId);
+        if (s) {
+          const tried = r.tried || [r.name];
+          if (!s.pageMissing || JSON.stringify(s.pageMissing.tried) !== JSON.stringify(tried)) newFlags++; // 新しく見つからなくなった騎だけ「変更」に数える
+          s.pageMissing = { at: new Date().toISOString().slice(0, 10), tried }; flagged++; r.flagged = true;
+        }
+        continue;
+      }
       if (!r.ok) continue;
       const lean = H.build.toLean(r.servant);
       const target = targets.find(t => t.name === r.name);
@@ -273,7 +287,7 @@ async function main() {
     const ord = s => { const k = H.parser.parseClass(s.class.raw || s.class.label || '').key, i = CLS.indexOf(k); return i < 0 ? 99 : i; };
     list.sort((a, b) => ord(a) - ord(b) || a.trueName.localeCompare(b.trueName, 'ja'));
     pack.servants = list; pack.at = new Date().toISOString(); pack.lean = true;
-    if (results.some(r => r.ok && r.change !== '変更なし')) fs.writeFileSync(o.file, JSON.stringify(pack, null, 1) + '\n');
+    if (flagged || results.some(r => r.ok && r.change !== '変更なし')) fs.writeFileSync(o.file, JSON.stringify(pack, null, 1) + '\n');
   } else for (const r of results) if (r.ok) console.log('\n' + details(r));
 
   // 報告（GitHub のジョブ概要・PRの本文に使う）
@@ -282,19 +296,19 @@ async function main() {
   const md = [
     `## kagemiya@ふたば から取り込み（${o.cmd === 'refresh' ? '取り直し' : o.cmd === 'show' ? '確認のみ' : '追加'}）`,
     '',
-    `取得 ${ok.length}件・失敗 ${ng.length}件` + (o.cmd !== 'show' ? `・名簿の変更 ${changed.length}件（名簿は全${list.length}騎）` : ''),
+    `取得 ${ok.length}件・失敗 ${ng.length}件` + (o.cmd !== 'show' ? `・リストの変更 ${changed.length}件（リストは全${list.length}騎）` : '') + (flagged ? `・ページが見つからなかった騎 ${flagged}（リストツールで「ページ名？」の印が付きます）` : ''),
     '',
     '| | 真名 | クラス | 内容 |', '|---|---|---|---|',
     ...results.map(line),
     '',
     '<details><summary>読み取ったスキル・宝具</summary>', '', ...ok.map(details), '', '</details>',
     '',
-    '内容がおかしい騎は、名簿ツールの「内容を編集」で直せます（直した内容は overrides.json に入り、次に取り直しても残ります）。',
+    '内容がおかしい騎は、リストツールの「内容を編集」で直せます（直した内容は overrides.json に入り、次に取り直しても残ります）。',
   ].join('\n');
   if (o.summary) fs.writeFileSync(o.summary, md + '\n');
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md + '\n');
-  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed.length}\nok=${ok.length}\nfailed=${ng.length}\n`);
-  if (!ok.length) process.exitCode = 1;
+  if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `changed=${changed.length + newFlags}\nok=${ok.length}\nfailed=${ng.length}\n`);
+  if (!ok.length && !newFlags) process.exitCode = 1; // 見つからなかった印だけでも、反映（プルリクエスト）はする
 }
 
 // 比較のときは取り込み時刻などを無視する

@@ -2,7 +2,7 @@
  *
  * data/manifest.json に読み込むファイルを並べる：
  *   {
- *     "servants":  ["servants.json", "packs/2026-10-xxさん.json"],   // サーヴァントの束（名簿ツールの書き出し）
+ *     "servants":  ["servants.json", "packs/2026-10-xxさん.json"],   // サーヴァントの束（リストツールの書き出し）
  *     "overrides": ["overrides.json"],                               // 手直し表（後ろのファイルほど優先）
  *     "masters":   ["masters.json"]                                  // 固定マスター（任意）
  *   }
@@ -17,7 +17,7 @@
   }
   function applyOverrides(o) {
     const E = G.effects;
-    const T = { global: E.SKILL_OVERRIDES, servant: E.SERVANT_OVERRIDES, stats: E.STAT_OVERRIDES, np: E.NP_OVERRIDES, content: E.CONTENT_OVERRIDES };
+    const T = E.OVERRIDE_TABLES;
     for (const k in T) Object.assign(T[k], (o && o[k]) || {});
   }
   function listOf(d) { return Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : []); }
@@ -38,12 +38,12 @@
     return { servants: Array.from(byId.values()), masters, files, errors };
   }
 
-  /** 名簿ツール（roster.html）がこのブラウザに保存した名簿と手直しを読む */
+  /** リストツール（roster.html）がこのブラウザに保存したリストと手直しを読む */
   function loadLocal() {
     try {
       applyOverrides(JSON.parse(localStorage.getItem('hgw.overrides.v1') || 'null'));
       const raw = JSON.parse(localStorage.getItem('hgw.roster.v2') || '[]');
-      return { servants: raw.map(G.build.fromJSON), masters: [], files: ['ブラウザの名簿'], errors: [] };
+      return { servants: raw.map(G.build.fromJSON), masters: [], files: ['ブラウザのリスト'], errors: [] };
     } catch (e) { return { servants: [], masters: [], files: [], errors: [e.message] }; }
   }
   function hasLocal() { try { return JSON.parse(localStorage.getItem('hgw.roster.v2') || '[]').length; } catch (e) { return 0; } }
