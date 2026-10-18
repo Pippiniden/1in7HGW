@@ -30,6 +30,7 @@
   --ok: #7cc4a0; --chip: #2b2926; --neg: #f08a75; --hover: #262422;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
 header { padding: 18px 16px 8px; max-width: 1240px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .02em; }
@@ -39,7 +40,14 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; display: grid;
 .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; }
 .panel > h2 { font-size: 13px; color: var(--sub); margin: 0 0 8px; font-weight: 600; letter-spacing: .04em; }
 .side { position: sticky; top: 12px; display: grid; gap: 12px; max-height: calc(100vh - 24px); overflow: auto; }
-@media (max-width: 900px) { .side { position: static; max-height: none; } }
+@media (max-width: 900px) {
+  .side { position: static; max-height: none; }
+  /* スマホ・狭い画面では、公開中の名簿 → 試し戦い・検索・一覧 → 取り込み・保存などの順に並べる（探すまでのスクロールを減らす） */
+  .side { display: contents; }
+  #syncPanel { order: 0; } .mainc { order: 1; } .side > .panel:not(#syncPanel) { order: 2; }
+  .tojump { display: inline; }
+}
+.tojump { display: none; font-size: 12px; color: var(--accent); }
 textarea { width: 100%; min-height: 180px; resize: vertical; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
 .hint { font-size: 12px; color: var(--sub); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -60,7 +68,7 @@ select, input[type=number], input[type=text] { font: inherit; font-size: 13px; p
 .filters button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .list { display: grid; gap: 8px; min-width: 0; }
 details.sv { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
-details.sv > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+details.sv > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 96px 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 details.sv > summary::-webkit-details-marker { display: none; }
 details.sv > summary:hover { background: var(--hover); border-radius: 10px; }
 details.sv[open] > summary { border-bottom: 1px solid var(--rule); border-radius: 10px 10px 0 0; }
@@ -69,7 +77,9 @@ details.sv[open] > summary { border-bottom: 1px solid var(--rule); border-radius
 .nums { display: flex; gap: 12px; font-size: 12px; color: var(--sub); white-space: nowrap; }
 .nums b { color: var(--ink); font-size: 14px; margin-left: 2px; }
 .badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); }
-@media (max-width: 560px) { details.sv > summary { grid-template-columns: 80px minmax(0, 1fr); } .nums { grid-column: 1 / -1; } }
+@media (max-width: 560px) { details.sv > summary { grid-template-columns: 80px 22px minmax(0, 1fr); } .nums { grid-column: 1 / -1; } }
+details.sv.flash > summary { animation: flash 1.2s ease-out; }
+@keyframes flash { from { background: var(--warn-bg); } to { background: transparent; } }
 .cls { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .cls.ex { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
 .body { padding: 12px 14px 16px; min-width: 0; }
@@ -122,6 +132,49 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .war div { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 6px; }
 .war span:first-child { color: var(--sub); }
 .badge.ed { background: var(--chip); color: var(--ok); }
+.badge.new { background: var(--accent); color: var(--accent-ink); }
+.badge.chg { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.grade { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: 12px; font-weight: 800; background: var(--chip); color: var(--ink); }
+.grade.S { background: #c99a1c; color: #fff; } .grade.A { background: var(--accent); color: var(--accent-ink); } .grade.D { color: var(--sub); }
+/* 公開中の名簿との違い */
+.sync { font-size: 13px; }
+.sync ul { margin: 4px 0 0; padding-left: 18px; }
+.sync .ok { color: var(--ok); }
+/* ページ名で取り込む */
+.gh { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--rule); }
+.gh h4 { font-size: 12px; color: var(--sub); margin: 0 0 6px; font-weight: 600; }
+textarea.names { min-height: 56px; font-family: inherit; font-size: 13px; }
+.steps { margin: 6px 0 0; padding-left: 18px; }
+/* 一覧の上の検索と並べ替え（スクロールしても上に残る） */
+.mainc { display: grid; gap: 10px; min-width: 0; }
+.toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 2px; }
+.toolbar input[type=search] { flex: 1 1 220px; min-width: 0; font-size: 14px; padding: 7px 10px; }
+.toolbar .filters { margin: 8px 0 0; }
+mark { background: var(--warn-bg); color: inherit; border-radius: 3px; padding: 0 1px; }
+/* 試し戦い */
+details.tb > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; }
+details.tb > summary::-webkit-details-marker { display: none; }
+details.tb > summary .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+details.tb > summary h2 { white-space: nowrap; flex: none; margin: 0; font-size: 13px; color: var(--sub); font-weight: 600; letter-spacing: .04em; }
+details.tb > summary h2::before { content: "▸ "; } details.tb[open] > summary h2::before { content: "▾ "; }
+details.tb[open] > summary { margin-bottom: 8px; }
+.pick { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
+.pick .pk { display: grid; gap: 2px; font-size: 11px; color: var(--sub); min-width: 0; }
+.pick input { width: 100%; font-size: 14px; padding: 7px 9px; }
+.pick input.bad { border-color: var(--neg); }
+.pick #cmpSwap { min-width: 40px; min-height: 34px; font-size: 16px; }
+@media (max-width: 560px) { .pick { grid-template-columns: minmax(0, 1fr); } .pick #cmpSwap { justify-self: center; } }
+.vsall { margin-top: 10px; font-size: 13px; }
+.vsall summary { cursor: pointer; color: var(--accent); }
+.vstbl { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 14px; margin-top: 6px; }
+.vstbl div { display: grid; grid-template-columns: minmax(0, 1fr) 44px 60px; gap: 6px; align-items: center; border-bottom: 1px dashed var(--rule); padding: 2px 0; }
+.vstbl span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vstbl b { text-align: right; }
+.vstbl .meter { margin: 0; height: 6px; }
+.vstbl button { background: none; border: 0; padding: 0; color: inherit; text-align: left; cursor: pointer; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vstbl button:hover { color: var(--accent); text-decoration: underline; }
+.kpi .sep { flex-basis: 100%; height: 0; }
+.kpi a { color: var(--accent); font-size: 12px; }
 /* 内容の編集 */
 dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32px); }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -155,11 +208,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <body>
 <header>
   <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a></h1>
-  <p>Wikiのページを貼り付けるか、書き出したJSONをまとめて読み込むと名簿に入ります。名簿と手直しはこのブラウザに残り、すべてこのパソコンの中で処理します。</p>
+  <p>開くと公開中の名簿を読み込みます。Wikiのページを貼り付けるか、書き出したJSONを読み込むと名簿に足せます。名簿と手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <main>
   <div class="side">
-    <section class="panel">
+    <section class="panel" id="syncPanel">
+      <h2>公開中の名簿</h2>
+      <div id="syncInfo" class="sync">公開中の名簿を確かめています…</div>
+      <div class="row" id="syncActs" style="margin-top:8px" hidden>
+        <button class="primary" id="syncPull">公開中の名簿にそろえる</button>
+        <button class="ghost danger sm" id="syncReplace">公開中の名簿で置き換える</button>
+      </div>
+    </section>
+    <section class="panel" id="importPanel">
       <h2>取り込み</h2>
       <textarea id="src" spellcheck="false" placeholder="Wikiのページのテキストを貼り付け&#10;複数ページは ===== だけの行で区切る"></textarea>
       <div class="row" style="margin-top:8px">
@@ -167,15 +228,28 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
       <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出した名簿）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
-      <div class="hint" style="margin-top:6px">ページ名だけで取り込むときは <a href="https://github.com/Pippiniden/1in7HGW/actions/workflows/kagemiya.yml" target="_blank" rel="noopener" style="color:var(--accent)">GitHub の「kagemiya から取り込み」</a> を実行します（data/servants.json を更新するプルリクエストができます）。</div>
       <div class="status" id="status"></div>
+      <div class="gh">
+        <h4>ページ名で取り込む（GitHub）</h4>
+        <textarea id="ghNames" class="names" spellcheck="false" placeholder="ルーカン、ペンテシレイア&#10;（「、」や改行で区切る。URLでもよい）"></textarea>
+        <div class="row" style="margin-top:6px">
+          <select id="ghMode"><option value="add">追加（ページ名を指定）</option><option value="refresh">取り直し（空欄なら名簿の全騎）</option></select>
+          <button id="ghGo">名前をコピーして GitHub を開く</button>
+        </div>
+        <ol class="hint steps">
+          <li>開いた画面の「Run workflow」を押す</li>
+          <li>「取り込み方」を<b id="ghModeLabel">追加（ページ名を指定）</b>にし、「ページ名」の欄に貼り付けて実行</li>
+          <li>数分でプルリクエストができる。マージしたら、この画面の「公開中の名簿にそろえる」で取り込める</li>
+        </ol>
+      </div>
     </section>
     <section class="panel">
       <h2>保存</h2>
+      <div class="hint" id="unpub" style="margin-bottom:8px"></div>
       <div class="row">
-        <button id="saveJson">名簿をJSONで保存</button>
         <button id="saveLean">公開用に保存（data/servants.json）</button>
         <button id="saveOv">手直し表を保存（data/overrides.json）</button>
+        <button id="saveJson">名簿をJSONで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
       <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">名簿を空にする</button></div>
@@ -190,20 +264,38 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <button id="warDraw">7騎を引く</button>
       <div class="war" id="warOut"></div>
     </section>
-    <section class="panel" id="cmpPanel" hidden>
-      <h2>勝率の目安</h2>
-      <div class="row"><select id="cmpA"></select><span>vs</span><select id="cmpB"></select></div>
+  </div>
+  <div class="mainc">
+    <details class="panel tb" id="cmpPanel" open hidden>
+      <summary><h2>試し戦い</h2><span class="hint" id="cmpSum"></span></summary>
+      <div class="pick">
+        <label class="pk"><span>左</span><input type="text" id="cmpA" list="svOpts" autocomplete="off" placeholder="真名・クラスで探す"></label>
+        <button class="sm ghost" id="cmpSwap" title="左右を入れ替える">⇄</button>
+        <label class="pk"><span>右</span><input type="text" id="cmpB" list="svOpts" autocomplete="off" placeholder="真名・クラスで探す"></label>
+      </div>
+      <datalist id="svOpts"></datalist>
       <div class="row" style="margin-top:6px">
         <label class="hint"><input type="checkbox" id="cmpNp"> 宝具を使う</label>
         <label class="hint"><input type="checkbox" id="cmpHome"> 左が拠点で戦う</label>
         <select id="cmpTerrain"><option value="">場所：普通</option><option>水辺</option><option>森</option><option>山</option><option>夜</option></select>
       </div>
       <div id="cmpOut" class="odds" style="margin-top:8px"></div>
-      <div class="hint">本番の戦闘処理ができるまでの確認用です。</div>
-    </section>
-  </div>
-  <div>
-    <div class="filters" id="filters"></div>
+      <details class="vsall" id="vsAll"><summary>左の英霊と、名簿の全騎との勝率を見る</summary><div id="vsAllOut"></div></details>
+      <div class="hint" style="margin-top:6px">ステータス・スキル・宝具から見積もった1対1の勝ちやすさです（評価 S〜D はゲームの開戦時の評価と同じ式）。各騎の「試し戦いの左に／右に」でも選べます。</div>
+    </details>
+    <div class="toolbar" id="toolbar">
+      <div class="row">
+        <input type="search" id="q" placeholder="真名・クラス・元ネタ・スキル・宝具で探す（/ キー）" autocomplete="off">
+        <select id="sort">
+          <option value="class">クラス順</option><option value="name">名前順</option><option value="grade">評価順</option>
+          <option value="power">戦闘力順</option><option value="np">宝具の威力順</option><option value="review">要確認の多い順</option>
+        </select>
+        <button class="sm ghost" id="closeAll">すべて閉じる</button>
+        <span class="hint" id="cnt"></span>
+        <a class="tojump" href="#importPanel">取り込み・保存へ ↓</a>
+      </div>
+      <div class="filters" id="filters"></div>
+    </div>
     <div class="list" id="list"><div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div></div>
   </div>
 </main>
@@ -272,7 +364,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const OV_KEY = 'hgw.overrides.v1', ROSTER_KEY = 'hgw.roster.v2';
-  let roster = [], filter = 'all';
+  let roster = [], filter = 'all', rosterVer = 0; // rosterVer：名簿が変わるたびに増やす（評価や公開中との比較の作り直しに使う）
   const open = new Set();
 
   // ---------- 保存領域 ----------
@@ -283,9 +375,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function ovStore() { store.set(OV_KEY, ovGet()); }
   ovSet(store.get(OV_KEY, null));
 
-  // 名簿は「解析済みの元データ」を保存し、表示のたびに今の規則で組み直す
-  function save() { if (!store.set(ROSTER_KEY, roster)) status('ブラウザの保存領域がいっぱいで名簿を保存できませんでした。JSONで保存してください'); }
-  function rebuildAll() { roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
+  // 名簿は「解析済みの元データ」（公開用と同じ軽い形）を保存し、表示のたびに今の規則で組み直す
+  function save() { rosterVer++; if (!store.set(ROSTER_KEY, roster.map(B.toLean))) status('ブラウザの保存領域がいっぱいで名簿を保存できませんでした。JSONで保存してください'); syncInfo(); }
+  function rebuildAll() { rosterVer++; roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
   function upsert(list) {
     let add = 0, rep = 0;
     for (const s of list) { const i = roster.findIndex(x => x.id === s.id); if (i >= 0) { roster[i] = s; rep++; } else { roster.push(s); add++; } }
@@ -332,7 +424,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     return `<div class="body">
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).join('・')].filter(Boolean).join(' · '))}</div>
       <div class="stats">${st}</div>
-      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
+      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button>
+        <span class="sep"></span><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+        ${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
@@ -347,20 +441,60 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     </div>`;
   }
 
+  // ---------- 探す・並べ替える ----------
+  // かな・カナ、全角・半角、空白と「・」の違いを無視して探す
+  const fold = t => String(t || '').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s・･=＝]/g, '');
+  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, s.page,
+    (s.allSkills || []).map(x => x.name).join(' '), (s.nps || []).map(x => x.name + ' ' + (x.reading || '')).join(' ')].join(' '));
+  let query = '', sortBy = 'class';
+  const nReviewOf = s => s.review.filter(r => r.kind !== 'class').length;
+  const SORTS = {
+    class: (a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'),
+    name: (a, b) => a.trueName.localeCompare(b.trueName, 'ja'),
+    grade: (a, b) => (rateOf(b) - rateOf(a)),
+    power: (a, b) => b.power - a.power,
+    np: (a, b) => (b.npPeak || 0) - (a.npPeak || 0),
+    review: (a, b) => nReviewOf(b) - nReviewOf(a) || order(a) - order(b),
+  };
+  // 一致したところに印を付ける（真名のみ）
+  function mark(text) {
+    const t = String(text || '');
+    if (!query) return esc(t);
+    const q = query.normalize('NFKC').toLowerCase(), k = t.toLowerCase().indexOf(q);
+    return k < 0 ? esc(t) : esc(t.slice(0, k)) + '<mark>' + esc(t.slice(k, k + q.length)) + '</mark>' + esc(t.slice(k + q.length));
+  }
+
+  // ---------- 評価（ゲームの開戦時の評価と同じ式：名簿の全騎と1対1で戦った平均勝率の順位で S〜D） ----------
+  let strength = null; // { rates: Map(id → 平均勝率), sorted }
+  const REF_MAX = 120;
+  function strengthTable() {
+    if (strength && strength.ver === rosterVer) return strength;
+    const ids = roster.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    const refs = ids.length <= REF_MAX ? ids : Array.from({ length: REF_MAX }, (_, i) => ids[Math.floor(i * ids.length / REF_MAX)]);
+    const rates = new Map();
+    for (const a of roster) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } rates.set(a.id, n ? t / n : 0.5); }
+    strength = { ver: rosterVer, rates, sorted: [...rates.values()].sort((x, y) => y - x) };
+    return strength;
+  }
+  const rateOf = s => (strengthTable().rates.get(s.id) || 0);
+  function gradeOf(s) {
+    const T = strengthTable(), r = rateOf(s), n = roster.length;
+    const pct = T.sorted.filter(x => x > r + 1e-9).length / Math.max(1, n - 1);
+    return pct <= 0.1 ? 'S' : pct <= 0.3 ? 'A' : pct <= 0.6 ? 'B' : pct <= 0.85 ? 'C' : 'D';
+  }
   function render() {
     const counts = H.war.classCounts(roster);
-    // クラスの絞り込み
     const present = CLS_ORDER.filter(k => counts[k]);
-    if (filter !== 'all' && filter !== 'review' && !counts[filter]) filter = 'all';
-    const nReview = roster.filter(s => s.review.some(r => r.kind !== 'class')).length;
+    if (filter !== 'all' && !['review', 'changed', 'edited'].includes(filter) && !counts[filter]) filter = 'all';
+    const nReview = roster.filter(s => nReviewOf(s)).length;
+    const nChanged = roster.filter(s => pubState(s)).length;
+    const nEdited = roster.filter(s => (s.contentEdited || []).length).length;
     $('#filters').innerHTML = roster.length ? [`<button class="sm${filter === 'all' ? ' on' : ''}" data-f="all">すべて ${roster.length}</button>`]
       .concat(present.map(k => `<button class="sm${filter === k ? ' on' : ''}" data-f="${k}">${esc(H.classDef(k).label)} ${counts[k]}</button>`))
-      .concat(nReview ? [`<button class="sm${filter === 'review' ? ' on' : ''}" data-f="review">要確認あり ${nReview}</button>`] : []).join('') : '';
-    const shown = roster.map((s, i) => [s, i]).filter(([s]) => filter === 'all' || (filter === 'review' ? s.review.some(r => r.kind !== 'class') : s.class.key === filter));
-    $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
-      const nr = s.review.filter(r => r.kind !== 'class').length;
-      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="sumname">${esc(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
-    }).join('') : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
+      .concat(nReview ? [`<button class="sm${filter === 'review' ? ' on' : ''}" data-f="review">要確認あり ${nReview}</button>`] : [])
+      .concat(nChanged ? [`<button class="sm${filter === 'changed' ? ' on' : ''}" data-f="changed">未公開の追加・変更 ${nChanged}</button>`] : [])
+      .concat(nEdited ? [`<button class="sm${filter === 'edited' ? ' on' : ''}" data-f="edited">内容を手直し中 ${nEdited}</button>`] : []).join('') : '';
+    renderList();
 
     // クラス別の人数
     const std = H.standardClasses();
@@ -370,20 +504,102 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#poolNote').textContent = !roster.length ? '' : low.length ? `${low.join('・')}は候補が1騎以下です。そのクラスは毎回同じサーヴァントになるか、別クラスの代役が入ります。` : '各クラス2騎以上います。';
 
     $('#warPanel').hidden = roster.length < 7;
-    const opts = roster.map((s, i) => `<option value="${i}">${esc(s.class.label + '・' + s.trueName)}</option>`).join('');
     $('#cmpPanel').hidden = roster.length < 2;
-    const a = $('#cmpA').value, b = $('#cmpB').value;
-    $('#cmpA').innerHTML = opts; $('#cmpB').innerHTML = opts;
-    $('#cmpA').value = a && roster[a] ? a : 0; $('#cmpB').value = b && roster[b] ? b : Math.min(1, roster.length - 1);
+    $('#svOpts').innerHTML = roster.map(s => `<option value="${esc(optLabel(s))}"></option>`).join('');
+    if (!cmpA || !roster.includes(cmpA)) cmpA = roster.find(x => cmpA && x.id === cmpA.id) || roster[0] || null;
+    if (!cmpB || !roster.includes(cmpB)) cmpB = roster.find(x => cmpB && x.id === cmpB.id) || roster.find(x => x !== cmpA) || null;
+    $('#cmpA').value = cmpA ? optLabel(cmpA) : ''; $('#cmpB').value = cmpB ? optLabel(cmpB) : '';
+    compare();
+    syncInfo();
+  }
+  // 一覧だけを描き直す（探す・並べ替えるとき）
+  function renderList() {
+    const f = fold(query);
+    const shown = roster.map((s, i) => [s, i]).filter(([s]) => (filter === 'all' || (filter === 'review' ? nReviewOf(s) : filter === 'changed' ? pubState(s) : filter === 'edited' ? (s.contentEdited || []).length : s.class.key === filter))
+      && (!f || hay(s).includes(f)));
+    shown.sort((x, y) => SORTS[sortBy](x[0], y[0]));
+    $('#cnt').textContent = roster.length ? `${shown.length} / ${roster.length}騎` : '';
+    $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
+      const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
+      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}">${esc(s.class.label)}</span><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="sumname">${mark(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開の変更</span>' : ''}${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
+    }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
+  }
+  $('#q').addEventListener('input', e => { query = e.target.value.trim(); renderList(); });
+  $('#q').addEventListener('keydown', e => {
+    // Enter：見つかったのが1騎なら開く
+    if (e.key === 'Enter') { const d = $('#list details.sv'); if (d && $('#list').querySelectorAll('details.sv').length === 1 && !d.open) d.open = true; }
+    if (e.key === 'Escape') { e.target.value = ''; query = ''; renderList(); }
+  });
+  $('#sort').addEventListener('change', e => { sortBy = e.target.value; renderList(); });
+  $('#closeAll').onclick = () => { open.clear(); renderList(); };
+  // 「/」で検索欄へ（入力中は除く）
+  document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.closest('input, textarea, select, dialog')) { e.preventDefault(); $('#q').focus(); $('#q').select(); } });
+  // 名簿の1騎へ移る（試し戦いの一覧などから）
+  function jumpTo(id) {
+    const s = roster.find(x => x.id === id); if (!s) return;
+    open.add(id);
+    if (filter !== 'all' || query) { filter = 'all'; query = ''; $('#q').value = ''; render(); } else renderList();
+    const d = $(`#list details.sv[data-id="${CSS.escape(id)}"]`); if (!d) return;
+    d.scrollIntoView({ block: 'start', behavior: 'smooth' }); d.classList.add('flash'); setTimeout(() => d.classList.remove('flash'), 1300);
+  }
+
+  // ---------- 試し戦い ----------
+  let cmpA = null, cmpB = null;
+  const optLabel = s => `${s.trueName}（${s.class.label}）`;
+  // 入力から英霊を探す（候補どおりの文字か、真名に含まれる文字で一番近いもの）
+  function findSv(text) {
+    const t = String(text || '').trim(); if (!t) return null;
+    const exact = roster.find(s => optLabel(s) === t || s.trueName === t); if (exact) return exact;
+    const f = fold(t.replace(/（.*$/, ''));
+    return roster.find(s => fold(s.trueName).startsWith(f)) || roster.find(s => fold(s.trueName).includes(f)) || roster.find(s => hay(s).includes(f)) || null;
+  }
+  function pickFrom(input, side) {
+    const s = findSv(input.value);
+    input.classList.toggle('bad', !!input.value.trim() && !s);
+    if (!s) return;
+    if (side === 'A') cmpA = s; else cmpB = s;
     compare();
   }
+  ['cmpA', 'cmpB'].forEach(id => {
+    const el = $('#' + id), side = id.slice(-1);
+    el.addEventListener('change', () => { pickFrom(el, side); const s = side === 'A' ? cmpA : cmpB; if (s) el.value = optLabel(s); });
+    el.addEventListener('input', () => { if (roster.some(s => optLabel(s) === el.value)) pickFrom(el, side); });
+    el.addEventListener('focus', () => el.select());
+  });
+  $('#cmpSwap').onclick = () => { [cmpA, cmpB] = [cmpB, cmpA]; $('#cmpA').value = cmpA ? optLabel(cmpA) : ''; $('#cmpB').value = cmpB ? optLabel(cmpB) : ''; compare(); };
   function compare() {
-    if (roster.length < 2) return;
-    const a = roster[$('#cmpA').value], b = roster[$('#cmpB').value];
+    if (roster.length < 2 || !cmpA || !cmpB) { $('#cmpOut').innerHTML = ''; $('#cmpSum').textContent = ''; return; }
+    const a = cmpA, b = cmpB;
     const r = B.battleOdds(a, b, { np: $('#cmpNp').checked, home: $('#cmpHome').checked, terrain: $('#cmpTerrain').value || undefined });
-    $('#cmpOut').innerHTML = `<div><span class="big">${Math.round(r.pA * 100)}%</span> ${esc(a.trueName)}の勝率</div><div class="meter"><i style="width:${r.pA * 100}%"></i></div><div class="hint">実効戦闘力 ${r.a} 対 ${r.b}</div>`;
+    $('#cmpOut').innerHTML = `<div><span class="big">${Math.round(r.pA * 100)}%</span> ${esc(a.trueName)}の勝率（${esc(b.trueName)}は ${Math.round((1 - r.pA) * 100)}%）</div><div class="meter"><i style="width:${r.pA * 100}%"></i></div><div class="hint">実効戦闘力 ${r.a} 対 ${r.b} ・ 評価 ${gradeOf(a)} 対 ${gradeOf(b)}</div>`;
+    $('#cmpSum').textContent = `${a.trueName} 対 ${b.trueName}：${Math.round(r.pA * 100)}%`;
+    if ($('#vsAll').open) vsAll();
   }
-  ['cmpA', 'cmpB', 'cmpNp', 'cmpHome', 'cmpTerrain'].forEach(id => $('#' + id).addEventListener('change', compare));
+  ['cmpNp', 'cmpHome', 'cmpTerrain'].forEach(id => $('#' + id).addEventListener('change', compare));
+  // 左の英霊と全騎（勝ちにくい相手から）
+  function vsAll() {
+    const a = cmpA; if (!a) return;
+    const opt = { np: $('#cmpNp').checked, home: $('#cmpHome').checked, terrain: $('#cmpTerrain').value || undefined };
+    const rows = roster.filter(s => s !== a).map(s => [s, B.battleOdds(a, s, opt).pA]).sort((x, y) => x[1] - y[1]);
+    const avg = rows.reduce((t, r) => t + r[1], 0) / Math.max(1, rows.length);
+    $('#vsAllOut').innerHTML = `<p class="hint" style="margin:6px 0 0">${esc(a.trueName)}（評価 ${gradeOf(a)}）の平均 ${Math.round(avg * 100)}%。勝ちにくい相手から並べています。名前を押すと右に入ります。</p><div class="vstbl">${rows.map(([s, p]) =>
+      `<div><button data-vs="${esc(s.id)}" title="${esc(optLabel(s))}">${esc(s.trueName)}</button><b>${Math.round(p * 100)}%</b><span class="meter"><i style="width:${p * 100}%"></i></span></div>`).join('')}</div>`;
+  }
+  $('#vsAll').addEventListener('toggle', () => { if ($('#vsAll').open) vsAll(); });
+  // 試し戦いを開いておくか閉じておくかは、このブラウザに残す
+  const TB_KEY = 'hgw.roster.tbOpen';
+  if (store.get(TB_KEY, true) === false) $('#cmpPanel').open = false;
+  $('#cmpPanel').addEventListener('toggle', () => store.set(TB_KEY, $('#cmpPanel').open));
+  $('#vsAllOut').addEventListener('click', e => { const b = e.target.closest('[data-vs]'); if (!b) return; cmpB = roster.find(s => s.id === b.dataset.vs); $('#cmpB').value = optLabel(cmpB); compare(); $('#cmpPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+  // 各騎の「試し戦いの左に／右に」
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-cmp]'); if (!b) return;
+    const [side, i] = b.dataset.cmp.split(':'), s = roster[+i]; if (!s) return;
+    if (side === 'A') { cmpA = s; if (cmpB === s) cmpB = roster.find(x => x !== s); } else { cmpB = s; if (cmpA === s) cmpA = roster.find(x => x !== s); }
+    $('#cmpA').value = optLabel(cmpA); $('#cmpB').value = optLabel(cmpB);
+    $('#cmpPanel').open = true; compare();
+    $('#cmpPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
 
   $('#list').addEventListener('toggle', e => {
     const d = e.target; if (!d.matches || !d.matches('details.sv')) return;
@@ -405,7 +621,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
     if (!list) throw new Error('名簿の形式ではありません');
     const n = B.harvestOverrides(list);
-    if (n) ovStore();
+    if (n) { ovStore(); ovVer++; }
     return { list: list.map(B.fromJSON), harvested: n };
   }
   function done(res, errs, extra) {
@@ -442,7 +658,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#saveOv').onclick = () => download('overrides.json', Object.assign({ format: 'hgw-overrides', version: 2 }, ovGet()));
   $('#ovFile').onchange = async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-    try { ovSet(JSON.parse(await f.text()), true); ovStore(); rebuildAll(); save(); render(); status('手直し表を読み込みました'); }
+    try { ovSet(JSON.parse(await f.text()), true); ovStore(); ovVer++; rebuildAll(); save(); render(); status('手直し表を読み込みました'); }
     catch (err) { status('手直し表を読めませんでした：' + err.message); }
   };
   $('#clearAll').onclick = () => { if (!roster.length || !confirm('名簿を空にします（手直し表は残ります）')) return; roster = []; save(); render(); status('名簿を空にしました'); };
@@ -484,7 +700,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#edAdd').onclick = () => edRow();
   $('#edCancel').onclick = () => $('#ed').close();
   const keysFor = ctx => { const n = E.normName(ctx.item.name); return { servant: ctx.sv.trueName + '/' + n, global: n }; };
-  function afterEdit() { ovStore(); rebuildAll(); save(); render(); }
+  function afterEdit() { ovStore(); ovVer++; rebuildAll(); save(); render(); }
   $('#edSave').onclick = () => {
     const specs = Array.from($('#edRows').children).map(r => {
       const [sel, num, txt] = r.querySelectorAll('select, input');
@@ -661,11 +877,190 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     delete E.CONTENT_OVERRIDES[ct.sv.trueName]; $('#ct').close(); afterEdit(); status(`${ct.sv.trueName}をWikiの内容に戻しました`);
   };
 
+  // ---------- 公開中の名簿 ----------
+  // 公開中の名簿（data/ の manifest・servants・overrides）を読み、このブラウザの名簿と比べる。
+  // そろえるときは三方向で合わせる：最後にそろえたときの公開中の名簿（BASE_KEY）から、このブラウザで変えたもの（未公開の変更）は残し、
+  // 変えていないものは今の公開中の名簿に置き換える。公開側の更新（Actions の取り込みなど）と、手元の未公開の変更が両立する
+  const BASE_KEY = 'hgw.roster.base'; // { at, sv: { id: 署名 }, ov: { 表: { キー: JSON } } }
+  const sigCache = new WeakMap();
+  const sig = sv => { if (!sigCache.has(sv)) sigCache.set(sv, B.hashOf(canonJ(B.toLean(sv)))); return sigCache.get(sv); };
+  const canonJ = x => Array.isArray(x) ? x.map(canonJ) : x && typeof x === 'object' ? Object.keys(x).sort().reduce((o, k) => (o[k] = canonJ(x[k]), o), {}) : x;
+  const jkey = v => JSON.stringify(canonJ(v));
+  let pub = null, pubErr = '', base = store.get(BASE_KEY, null), planCache = null;
+  // 三方向の突き合わせ。b：最後にそろえたとき、p：今の公開中、l：このブラウザ（どれも キー → 値の文字列。無ければ undefined）
+  function merge3(b, p, l, noBase) {
+    const keys = new Set([...Object.keys(p), ...Object.keys(l), ...Object.keys(b)]);
+    const out = { take: {}, fromPub: { add: [], upd: [], del: [] }, local: { add: [], upd: [], del: [] } };
+    for (const k of keys) {
+      const P = p[k], L = l[k];
+      const Bv = noBase ? (L === undefined ? undefined : P) : b[k];
+      if (L === Bv) { out.take[k] = 'P'; if (P !== L) out.fromPub[L === undefined ? 'add' : P === undefined ? 'del' : 'upd'].push(k); }
+      else { out.take[k] = 'L'; if (P !== L) out.local[P === undefined ? 'add' : L === undefined ? 'del' : 'upd'].push(k); }
+    }
+    return out;
+  }
+  function plan() {
+    if (!pub) return null;
+    if (planCache && planCache.ver === rosterVer && planCache.pub === pub && planCache.ovv === ovVer) return planCache;
+    const noBase = !base;
+    const bS = (base && base.sv) || {}, pS = {}, lS = {};
+    for (const [id, sv] of pub.servants) pS[id] = sig(sv);
+    for (const sv of roster) lS[id0(sv)] = sig(sv);
+    const sv = merge3(bS, pS, lS, noBase);
+    const ov = {}, cur = ovGet();
+    for (const t in TABLES) {
+      const bo = {}, po = {}, lo = {};
+      for (const [k, v] of Object.entries((base && base.ov && base.ov[t]) || {})) bo[k] = v;
+      for (const [k, v] of Object.entries(pub.ov[t] || {})) po[k] = jkey(v);
+      for (const [k, v] of Object.entries(cur[t] || {})) lo[k] = jkey(v);
+      ov[t] = merge3(bo, po, lo, noBase);
+    }
+    const nOv = side => Object.values(ov).reduce((n, m) => n + m[side].add.length + m[side].upd.length + m[side].del.length, 0);
+    planCache = { ver: rosterVer, pub, ovv: ovVer, sv, ov, nOvPub: nOv('fromPub'), nOvLocal: nOv('local') };
+    return planCache;
+  }
+  const id0 = sv => sv.id;
+  let ovVer = 0;
+  // 未公開の追加・変更（一覧の印）
+  function pubState(sv) {
+    const pl = plan();
+    if (pl) return pl.sv.local.add.includes(sv.id) ? 'new' : pl.sv.local.upd.includes(sv.id) ? 'changed' : null;
+    if (!base) return null;
+    const b = base.sv[sv.id]; return b == null ? 'new' : b !== sig(sv) ? 'changed' : null;
+  }
+  async function fetchPublished() {
+    const get = async u => { const r = await fetch('data/' + u, { cache: 'no-cache' }); if (!r.ok) throw new Error(u + '：' + r.status); return r.json(); };
+    const man = await get('manifest.json');
+    const ov = {}; for (const k in TABLES) ov[k] = {};
+    for (const f of man.overrides || []) { const o = await get(f); for (const k in TABLES) Object.assign(ov[k], (o && o[k]) || {}); }
+    const raw = [];
+    for (const f of man.servants || []) { const d = await get(f); raw.push(...(Array.isArray(d) ? d : d.servants || [])); }
+    const servants = new Map();
+    for (const x of raw) { try { const b = B.fromJSON(x); servants.set(b.id, b); } catch (e) { console.error(e); } }
+    return { servants, ov, files: (man.servants || []).concat(man.overrides || []) };
+  }
+  function setBase() {
+    base = { at: Date.now(), sv: {}, ov: {} };
+    for (const [id, sv] of pub.servants) base.sv[id] = sig(sv);
+    for (const t in TABLES) { base.ov[t] = {}; for (const [k, v] of Object.entries(pub.ov[t] || {})) base.ov[t][k] = jkey(v); }
+    store.set(BASE_KEY, base);
+  }
+  // 公開中と手元が同じになっているもの（公開した変更が反映された、など）は、最後にそろえた時点を進めておく
+  function advanceBase() {
+    if (!pub || !base) return;
+    const local = new Map(roster.map(s => [s.id, s])), cur = ovGet(); let moved = false;
+    for (const [id, sv] of pub.servants) { const l = local.get(id); if (l && sig(l) === sig(sv) && base.sv[id] !== sig(sv)) { base.sv[id] = sig(sv); moved = true; } }
+    for (const id of Object.keys(base.sv)) if (!pub.servants.has(id) && !local.has(id)) { delete base.sv[id]; moved = true; }
+    for (const t in TABLES) {
+      const bo = base.ov[t] = base.ov[t] || {};
+      for (const [k, v] of Object.entries(pub.ov[t] || {})) { const j = jkey(v); if (cur[t] && k in cur[t] && jkey(cur[t][k]) === j && bo[k] !== j) { bo[k] = j; moved = true; } }
+      for (const k of Object.keys(bo)) if (!(k in (pub.ov[t] || {})) && !(cur[t] && k in cur[t])) { delete bo[k]; moved = true; }
+    }
+    if (moved) { store.set(BASE_KEY, base); planCache = null; }
+  }
+  // そろえる：未公開の変更は残し、ほかは公開中の名簿に
+  function pullPublished() {
+    const pl = plan(); if (!pl) return;
+    const local = new Map(roster.map(s => [s.id, s]));
+    const next = [];
+    for (const [id, src] of Object.entries(pl.sv.take)) { const sv = src === 'P' ? pub.servants.get(id) : local.get(id); if (sv) next.push(sv); }
+    const cur = ovGet(), ov = {};
+    for (const t in TABLES) { ov[t] = {}; for (const [k, src] of Object.entries(pl.ov[t].take)) { const v = src === 'P' ? (pub.ov[t] || {})[k] : (cur[t] || {})[k]; if (v !== undefined) ov[t][k] = v; } }
+    const n = pl.sv.fromPub, kept = pl.sv.local;
+    applyRoster(next, ov);
+    status(`公開中の名簿にそろえました（追加 ${n.add.length}・更新 ${n.upd.length}・削除 ${n.del.length}、手直し ${pl.nOvPub}件）。未公開の変更（${kept.add.length + kept.upd.length + kept.del.length}騎・手直し ${pl.nOvLocal}件）は残しています`);
+  }
+  function replacePublished(silent) {
+    if (!pub) return;
+    if (!silent && !confirm('このブラウザの名簿と手直し表を、公開中のものに置き換えます。未公開の変更は消えます。よろしいですか？')) return;
+    applyRoster([...pub.servants.values()], pub.ov);
+    status(`公開中の名簿（${roster.length}騎）を読み込みました`);
+  }
+  function applyRoster(list, ov) {
+    ovSet(ov); ovStore(); ovVer++;
+    roster = list.map(s => B.fromJSON(B.toLean(s)));
+    roster.sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
+    setBase(); planCache = null; save(); render();
+  }
+  $('#syncPull').onclick = () => pullPublished();
+  $('#syncReplace').onclick = () => replacePublished(false);
+  function syncInfo() {
+    const box = $('#syncInfo'); if (!box) return;
+    if (!pub) {
+      $('#syncActs').hidden = true;
+      box.innerHTML = pubErr ? `<span class="hint">${esc(pubErr)}</span>` : '公開中の名簿を確かめています…';
+      $('#unpub').textContent = '';
+      return;
+    }
+    const pl = plan(), a = pl.sv.fromPub, l = pl.sv.local;
+    const nPub = a.add.length + a.upd.length + a.del.length + pl.nOvPub, nLoc = l.add.length + l.upd.length + l.del.length + pl.nOvLocal;
+    const nm = id => { const s = pub.servants.get(id) || roster.find(x => x.id === id); return s ? s.trueName : id.split(':').pop(); };
+    const list = ids => ids.slice(0, 6).map(nm).join('、') + (ids.length > 6 ? ` ほか${ids.length - 6}騎` : '');
+    const items = [];
+    if (a.add.length) items.push(`<li>公開側で追加：${esc(list(a.add))}</li>`);
+    if (a.upd.length) items.push(`<li>公開側で更新：${esc(list(a.upd))}</li>`);
+    if (a.del.length) items.push(`<li>公開側で削除：${esc(list(a.del))}</li>`);
+    if (pl.nOvPub) items.push(`<li>公開側の手直し表の更新 ${pl.nOvPub}件</li>`);
+    box.innerHTML = `公開中：<b>${pub.servants.size}</b>騎（${esc(pub.files.join('・'))}）`
+      + (nPub ? `<div style="margin-top:4px">この名簿にまだ入っていない公開側の更新があります。<ul>${items.join('')}</ul></div>` : nLoc ? '' : '<div class="ok" style="margin-top:4px">この名簿は公開中の名簿と同じです。</div>')
+      + (nLoc ? `<div style="margin-top:4px">未公開の変更：${[l.add.length && `追加 ${l.add.length}騎`, l.upd.length && `変更 ${l.upd.length}騎`, l.del.length && `外した ${l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}${nPub ? '（そろえても残ります）' : ''}</div>` : '');
+    $('#syncActs').hidden = !nPub && !nLoc;
+    $('#syncPull').hidden = !nPub;
+    $('#unpub').innerHTML = nLoc ? `未公開の変更があります（${[l.add.length + l.upd.length + l.del.length && `${l.add.length + l.upd.length + l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}）。公開するには「公開用に保存」と「手直し表を保存」で書き出し、GitHub の data/ の同じ名前のファイルと置き換えます。` : '';
+  }
+  async function loadPub() {
+    if (!/^https?:$/.test(location.protocol)) { pubErr = 'ファイルを直接開いているため、公開中の名簿を自動で読めません。「ファイルを読む」で data/servants.json を選んでください。'; syncInfo(); return; }
+    try { pub = await fetchPublished(); pubErr = ''; }
+    catch (e) { pub = null; pubErr = '公開中の名簿を読めませんでした（' + e.message + '）'; syncInfo(); return; }
+    if (!roster.length) return replacePublished(true);
+    if (!base) { const pl = plan(); if (!pl.sv.fromPub.add.length + pl.sv.fromPub.upd.length + pl.sv.fromPub.del.length + pl.sv.local.add.length + pl.sv.local.upd.length + pl.sv.local.del.length) setBase(); }
+    advanceBase(); planCache = null; render();
+  }
+
+  // ---------- ページ名で取り込む（GitHub の Actions） ----------
+  // GitHub の実行画面には入力を渡せないので、ページ名をコピーしてから開く（貼り付けて実行する）
+  const GH_WF = 'https://github.com/Pippiniden/1in7HGW/actions/workflows/kagemiya.yml';
+  const GH_MODE = { add: '追加（ページ名を指定）', refresh: '取り直し（空欄なら名簿の全騎）' };
+  $('#ghMode').onchange = () => { $('#ghModeLabel').textContent = GH_MODE[$('#ghMode').value]; };
+  function ghOpen() {
+    const names = $('#ghNames').value.split(/[、,，\n]+/).map(x => x.trim()).filter(Boolean).join('、');
+    if ($('#ghMode').value === 'add' && !names) { status('取り込むページ名を入れてください'); $('#ghNames').focus(); return; }
+    // ポップアップを止められないよう、開くのは押した瞬間に。コピーはその後ろで済ませる
+    window.open(GH_WF, '_blank', 'noopener');
+    if (names && navigator.clipboard) navigator.clipboard.writeText(names).then(() => status(`ページ名「${names}」をコピーしました。GitHub の「Run workflow」で貼り付けてください`), () => { $('#ghNames').select(); status('コピーできませんでした。ページ名の欄の文字を選んであるので、コピーして貼り付けてください'); });
+    else status(names ? 'ページ名の欄をコピーして、GitHub の「Run workflow」に貼り付けてください' : '「取り直し」でページ名が空欄なら、名簿の全騎を取り直します');
+  }
+  $('#ghGo').onclick = ghOpen;
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-refetch]'); if (!b) return;
+    const sv = roster[+b.dataset.refetch]; if (!sv) return;
+    $('#ghNames').value = sv.page || sv.trueName; $('#ghMode').value = 'refresh'; $('#ghMode').onchange();
+    ghOpen();
+  });
+  // kagemiya のページのURL（ページ名は EUC-JP でパーセント符号化）。対応表は初回に作る
+  let eucMap = null;
+  function eucEncode(str) {
+    if (!eucMap) {
+      eucMap = new Map(); const dec = new TextDecoder('euc-jp');
+      for (let a = 0xa1; a <= 0xfe; a++) for (let b = 0xa1; b <= 0xfe; b++) { const ch = dec.decode(Uint8Array.of(a, b)); if (ch.length === 1 && ch !== '\ufffd' && !eucMap.has(ch)) eucMap.set(ch, [a, b]); }
+      for (let b = 0xa1; b <= 0xdf; b++) { const ch = dec.decode(Uint8Array.of(0x8e, b)); if (!eucMap.has(ch)) eucMap.set(ch, [0x8e, b]); }
+    }
+    let out = '';
+    for (const ch of String(str)) {
+      const c = ch.codePointAt(0);
+      if (c < 0x80) { out += /[A-Za-z0-9\-_.~]/.test(ch) ? ch : '%' + c.toString(16).toUpperCase().padStart(2, '0'); continue; }
+      const bs = eucMap.get(ch); if (!bs) return null;
+      out += bs.map(x => '%' + x.toString(16).toUpperCase()).join('');
+    }
+    return out;
+  }
+  const wikiUrl = sv => { try { const u = eucEncode(sv.page || sv.trueName); return u ? 'https://seesaawiki.jp/kagemiya/d/' + u : ''; } catch (e) { return ''; } };
+
   // ---------- 起動 ----------
   roster = store.get(ROSTER_KEY, []);
-  // 以前の版の取り込みツールで保存した名簿はないので、最初は空。JSONを読み込めば入る
   rebuildAll(); render();
-  if (roster.length) status(`名簿に ${roster.length}騎`);
+  if (roster.length) status(`この名簿に ${roster.length}騎`);
+  loadPub();
 })();
 </script>
 <script>

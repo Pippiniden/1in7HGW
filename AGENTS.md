@@ -722,9 +722,30 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
 effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; writes
-`CONTENT_OVERRIDES`) (all write overrides), class filter, "draw 7" preview, odds comparison, export
-`servants.json` (lean) and `overrides.json`. Persists in `localStorage` keys `hgw.roster.v2` and
-`hgw.overrides.v1`.
+`CONTENT_OVERRIDES`) (all write overrides), "draw 7" preview, export `servants.json` (lean) and `overrides.json`.
+- **Published roster sync**: on load (http(s) only) it fetches `data/manifest.json` + listed servants/overrides itself
+  (`fetchPublished`, not `data.js`). An empty browser roster is replaced by the published one. Otherwise a **three-way merge**
+  (`merge3`) compares the last-synced published state (`hgw.roster.base` = `{ at, sv: {id: sig}, ov: {table: {key: JSON}} }`,
+  `sig` = `hashOf(canon(toLean(sv)))`), the current published state and the browser state, per servant id and per override
+  key: unchanged locally → take published; changed locally → keep local. 「公開中の名簿にそろえる」 applies it, 「…で置き換える」
+  discards local changes. With no base yet, a local value equal to published counts as unchanged. `advanceBase()` moves the
+  base forward where local and published agree (e.g. after the owner published). Local-only changes are shown as
+  未公開の追加/変更 badges, a filter, and a summary in 保存.
+- **Finding**: sticky toolbar with search (`fold()`: NFKC, katakana→hiragana, ignores spaces/・; matches true name, aliases,
+  class, origin, page, skill and NP names; `/` focuses, Enter opens a single hit, Esc clears), sort (class/name/grade/power/
+  NP/review count), filters (class, 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–D grade (same formula as
+  the game's opening: `strengthTable`, cached per `rosterVer`, which `save()`/`rebuildAll()` bump).
+- **試し戦い** (top of the main column, `details#cmpPanel`, open state in `hgw.roster.tbOpen`): left/right pickers are text
+  inputs with a `<datalist>` (`findSv` matches label, then prefix/substring of the folded name), swap, NP/home/terrain options,
+  `battleOdds` result, and 「全騎との勝率」 (`vsAll`, hardest opponents first; clicking one puts it on the right). Each servant card
+  has 試し戦いの左に／右に.
+- **Name import**: names textarea + mode select; 「名前をコピーして GitHub を開く」 opens the workflow page (`GH_WF`) synchronously
+  and copies the names (GitHub cannot prefill `workflow_dispatch` inputs). Cards have 「Wikiから取り直す」 (same, refresh mode,
+  `page` or true name) and a kagemiya link (`eucEncode`, same as the game).
+- ≤900px: `.side` becomes `display: contents` so the order is sync panel → test battle/search/list → other panels.
+- Persists in `localStorage`: `hgw.roster.v2` (**lean** servants — `index.html`'s 名簿ツールの名簿を使う rebuilds them with
+  `fromJSON`), `hgw.overrides.v1` (includes the published overrides after a sync), `hgw.roster.base`, `hgw.roster.tbOpen`.
+  `[hidden]` is forced to `display: none` (the `.row` flex rule used to override it).
 
 ---
 
