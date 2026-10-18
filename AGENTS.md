@@ -135,7 +135,8 @@ tools/
 .github/workflows/
   kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, rebuilds survival.json, opens a PR
   data.yml          "データの反映": on push to main touching data/incoming/**, servants.json, overrides.json, manifest.json, packs/**
-                    (or by hand) — applies uploads, checks, rebuilds survival.json, reports the diff (§4.4 Uploads)
+                    (or by hand) — applies uploads, checks, rebuilds survival.json, reports the diff (§4.4 Uploads). Needs the repo setting
+                    「Allow GitHub Actions to create and approve pull requests」; without it the run now fails (data left on data/upload-N)
 data/incoming/      Upload drop folder (README.md explains it; other files are consumed by data.yml)
 test/
   sim.js            N automatic wars → balance stats; or print one war's log
@@ -154,8 +155,8 @@ test/
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
 
-Current data: 81 servants (saber 13, rider 11, berserker 11, caster 10, assassin 10, lancer 9, archer 8,
-saver 1, ruler 1, avenger 1, extra 6); 41 of them have voice lines.
+Current data: 119 servants (saber 24, rider 15, caster 14, archer 13, berserker 13, lancer 12, assassin 11,
+shielder 3, avenger 2, saver 1, ruler 1, extra 10); 71 of them have voice lines.
 
 ---
 
@@ -925,7 +926,7 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (81 servants, 500 wars): errors 0, ~88–90% decided (draw ~10–12%), median 18 days (P10 10,
+Baseline with current data (119 servants, 500 wars): errors 0, ~84–86% decided (draw ~14–16%), median 18 days (P10 10,
 P90 30), ~17 battles, ~27 NP uses, ~4.4 command-seal events, ~0.8 joint (allied) battles per war; berserker camps lose their Master
 ~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.

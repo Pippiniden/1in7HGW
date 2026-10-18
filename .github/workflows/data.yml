@@ -104,7 +104,10 @@ jobs:
             if gh pr create --base "${GITHUB_REF_NAME}" --head "$BR" --title "$TITLE" --body-file "$RUNNER_TEMP/summary.md"; then
               echo "プルリクエストを作りました（ブランチ $BR）。中身を確かめてマージしてください" >> "$GITHUB_STEP_SUMMARY"
             else
-              echo "::warning::プルリクエストを自動で作れませんでした。Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」を有効にするか、ブランチ $BR から手動で作ってください"
+              # 成功のまま終わると反映されたように見えるので、失敗にして知らせる
+              echo "::error::プルリクエストを自動で作れませんでした（main には入っていません）。Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」を有効にしてから動かし直すか、ブランチ $BR からプルリクエストを手で作ってください"
+              echo "**プルリクエストを作れませんでした。** 反映したデータはブランチ \`$BR\` にあります（main には入っていません）。リポジトリの Settings → Actions → General → Workflow permissions の「Allow GitHub Actions to create and approve pull requests」に印を付けてから、Actions →「データの反映」→「Run workflow」で動かし直してください" >> "$GITHUB_STEP_SUMMARY"
+              exit 1
             fi
           else
             # 直接差し替えたときの集計の作り直し（リストから計算で作るファイルなので、そのまま main に入れる）

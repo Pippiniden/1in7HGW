@@ -49,7 +49,7 @@ require('../js/voiceedit.js');
 const VE = H.voiceEdit;
 for (const s of roster.filter(x => Object.keys(x.voice || {}).length)) {
   const v = JSON.parse(JSON.stringify(s.voice)), r = VE.parseText(VE.toText(v));
-  const strip2 = o => JSON.stringify(Object.keys(o).filter(k => !/^(その)?\d+$/.test(k)).sort().map(k => [k, o[k]]));
+  const strip2 = o => JSON.stringify(Object.keys(o).filter(k => !/^(その)?\d+$/.test(k)).sort().map(k => [k, o[k].map(l => String(l).trim())])); // 行の前後の空白は区別しない
   ok(!r.bad.length && strip2(r.voice) === strip2(v), `${s.trueName}: テキストの形にして戻すとセリフが変わる`);
 }
 { const r = VE.parseText('召喚：「はじめまして」\nその2：「よろしく」\nただの文章\n会話：カギかっこ無し'); ok(JSON.stringify(r.voice) === JSON.stringify({ 召喚: ['はじめまして', 'よろしく'], 会話: ['カギかっこ無し'] }) && r.bad.length === 1, 'parseText の読み方が違う：' + JSON.stringify(r)); }
