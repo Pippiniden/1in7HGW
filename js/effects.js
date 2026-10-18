@@ -30,14 +30,14 @@
     pierce:       { name: '防御無視',     phase: 'battle',    unit: 'chance', base: 0.25, desc: '相手の回避・軽減・対魔力・致命傷耐性を無視する確率（必中など）' },
     instakill:    { name: '即死',         phase: 'battle',    unit: 'chance', base: 0.05, desc: '戦闘力に関係なく相手を倒す確率' },
     evade:        { name: '回避',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '攻撃を避ける確率' },
-    initiative:   { name: '先手',         phase: 'battle',    unit: 'chance', base: 0.15, desc: '先制できる確率' },
+    initiative:   { name: '先手',         phase: 'battle',    unit: 'chance', base: 0.15, desc: '戦いの始めに先手を取り、その戦いで少し有利になる確率' },
     charm:        { name: '魅了',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '相手が攻撃をためらう確率' },
-    rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟中の味方の戦闘力を上げる' },
+    rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟相手と並んで戦うときの連携（加勢の力）を強める' },
     anti_master:  { name: 'マスター狙い', phase: 'battle',    unit: 'chance', base: 0.15, desc: '敵マスターを直接狙える確率' },
     // 被ダメージ・生存
     guard:        { name: '被ダメージ軽減', phase: 'damage',  unit: 'rate',   base: 0.10, desc: '受けるダメージを減らす（マイナスなら打たれ弱い）' },
-    magic_guard:  { name: '魔術耐性',     phase: 'damage',    unit: 'rate',   base: 0.30, desc: '魔術・魔力による攻撃を減らす。マスターの魔術による妨害も防ぐ' },
-    mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了・恐怖・説得に抵抗する確率' },
+    magic_guard:  { name: '魔術耐性',     phase: 'damage',    unit: 'rate',   base: 0.30, desc: '魔力の高い相手（キャスターなど）との戦いで守りになる' },
+    mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了に抵抗する確率' },
     guts:         { name: '致命傷耐性',   phase: 'lethal',    unit: 'chance', base: 0.35, desc: '倒れるはずの一撃で踏みとどまる確率' },
     weakness:     { name: '弱点',         phase: 'damage',    unit: 'rate',   base: 0.30, desc: '特定の相手（params.tag）から受けるダメージが増える（不利な効果）' },
     master_guard: { name: 'マスター護衛', phase: 'damage',    unit: 'chance', base: 0.20, desc: 'マスターが狙われたときに守る確率' },
@@ -53,17 +53,17 @@
     regen:        { name: '自己回復',     phase: 'day',       unit: 'rate',   base: 0.10, desc: '1日ごとの自分の傷の回復量' },
     heal_other:   { name: '治療',         phase: 'day',       unit: 'rate',   base: 0.10, desc: 'マスターや味方の傷を回復' },
     territory:    { name: '陣地',         phase: 'day',       unit: 'rate',   base: 0.20, desc: '拠点で戦うときの有利と、工房強化の伸び' },
-    craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '1日ごとに役立つ道具を得る確率' },
-    resource:     { name: '資源獲得',     phase: 'day',       unit: 'rate',   base: 0.20, desc: '資金や物資が集まりやすい' },
+    craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '1日ごとに道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
+    resource:     { name: '資源獲得',     phase: 'day',       unit: 'rate',   base: 0.20, desc: '資金や物資から魔力を補う。工房の強化も成功しやすい' },
     upkeep_down:  { name: '魔力効率',     phase: 'upkeep',    unit: 'rate',   base: 0.15, desc: '維持に必要な魔力を減らす' },
     upkeep_up:    { name: '魔力消費増',   phase: 'upkeep',    unit: 'rate',   base: 0.30, desc: '維持に必要な魔力が増える（不利な効果）' },
     solo:         { name: '単独行動',     phase: 'upkeep',    unit: 'days',   base: 2, byRank: { E: 0.5, D: 1, C: 1, B: 2, A: 7, EX: 30 }, desc: 'マスターを失っても現界できる日数' },
-    uncontrolled: { name: '制御困難',     phase: 'day',       unit: 'chance', base: 0.10, desc: '命令に従わず勝手に動く確率（不利な効果）' },
+    uncontrolled: { name: '制御困難',     phase: 'day',       unit: 'chance', base: 0.10, desc: '命令に従わず勝手に動く確率。魔力が足りなくても宝具を放ち、マスターの生命力を削ることがある（不利な効果）' },
     // 交渉・マスター
     negotiate:    { name: '交渉',         phase: 'talk',      unit: 'chance', base: 0.20, desc: '交渉・同盟・戦闘回避の成功率（マイナスなら交渉不能に近づく）' },
     cs_resist:    { name: '令呪耐性',     phase: 'master',    unit: 'chance', base: 0.25, desc: '令呪の強制力に抵抗する確率（命令が効きにくい）' },
     master_buff:  { name: 'マスター強化', phase: 'master',    unit: 'pt',     base: 10,   desc: 'マスターの能力値（params.stat）を上げる' },
-    luck:         { name: '幸運補正',     phase: 'passive',   unit: 'chance', base: 0.10, desc: '失敗した判定をやり直せる確率（マイナスなら成功した判定が失敗に変わる）' },
+    luck:         { name: '幸運補正',     phase: 'passive',   unit: 'chance', base: 0.10, desc: '運に左右される場面（踏みとどまり・撤退・即死を免れる）で有利になる（マイナスなら不利）' },
     tag:          { name: '属性付与',     phase: 'passive',   unit: 'flag',   base: 1, fixed: true, desc: '特攻の対象になる属性（params.tag）を持つ' },
     // 宝具使用時
     np_boost:     { name: '宝具強化',     phase: 'np',        unit: 'rate',   base: 0.15, desc: '宝具の威力' },
@@ -72,6 +72,85 @@
     self_retire:  { name: '自滅',         phase: 'np',        unit: 'chance', base: 1.0, fixed: true, desc: '宝具を使うと自分が脱落する確率' },
     disabled:     { name: '使用不可',     phase: 'np',        unit: 'flag',   base: 1, fixed: true, desc: 'この宝具は今回の召喚では使えない' },
   };
+
+  // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
+  // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
+  // bad: 自分に不利な効果（マイナスの強さなら逆に有利）
+  // fx(mag, params): エンジンでの実際の働き（engine.js の式と合わせる。式を変えたらここも直す）
+  const WHO_JA = { self: '自分', enemy: '相手', ally: '同盟相手', master: '自分のマスター', enemyMaster: '相手のマスター', none: '—' };
+  const STAT_JA_M = { mana: '魔力量', craft: '魔術', body: '体力', mind: '精神', luck: '幸運' };
+  const pc = v => Math.round(Math.abs(v) * 1000) / 10 + '%';
+  const sg = v => (v < 0 ? '−' : '+') + pc(v);
+  const num = v => Math.round(v * 10) / 10;
+  const tagOf = p => (p && p.tag) || '特定の相手';
+  const EFFECT_INFO = {
+    power:        { who: 'self', fx: m => `戦闘力 ${sg(m)}` },
+    power_vs:     { who: 'self', fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
+    debuff:       { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（相手マスターの精神で増減・最大50%）` },
+    crit:         { who: 'self', fx: m => `押し勝ったとき ${pc(m)} の確率で与える傷が1.5倍` },
+    pierce:       { who: 'enemy', fx: m => `相手の守り（被ダメージ軽減・回避・魔術耐性）を ${pc(Math.min(0.9, m))} 打ち消し、同じ確率で踏みとどまりも許さない` },
+    instakill:    { who: 'enemy', fx: m => `押し勝つたびに ${pc(Math.min(0.4, m))} の確率で相手を一撃で倒す（相手の幸運で減る）` },
+    evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}` },
+    initiative:   { who: 'self', fx: m => `戦いの始めに ${pc(Math.min(0.5, m))} の確率で先手を取り、その戦いの戦闘力 +8%` },
+    charm:        { who: 'enemy', fx: m => `打ち合いごとに ${pc(m)} の確率で相手の戦闘力を4割下げる（精神耐性・マスターの精神で防がれる）` },
+    rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
+    anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
+    guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m * 0.5))}、守りとして戦闘力 ${sg(m * 0.5)}` },
+    magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}` },
+    mental_guard: { who: 'self', fx: m => `相手の魅了を ${pc(Math.min(0.95, m))} の確率で防ぐ` },
+    guts:         { who: 'self', fx: m => `倒れるはずの一撃で ${pc(Math.min(0.85, m))} の確率で踏みとどまる（絆・耐久・幸運でも上がる）` },
+    weakness:     { who: 'self', bad: true, fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${m < 0 ? '+' : '−'}${pc(m * 0.5)}` },
+    master_guard: { who: 'master', fx: m => `自分のマスターが狙われたとき、刃が届く確率 −${pc(Math.min(0.8, m))}` },
+    stealth:      { who: 'self', fx: m => `夜に相手に見つかる確率 ${m < 0 ? '+' : '−'}${pc(m * 0.7)}、偵察・使い魔にも見つかりにくい` },
+    detect:       { who: 'self', fx: m => `夜に相手を見つける確率 ${sg(m * 0.8)}、マスターを狙う奇襲を見抜きやすい` },
+    intel:        { who: 'self', fx: m => `偵察・使い魔・噂の追跡の成功 ${sg(m)}、真名の推理 ${sg(m * 0.5)}` },
+    reveal:       { who: 'enemy', fx: m => `相手の真名を見抜く確率 ${sg(m)}（戦い・偵察・推理）` },
+    conceal:      { who: 'self', fx: m => `自分の真名を見抜かれる確率 ${m < 0 ? '+' : '−'}${pc(m * 0.6)}` },
+    escape:       { who: 'self', fx: m => `撤退の成功 ${sg(m)}` },
+    pin:          { who: 'enemy', fx: m => `相手の撤退の成功 ${m < 0 ? '+' : '−'}${pc(m * 0.8)}` },
+    regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${m < 0 ? '−' : '+'}${num(m * 60)}` },
+    heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${m < 0 ? '−' : '+'}${num(m * 60)}` },
+    territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
+    craft:        { who: 'self', fx: m => `1日ごとに ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）` },
+    resource:     { who: 'master', fx: m => `毎日の魔力 ${m < 0 ? '−' : '+'}${num(m * 10)}、工房の強化の成功 ${sg(m * 0.5)}` },
+    upkeep_down:  { who: 'master', fx: m => `マスターが払う維持魔力 ${m < 0 ? '+' : '−'}${pc(m)}` },
+    upkeep_up:    { who: 'master', bad: true, fx: m => `マスターが払う維持魔力 ${sg(m)}（足りないとマスターの生命力が削られる）` },
+    solo:         { who: 'self', fx: m => `マスターを失っても ${Math.floor(m)}日 現界を保つ` },
+    uncontrolled: { who: 'self', bad: true, fx: m => `1日ごとに ${pc(m)} の確率で命令を聞かず出歩く（絆・マスターの精神で抑えられる）。魔力が足りなくても宝具を放つことがある` },
+    negotiate:    { who: 'self', fx: m => `同盟・交渉の成功 ${sg(m)}` },
+    cs_resist:    { who: 'self', bad: true, fx: m => `令呪が ${pc(Math.min(0.9, m))} の確率で効かない（絆で和らぐ）` },
+    master_buff:  { who: 'master', fx: (m, p) => `マスターの${STAT_JA_M[p && p.stat] || '能力'} ${m < 0 ? '−' : '+'}${num(Math.abs(m))}` },
+    luck:         { who: 'self', fx: m => `踏みとどまり ${sg(m * 0.5)}・撤退 ${sg(m * 0.3)}・即死を受ける確率 ${m < 0 ? '+' : '−'}${pc(Math.min(0.9, m))}` },
+    tag:          { who: 'none', fx: (m, p) => `「${tagOf(p)}」の属性を持つ（相手の特攻・自分の弱点の対象になる）` },
+    np_boost:     { who: 'self', fx: m => `攻撃宝具の威力 ${sg(m)}` },
+    np_cost:      { who: 'self', fx: m => `宝具の魔力消費 ${sg(m)}` },
+    backfire:     { who: 'self', bad: true, fx: m => `宝具を使うと自分の霊基 −${num(m * 40)}` },
+    self_retire:  { who: 'self', bad: true, fx: m => `宝具を使うと ${pc(Math.min(1, m))} の確率で自分が脱落` },
+    disabled:     { who: 'none', bad: true, fx: () => 'この宝具は使えない' },
+  };
+  // 宝具の効果のうち、宝具を使ったその戦いの間だけ働くもの（np の部品はその宝具を使ったときだけ）。
+  // それ以外の場面（昼・偵察・交渉・維持魔力など）の効果は、宝具を持っているだけで常に働く
+  const NP_BATTLE_PHASES = ['battle', 'damage', 'lethal', 'retreat', 'np'];
+  // 制御困難・魔力消費増は、宝具の説明にあっても「使ったときの代償」なので常時にはしない（エンジンは戦いの間は読まないので、実際には効かない）
+  const NP_USE_ONLY = ['uncontrolled', 'upkeep_up'];
+  const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id)) && !e.persistent;
+  const COND_JA = { 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ' };
+  /**
+   * 効果ひとつの説明。e は instantiate の結果（mag を持つ）か [id, factor, params] と rank。
+   * ctx.np：宝具の効果 / ctx.attack：攻撃宝具
+   * 戻り値 { name, who, whoJa, bad, when, text }
+   */
+  function describe(e, ctx) {
+    ctx = ctx || {};
+    const def = EFFECTS[e.id], inf = EFFECT_INFO[e.id];
+    if (!def || !inf) return { name: e.id, who: 'none', whoJa: '—', bad: false, when: '', text: '（エンジンが知らない効果）' };
+    const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
+    const p = e.params || null;
+    const bad = !!inf.bad === !(m < 0);
+    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : '宝具を使ったその戦いの間') : '常に',
+      p && p.cond ? COND_JA[p.cond] || p.cond + 'でだけ' : ''].filter(Boolean).join('・');
+    return { name: def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
+  }
 
   // ---------- 既知のスキル辞書 ----------
   // 書式: 'スキル名': [[部品ID, 係数, params], ...]  係数は省略すると1
@@ -177,6 +256,7 @@
     '殉教者の魂':   [['mental_guard', 1], ['guts', 0.4]],
     '不屈の意志':   [['guts', 0.8], ['mental_guard', 1]],
     '不撓不屈':     [['guts', 0.8], ['mental_guard', 0.8]],
+    'オーバーロード': [['power', 1.2], ['guard', -0.3]],
     '鋼鉄の決意':   [['guard', 0.5], ['mental_guard', 0.5], ['initiative', 0.4]],
     '明鏡止水':     [['mental_guard', 1.2], ['evade', 0.4]],
     '自己暗示':     [['mental_guard', 1]],
@@ -369,43 +449,51 @@
     { re: /(?:この召喚|この霊基|今回の召喚|現界では)[^。]*(?:使用|発動)(?:することが|は)?(?:出来|でき)ない/, id: 'disabled', only: 'np' },
     { re: /反動|自身が耐えきれ|自分も傷|自傷|肛門が裂け/, id: 'backfire', only: 'np' },
     { re: /即死/, id: 'instakill', not: /打ち消|無効|耐性|防ぐ|防げ/ },
+    // 「見抜くことが出来ない」「察知する事が出来ない」：情報の面で不利
+    { re: /(?:見抜く|看破する|見破る)(?:事|こと)?が?(?:出来|でき)な|見抜けな|見破れな/, id: 'reveal', f: -1 },
+    { re: /(?:察知|感知|探知)(?:する)?(?:事|こと)が?(?:出来|でき)な/, id: 'detect', f: -1 },
     { re: /必中|防御は無意味|防御を無視|対魔力[^。]{0,8}(?:影響を受けない|無視|貫)|(?:死|蘇生|戦闘続行|耐性|防御|再生)[^。]{0,12}(?:無効化|無意味|効果を発揮しない)/, id: 'pierce' },
     { re: /(?:相手|敵)[^。]{0,10}(?:逃走|撤退|離脱|逃げ)|逃走手段は無|逃さない|逃がさない|拘束|緊縛|閉じ込め|捕縛|引きずりこ/, id: 'pin', not: /令呪/ },
-    { re: /(?:パラメーター|パラメータ|ステータス|能力)[^。]{0,8}(?:ダウン|低下させ|下げ)|弱体化|デバフ|判断力を鈍|生命力を[^。]{0,10}奪|呪いを(?:かけ|与え)|奪われる|恐怖へと変換/, id: 'debuff', not: /(?:自身|自分)[^。]{0,6}(?:ダウン|低下|下が|マイナス)|デバフ[^。]{0,10}(?:難し|至難|効かな|無効)/ },
+    { re: /(?:パラメーター|パラメータ|ステータス|能力)[^。]{0,8}(?:ダウン|低下させ|下げ)|弱体化|弱体を付与|弱体付与|デバフ|判断力を鈍|生命力を[^。]{0,10}奪|呪いを(?:かけ|与え)|奪われる|恐怖へと変換/, id: 'debuff', not: /(?:自身|自分)[^。]{0,6}(?:ダウン|低下|下が|マイナス)|デバフ[^。]{0,10}(?:難し|至難|効かな|無効)|弱体化を受け|弱体化(?:が|も)?働く|弱体(?:化)?を[^。]{0,4}(?:受けた|跳ね|防|無効)/ },
     { re: /判定に失敗|ドジ|うっかり|ペナルティ/, id: 'luck', f: -1, not: /相手|敵/ },
-    { re: /主人公補正|悪運|運命力|豪運|強運/, id: 'luck' },
+    { re: /主人公補正|悪運|運命力|豪運|強運|幸運を呼び込/, id: 'luck' },
     { re: /打たれ弱|虚弱|紙装甲|耐久[^。]{0,8}マイナス/, id: 'guard', f: -1.2 },
     { re: /令呪[^。]{0,12}(?:拘束力が弱|効かない|抵抗|無効)/, id: 'cs_resist' },
     { re: /会心|クリティカル|かいしん|与ダメージ向上/, id: 'crit' },
-    { re: /生き延び|致命傷|瀕死|食いしば|ガッツ|蘇生|復活|消滅寸前/, id: 'guts', not: /即死[^。]*(?:付与|判定)|無効化する|効果を発揮しない|無意味/ },
+    { re: /生き延び|生還|致命傷|瀕死|食いしば|ガッツ|蘇生|復活|消滅寸前|不老不死|不死身|霊基を?再構築|残っていれば[^。]{0,20}(?:再構築|再生|蘇)/, id: 'guts', not: /即死[^。]*(?:付与|判定)|無効化する|効果を発揮しない|無意味|(?:蘇生|復活)(?:は|が|も)?[^。]{0,4}(?:不可能|出来ない|できない)/ },
     { re: /増殖|増えて|増えている|分裂|分身/, id: 'guts', f: 0.8 },
     { re: /特[攻効]/, id: 'power_vs', p: (sen, m) => ({ tag: canonTag(sen.slice(Math.max(0, m.index - 24), m.index)) }) },
+    { re: /(?:に対する|への)攻撃(?:判定)?に(?:ボーナス|補正|プラス)/, id: 'power_vs', f: 0.6, p: (sen, m) => ({ tag: canonTag(sen.slice(Math.max(0, m.index - 12), m.index)) }) },
     { re: /黄金律|黄金率|財産|財宝|宝物|宝石|貴金属|金品|金銭|資金|収入|財を/, id: 'resource', f: 0.8 },
-    { re: /作成|製作|錬成|鍛冶|調合|生産|量産/, id: 'craft', f: 0.8, only: 'skill' },
+    { re: /作成|製作|錬成|鍛冶|調合|生産|量産/, id: 'craft', f: 0.8, only: 'skill', not: /魔力を?生産|魔力の生産/ },
     { re: /交渉|宥め|説得|外交|弁舌|接客|もてなし|意思疎通|証言誘導/, id: 'negotiate' },
-    { re: /統率|指揮|鼓舞|士気|軍団|自軍|兵たち|演奏|歌唱|竪琴/, id: 'rally', f: 0.8 },
+    { re: /統率|指揮|鼓舞|士気|軍団|自軍|兵たち|演奏|歌唱|竪琴|周囲の[^。]{0,20}(?:英霊|サーヴァント|味方)[^。]{0,24}(?:上昇|強化|分け与え)/, id: 'rally', f: 0.8, not: /指揮する能力ではなく/ },
+    { re: /乱戦|多対多|一対多|多人数戦闘/, id: 'power', f: 0.6 },
+    { re: /戦術(?:面|眼|的|を立て|に長け)|策略|謀略|計略|知略|采配/, id: 'intel', f: 0.6 },
     { re: /魅了|魅惑|虜|誘惑|媚び/, id: 'charm' },
-    { re: /(?:自身|自分)[^。]{0,8}(?:回復|再生|癒)|自己回復|再生能力/, id: 'regen' },
+    { re: /(?:自身|自分)[^。]{0,8}(?:回復|再生|癒)|自己回復|再生能力|即時復元|自己修復|肉体を[^。]{0,10}復元/, id: 'regen', not: /修復不可能/ },
     { re: /治療|治癒|回復|看護|手当|癒[やすし]|バッドステータスを除/, id: 'heal_other', f: 0.8, not: /(?:自身|自分)[^。]{0,8}(?:回復|再生|癒)/ },
-    { re: /(?:真名|正体|素性)を?(?:悟らせ|隠|偽|知られ)|隠蔽|偽装|秘匿|変装|見せかけ|表記のみ/, id: 'conceal' },
-    { re: /気配[^。]{0,6}(?:消|断)|隠密|潜伏|姿を消|透明|潜ん|バレない|感知は[^。]*不可能/, id: 'stealth' },
-    { re: /見抜|看破|見破|暴く|解析|識別|鑑定/, id: 'reveal' },
-    { re: /探知|感知|索敵|察知|千里眼|遠くまで見|見通/, id: 'detect', not: /感知は[^。]*不可能/ },
-    { re: /情報|諜報|調査|偵察|研究|観察/, id: 'intel', f: 0.8 },
+    { re: /(?:真名|正体|素性)を?(?:悟らせ|隠|偽|知られ)|隠蔽|偽装|秘匿|変装|見せかけ|表記のみ/, id: 'conceal', not: /偽装[^。]{0,6}(?:を|や|も)?[^。]{0,8}(?:察知|見抜|看破)(?:する|す)?(?:事|こと)?が?(?:出来|でき)な/ },
+    { re: /気配[^。]{0,6}(?:消|断)|隠密|潜伏|姿を消|透明|潜ん|バレない|感知は[^。]*不可能/, id: 'stealth', not: /気配遮断を[^。]{0,4}(?:察知|感知|見抜)/ },
+    // 他者の持つスキルの話（「直感持ちのサーヴァントは看破可能」）や、見抜かれる側の話は除く
+    { re: /見抜|看破|見破|暴く|解析|識別|鑑定|構造[^。]{0,6}を?理解/, id: 'reveal', not: /持ちの(?:サーヴァント|マスター)|を持つ(?:相手|者|サーヴァント)|看破(?:可能|され)|看破系[^。]{0,10}(?:に対|抵抗)|に対しては抵抗|見抜(?:く|け)(?:事|こと)?が?(?:出来|でき)な|見抜けな/ },
+    { re: /探知|感知|索敵|察知|千里眼|遠くまで見|見通/, id: 'detect', not: /感知は[^。]*不可能|(?:察知|感知|探知)(?:する)?(?:事|こと)が?(?:出来|でき)な/ },
+    { re: /情報|諜報|調査|偵察|研究|観察/, id: 'intel', f: 0.8, not: /持ちの(?:サーヴァント|マスター)|情報を?偽|偽造した情報|偽の情報/ },
     { re: /回避|避け|かわし|躱/, id: 'evade' },
-    { re: /先手|先制|奇襲|俊敏|神速|高速移動|最高速|加速|跳躍|ジャンプ|脚力|機動力/, id: 'initiative', cond: true },
+    { re: /先手|先制|奇襲|俊敏|俊足|神速|高速移動|最高速|加速|跳躍|ジャンプ|脚力|機動力/, id: 'initiative', cond: true },
     { re: /逃走|撤退|離脱|逃げ|飛行|空を(?:飛|走)|天馬|跳び越/, id: 'escape', not: /(?:相手|敵)[^。]{0,10}(?:逃走|撤退|離脱|逃げ)|逃さない|逃がさない|逃走手段|逃げるしか/ },
     { re: /魔術[^。]{0,10}(?:無効|防|耐性|弾)|対魔力/, id: 'magic_guard', not: /対魔力[^。]{0,8}(?:影響を受けない|を?無視|を?貫)/ },
-    { re: /精神[^。]{0,8}(?:耐性|干渉を|無効)|精神デバフ[^。]{0,6}(?:難|効かな|無効)|動じない|恐怖を(?:感じ|知ら)/, id: 'mental_guard' },
+    { re: /精神[^。]{0,8}(?:耐性|干渉を|無効)|精神デバフ[^。]{0,6}(?:難|効かな|無効)|精神弱体を|精神[^。]{0,10}跳ね除け|動じない|恐怖を(?:感じ|知ら)/, id: 'mental_guard' },
+    { re: /(?:神々|神)[^。]{0,8}(?:干渉|加護|権能)[^。]{0,16}(?:削減|軽減|防ぐ|打ち消)/, id: 'magic_guard' },
     { re: /防御|頑丈|堅牢|盾|守り|守る|鎧|防ぐ|胴丸|耐久[^。]{0,6}(?:上昇|ランクアップ|向上)/, id: 'guard', not: /防御は無意味|マイナス/, cond: true },
-    { re: /陣地|工房|結界|拠点|神殿|戦闘空間|領域/, id: 'territory', not: /対界宝具で/ },
-    { re: /燃費が(?:良|いい)|魔力消費[^。]{0,8}(?:少|軽|抑|格安)/, id: 'upkeep_down', only: 'skill' },
+    { re: /陣地|工房|結界|拠点|神殿|戦闘空間|領域(?:を|に)?(?:展開|作成|形成|内)/, id: 'territory', not: /対界宝具で/ },
+    { re: /燃費が(?:良|いい)|魔力消費[^。]{0,8}(?:少|軽|抑|格安)|魔力を[^。]{0,30}(?:補給|自前で賄|供給を得)/, id: 'upkeep_down', only: 'skill' },
     { re: /魔力消費[^。]{0,8}(?:軽|少|格安|抑)/, id: 'np_cost', f: -1, only: 'np' },
     { re: /燃費(?:が|は)?(?:悪|すこぶる悪)|コスパが(?:悪|非常によろしくない)|魔力消費(?:が|も)?(?:高|大き|相応)|高い魔力を必要|魔力を大量/, id: 'np_cost', only: 'np' },
     { re: /燃費(?:が|は)?悪|魔力消費(?:が|も)?(?:高|大き)/, id: 'upkeep_up', only: 'skill' },
-    { re: /単独|マスター不在|現界を維持/, id: 'solo', f: 0.7 },
-    { re: /理性[^。]{0,8}(?:失|奪|引き換え|蒸発)|暴走|言うことを聞かない|勝手に/, id: 'uncontrolled', f: 0.7 },
-    { re: /攻撃力|威力|膂力|怪力|筋力[^。]{0,8}(?:上昇|向上|ランクアップ)|ステータス[^。]{0,8}(?:上昇|向上|強化)|強化され|戦闘能力を向上|大幅に上昇/, id: 'power', f: 0.8, cond: true },
+    { re: /単独行動|単独で(?:も)?現界|マスター不在|現界を維持/, id: 'solo', f: 0.7 },
+    { re: /理性[^。]{0,8}(?:失|奪|引き換え|蒸発)|暴走|言うことを聞かない|勝手に/, id: 'uncontrolled', f: 0.7, not: /暴走させた/ },
+    { re: /攻撃力|威力|膂力|怪力|筋力[^。]{0,8}(?:上昇|向上|ランクアップ)|(?:ステータス|パラメーター|パラメータ)[^。]{0,10}(?:上昇|向上|強化|ランクアップ)|ランク(?:が)?上昇|強化され|戦闘能力(?:を向上|が増幅)|増幅させ|大幅に上昇|ボーナスを(?:獲得|得)|バフが発生|ブーストアップ|放出能力/, id: 'power', f: 0.8, cond: true, not: /(?:幸運|耐久|神性|黄金律)(?:の|値)?(?:パラメーター|パラメータ)?(?:を|は|が)[^。、・]{0,10}ランクアップ/ },
   ];
   // 場所などの条件
   const CONDS = [['水辺', /水場|水辺|海上|海で|海に|水中|川で/], ['森', /森の中|森で|樹木|木々/], ['山', /山中|山で/], ['夜', /夜間|夜に|暗闇/]];
@@ -469,7 +557,7 @@
     };
     for (const sen of sentences(text)) {
       // マスター強化
-      if (/マスター(?:に|へ|の)/.test(sen) && /与え|上げ|上昇|加護|強化|高め|付与|アップ/.test(sen)) {
+      if (/マスター(?:に|へ|の|を)/.test(sen) && /与え|上げ|上昇|加護|強化|高め|付与|アップ/.test(sen)) {
         const n = sen.match(/(\d+)\s*ランク/);
         for (const [stat, re] of MASTER_STAT_WORDS) if (re.test(sen)) push('master_buff', n ? Math.min(5, +n[1]) : 1, { stat });
       }
@@ -520,6 +608,22 @@
         }
       }
     }
+    // 「多種多様なスキルを内包する複合スキル。……「心眼（真）」、「戦闘続行」…」「父娘の絆(重)、狂信、啓示が歪んだ形で複合」：
+    //   複合・内包と書かれた説明では、かぎかっこで挙げたスキルと、複合・内包と同じ文に並べたスキルを借りる
+    if (/内包|複合スキル|複合され|を複合|の複合|混合スキル/.test(text)) {
+      const qs = (R.normalize(String(text || '')).match(/[「『"“][^」』"”]{2,16}[」』"”]/g) || []).map(q => normName(q.slice(1, -1)));
+      const qFull = new Set(qs), qBase = new Set(qs.map(baseName));
+      const listSen = sentences(text).filter(x => /内包|複合|混合/.test(x)).map(x => R.normalize(x)).join('。');
+      const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const inList = k => new RegExp('(?:^|[、・,\\s「『"“やと])' + esc(k) + '(?=[、・,\\s」』"”とがやのを…]|$)').test(listSen);
+      for (const key of keys) {
+        const nk = normName(key), bk = baseName(key);
+        if (found.has(key) || (self && (self.includes(bk) || bk.includes(self)))) continue;
+        // 「心眼（真）」は 心眼(真) だけに当てる（「魔力放出（光）」のように辞書に無い括弧なら、括弧を外した 魔力放出 に）
+        const hit = qFull.has(nk) || (qBase.has(bk) && !keys.some(k2 => k2 !== key && baseName(k2) === bk && qFull.has(normName(k2)))) || inList(nk);
+        if (hit) found.set(key, { key, rank: null, mix: true });
+      }
+    }
     const out = Array.from(found.values());
     // 長い名前に含まれる短い名前（「勇猛」と「勇猛の戦乙女」など）は長い方だけ残す
     return out.filter(o => !out.some(x => x !== o && x.key.length > o.key.length && x.key.includes(baseName(o.key))));
@@ -546,6 +650,7 @@
     };
     if (own) return mk(own, 'servant-override');
     if (SKILL_OVERRIDES[n] || SKILL_OVERRIDES[skill.name]) return mk(SKILL_OVERRIDES[n] || SKILL_OVERRIDES[skill.name], 'override');
+    if (/^(?:なし|無し|-|―|ー)?$/.test(n) && !String(skill.desc || '').trim()) return mk([], 'lost'); // 「なし」とだけ書かれた欄
     if (rank && rank.none && LOST_WORDS.test(skill.desc || '')) return { effects: [], source: 'lost' };
     const d = lookupDict(skill.name);
     const comp = compoundSpecs(skill.desc, skill.name);
@@ -612,7 +717,8 @@
     else if (specs.length) { attack = false; basis = 'support-effects'; } // 補助的な効果しか読み取れず、攻撃の表現も無い
     else { attack = true; basis = 'guess'; }                              // 手がかりが無いので種別どおり攻撃宝具とみなす
     // 攻撃宝具の「戦闘力上昇」は威力そのものなので効果からは外す
-    if (attack) specs = specs.filter(s => s.spec[0] !== 'power' || (s.spec[2] && s.spec[2].cond));
+    // （手で指定した効果は外さない：宝具を使ったその戦いの間、戦闘力として上乗せされる）
+    if (attack && !own && !SKILL_OVERRIDES[n]) specs = specs.filter(s => s.spec[0] !== 'power' || (s.spec[2] && s.spec[2].cond));
     const rk = np.rank && np.rank.base ? np.rank : R.parseRank('C');
     const effects = specs.map(s => instantiate(s.spec, s.rank || rk, np.name, source)).filter(Boolean);
     if (PERSIST_WORDS.test(desc)) effects.forEach(e => { e.persistent = true; });
@@ -630,5 +736,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, OVERRIDE_TABLES,
-    normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag };
+    normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

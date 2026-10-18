@@ -112,7 +112,7 @@ js/
   config.js         CLASS_DEFS, ENGINE tuning, WAR composition, rank tables, NP types, BATTLE_K, VOICE_SLOTS, GRADES
   rank.js           Rank string ("A+", "C~A", "B(狂化時A)", "-", "EX") → numeric object
   parser.js         Wiki markup → structured servant (parsePage, parseServant, finalize, parseClass)
-  effects.js        Effect primitives, skill dictionary, keyword rules, override tables, resolveSkill/resolveNP
+  effects.js        Effect primitives (+ EFFECT_INFO/describe: who/when/what), skill dictionary, keyword rules, override tables, resolveSkill/resolveNP
   build.js          Parsed servant → game servant (scores, effects, power); toLean/fromJSON; battleOdds
   master.js         Master structure, origins, createMaster, parseMasterText
   war.js            composeWar: pick 7 (+extra) servants for one war
@@ -148,13 +148,14 @@ test/
   survival.js       Survival tally sanity + playerName never changes the outcome
   voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
   fgo.js            FGO-style blocks / chant lines are not read as skills or NPs; old data is cleaned at load
+  effects.js        Every EFFECTS id is read by engine/build and described; NP effect timing; identity override
   focus.js          Win rate per constant focus by servant grade vs REC_FOCUS (reads the table from index.html)
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
 
-Current data: 75 servants (saber 13, rider 11, lancer 10, berserker 10, caster 9, assassin 9, archer 6,
-ruler 2, extra 5); 40 of them have voice lines.
+Current data: 81 servants (saber 13, rider 11, berserker 11, caster 10, assassin 10, lancer 9, archer 8,
+saver 1, ruler 1, avenger 1, extra 6); 41 of them have voice lines.
 
 ---
 
@@ -224,7 +225,8 @@ starts with 『 or is a short 「…」 without 。、！？ (longer 「…」 l
 in classSkills/skills/nps, an FGO item (name matches `FGO_ITEM`, or no rank and a description that is an FGO table / FGO wording —
 `FGO_TABLE`, `FGO_TEXT`, `||…`) starts a zone in which items with no rank (NPs: no rank and no type) or a name seen earlier are dropped;
 a rankless repeat of an earlier name is dropped anywhere; an NP with no rank and no type whose name looks like a sentence (。！？、, > 24
-chars) or that has no description is merged into the previous NP's description (`why: 'merged'`). Removed items are listed in
+chars), that has no description, or whose description is only one 「…」/『…』 quote is merged into the previous NP's description (the
+next one's when it comes first; `why: 'merged'`). An NP whose rank field also holds 「種別」 (`B++ 種別 対軍宝具`) is split into rank and type. Removed items are listed in
 `sv.skippedItems` (`{ list: 'skills'|'nps', name, why: 'fgo'|'merged' }`), which is kept in lean data and shown in the roster detail
 (「読み取りで外した項目」), in submit.html's judgement and in the import workflow's PR body. On the current data this removes 85 items
 from 16 servants (their power / NP peak drop accordingly; e.g. タリエシン's and フリッツ・デュケイン's only "attack NPs" were chant lines /
@@ -305,7 +307,11 @@ back into the tables on load (`harvestOverrides`), without overwriting existing 
 Hand edits of the *content* read from the wiki (the roster tool's 「内容を編集」 dialog). Each present section
 replaces the wiki value wholesale: `skills: [{group:'class'|'own', name, rankRaw, desc}]` (both classSkills
 and skills), `nps: [{name, reading, rankRaw, typeRaw, rangeRaw, maxRaw, desc}]`, `voice {heading:[lines]}`,
-`text {…}`, `profile {…}`, `relations [{name,text}]`. `base[section]` = `hashOf(contentOf(wikiValue, section))`
+`text {…}`, `profile {…}`, `relations [{name,text}]`, `identity { trueName?, cls? }` (rename / reclassify; applied first, then
+`sv.id` is recomputed; `_wiki` stashes the wiki `trueName`/`class`/`id`). `CONTENT_OVERRIDES` is keyed by the **wiki** true name
+(`B.wikiName(sv)`); every other table (servant/np/stats/pages) by the displayed true name (the roster's rename moves those keys).
+`B.wikiId(sv)` is the wiki id — roster.html's published-sync uses it, so a rename is only an override change. `pageOf` falls back to the
+wiki true name. `base[section]` = `hashOf(contentOf(wikiValue, section))`
 at edit time; if the wiki value later differs, `buildServant` adds a `review` item of kind `content`.
 Sections equal to the wiki are not stored. Ranks/types are re-parsed from the raw strings (`mkSkill`, `mkNP`).
 
@@ -347,6 +353,9 @@ Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`
 (`'水辺'|'森'|'山'|'夜'`) makes an effect apply only on matching terrain.
 
 **Effect spec** (used everywhere): `[effectId, factor = 1, params?]`.
+**Meaning** (`E.EFFECT_INFO[id] = { who, bad?, fx(mag, params) }`, `E.describe(effect, { np, attack })` → `{ name, who, whoJa, bad,
+when, text }`): who = self / enemy / ally / master / enemyMaster / none; `fx` states what the engine actually does with the magnitude
+(keep it in sync with engine.js). Shown in roster.html (skill/NP tables, effect editor rows, legend) and submit.html.
 **Magnitude**: `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank` → table lookup;
 unknown rank → ×0.8).
 
@@ -380,6 +389,8 @@ Anything not from an override or exact dict hit is added to the servant's `revie
   self, special`) with `power`, `cost`, `exposure` multipliers.
 - Attack or support: `NP_OVERRIDES` → disabled → self-type → non-attack wording → attack wording
   (`ATTACK_WORDS`) → barrier → support effects → otherwise guessed attack.
+- On attack NPs, `power` effects from text are dropped (the NP's power is the attack), but hand-set ones (`servant-override`/`override`)
+  are kept and apply while the NP's battle lasts.
 - `power = rank.score × type.power` (attack NPs only); `cost = type.cost × rank.mult × (1 + np_cost)`;
   `exposure` = how likely use reveals the true name (≥1 makes it public; ≥0.8 can trigger a "witnessed" event).
 - `self_retire` (servant drops out after use), `backfire`, `disabled` are detected from text.
@@ -477,7 +488,8 @@ for day = 1..maxDays (30):
       uncontrolled wandering (berserk-like)
       day action: scout | fortify | rest | ally | hide   (weighted by effects × policy; player focus overrides)
       player's life event (lifeChance 0.4)
-    upkeep: mana += manaRegen + master.mana×0.15 + workshop×2 − upkeep×modifiers; starvation hurts hp
+    upkeep: mana += manaRegen + master.mana×0.15 + workshop×2 + resource×10 − upkeep × upk(c) (× spiritSave 0.6 on rest/hide days);
+            a shortfall goes through drain() (see 7.5 Mana)
   checkFallen
   nightPhase (skipped on festival nights):
     each camp decides to hunt (huntBase 0.56 + power diff + class + hp + finale + policy + persona + moon …)
@@ -512,6 +524,9 @@ The last `finaleDays` (3) days add aggression.
 
 ### 7.5 Battle (`battle`, up to `rounds` = 4)
 
+Battle start: every participant (incl. helpers) pays `battleMana` (5) × `upk(c)`; a stored item (`c.items`, from `craft`,
+max 3) is consumed for temp guard +0.2 / power +0.05; `initiative` (≤0.5) may give `surprise` +0.08 (only rolled when > 0).
+
 Per round:
 1. Retreat-stance camps may disengage immediately (round 1).
 2. Each side may use an NP (`useNP`: chance from hp, round, berserker, losing, finale, stance, persona;
@@ -534,6 +549,27 @@ Per round:
    capped at 0.15. Lethal unless saved by a command seal (`csSaveMaster` 0.5).
 8. Retreat check for the weaker side (threshold `retreatAt` 35 ± stance ± persona; success from
    `retreatBase` + escape − pin + bond …).
+
+**Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`): x's ally joins with
+`clamp(allyJoin 0.3 + hunting 0.15 + defending its own base 0.2 + rally(x) + rally(ally) + persona ally×0.5 − wander 0.2, 0.05, 0.85)`
+(not if it already fought, hp < 40, retired, or the player's focus says `night === false`; player focus attack +0.3). Passed as
+`ctx.helpA/helpB`. The helper is logged (`kind 'ally'`, big), uses NPs, adds `(combatPower × hp factor + npBoost) × allyAssist 0.45 ×
+(1 + rally of both)` to its side, and when its side loses an exchange it takes the hit with `allyCover` 0.35 (lethal → `lethal()` on the
+helper; it leaves when dead/escaped or hp < 25). Kills/`fin` stay with the main pair.
+
+**Mana.** `upk(c)` = `CLASS_DEFS[class].upkeep` (berserker 1.4, others 1) × max(0.3, 1 + upkeep_up − upkeep_down). `drain(c)`: when
+mana < 0 the shortfall × `drainLife` (2) comes out of the Master's HP (servant hp −min(8, short×0.3)); if the Master would drop to 0
+one command seal is spent for `sealMana` (30) mana, else `masterDown` (「…に魔力を吸い尽くされ…」). `wildOf(c)` = master alive and
+(berserker or `uncontrolled` ≥ `wildAt` 0.1): no low-mana power penalty, and may fire one NP per battle without enough mana
+(overdraw → drain). Berserkers also pay `wildMana` (3) × upk per round. AI rests more when the Master is drained (mhp < 50%, upk > 1.2)
+and hunts less with mana < 20% (non-berserkers).
+
+**Other effect reads** (all deterministic apart from the rolls noted): `np_boost` (passive + the NP's own) multiplies attack NP power
+(also in `npPeak`); `luck` adds ×0.5 to guts, ×0.3 to retreat and cuts instakill received by (1 − luck); `resource` adds mana daily;
+`weakness` reduces the *weak* side's own power vs a matching opponent; cond `夜` matches night battles except on a full moon.
+NP effects: battle/damage/lethal/retreat/np-phase effects (and `uncontrolled`/`upkeep_up`) apply only while the NP's battle lasts
+(`E.npOnUse`, `onNP` in the summary); everything else (territory, craft, stealth, intel, negotiate, regen…) is passive while held.
+`test/effects.js` fails if an `EFFECTS` id is not read by engine.js/build.js or lacks an `EFFECT_INFO` description.
 
 **Stat roles** (`CONFIG.STAT_FX`, on top of each stat's share of `combatPower`). `d = B.statDev(score)` =
 `clamp((score − 32)/30, −1, 1.6)` (C≈0, A≈+1); in the engine `sd(c,k)` for servant scores, `md(c,k)` for Master stats
@@ -813,7 +849,9 @@ with a message if the servant is not in the roster yet), shows the request in `#
 detail (`lastReq`), puts the page name into the GitHub import box when there is no text, and jumps to the servant.
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
-effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; the voice tab shows one
+effect editor (each row explains who/when/what via `E.describe`, plus a legend of all effects), 「真名・クラスを変える」 (`#idd`,
+writes `CONTENT_OVERRIDES[wikiName].identity` and moves the servant/np/stats/pages keys), 「どの英霊にも当たらない手直し」 in 公開・保存
+(override keys that match no servant / skill, with 消す), stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; the voice tab shows one
 field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matches, unused/unknown headings (renamable), and a
 「まとめてテキストで」 mode in the old `見出し：「セリフ」` format; writes
 `CONTENT_OVERRIDES`) (all write overrides), "draw 7" preview, export `servants.json` (lean) and `overrides.json`.
@@ -879,6 +917,7 @@ node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
 node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
 node test/fgo.js                # FGO-style blocks and chant lines are not read as skills/NPs (parse + load-time cleanup)
+node test/effects.js            # every effect primitive is read by the engine/build and has a description; identity override round trip
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (N=1000 seeds × 7 focuses, ~40 s)
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
@@ -886,8 +925,9 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (75 servants, 500 wars): errors 0, ~90–92% decided (draw ~8–10%), median 17 days (P10 10,
-P90 30), ~16 battles, ~26 NP uses, ~4 command-seal events per war. Interactive: errors 0, **mismatch 0**,
+Baseline with current data (81 servants, 500 wars): errors 0, ~88–90% decided (draw ~10–12%), median 18 days (P10 10,
+P90 30), ~17 battles, ~27 NP uses, ~4.4 command-seal events, ~0.8 joint (allied) battles per war; berserker camps lose their Master
+~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 
 Before opening a PR, run `sim.js` and `interactive.js` (must be `errors 0`, `mismatch 0`). Compare balance

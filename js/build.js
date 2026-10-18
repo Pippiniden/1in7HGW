@@ -16,14 +16,19 @@
   // 差し替えた項目の Wiki の値は sv._wiki に取っておく（リストに保存したあとでも元に戻せるように）。
   // 公開用のデータ（toLean）は Wiki の値で書き出し、手直しは overrides.json の content に入る。
   const CONTENT_SECTIONS = { skills: ['classSkills', 'skills'], nps: ['nps'], voice: ['voice'], text: ['text'], profile: ['profile'], relations: ['relations'] };
-  const CONTENT_JA = { skills: 'スキル', nps: '宝具', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
+  const CONTENT_JA = { identity: '真名・クラス', skills: 'スキル', nps: '宝具', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
+  // 真名・クラスの手直し（CONTENT_OVERRIDES['Wikiの真名'].identity = { trueName?, cls? }）。
+  //   内容の手直し表は Wiki の真名で引く。ほかの表（効果・ステータス・宝具の扱い・ページ名）は直したあとの真名で引く。
   const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
   function restoreWiki(sv) {
     if (sv && sv._wiki) { for (const k of Object.keys(sv._wiki)) { if (sv._wiki[k] === undefined) delete sv[k]; else sv[k] = sv._wiki[k]; } delete sv._wiki; }
     return sv;
   }
   /** kagemiya のページ名（手直し表 pages → 取り込んだときのページ名 の順）。分からなければ null（真名で探す） */
-  const pageOf = sv => (sv && (E.PAGE_OVERRIDES[sv.trueName] || sv.page)) || null;
+  const pageOf = sv => (sv && (E.PAGE_OVERRIDES[sv.trueName] || sv.page || (sv._wiki && sv._wiki.trueName))) || null;
+  /** Wiki での真名・id（真名・クラスを手直ししていても、取り込んだときのもの。内容の手直し表と公開中のリストとの突き合わせに使う） */
+  const wikiName = sv => (sv && sv._wiki && sv._wiki.trueName) || (sv && sv.trueName);
+  const wikiId = sv => (sv && sv._wiki && sv._wiki.id) || (sv && sv.id);
   /** Wiki から読んだままの内容（手直しを外したもの）の写し */
   const wikiOf = sv => restoreWiki(clone(sv));
   /** 編集・比較に使う、項目ごとの内容（計算で出す値を除いたもの） */
@@ -47,6 +52,14 @@
     const c = E.CONTENT_OVERRIDES[sv.trueName];
     if (!c) return [];
     const wiki = {}, done = [];
+    const idn = c.identity;
+    if (idn && (idn.trueName || idn.cls)) {
+      wiki.trueName = sv.trueName; wiki.class = clone(sv.class); wiki.id = sv.id;
+      if (idn.trueName) sv.trueName = String(idn.trueName).trim();
+      if (idn.cls) sv.class = G.parser.parseClass(String(idn.cls).trim());
+      sv.id = sv.class.key + ':' + sv.trueName;
+      done.push('identity');
+    }
     for (const sec of Object.keys(CONTENT_SECTIONS)) {
       if (c[sec] == null) continue;
       const base = c.base && c.base[sec];
@@ -157,7 +170,8 @@
       o.from.push(e.from + (e.persistent ? '(消滅後も持続)' : ''));
     };
     for (const s of sv.allSkills || []) for (const e of s.effects || []) add(e, false);
-    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) add(e, !(e.id === 'master_buff' || e.persistent));
+    // 宝具の効果：戦いの効果は「宝具を使ったその戦いの間」だけ（onNP）。昼・偵察・維持魔力などの効果は持っているだけで働く（passive）
+    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) add(e, E.npOnUse(e));
     for (const k in out) { out[k].passive = Math.round(out[k].passive * 1000) / 1000; out[k].onNP = Math.round(out[k].onNP * 1000) / 1000; }
     return out;
   }
@@ -179,7 +193,8 @@
   function npPeak(sv) {
     const atk = (sv.nps || []).filter(n => n.attackResolved && !n.disabled && !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5));
     if (!atk.length) return 0;
-    return Math.round(Math.max(...atk.map(n => n.power)) * (1 + eff(sv, 'np_boost')) * npStatMult(sv) * 10) / 10;
+    const own = n => (n.effects || []).filter(e => e.id === 'np_boost').reduce((t, e) => t + e.mag, 0); // その宝具自身の「宝具強化」
+    return Math.round(Math.max(...atk.map(n => n.power * (1 + eff(sv, 'np_boost') + own(n)))) * npStatMult(sv) * 10) / 10;
   }
 
   /**
@@ -195,7 +210,7 @@
       const mg = y.class.key === 'caster' || (y.score.mag || 0) > (y.score.str || 0) ? eff(x, 'magic_guard', T) * 0.5 : 0;
       const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T) * 0.5 + eff(x, 'evade', T) * 0.5 + mg) * (1 - pierce)));
       let p = combatPower(x, T) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
-      p *= 1 + eff(x, 'crit', T) * 0.5;
+      p *= (1 + eff(x, 'crit', T) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T)) * 0.08);
       // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運でクリティカル）を、打ち合いの強さにならして足す
       const F = G.CONFIG.STAT_FX;
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
@@ -207,7 +222,7 @@
     const ea = side(a, b, opts.home), eb = side(b, a, false);
     let p = 1 / (1 + Math.exp(-(ea - eb) / K));
     // 即死は戦闘力と無関係に決着しうる
-    const F = G.CONFIG.STAT_FX, kr = y => Math.max(0, 1 - F.lukInstakill * statDev(y.score.luk));
+    const F = G.CONFIG.STAT_FX, kr = y => Math.max(0, 1 - F.lukInstakill * statDev(y.score.luk)) * (1 - Math.min(0.9, Math.max(-0.5, eff(y, 'luck', T))));
     const ka = Math.min(0.5, eff(a, 'instakill', T)) * kr(b), kb = Math.min(0.5, eff(b, 'instakill', T)) * kr(a);
     p = ka + (1 - ka) * (1 - kb) * p;
     return { a: Math.round(ea * 10) / 10, b: Math.round(eb * 10) / 10, pA: Math.round(p * 1000) / 1000 };
@@ -233,13 +248,19 @@
     let n = 0;
     for (const sv0 of list) {
       // リストツールで内容を直したまま書き出したJSON（_wiki あり）：直した内容を内容の手直し表に戻す
-      if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[sv0.trueName]) {
+      if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[wikiName(sv0)]) {
         const wiki = wikiOf(sv0), c = { base: {} };
+        if ('trueName' in sv0._wiki) {
+          const idn = {};
+          if (sv0.trueName !== wiki.trueName) idn.trueName = sv0.trueName;
+          if (sv0.class && wiki.class && sv0.class.raw !== wiki.class.raw) idn.cls = sv0.class.raw || sv0.class.label;
+          if (Object.keys(idn).length) c.identity = idn;
+        }
         for (const [sec, fields] of Object.entries(CONTENT_SECTIONS)) {
           if (!fields.some(f => f in sv0._wiki)) continue;
           c[sec] = contentOf(sv0, sec); c.base[sec] = hashOf(contentOf(wiki, sec));
         }
-        if (Object.keys(c).length > 1) { E.CONTENT_OVERRIDES[sv0.trueName] = c; n++; }
+        if (Object.keys(c).length > 1) { E.CONTENT_OVERRIDES[wiki.trueName] = c; n++; }
       }
       // 宝具名の「名前(読み)」の分離などを済ませた名前で登録する
       const sv = G.parser.finalize(JSON.parse(JSON.stringify(sv0)));
@@ -268,5 +289,5 @@
   }
 
   G.build = { toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf };
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId };
 })(globalThis.HGW = globalThis.HGW || {});
