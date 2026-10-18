@@ -134,6 +134,7 @@ test/
   content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   survival.js       Survival tally sanity + playerName never changes the outcome
+  focus.js          Win rate per constant focus by servant grade vs REC_FOCUS (reads the table from index.html)
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
   kagemiya-lucan.html                    Rendered kagemiya page (content area only) for the converter test
 ```
@@ -628,7 +629,9 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   day's focus. Playback (`step()`) does not run while `op` is set, so day 1 starts with the chosen focus (it used
   to start as おまかせ). The rating is computed in the UI from the loaded roster: mean `battleOdds` pA (with and
   without NP) against every other roster servant → rank → grade S (top 10%) / A (30%) / B (60%) / C (85%) / D;
-  plus base power / NP peak ranks, strengths/weaknesses from `effectSummary`, and a recommended focus. It rates the
+  plus base power / NP peak ranks, strengths/weaknesses from `effectSummary`, and a recommended focus (`REC_FOCUS[grade]`:
+  measured with `test/focus.js` — same seeds, one constant focus for the whole war — B → rest, others → auto; the old
+  trait-based rule (S/A → attack, caster → defend…) won 10% vs auto's 16%, so re-run the test after balance changes). It rates the
   Servant alone, not against the current line-up. Cached per roster (`strengthCache`); ~0.1 s for 64 servants.
   Rosters above `REF_MAX` (120) are compared against 120 evenly spaced reference servants instead of everyone.
 - Focus panel: on desktop it can be collapsed to one line (「たたむ」/「ひらく」, saved in `localStorage`
@@ -690,6 +693,10 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   matches the roster, else the browser cache `hgw.survival.v1`; `loadSurvival()` then tops up to `SURV_TARGET` (800) wars in
   chunks of `SURV_CHUNK` (3) with `setTimeout` gaps (longer while a war is playing), saving every 60 wars and redrawing with
   partial results. Chart: servant curve, dashed roster average, median-day marker, per-day values in `<details>`.
+- **Modal dialogs**: while any `.dlg.on:not(.min)` is open, `syncLock()` (a MutationObserver on every `.dlg`) fixes the body in
+  place (`body.locked`, `top: -scrollY`) so phones do not scroll the page behind; closing restores the position. Use `toTop()`
+  instead of `scrollTo(0, 0)` (it defers to the lock). `.dlg-in` uses `100dvh` and `overscroll-behavior: contain`; `.dlg-foot`
+  is sticky at the bottom (the confirm buttons stay reachable); the keyboard hints (`.keys`) are hidden at ≤820px.
 - **Stat explanations** (`TIPS`, `tipAttr(key, classKey)`, `#tipPop`): any element with `data-tip="<key>"` shows a short
   explanation on mouse hover, on tap/click (pinned until tapped again or elsewhere), and on keyboard focus (Esc closes).
   Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
@@ -734,6 +741,7 @@ node test/skills.js             # skill dictionary (canonical names, generic nam
 node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
+node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (N=1000 seeds × 7 focuses, ~40 s)
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
 node tools/kagemiya.js show ルーカン   # fetch and print what would be imported (needs network access to seesaawiki.jp)
 node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-servant effects
