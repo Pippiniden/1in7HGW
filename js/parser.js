@@ -373,17 +373,26 @@
     const seen = new Set();
     for (const [key, isNp] of [['classSkills', false], ['skills', false], ['nps', true]]) {
       const list = sv[key] || [];
-      let zone = false; const out = [];
+      let zone = false, carry = ''; const out = [];
       for (const x of list) {
+        // 「ランク：B++　種別：対軍宝具」が一つの欄に入った宝具（ランクの欄に種別が混ざった）
+        if (isNp && /種別/.test(x.rankRaw || '') && blank(x.typeRaw)) {
+          const m = String(x.rankRaw).match(/^(.*?)\s*種別\s*[:：]?\s*(.*)$/);
+          if (m) { x.rankRaw = m[1].trim(); x.typeRaw = m[2].trim(); x.rank = G.rank.parseRank(x.rankRaw); x.typeKey = npTypeKey(x.typeRaw); }
+        }
         const fg = isFgo(x); if (fg) zone = true;
         const noRank = blank(x.rankRaw) && (!isNp || blank(x.typeRaw));
         // FGO風の項目・その先のランクの無い項目・すでに出た名前でランクの無い項目（FGO風の欄の同じ宝具など）
         if (fg || (zone && (noRank || seen.has(key + ':' + x.name))) || (noRank && seen.has(key + ':' + x.name))) { note(isNp ? 'nps' : 'skills', x.name, 'fgo'); continue; }
-        if (isNp && noRank && out.length && (/[。！？!?、]/.test(x.name) || String(x.name).length > 24 || blank(x.desc))) {
-          const prev = out[out.length - 1];
-          prev.desc = [prev.desc, x.name, x.desc].filter(t => !blank(t)).join('\n');
+        // 詠唱・セリフの行が宝具として読まれたもの：名前が文のよう・説明が無い・説明がかぎかっこの一言だけ
+        const quoteOnly = /^\s*(?:「[^」]*」|『[^』]*』)[！!]?\s*$/.test(x.desc || '');
+        if (isNp && noRank && (/[。！？!?、]/.test(x.name) || String(x.name).length > 24 || blank(x.desc) || quoteOnly)) {
+          const text = [x.name, x.desc].filter(t => !blank(t)).join('\n');
+          if (out.length) { const prev = out[out.length - 1]; prev.desc = [prev.desc, text].filter(t => !blank(t)).join('\n'); }
+          else carry = [carry, text].filter(Boolean).join('\n');   // 最初の宝具の前にある行は、次の宝具の説明の頭に
           note('nps', x.name, 'merged'); continue;
         }
+        if (carry && isNp) { x.desc = [carry, x.desc].filter(t => !blank(t)).join('\n'); carry = ''; }
         seen.add(key + ':' + x.name); out.push(x);
       }
       sv[key] = out;

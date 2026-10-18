@@ -81,6 +81,12 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .item .top b { font-size: 14px; }
 .item .desc { color: var(--sub); font-size: 12px; white-space: pre-wrap; }
 .item.chg { box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; }
+.ef { font-size: 12px; margin: 0 0 4px; line-height: 1.45; }
+.ef .who { display: inline-block; font-size: 11px; padding: 0 5px; border-radius: 4px; margin-right: 3px; border: 1px solid var(--rule); color: var(--sub); white-space: nowrap; }
+.ef .who.enemy, .ef .who.enemyMaster { color: var(--neg, #b3261e); border-color: currentColor; }
+.ef .who.master, .ef .who.ally { color: var(--ok, #2e7d32); border-color: currentColor; }
+.ef .when { color: var(--sub); font-size: 11px; }
+.ef .fx { display: block; color: var(--sub); }
 .chip { display: inline-block; background: var(--chip); border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; font-size: 12px; white-space: nowrap; }
 .chip.neg { color: var(--neg); }
 .src { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
@@ -319,7 +325,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   // 内容の手直しを一時的に掛ける（すでに公開中の手直しがあれば、その上に重ねる）
   function withContent(sv, c, fn) {
     if (!c) return fn();
-    const CO = E.CONTENT_OVERRIDES, k = sv.trueName, had = Object.prototype.hasOwnProperty.call(CO, k), old = CO[k];
+    const CO = E.CONTENT_OVERRIDES, k = B.wikiName(sv), had = Object.prototype.hasOwnProperty.call(CO, k), old = CO[k];
     CO[k] = Object.assign({}, old || {}, c);
     try { return fn(); } finally { if (had) CO[k] = old; else delete CO[k]; }
   }
@@ -382,16 +388,15 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     <p class="hint" style="margin:6px 0 0">違っているところは、各項目の「ここを直してほしい」に文章で書けば十分です。効果をくわしく指定したい人は「効果を自分で指定する」も使えます。</p></div>`;
   }
   const noteBox = (key, label, rows) => `<label class="note"${notes[key] ? '' : ' hidden'}>${esc(label)}<textarea data-note="${esc(key)}" rows="${rows || 2}">${esc(notes[key] || '')}</textarea></label>`;
-  function fmtEff(e) {
-    const neg = e.mag < 0, a = Math.abs(e.mag);
-    const v = e.unit === 'rate' ? (neg ? '−' : '+') + Math.round(a * 100) + '%' : e.unit === 'chance' ? (neg ? '−' : '') + Math.round(a * 100) + '%' : e.unit === 'days' ? (Math.round(a * 10) / 10) + '日' : e.unit === 'pt' ? (neg ? '−' : '+') + Math.round(a) : '';
-    const p = e.params || {};
+  // 効果ひとつ：誰に・いつ・ゲームでの働き（effects.js の describe。リストツールと同じ表示）
+  function fmtEff(e, ctx) {
+    const d = E.describe(e, ctx || {}), p = e.params || {};
     const tg = p.tag ? '〔' + p.tag + '〕' : p.stat ? '〔' + (MS[p.stat] ? MS[p.stat].name : p.stat) + '〕' : '';
-    return `<span class="chip${neg ? ' neg' : ''}" title="${esc(E.EFFECTS[e.id].desc)}">${esc(e.name + tg + (p.cond ? '（' + p.cond + 'で）' : ''))} ${esc(v)}</span>`;
+    return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
   const keyOf = (sv, item) => sv.trueName + '/' + E.normName(item.name);
   const specOf = e => { const p = {}; if (e.params && e.params.tag) p.tag = e.params.tag; if (e.params && e.params.stat) p.stat = e.params.stat; if (e.params && e.params.cond) p.cond = e.params.cond; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
-  const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}</option>`).join('');
+  const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—')}）</option>`).join('');
   function strengthOptions(f) {
     const has = STRENGTH.some(([, v]) => Math.abs(v - f) < 1e-9);
     return (has ? '' : `<option value="${f}" selected>×${f}</option>`) + STRENGTH.map(([t, v]) => `<option value="${v}"${Math.abs(v - f) < 1e-9 ? ' selected' : ''}>${t}（×${v}）</option>`).join('');
@@ -413,7 +418,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     return `<div class="item${changed ? ' chg' : ''}${dropped ? ' drop' : notes[nk] ? ' noted' : ''}" data-key="${esc(k)}" data-kind="${kind}">
       <div class="top">${head}<span class="src ${src[1]}" title="どう決まったか">${esc(src[0])}</span>${changed ? '<span class="chip">調整した</span>' : ''}${dropped ? '<span class="chip neg">消してほしい</span>' : ''}</div>
       ${item.desc ? `<div class="desc">${esc(item.desc.length > 140 ? item.desc.slice(0, 140) + '…' : item.desc)}</div>` : ''}
-      ${dropped ? '' : `<div>${(curItem.effects || []).filter(e => e.id !== 'disabled').map(fmtEff).join('') || '<span class="hint">効果なし</span>'}</div>
+      ${dropped ? '' : `<div>${(curItem.effects || []).filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: kind === 'n', attack: curItem.attackResolved })).join('') || '<span class="hint">効果なし</span>'}</div>
       <div class="why">判断の理由：${esc(whyOf(kind, curItem))}</div>`}
       <div class="acts2"><button type="button" class="sm" data-notebtn>ここを直してほしい</button><label><input type="checkbox" data-drop="${esc(dk)}"${dropped ? ' checked' : ''}> ${what}ではない（読み取りの間違いなので消してほしい）</label></div>
       ${noteBox(nk, `${nk}をどう直してほしいか（例：「対軍の攻撃宝具です」「戦闘続行と同じ効果です」）`)}

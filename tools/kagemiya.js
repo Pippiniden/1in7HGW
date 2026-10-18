@@ -233,9 +233,12 @@ async function main() {
   let targets;
   if (o.cmd === 'refresh') {
     // ページ名は、手直し表（overrides.json の pages）→ 取り込んだときのページ名 → 真名 の順
-    const pg = s => H.build.pageOf(s);
-    const pick = o.names.length ? list.filter(s => o.names.includes(s.trueName) || o.names.includes(s.page) || o.names.includes(pg(s))) : list;
-    const unknown = o.names.filter(n => !list.some(s => s.trueName === n || s.page === n || pg(s) === n));
+    // 真名・クラスを手直ししている騎は、手直しした真名でもページ名の手直しを引く（組み立ててから見る）
+    const built = new Map(list.map(s => { try { return [s, H.build.fromJSON(s)]; } catch (e) { return [s, s]; } }));
+    const pg = s => H.build.pageOf(built.get(s)) || H.build.pageOf(s);
+    const names = s => [s.trueName, built.get(s).trueName, s.page, pg(s)];
+    const pick = o.names.length ? list.filter(s => names(s).some(n => o.names.includes(n))) : list;
+    const unknown = o.names.filter(n => !list.some(s => names(s).includes(n)));
     // ページ名が分からない騎は、真名 →「真名(クラス)」の順に探す
     const alts = s => pg(s) ? [] : [s.trueName + '(' + s.class.label + ')', s.trueName + '（' + s.class.label + '）'];
     targets = pick.map(s => ({ name: pg(s) || s.trueName, alts: alts(s), prevId: s.id })).concat(unknown.map(n => ({ name: n, notInRoster: true })));

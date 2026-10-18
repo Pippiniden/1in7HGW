@@ -17,7 +17,7 @@
  */
 (function (G) {
   'use strict';
-  const B = G.build, R = G.rank;
+  const B = G.build, R = G.rank, E = G.effects;
 
   // ---------- シード付き乱数 ----------
   function makeRng(seed) {
@@ -208,10 +208,12 @@
     }
 
     // ---------- 効果の参照 ----------
+    // 条件付きの効果：水辺・森・山はその場所（雨の夜は水辺）、夜（夜間・暗闇）は夜の戦い（満月の夜を除く）か地下
+    const condOk = (cond, terrain) => !cond || cond === terrain || (cond === '夜' && phase === 'night' && !tonight.moon);
     function eff(c, id, terrain) {
       let t = 0;
-      for (const x of Object.values(c.sv.effectSummary || {})) if (x.id === id && (!x.params || !x.params.cond || x.params.cond === terrain)) t += x.passive;
-      for (const e of c.temp) if (e.id === id && (!e.params || !e.params.cond || e.params.cond === terrain)) t += e.mag;
+      for (const x of Object.values(c.sv.effectSummary || {})) if (x.id === id && condOk(x.params && x.params.cond, terrain)) t += x.passive;
+      for (const e of c.temp) if (e.id === id && condOk(e.params && e.params.cond, terrain)) t += e.mag;
       return t;
     }
     const effVs = (c, id, o) => Object.values(c.sv.effectSummary || {}).filter(x => x.id === id && x.params && o.sv.tags.includes(x.params.tag)).reduce((t, x) => t + x.passive, 0)
@@ -223,11 +225,29 @@
     const npCostOf = (c, n) => n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag'));
     const active = () => camps.filter(c => c.alive);
     const isBerserk = c => c.sv.class.key === 'berserker';
+    // 維持魔力の倍率：クラス（バーサーカーは重い）× 燃費のスキル
+    // 制御の利かない英霊（バーサーカーと、制御困難の強い英霊）：魔力が尽きても止まらず、足りない分をマスターの生命力から食う
+    const wildOf = c => c.masterAlive && (isBerserk(c) || eff(c, 'uncontrolled') >= ENG.wildAt);
+    const upk = c => (G.classDef(c.sv.class.key).upkeep || 1) * Math.max(0.3, 1 + eff(c, 'upkeep_up') - eff(c, 'upkeep_down'));
+    // 魔力が足りない分は、マスターの生命力から吸い上げる（燃費の悪い英霊・魔力の乏しいマスターほど危うい）。
+    // マスターが倒れそうなら令呪一画を魔力に換えてしのぐ。令呪も無ければマスターが力尽きる
+    function drain(c) {
+      if (c.mana >= 0) return;
+      const short = -c.mana; c.mana = 0;
+      if (!c.masterAlive) return;
+      c.mhp -= short * ENG.drainLife;
+      c.hp -= Math.min(8, short * 0.3);
+      if (c.mhp > 0) { if (c.you || c.mhp < c.mhpMax * 0.35) log(phase === 'night' ? 'battle' : 'day', `魔力が足りず、${sn(c)}の現界が${mn(c)}の生命力を削っている。`, [c.id]); return; }
+      if (c.cs > 0) {
+        c.cs--; c.mhp = Math.max(5, Math.round(c.mhpMax * 0.15)); c.mana = ENG.sealMana;
+        log('cs', `生命力まで吸い尽くされかけた${mn(c)}は、令呪一画を魔力に換えて${sn(c)}をつなぎ止めた。（残り${c.cs}画）`, [c.id], { big: true });
+      } else masterDown(c, `${sn(c)}に魔力を吸い尽くされ、${day}日目に力尽きた`);
+    }
 
     function power(c, o, ctx) {
       const T = ctx.terrain;
       let p = B.combatPower(c.sv, T) * (1 + c.temp.filter(e => e.id === 'power').reduce((t, e) => t + e.mag, 0));
-      p *= (1 + effVs(c, 'power_vs', o)) * (1 - effVs(o, 'weakness', c) * 0.5);
+      p *= (1 + effVs(c, 'power_vs', o)) * (1 - effVs(c, 'weakness', o) * 0.5);
       const magHeavy = o.sv.class.key === 'caster' || (o.sv.score.mag || 0) > (o.sv.score.str || 0);
       const def = clamp(eff(c, 'guard', T) * 0.5 + eff(c, 'evade', T) * 0.5 + (magHeavy ? eff(c, 'magic_guard', T) * 0.5 : 0), -0.5, 0.6) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
       p *= 1 + def;
@@ -237,7 +257,7 @@
       p *= 0.55 + 0.45 * Math.max(0, c.hp) / 100;
       if (!c.masterAlive) p *= 0.9;
       else p *= 1 + FX.mCraftPower * md(c, 'craft');
-      if (c.mana < 10) p *= 0.85;
+      if (c.mana < 10 && !wildOf(c)) p *= 0.85;   // 魔力切れで鈍る（狂った英霊は鈍らない。代わりにマスターが削られる）
       if (c.stance === 'all') p *= 1.05;
       if (c.boostUntil != null && c.boostUntil >= day) p *= 1 + 0.2 * (1 + FX.mMindCs * md(c, 'mind'));
       if (c.surprise) p *= 1 + c.surprise;
@@ -282,7 +302,7 @@
     // 致命傷：踏みとどまる / 令呪 / 消滅
     function* lethal(l, w, cause, round) {
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
-      if (!pierced && chance(clamp(eff(l, 'guts') + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85))) {
+      if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85))) {
         l.hp = 5 + rnd() * 10;
         log('battle', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]);
         return 'guts';
@@ -316,7 +336,9 @@
     // ---------- 宝具 ----------
     function useNP(c, o, round, ctx) {
       if (!c.masterAlive && c.mana < 5) return;
-      const nps = (c.sv.nps || []).filter(n => !n.disabled && c.mana >= npCostOf(c, n));
+      // 制御の利かない英霊は、魔力が足りなくても宝具を放つ（足りない分はマスターの生命力から）
+      const wild = wildOf(c);
+      const nps = (c.sv.nps || []).filter(n => !n.disabled && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 魔力を顧みない宝具は1回の戦いに一度まで
       if (!nps.length) return;
       const losing = power(c, o, ctx) < power(o, c, ctx);
       let p = 0.1 + (c.hp < 50 ? 0.25 : 0) + (round >= 2 ? 0.1 : 0) + (isBerserk(c) ? 0.15 : 0) + (losing ? 0.2 : 0) + (day > ENG.maxDays - ENG.finaleDays ? 0.2 : 0);
@@ -352,14 +374,18 @@
       const ws = {}; nps.forEach((n, i) => { const w = weight(n); if (w > 0) ws[i] = w; });
       if (!Object.keys(ws).length) return;
       const np = nps[+wpick(ws)];
+      const over = c.mana < npCostOf(c, np);
       c.mana -= npCostOf(c, np); c.npUses++;
-      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
+      // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
       else c.usedSup.add(np.name);
-      for (const e of np.effects || []) if (!['master_buff', 'np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id)) c.temp.push(e);
+      // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
+      for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)) c.temp.push(e);
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (np.exposure >= 1) pubName.add(c.id);
       if (np.exposure >= 0.8) witnessed.push(c.id);
       log('np', `${nm(c)}が宝具を解放した——『${np.name}』${np.reading ? '（' + np.reading + '）' : ''}！`, [c.id, o.id], { quote: sayNP(c, np), big: true });
+      if (over) { c.overUsed = true; log('battle', `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
       const bf = (np.effects || []).find(e => e.id === 'backfire');
       if (bf) { c.hp -= bf.mag * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');
@@ -368,12 +394,20 @@
 
     // ---------- 戦闘 ----------
     let witnessed = [];
+    // ctx.helpA / ctx.helpB：同盟相手の加勢（a・b の味方として並んで戦う）
     function* battle(a, b, ctx) {
-      a.fought = b.fought = true; a.battles++; b.battles++;
-      a.temp = []; b.temp = []; a.usedSup = new Set(); b.usedSup = new Set(); a.lastNP = b.lastNP = null;
+      const help = new Map([[a, ctx.helpA || null], [b, ctx.helpB || null]]);
+      const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
+      const all = () => side(a).concat(side(b));
+      for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; }
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
+      for (const [x, o] of [[a, b], [b, a]]) {
+        const y = help.get(x); if (!y) continue;
+        y.stance = 'careful'; clue(y, o, 1); clue(o, y, 1); y.knowName.add(x.id);
+        log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、二騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
+      }
       const rt = related(a, b);
       if (rt) {
         a.knowName.add(b.id); b.knowName.add(a.id);
@@ -386,16 +420,37 @@
         c.stance = F && F.stance ? F.stance : c.hp < 25 && chance(0.5) ? 'retreat' : wpick({ all: c.policy === 'aggressive' ? 2.5 : 1.5, careful: c.policy === 'defensive' ? 1.5 : 1 });
         if (c.stance === 'retreat' && c.hp > 60 && !c.you) c.stance = 'careful';
       }
+      // 戦いのための魔力（霊基を全力で動かす分。燃費の悪い英霊ほど重い）
+      for (const c of all()) if (c.masterAlive) { c.mana -= ENG.battleMana * upk(c); drain(c); }
+      // 用意していた道具 / 先手
+      for (const [c, o] of [[a, b], [b, a]]) {
+        if (c.items > 0) { c.items--; c.temp.push({ id: 'guard', mag: 0.2, params: null }, { id: 'power', mag: 0.05, params: null }); if (c.you || o.you) log('battle', `${sn(c)}は用意していた道具で身を固めた。`, [c.id, o.id]); }
+        const ini = Math.min(0.5, eff(c, 'initiative', ctx.terrain));
+        if (ini > 0 && chance(ini)) { c.surprise = (c.surprise || 0) + 0.08; log('battle', `${sn(c)}が先手を取った。`, [c.id, o.id]); }
+      }
+      // 加勢の力：味方の戦闘力（傷の具合）＋宝具の一部。統率が連携を強める
+      const assist = (x, o) => {
+        const y = help.get(x); if (!y || !y.alive) return 0;
+        const T = ctx.terrain;
+        return (B.combatPower(y.sv, T) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
+      };
+      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
-        a.npBoost = b.npBoost = 0;
+        for (const c of all()) c.npBoost = 0;
+        // バーサーカーは、打ち合いのたびに魔力を食う
+        for (const c of all()) if (c.alive && c.masterAlive && isBerserk(c)) { c.mana -= ENG.wildMana * upk(c); drain(c); }
         // 退く戦い方なら最初に離脱を試みる
-        for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500 + FX.agiRetreat * (sd(c, 'agi') - sd(o, 'agi')), 0.05, 0.9))) {
+        for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) + eff(c, 'luck') * 0.3 - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500 + FX.agiRetreat * (sd(c, 'agi') - sd(o, 'agi')), 0.05, 0.9))) {
           log('battle', `${sn(c)}は刃を交えずに退いた。`, [c.id, o.id]); cleanup(); return;
         }
         useNP(a, b, round, ctx);
         useNP(b, a, round, ctx);
-        for (const c of [a, b]) if (c.pendingRetire) { const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`); cleanup(); return; }
-        let ea = power(a, b, ctx), eb = power(b, a, ctx);
+        for (const [x, o] of [[a, b], [b, a]]) { const y = help.get(x); if (y && y.alive) useNP(y, o, round, ctx); }
+        for (const c of all()) if (c.pendingRetire) {
+          const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`);
+          if (c === a || c === b) { cleanup(); return; } else leave(c);
+        }
+        let ea = power(a, b, ctx) + assist(a, b), eb = power(b, a, ctx) + assist(b, a);
         // 魅了：マスターの精神が強いと、呼びかけで正気を取り戻しやすい
         for (const [x, y] of [[a, b], [b, a]]) {
           if (!chance(eff(x, 'charm', ctx.terrain))) continue;
@@ -404,22 +459,28 @@
         }
         const p = 1 / (1 + Math.exp(-(ea - eb) / G.CONFIG.BATTLE_K));
         const [w, l, ew, el] = chance(p) ? [a, b, ea, eb] : [b, a, eb, ea];
-        let outcome = null;
-        if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(l, 'luk')))) {
-          log('battle', `${sn(w)}の一撃が、${sn(l)}の霊核を捉えた。`, [w.id, l.id]);
-          l.hp = 0; outcome = yield* lethal(l, w, 'instakill', round);
+        // 負けた側に加勢がいれば、その一撃を味方が受けることもある
+        const lh = help.get(l), cover = lh && lh.alive && chance(ENG.allyCover);
+        const tg = cover ? lh : l;
+        if (cover) log('battle', `${sn(lh)}が${sn(l)}をかばって前に出た。`, [lh.id, l.id, w.id]);
+        let outcome = null, o3 = null;
+        if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
+          log('battle', `${sn(w)}の一撃が、${sn(tg)}の霊核を捉えた。`, [w.id, tg.id]);
+          tg.hp = 0; o3 = yield* lethal(tg, w, 'instakill', round);
         } else {
           let dmg = (ENG.dmgBase + rnd() * ENG.dmgVar) * (1 + clamp((ew - el) / (ew + el + 1), -0.3, 0.6));
           // 筋力の高い側ほど深く斬り込み、耐久の高い側ほど持ちこたえる
-          dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(l, 'end'), 0.6, 1.5);
+          dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(tg, 'end'), 0.6, 1.5);
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
           if (crit) dmg *= 1.5;
-          if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(l, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
-          l.hp -= dmg; w.hp -= rnd() * 8;
-          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(l)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, l.id]);
-          if (l.hp <= 0) outcome = yield* lethal(l, w, 'battle', round);
-          if (w.hp <= 0 && w.alive && outcome !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = outcome || o2; }
+          if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(tg, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
+          tg.hp -= dmg; w.hp -= rnd() * 8;
+          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
+          if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
+          if (w.hp <= 0 && w.alive && o3 !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
+        if (cover) { if (o3 === 'dead' || o3 === 'escaped') leave(lh); else if (lh.alive && lh.hp < 25) leave(lh, `深手を負った${sn(lh)}は、戦いの場を離れた。`); }
+        else outcome = outcome || o3;
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
         if (l.masterAlive && w.alive) {
@@ -432,13 +493,13 @@
             } else log('battle', `${sn(w)}の一撃がマスターの${mn(l)}をかすめた。${mn(l)}は深手を負った。`, [w.id, l.id]);
           }
         }
-        // 撤退
+        // 撤退（加勢がいれば一緒に退く）
         const weaker = a.hp < b.hp ? a : b, other = weaker === a ? b : a;
         const threshold = (weaker.stance === 'careful' ? ENG.retreatAt + 10 : weaker.stance === 'all' ? ENG.retreatAt - 15 : ENG.retreatAt) + perv(weaker, 'retreat') * 30;
         if (weaker.hp < threshold || (weaker === l && p < 0.3 && weaker.hp < 60) || weaker.stance === 'retreat') {
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
           const agi = sd(weaker, 'agi') - sd(other, 'agi');
-          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
+          if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) + eff(weaker, 'luck') * 0.3 - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
             log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : line('retreat', { W: sn(weaker), O: sn(other) }), [weaker.id, other.id]); break;
           } else if (eff(other, 'pin', ctx.terrain) > 0.1) log('battle', `退こうとした${sn(weaker)}の行く手を、${sn(other)}が阻んだ。`, [weaker.id, other.id]);
           else if (agi <= -0.6) log('battle', `退こうとした${sn(weaker)}に、${sn(other)}の速さが追いすがった。`, [weaker.id, other.id]);
@@ -455,7 +516,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { a.temp = []; b.temp = []; a.npBoost = b.npBoost = 0; a.stance = b.stance = null; a.surprise = b.surprise = 0; a.lastNP = b.lastNP = null; }
+      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; } }
     }
 
     function* ambushMaster(h, t) {
@@ -763,7 +824,7 @@
         const w = {
           scout: 1 + (eff(c, 'intel') + eff(c, 'detect')) * 3,
           fortify: c.workshop >= 5 ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
-          rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0),
+          rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0) + (c.mhp < c.mhpMax * 0.5 && upk(c) > 1.2 ? 1.5 : 0),
           ally: alive.length > ENG.allianceBreakAt + 1 && c.ally == null && c.masterAlive ? Math.max(0, 0.3 + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) : 0,
           hide: eff(c, 'stealth') * 2 + (c.hp < 50 ? 0.5 : 0),
         };
@@ -778,10 +839,13 @@
       // 維持魔力
       for (const c of active()) {
         if (!c.masterAlive) continue;
-        const cost = ENG.upkeep * Math.max(0.3, 1 + eff(c, 'upkeep_up') - eff(c, 'upkeep_down'));
-        c.mana = Math.min(c.manaMax, c.mana + ENG.manaRegen + c.master.stats.mana * 0.15 + c.workshop * 2) - cost;
-        if (c.mana < 0) { c.mana = 0; c.hp -= 8; log('day', `${mn(c)}の魔力が尽きかけ、${sn(c)}の霊基が揺らいでいる。`, [c.id]); if (c.hp <= 0) servantDown(c, `魔力が尽き、${day}日目に消滅した`); }
+        // 休んだ・潜んだ日は霊体化して魔力を節約する。足りない分はマスターの生命力から（drain）
+        const cost = ENG.upkeep * upk(c) * (c.spirit ? ENG.spiritSave : 1);
+        c.spirit = false;
         c.mhp = Math.min(c.mhpMax, c.mhp + 5);
+        c.mana = Math.min(c.manaMax, c.mana + ENG.manaRegen + c.master.stats.mana * 0.15 + c.workshop * 2 + eff(c, 'resource') * 10) - cost;
+        drain(c);
+        if (c.alive && c.hp <= 0) servantDown(c, `魔力が尽き、${day}日目に消滅した`);
       }
     }
 
@@ -801,11 +865,11 @@
           c.workshop = Math.min(5, c.workshop + 1);
           if (c.you || c.workshop >= 3) log('day', line('fortify', { S: sn(c), base: c.base.name, ws: c.workshop }), [c.id]);
         } else if (c.you) log('day', line('fortifyFail', { S: sn(c) }), [c.id]);
-        if (chance(eff(c, 'craft'))) { c.items++; if (c.you) log('day', `${sn(c)}が戦いに役立つ道具を用意した。`, [c.id]); }
+        if (c.items < 3 && chance(eff(c, 'craft'))) { c.items++; if (c.you) log('day', `${sn(c)}が戦いに役立つ道具を用意した。`, [c.id]); }
       } else if (act === 'rest') {
         c.hp = Math.min(100, c.hp + ENG.restHeal + eff(c, 'regen') * 60);
         c.mhp = Math.min(c.mhpMax, c.mhp + 15 + eff(c, 'heal_other') * 60);
-        c.mana = Math.min(c.manaMax, c.mana + 10);
+        c.mana = Math.min(c.manaMax, c.mana + 10); c.spirit = true;
         if (c.you) log('day', line('rest', { S: sn(c) }), [c.id]);
       } else if (act === 'ally') {
         const cand = alive.filter(x => x !== c && x.alive && x.ally == null && x.masterAlive);
@@ -822,12 +886,21 @@
         else if (c.you) log('day', `${mn(c)}は${t.label}の陣営に同盟を持ちかけたが、断られた。`, [c.id, t.id]);
         else if (t.you) log('day', `${mn(t)}は${c.label}の陣営からの申し出を断った。`, [t.id, c.id]);
       } else if (act === 'hide') {
-        c.hidden = true;
+        c.hidden = true; c.spirit = true;
         if (c.you) log('day', line('hide', { S: sn(c) }), [c.id]);
       }
     }
 
     // ---------- 夜 ----------
+    function joinAlly(x, enemy, home) {
+      if (x.ally == null) return null;
+      const y = camps[x.ally];
+      if (!y || !y.alive || y.fought || y.ally !== x.id || y === enemy || y.hp < 40 || y.retired) return null;
+      const F = focusOf(y);
+      if (F && F.night === false) return null;   // プレイヤーが守り・休み・潜伏の方針なら出ない
+      const p = clamp(ENG.allyJoin + (y.hunting ? 0.15 : 0) + (home === x ? 0.2 : 0) + eff(x, 'rally') + eff(y, 'rally') + perv(y, 'ally') * 0.5 - (y.wander ? 0.2 : 0) + (F && F.night === true ? 0.3 : 0), 0.05, 0.85);
+      return chance(p) ? y : null;
+    }
     function* nightPhase() {
       phase = 'night';
       const alive = active();
@@ -837,7 +910,7 @@
       const finale = day > ENG.maxDays - ENG.finaleDays;
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
-        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0);
+        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
         p = clamp(p, 0.05, 0.95);
         const F = focusOf(c);
         if (c.restNight) { c.restNight = false; c.hunting = false; }
@@ -874,7 +947,9 @@
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
         if (assault) { h.surprise = h.betray ? 0.2 : 0.15; h.betray = false; }
-        yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain });
+        // 同盟相手が加勢に来ることがある（拠点を守る戦いや、同じ夜に出ている味方ほど来やすい。統率で上がる）
+        const helpA = joinAlly(h, t, home), helpB = joinAlly(t, h, home);
+        yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain, helpA, helpB });
         yield* checkFallen();
       }
       if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', line('quietNight'), []);

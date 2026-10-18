@@ -19,7 +19,7 @@
     rider:      { label: 'ライダー',       aliases: ['ライダー', 'rider'],               slot: 'standard', weights: { agi: 1.1, mag: 0.9 } },
     caster:     { label: 'キャスター',     aliases: ['キャスター', 'caster'],            slot: 'standard', weights: { str: 0.6, end: 0.8, agi: 0.8, mag: 1.6 } },
     assassin:   { label: 'アサシン',       aliases: ['アサシン', 'assassin'],            slot: 'standard', weights: { str: 0.9, end: 0.8, agi: 1.3, mag: 0.8, luk: 1.1 } },
-    berserker:  { label: 'バーサーカー',   aliases: ['バーサーカー', 'berserker'],       slot: 'standard', weights: { str: 1.3, end: 1.2, mag: 0.6, luk: 0.6 } },
+    berserker:  { label: 'バーサーカー',   aliases: ['バーサーカー', 'berserker'],       slot: 'standard', weights: { str: 1.3, end: 1.2, mag: 0.6, luk: 0.6 }, upkeep: 1.4 },
     // ここから下はエクストラクラス
     saver:      { label: 'セイヴァー',     aliases: ['セイヴァー', 'savior', 'saver'],   slot: 'extra' },
     ruler:      { label: 'ルーラー',       aliases: ['ルーラー', 'ruler'],               slot: 'extra', weights: { mag: 1.1, luk: 1.1 } },
@@ -43,6 +43,15 @@
       maxDays: 30,          // 最長日数
       finaleDays: 3,        // 最後の何日間は好戦的になるか
       upkeep: 8,            // サーヴァントの1日の維持魔力
+      battleMana: 5,        // 1回の戦いで使う魔力（× 維持魔力の倍率。CLASS_DEFS の upkeep と燃費のスキル）
+      wildMana: 3,          // バーサーカーが打ち合いごとに食う魔力（× 維持魔力の倍率）
+      wildAt: 0.1,          // 制御困難がこれ以上の英霊は、バーサーカーと同じく魔力が尽きても宝具を放つ（1回の戦いに一度）
+      drainLife: 2,         // 魔力が足りないとき、足りない1につきマスターの体力をこれだけ削る
+      sealMana: 30,         // マスターが倒れかけたとき、令呪一画を換えて得る魔力
+      spiritSave: 0.6,      // 休んだ・潜んだ日（霊体化）の維持魔力の倍率
+      allyJoin: 0.3,        // 同盟相手が戦いに加勢する基本確率（＋出撃中・拠点を守る戦い・統率）
+      allyAssist: 0.45,     // 加勢した味方の戦闘力のうち、戦いに足される割合
+      allyCover: 0.35,      // 押し負けたとき、加勢した味方が代わりに一撃を受ける確率
       manaBase: 60,         // マスターの魔力の上限＝manaBase＋魔力量スコア
       manaRegen: 12,        // 1日の魔力回復の基本値（＋魔力量×0.15＋工房×2）
       npCost: 18,           // 宝具の魔力消費＝宝具の消費倍率×npCost
