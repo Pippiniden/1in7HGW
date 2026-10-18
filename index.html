@@ -339,7 +339,10 @@ body.watching .war { display: block; }
 .dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; background: radial-gradient(circle at 50% 40%, rgba(10, 40, 90, .45), rgba(2, 6, 16, .78)); }
 .dlg.on { display: flex; }
 .dlg.min { background: transparent; pointer-events: none; align-items: flex-end; }
-.dlg-in { width: min(600px, 100%); max-height: calc(100vh - 32px); overflow: auto; pointer-events: auto; }
+.dlg-in { width: min(600px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow: auto; pointer-events: auto; overscroll-behavior: contain; }
+/* 決断・開戦の案内などを開いている間は、後ろの画面を動かさない（スマホで選ぶつもりが後ろがスクロールするのを防ぐ） */
+.dlg { overscroll-behavior: contain; }
+body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .dlg-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px 6px; }
 .dlg-head .en { flex: none; white-space: nowrap; font-size: 18px; font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(62, 230, 255, .55); }
 .dlg-head .btn { flex: none; white-space: nowrap; }
@@ -353,7 +356,8 @@ body.watching .war { display: block; }
 .dlg .rowsel small { grid-column: 2; font-size: 12px; opacity: .85; }
 .dlg .rowsel button:hover, .dlg .rowsel button:focus-visible { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); outline: none; }
 .dlg .rowsel button:hover .n, .dlg .rowsel button:focus-visible .n { box-shadow: inset 0 0 0 2px var(--sel-ink); }
-.dlg-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: flex-end; align-items: center; padding: 14px 16px 16px; font-size: 12px; color: var(--mute); }
+.dlg-foot { display: flex; flex-wrap: wrap; gap: 8px 14px; justify-content: flex-end; align-items: center; padding: 14px 16px 16px; font-size: 12px; color: var(--mute);
+  position: sticky; bottom: 0; z-index: 2; background: linear-gradient(180deg, rgba(6, 22, 58, 0), rgba(6, 22, 58, .97) 28%); }
 .dlg-foot .keys { margin-right: auto; }
 .dlg-foot .keys i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-hi); font: 700 11px var(--en); margin-right: 3px; }
 .dlg.min .dlg-in > :not(.dlg-head) { display: none; }
@@ -545,6 +549,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   .log li { grid-template-columns: 3.4em minmax(0, 1fr); gap: 8px; }
   .view { aspect-ratio: 2 / 1; }
   .dlg { padding: 8px; align-items: flex-end; }
+  .dlg-in { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); }
+  .dlg-foot { padding-bottom: calc(14px + var(--safe-b)); }
+  .dlg-foot .keys { display: none; } /* キーボードの案内はスマホでは要らない（ボタンを一列に収める） */
   .dlg h4 { font-size: 20px; }
   .choices3 { grid-template-columns: minmax(0, 1fr); }
   .choices4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -930,7 +937,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#csvBtn').hidden = true; // CSVは戦争が終わってから
     $('#dayMax').textContent = '/' + maxDays; $('#calLbl').textContent = maxDays + '日の暦';
     drawSkyline(seed); lastScene = null; renderFocus(); syncCtl(); updateURL();
-    hideDlg(); closeOpening(); window.scrollTo(0, 0);
+    hideDlg(); closeOpening(); toTop();
     // 続きから：中断したところまで、記録を一気に表示する（決断と方針は保存したものを使う）
     if (o.to) {
       if (FOCUS[o.focus]) focus = o.focus;
@@ -989,7 +996,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const quit = () => {
     if (wordKey === 'end') closeWord(''); // 終幕の一言の途中なら、聞かずに結末まで済ませて記録に残す
     const saved = saveProgress();
-    clearTimeout(timer); hideDlg(); closeOpening(); loreResume = false; $('#lore').classList.remove('on'); $('#wordDlg').classList.remove('on'); wordKey = null; wordArm = []; closeImg(); document.body.classList.remove('watching'); window.scrollTo(0, 0);
+    clearTimeout(timer); hideDlg(); closeOpening(); loreResume = false; $('#lore').classList.remove('on'); $('#wordDlg').classList.remove('on'); wordKey = null; wordArm = []; closeImg(); document.body.classList.remove('watching'); toTop();
     renderIntroRecords();
     if (saved) toast('中断しました。「続きから」で再開できます');
   };
@@ -1131,6 +1138,17 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     C: '正面からでは分の悪い相手も多い。策と運が要る',
     D: '勝ち残るのは至難。戦いを避けて機を待つ戦い方が向く',
   };
+  // 最初の方針のおすすめ。同じ戦争を方針だけ変えて回し、方針を変えずに最後まで戦ったときに最も勝ちやすかったもの
+  // （node test/focus.js で確かめられる。2000戦では、おまかせ 16% に対して、以前の特徴ごとのおすすめは 10% だった）。
+  // おまかせは陣営の戦略に沿って、その晩の霊基や相手との力の差を見て出撃を決めるので、方針で毎晩の動きを固定するより強い。
+  // 評価Bの英霊だけは、休養（出撃せずに傷を癒やす）で他の陣営どうしの潰し合いを待つほうが、わずかに勝ちやすい
+  const REC_FOCUS = {
+    S: ['auto', '戦略どおりに動かすのが最も勝ちやすい。攻めに固定すると、傷を負った夜まで出撃してしまう'],
+    A: ['auto', '戦略どおりに動かすのが最も勝ちやすい。攻めや守りに固定すると、勝てる戦いを逃しやすい'],
+    B: ['rest', '無理に出撃せず力を蓄え、ほかの陣営が潰し合うのを待つほうが、わずかに勝ちやすい'],
+    C: ['auto', '戦略どおりに動かすのが最も勝ちやすい。方針で縛っても、勝ち残る見込みは上がらない'],
+    D: ['auto', 'どの方針でも勝ち残るのは難しい。戦略どおりに動かすのが、まだ見込みがある'],
+  };
   // マスターの能力値（0〜100）をランクの表記に
   function scoreRank(v) {
     const S = H.CONFIG.RANK_SCORE, L = H.rank.LEVELS;
@@ -1185,15 +1203,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (eff('luck') < 0) bad.push('運に見放されがち');
     if (eff('conceal') < 0) bad.push('真名を見抜かれやすい');
     if ((sv.nps || []).some(x => (x.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5))) bad.push('宝具を使うと自らも消える');
-    // 最初の方針のおすすめ
-    const caster = sv.class.key === 'caster';
-    const rec = eff('uncontrolled') > 0.05 ? ['attack', '抑えの利かない英霊は、攻めに回したほうが力を出しやすい']
-      : (grade === 'S' || grade === 'A') && !caster ? ['attack', '力で押し切れる。早いうちに敵を減らしたい']
-      : eff('territory') >= 0.2 || caster ? ['defend', '陣地を固めて迎え撃つのが向いている']
-      : grade === 'D' ? [eff('stealth') >= 0.3 ? 'hide' : 'defend', 'まともにぶつかるのは避けたい']
-      : eff('stealth') >= 0.3 ? ['scout', '見つかりにくさを活かして、先に敵を知る']
-      : eff('negotiate') >= 0.2 ? ['ally', '手を組める相手を探すのが近道']
-      : ['auto', '状況に合わせて動くのがよい'];
+    // 最初の方針のおすすめ（評価ごと。REC_FOCUS を参照。根拠は test/focus.js のシミュレーション）
+    const rec = REC_FOCUS[grade] || REC_FOCUS.C;
     return { rate, rank, n, grade, power: sv.power, powerRank: rankIn(T.powers, sv.power), npPeak: sv.npPeak || 0, npRank, maxPower: T.powers[0] || 1, maxNp: T.nps[0] || 1, good: good.slice(0, 4), bad: bad.slice(0, 2), rec };
   }
 
@@ -1261,7 +1272,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#opTitle').textContent = '一日目をどう動くか';
       $('#opBody').innerHTML = `<p class="say">方針はいつでも変えられ、次の朝から反映される。まずは一日目の動き方を決めよう。</p>
         <div class="rowsel" id="opFocus" role="radiogroup">${Object.entries(FOCUS).map(([k, f], i) => `<button data-f="${k}" role="radio" aria-pressed="${k === op.focus}" aria-checked="${k === op.focus}"><span class="n">${i + 1}</span><b>${esc(f.label)}${k === op.rec ? '<span class="rec">★おすすめ</span>' : ''}</b><small>${esc(f.desc)}</small></button>`).join('')}</div>
-        ${ev ? `<p class="note2">★おすすめ：${esc(FOCUS[op.rec].label)} ― ${esc(ev.rec[1])}</p>` : ''}`;
+        ${ev ? `<p class="note2">★おすすめ：${esc(FOCUS[op.rec].label)} ― ${esc(ev.rec[1])}</p>
+          <p class="note2">おすすめは、同じ戦争を方針だけ変えて何千回も戦わせ、方針を変えずに最後まで戦ったときに最も勝ちやすかったもの（評価${esc(ev.grade)}の英霊について）。</p>` : ''}`;
     }
     $('#opening .dlg-in').scrollTop = 0;
     const f = step === 3 ? document.querySelector('#opFocus [aria-pressed="true"]') : $('#opNext');
@@ -2113,7 +2125,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#again').onclick = () => { $('#seed').value = ''; start(); };
     $('#back').onclick = quit;
     $('#share').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ戦争が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
-    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    toTop(true);
   }
   // サーヴァントの最後の一言（セリフから。勝てば勝利・聖杯、消えていれば戦闘不能・消滅、残っていれば絆・会話）
   // 選び方は乱数ではなくシードで決まる（再生しても同じ一言）
@@ -2463,6 +2475,21 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
   if (ios && !standalone) { $('#installBox').hidden = false; $('#installIos').hidden = false; }
 
+  // 画面いっぱいの問い（.dlg.on。下ろした決断 .min は除く）が出ている間は、後ろの画面を固定する。
+  // iPhone の Safari は overflow: hidden だけでは後ろがスクロールするので、position: fixed で今の位置に留める
+  let lockY = null;
+  function syncLock() {
+    const open = !!document.querySelector('.dlg.on:not(.min)');
+    if (open && lockY == null) { lockY = scrollY; document.body.style.top = -lockY + 'px'; document.body.classList.add('locked'); }
+    else if (!open && lockY != null) { const y = lockY; lockY = null; document.body.classList.remove('locked'); document.body.style.top = ''; scrollTo(0, y); }
+  }
+  // いちばん上へ。後ろを固定している間は、固定を解いたときに上へ戻るようにする
+  function toTop(smooth) {
+    if (lockY != null) { lockY = 0; return; }
+    window.scrollTo({ top: 0, behavior: smooth && !reduceMotion ? 'smooth' : 'auto' });
+  }
+  const lockObs = new MutationObserver(syncLock);
+  document.querySelectorAll('.dlg').forEach(d => lockObs.observe(d, { attributes: true, attributeFilter: ['class'] }));
   function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2800); }
 })();
 </script>
