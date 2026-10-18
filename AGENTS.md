@@ -67,7 +67,7 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
    This lets the game run from `file://` and lets Node tests `require()` the same files.
 3. **Script load order matters** (each file reads what earlier files put on `HGW`):
    `config → rank → parser → effects → build → master → war → names → scenes → personas → engine → data → survival`.
-   `index.html` loads all of them; `roster.html` loads `config…war` only. Node tests use the same order.
+   `index.html` loads all of them; `roster.html` loads `config…war` + `voiceedit`; `submit.html` loads `config…war` + `voiceedit` + `data`. Node tests use the same order.
    When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and the
    `PRECACHE` list in `sw.js`** (then bump `VERSION` there).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All
@@ -122,6 +122,7 @@ js/
   engine.js         The simulation (generator), ~870 lines
   data.js           Loading published data / browser-local roster / user-picked files
   survival.js       Survival curves: many auto wars → per-servant elimination days; roster fingerprint
+  voiceedit.js      Per-scene voice editor (DOM, HGW.voiceEdit: mount/read/toText/parseText); used by roster.html and submit.html only
 tools/
   kagemiya.js       Fetch kagemiya pages by name (EUC-JP URL) → HTML→wiki markup → parse → data/servants.json (Node CLI)
   survival.js       Build data/survival.json (loads data exactly like the game via data.js with an fs-backed fetch); --check
@@ -568,7 +569,8 @@ learned by deduction, NPs, scouting, battle insight, relations, alliance, or con
   FGO-like 召喚/開始/宝具/戦闘不能/勝利/会話/絆… and a short one 自己紹介/戦闘開始/アタック/ダメージ/消滅/敗北/マイルーム…).
   The game reads them only through **scenes** in `G.VOICE_SLOTS` (`config.js`): `{ key, aliases, use }` — 召喚(自己紹介),
   開始(戦闘開始), 宝具, 戦闘不能(消滅・退場), 敗北, 勝利, 聖杯について(願い), 会話(マイルーム・主従関係), 好きなこと, 嫌いなこと, 絆.
-  `G.voiceLines(sv, key)` pools the key heading and its aliases; `G.npVoiceLines(sv, np)` = 宝具 lines naming that NP (else
+  `G.voiceSlotOf(h)` also maps numbered headings (宝具2, 会話その3) to the base scene; `G.voiceHeadings(voice, key)` lists a scene's
+  headings (key → aliases → others in wiki order); `G.voiceLines(sv, key)` pools their lines; `G.npVoiceLines(sv, np)` = 宝具 lines naming that NP (else
   lines not naming another NP). `G.VOICE_UNUSED` lists template headings the game ignores (shown as such in the roster).
   The engine's `say(c, [keys])` takes the first scene with lines and picks one by an FNV hash of
   `seed:v:entries.length:campId:key` (`vpick`) — **not** `rnd()` — so editing lines never changes the outcome. Only the
@@ -741,15 +743,25 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
 `submit.html` (player request form, Japanese): loads the published roster with `data.js` (published overrides become the
 baseline). Tab 新しい英霊を申請: kagemiya page name and/or pasted wiki text (parsed live with `importServant`; 「Wikiのページと同じ
 内容です」 keeps the text out of the request when a page name is given). Tab 調整を希望: pick a published servant (`?servant=名`; the
-game's lore dialog links here). Players can propose stat overrides, per-skill/NP effect specs (effect + strength preset 0.4/0.7/1/
-1.4/2 + tag/@cond) and NP attack/support; `withProp()` applies them temporarily to `SERVANT_OVERRIDES`/`STAT_OVERRIDES`/
-`NP_OVERRIDES`, rebuilds (`fromJSON(toLean())`) and shows grade (same formula as the opening), average win rate, power and NP
-peak before → after. Output: `{ format:'hgw-request', version:1, kind:'add'|'adjust', servant, class, id, page, wiki, overrides
-{servant,stats,np}, reason, content, from, contact }` as a GitHub new-issue URL (title/body prefilled; the wiki text is dropped
-from the body when the URL would exceed ~7600 chars and the player is told to attach the file), a downloaded .json, or copied
-text. The body ends with a ```` ```hgw-request ```` block. `roster.html` accepts that block (or the bare JSON) pasted into 取り込み,
-and the file via ファイルを読む (`findRequest` / `applyRequest`): imports `wiki` as a servant, merges `overrides`, shows the
-request in `#reqBox`, puts the page name into the GitHub import box when there is no text, and jumps to the servant.
+game's lore dialog links here). Section 2 shows 「ゲームではこう判断されます」 (`judgeHtml`: skills by source dict/guess/default,
+NPs attack/support) and, per skill/NP, the effects plus 「判断の理由」 (`whyOf`: `effectSource` + `matched`, NP `attackBasis`).
+Each item has 「ここを直してほしい」 (free-text `notes[target]`, also one for ステータス), a 「〜ではない（消してほしい）」 checkbox (`drop`,
+keys `s|n:index:name`; previewed via a temporary `CONTENT_OVERRIDES` entry in `withContent`) and, folded, 「効果を自分で指定する」:
+stat overrides, per-skill/NP effect specs (effect + strength preset 0.4/0.7/1/1.4/2 + tag/@cond) and NP attack/support;
+`withProp()` applies them temporarily to `SERVANT_OVERRIDES`/`STAT_OVERRIDES`/`NP_OVERRIDES`, rebuilds (`fromJSON(toLean())`) and shows
+grade (same formula as the opening), average win rate, power and NP peak before → after. Section 3 edits セリフ (`HGW.voiceEdit`),
+解説・人物, プロフィール・因縁 of the read servant, each with a free-text note; only sections that differ (`cedit`) are sent. Debounces use
+one timer per function (`soon(fn)`). Output: `{ format:'hgw-request', version:1, kind:'add'|'adjust', servant, class, id, page, wiki,
+overrides {servant,stats,np}, contentEdit {voice: {heading: lines|[]}, text: {key: str|''}, profile: {key: str|''}, relations: [...]},
+drop {skills|nps: [{i, name}]}, contentBase {section: hashOf(contentOf(wikiOf(sv), section))}, notes [{target, text}], reason, content,
+from, contact }` as a GitHub new-issue URL (title/body prefilled; the wiki text, then `contentEdit`, are dropped from the body when the
+URL would exceed ~7600 chars and the player is told to attach the file, which 「GitHub で申請する」 also saves), a downloaded .json, or
+copied text. The body lists 直してほしいところ and 内容の書き換え in words and ends with a ```` ```hgw-request ```` block. `roster.html`
+accepts that block (or the bare JSON) pasted into 取り込み, and the file via ファイルを読む (`findRequest` / `applyRequest`): imports
+`wiki` as a servant, merges `overrides`, applies `contentEdit` patches and `drop` onto the servant's current content and stores them in
+`CONTENT_OVERRIDES` (merged with an existing entry; `base` = hash of the wiki value; a section equal to the wiki is removed; skipped
+with a message if the servant is not in the roster yet), shows the request in `#reqBox` and as a box at the top of that servant's
+detail (`lastReq`), puts the page name into the GitHub import box when there is no text, and jumps to the servant.
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
 effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; the voice tab shows one
@@ -764,20 +776,27 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   discards local changes. With no base yet, a local value equal to published counts as unchanged. `advanceBase()` moves the
   base forward where local and published agree (e.g. after the owner published). Local-only changes are shown as
   未公開の追加/変更 badges, a filter, and a summary in 保存.
-- **Finding**: sticky toolbar with search (`fold()`: NFKC, katakana→hiragana, ignores spaces/・; matches true name, aliases,
-  class, origin, page, skill and NP names; `/` focuses, Enter opens a single hit, Esc clears), sort (class/name/grade/power/
-  NP/review count), filters (class, 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–D grade (same formula as
+- **Layout**: tabs `#views` (`[data-v]` roster / import / cmp / save / pool → `.view[data-view]`, `showView`, remembered in
+  `hgw.roster.view`). The roster view is a list/detail browser (`#browse`): left `.lpane` (sticky, own scroll) with the toolbar and
+  `#list` rows (`button.svr[data-id]`, `aria-selected`), right `#detail` (`renderDetail()`: header with ‹ › (`step`), then `body(sv, i)`:
+  stats, actions, skills/NPs, review, 対戦の見込み (`[data-mu]`, hardest/easiest 4 by mean `battleOdds`, opens the test battle),
+  voice summary, profile, relations, commentary excerpt). Selection `sel` (`select(id, {open, flash, force})`, remembered in
+  `hgw.roster.sel`); ↑↓/j/k move within the shown list (`shownIds`). ≤900px: one column, `#browse.show` swaps list ↔ detail
+  (「← 一覧へ」). `jumpTo(id)` switches to the roster view, clears filters if needed and selects. Sync state also shows as a badge on the
+  公開・保存 tab and a `#syncBanner` with 「公開中の名簿にそろえる」; `status()` also shows a toast (`#toast`).
+- **Finding**: toolbar with search (`fold()`: NFKC, katakana→hiragana, ignores spaces/・; matches true name, aliases,
+  class, origin, page, skill and NP names; `/` focuses, Enter opens the first hit, Esc clears), sort (class/name/grade/power/
+  NP/review count), class select (`#clsSel`, `filter`) and toggle chips (`flag`: 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–D grade (same formula as
   the game's opening: `strengthTable`, cached per `rosterVer`, which `save()`/`rebuildAll()` bump).
-- **試し戦い** (top of the main column, `details#cmpPanel`, open state in `hgw.roster.tbOpen`): left/right pickers are text
+- **試し戦い** (its own tab, `section#cmpPanel`): left/right pickers are text
   inputs with a `<datalist>` (`findSv` matches label, then prefix/substring of the folded name), swap, NP/home/terrain options,
   `battleOdds` result, and 「全騎との勝率」 (`vsAll`, hardest opponents first; clicking one puts it on the right). Each servant card
   has 試し戦いの左に／右に.
 - **Name import**: names textarea + mode select; 「名前をコピーして GitHub を開く」 opens the workflow page (`GH_WF`) synchronously
   and copies the names (GitHub cannot prefill `workflow_dispatch` inputs). Cards have 「Wikiから取り直す」 (same, refresh mode,
   `page` or true name) and a kagemiya link (`eucEncode`, same as the game).
-- ≤900px: `.side` becomes `display: contents` so the order is sync panel → test battle/search/list → other panels.
 - Persists in `localStorage`: `hgw.roster.v2` (**lean** servants — `index.html`'s 名簿ツールの名簿を使う rebuilds them with
-  `fromJSON`), `hgw.overrides.v1` (includes the published overrides after a sync), `hgw.roster.base`, `hgw.roster.tbOpen`.
+  `fromJSON`), `hgw.overrides.v1` (includes the published overrides after a sync), `hgw.roster.base`, `hgw.roster.view`, `hgw.roster.sel`.
   `[hidden]` is forced to `display: none` (the `.row` flex rule used to override it).
 
 ---

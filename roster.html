@@ -34,19 +34,58 @@ body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Hira
 header { padding: 18px 16px 8px; max-width: 1240px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .02em; }
 header p { margin: 0; color: var(--sub); font-size: 13px; }
-main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; }
 .panel > h2 { font-size: 13px; color: var(--sub); margin: 0 0 8px; font-weight: 600; letter-spacing: .04em; }
-.side { position: sticky; top: 12px; display: grid; gap: 12px; max-height: calc(100vh - 24px); overflow: auto; }
+.view > .panel + .panel { margin-top: 12px; }
+.view[data-view="import"], .view[data-view="save"], .view[data-view="pool"], .view[data-view="cmp"] { max-width: 900px; }
+/* 画面の切り替え */
+.views { position: sticky; top: 0; z-index: 20; background: var(--bg); max-width: 1240px; margin: 0 auto; padding: 6px 16px 0; display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--rule); scrollbar-width: none; }
+.views::-webkit-scrollbar { display: none; }
+.views button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 8px 12px; font-size: 14px; color: var(--sub); white-space: nowrap; }
+.views button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.views button i { font-style: normal; font-size: 11px; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); }
+.banner { background: var(--warn-bg); color: var(--warn-ink); border-radius: 8px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
+/* 一覧と詳細 */
+.browse { display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 16px; align-items: start; }
+.lpane { position: sticky; top: 52px; max-height: calc(100vh - 64px); display: flex; flex-direction: column; min-width: 0; }
+.lpane .list { overflow-y: auto; flex: 1; min-height: 0; padding: 2px; overscroll-behavior: contain; }
+.lpane .keys { margin: 6px 0 0; }
+.dpane { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
+.dhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 14px; border-bottom: 1px solid var(--rule); position: sticky; top: 45px; background: var(--panel); border-radius: 10px 10px 0 0; z-index: 4; }
+.dhead .nm { font-size: 18px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.dhead .nm small { font-size: 12px; font-weight: 400; color: var(--sub); margin-left: 6px; }
+.dhead .sp { flex: 1; }
+.dhead .nav { display: flex; gap: 4px; align-items: center; }
+.dhead .nav button { min-width: 34px; }
+.dhead .back { display: none; }
+.dsec { padding: 0 14px; }
+.dsec h3 { margin-top: 18px; }
+.dpane .body { padding: 12px 14px 16px; }
+.dl { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 3px 10px; font-size: 13px; }
+.dl dt { color: var(--sub); }
+.dl dd { margin: 0; overflow-wrap: anywhere; }
+.matchup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; font-size: 13px; }
+.matchup h4 { margin: 0 0 2px; font-size: 12px; color: var(--sub); font-weight: 600; }
+.matchup button { background: none; border: 0; padding: 1px 0; color: inherit; cursor: pointer; text-align: left; display: flex; justify-content: space-between; width: 100%; gap: 6px; font-size: 13px; }
+.matchup button:hover span:first-child { color: var(--accent); text-decoration: underline; }
+.reqnote { margin-top: 10px; }
+.dacts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
+.dacts a { color: var(--accent); }
+.dacts .sp { flex: 1; }
 @media (max-width: 900px) {
-  .side { position: static; max-height: none; }
-  /* スマホ・狭い画面では、公開中の名簿 → 試し戦い・検索・一覧 → 取り込み・保存などの順に並べる（探すまでのスクロールを減らす） */
-  .side { display: contents; }
-  #syncPanel { order: 0; } .mainc { order: 1; } .side > .panel:not(#syncPanel) { order: 2; }
-  .tojump { display: inline; }
+  .browse { grid-template-columns: minmax(0, 1fr); }
+  .lpane { position: static; max-height: none; }
+  .lpane .list { overflow: visible; }
+  .lpane .keys { display: none; }
+  .browse .dpane { display: none; }
+  .browse.show .lpane { display: none; }
+  .browse.show .dpane { display: block; }
+  .dhead { top: 41px; }
+  .dhead .back { display: inline-block; }
 }
-.tojump { display: none; font-size: 12px; color: var(--accent); }
+@media (max-width: 560px) { .matchup { grid-template-columns: minmax(0, 1fr); } .dl { grid-template-columns: 5.5em minmax(0, 1fr); } }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 textarea { width: 100%; min-height: 180px; resize: vertical; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
 .hint { font-size: 12px; color: var(--sub); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -65,19 +104,19 @@ select, input[type=number], input[type=text] { font: inherit; font-size: 13px; p
 .pool .low b { color: var(--neg); }
 .filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .filters button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.list { display: grid; gap: 8px; min-width: 0; }
-details.sv { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; min-width: 0; }
-details.sv > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 96px 22px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
-details.sv > summary::-webkit-details-marker { display: none; }
-details.sv > summary:hover { background: var(--hover); border-radius: 10px; }
-details.sv[open] > summary { border-bottom: 1px solid var(--rule); border-radius: 10px 10px 0 0; }
-.sumname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sumname small { font-weight: 400; color: var(--sub); margin-left: 6px; }
+.list { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.svr { display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 7px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); cursor: pointer; text-align: left; width: 100%; font: inherit; color: inherit; }
+.svr:hover { background: var(--hover); }
+.svr[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: var(--hover); }
+.svr .ci { width: 22px; height: 22px; border-radius: 4px; }
+.svr .t { min-width: 0; display: grid; }
+.sumname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.svr .sub { font-size: 11px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.svr .bd { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; max-width: 120px; }
 .nums { display: flex; gap: 12px; font-size: 12px; color: var(--sub); white-space: nowrap; }
 .nums b { color: var(--ink); font-size: 14px; margin-left: 2px; }
-.badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); }
-@media (max-width: 560px) { details.sv > summary { grid-template-columns: 80px 22px minmax(0, 1fr); } .nums { grid-column: 1 / -1; } }
-details.sv.flash > summary { animation: flash 1.2s ease-out; }
+.badge { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); white-space: nowrap; }
+.svr.flash { animation: flash 1.2s ease-out; }
 @keyframes flash { from { background: var(--warn-bg); } to { background: transparent; } }
 .cls { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 99px; background: var(--accent); color: var(--accent-ink); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .cls .ci { width: 16px; height: 16px; vertical-align: -3px; margin: 0 4px 0 -4px; border-radius: 3px; }
@@ -146,18 +185,15 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 textarea.names { min-height: 56px; font-family: inherit; font-size: 13px; }
 .steps { margin: 6px 0 0; padding-left: 18px; }
 /* 一覧の上の検索と並べ替え（スクロールしても上に残る） */
-.mainc { display: grid; gap: 10px; min-width: 0; }
-.toolbar { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 8px 0 2px; }
-.toolbar input[type=search] { flex: 1 1 220px; min-width: 0; font-size: 14px; padding: 7px 10px; }
+.toolbar { background: var(--bg); padding: 4px 0 8px; }
+@media (max-width: 900px) { .toolbar { position: sticky; top: 41px; z-index: 5; } }
+.toolbar input[type=search] { flex: 1 1 100%; min-width: 0; font-size: 14px; padding: 7px 10px; }
 .toolbar .filters { margin: 8px 0 0; }
+.toolbar .filters:empty { display: none; }
+.toolbar #clsSel, .toolbar #sort { flex: 1 1 120px; min-width: 0; }
+@media (max-width: 560px) { .dhead .cls, .dhead .nav .hint { display: none; } .dhead { gap: 6px 8px; padding: 10px 12px; } .dhead .nm { font-size: 16px; } }
 mark { background: var(--warn-bg); color: inherit; border-radius: 3px; padding: 0 1px; }
 /* 試し戦い */
-details.tb > summary { list-style: none; cursor: pointer; display: flex; align-items: baseline; gap: 10px; }
-details.tb > summary::-webkit-details-marker { display: none; }
-details.tb > summary .hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-details.tb > summary h2 { white-space: nowrap; flex: none; margin: 0; font-size: 13px; color: var(--sub); font-weight: 600; letter-spacing: .04em; }
-details.tb > summary h2::before { content: "▸ "; } details.tb[open] > summary h2::before { content: "▾ "; }
-details.tb[open] > summary { margin-bottom: 8px; }
 .pick { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 8px; align-items: end; }
 .pick .pk { display: grid; gap: 2px; font-size: 11px; color: var(--sub); min-width: 0; }
 .pick input { width: 100%; font-size: 14px; padding: 7px 9px; }
@@ -195,29 +231,6 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 .pgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 8px; }
 .ctnote { font-size: 12px; margin: 0 0 8px; }
 .ctnote.warn { background: var(--warn-bg); color: var(--warn-ink); border-radius: 6px; padding: 6px 8px; }
-/* セリフの編集（場面ごと） */
-.vmode { display: flex; gap: 6px; margin-bottom: 8px; }
-.vmode button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.vcov { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
-.vcov button { font-size: 12px; padding: 2px 8px; border-radius: 99px; }
-.vcov button.has { border-color: var(--ok); color: var(--ok); }
-.vcov button.none { border-style: dashed; color: var(--sub); }
-.vsec { font-size: 13px; margin: 14px 0 6px; }
-.vcard { border: 1px solid var(--rule); border-radius: 8px; padding: 8px; margin-bottom: 8px; min-width: 0; }
-.vcard.none { border-style: dashed; }
-.vcard.flash { animation: flash 1.2s; }
-.vcard .vh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.vcard .vh b { font-size: 14px; }
-.vcard .vh .n { font-size: 12px; color: var(--sub); }
-.vcard .vh input { width: 9em; font-weight: 600; }
-.vcard .vh .sp { flex: 1; }
-.vcard .use { font-size: 12px; color: var(--sub); margin: 2px 0 6px; }
-.vcard .al { font-size: 11px; color: var(--sub); margin: 6px 0 2px; }
-.vcard textarea { width: 100%; min-height: 44px; }
-.vcard .npv { font-size: 12px; margin-top: 4px; }
-.vcard .npv .ng { color: var(--neg); }
-.vcard.odd { border-color: var(--warn-ink); }
-.vcard.odd .use { color: var(--warn-ink); }
 .ctfoot { position: sticky; bottom: -16px; background: var(--panel); padding: 10px 0 2px; border-top: 1px solid var(--rule); margin-top: 8px; }
 @media (max-width: 560px) {
   .card .line { grid-template-columns: minmax(0, 1fr) 72px 32px; }
@@ -231,21 +244,42 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <body>
 <header>
   <h1>サーヴァント名簿 <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
-  <p>開くと公開中の名簿を読み込みます。Wikiのページを貼り付けるか、書き出したJSONを読み込むと名簿に足せます。名簿と手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
+  <p>開くと公開中の名簿を読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。名簿と手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
+<nav class="views" id="views" role="tablist" aria-label="画面">
+  <button role="tab" data-v="roster" aria-selected="true">名簿</button>
+  <button role="tab" data-v="import" aria-selected="false">取り込み<i id="impBadge" hidden>●</i></button>
+  <button role="tab" data-v="cmp" aria-selected="false">試し戦い</button>
+  <button role="tab" data-v="save" aria-selected="false">公開・保存<i id="saveBadge" hidden></i></button>
+  <button role="tab" data-v="pool" aria-selected="false">人数・組み合わせ</button>
+</nav>
 <main>
-  <div class="side">
-    <section class="panel" id="syncPanel">
-      <h2>公開中の名簿</h2>
-      <div id="syncInfo" class="sync">公開中の名簿を確かめています…</div>
-      <div class="row" id="syncActs" style="margin-top:8px" hidden>
-        <button class="primary" id="syncPull">公開中の名簿にそろえる</button>
-        <button class="ghost danger sm" id="syncReplace">公開中の名簿で置き換える</button>
-      </div>
-    </section>
+  <section class="view" data-view="roster">
+    <div class="banner" id="syncBanner" hidden></div>
+    <div class="browse" id="browse">
+      <aside class="lpane">
+        <div class="toolbar" id="toolbar">
+          <div class="row">
+            <input type="search" id="q" placeholder="真名・クラス・元ネタ・スキル・宝具で探す（/ キー）" autocomplete="off">
+            <select id="clsSel" aria-label="クラスで絞る"></select>
+            <select id="sort" aria-label="並べ方">
+              <option value="class">クラス順</option><option value="name">名前順</option><option value="grade">評価順</option>
+              <option value="power">戦闘力順</option><option value="np">宝具の威力順</option><option value="review">要確認の多い順</option>
+            </select>
+            <span class="hint" id="cnt"></span>
+          </div>
+          <div class="filters" id="filters"></div>
+        </div>
+        <div class="list" id="list" role="listbox" aria-label="サーヴァント"><div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div></div>
+        <p class="hint keys">↑↓ または j・k で前後の騎へ</p>
+      </aside>
+      <article class="dpane" id="detail"><div class="empty">左の一覧から選んでください</div></article>
+    </div>
+  </section>
+  <section class="view" data-view="import" hidden>
     <section class="panel" id="importPanel">
       <h2>取り込み</h2>
-      <textarea id="src" spellcheck="false" placeholder="Wikiのページのテキストを貼り付け&#10;複数ページは ===== だけの行で区切る"></textarea>
+      <textarea id="src" style="min-height:260px" spellcheck="false" placeholder="Wikiのページのテキストを貼り付け&#10;複数ページは ===== だけの行で区切る"></textarea>
       <div class="row" style="margin-top:8px">
         <button class="primary" id="add">名簿に追加</button>
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
@@ -268,31 +302,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         </ol>
       </div>
     </section>
-    <section class="panel">
-      <h2>保存</h2>
-      <div class="hint" id="unpub" style="margin-bottom:8px"></div>
-      <div class="row">
-        <button id="saveLean">公開用に保存（data/servants.json）</button>
-        <button id="saveOv">手直し表を保存（data/overrides.json）</button>
-        <button id="saveJson">名簿をJSONで保存</button>
-        <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
-      </div>
-      <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">名簿を空にする</button></div>
-    </section>
-    <section class="panel">
-      <h2>クラス別の人数</h2>
-      <div class="pool" id="pool"></div>
-      <div class="hint" id="poolNote" style="margin-top:6px"></div>
-    </section>
-    <section class="panel" id="warPanel" hidden>
-      <h2>聖杯戦争の組み合わせ（試し引き）</h2>
-      <button id="warDraw">7騎を引く</button>
-      <div class="war" id="warOut"></div>
-    </section>
-  </div>
-  <div class="mainc">
-    <details class="panel tb" id="cmpPanel" open hidden>
-      <summary><h2>試し戦い</h2><span class="hint" id="cmpSum"></span></summary>
+  </section>
+  <section class="view" data-view="cmp" hidden>
+    <section class="panel" id="cmpPanel" hidden>
+      <h2>試し戦い <span class="hint" id="cmpSum" style="font-weight:400;letter-spacing:0"></span></h2>
       <div class="pick">
         <label class="pk"><span>左</span><input type="text" id="cmpA" list="svOpts" autocomplete="off" placeholder="真名・クラスで探す"></label>
         <button class="sm ghost" id="cmpSwap" title="左右を入れ替える">⇄</button>
@@ -306,24 +319,44 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       </div>
       <div id="cmpOut" class="odds" style="margin-top:8px"></div>
       <details class="vsall" id="vsAll"><summary>左の英霊と、名簿の全騎との勝率を見る</summary><div id="vsAllOut"></div></details>
-      <div class="hint" style="margin-top:6px">ステータス・スキル・宝具から見積もった1対1の勝ちやすさです（評価 S〜D はゲームの開戦時の評価と同じ式）。各騎の「試し戦いの左に／右に」でも選べます。</div>
-    </details>
-    <div class="toolbar" id="toolbar">
-      <div class="row">
-        <input type="search" id="q" placeholder="真名・クラス・元ネタ・スキル・宝具で探す（/ キー）" autocomplete="off">
-        <select id="sort">
-          <option value="class">クラス順</option><option value="name">名前順</option><option value="grade">評価順</option>
-          <option value="power">戦闘力順</option><option value="np">宝具の威力順</option><option value="review">要確認の多い順</option>
-        </select>
-        <button class="sm ghost" id="closeAll">すべて閉じる</button>
-        <span class="hint" id="cnt"></span>
-        <a class="tojump" href="#importPanel">取り込み・保存へ ↓</a>
+      <div class="hint" style="margin-top:6px">ステータス・スキル・宝具から見積もった1対1の勝ちやすさです（評価 S〜D はゲームの開戦時の評価と同じ式）。名簿の各騎の「試し戦いの左に／右に」や「対戦の見込み」からも選べます。</div>
+    </section>
+  </section>
+  <section class="view" data-view="save" hidden>
+    <section class="panel" id="syncPanel">
+      <h2>公開中の名簿</h2>
+      <div id="syncInfo" class="sync">公開中の名簿を確かめています…</div>
+      <div class="row" id="syncActs" style="margin-top:8px" hidden>
+        <button class="primary" id="syncPull">公開中の名簿にそろえる</button>
+        <button class="ghost danger sm" id="syncReplace">公開中の名簿で置き換える</button>
       </div>
-      <div class="filters" id="filters"></div>
-    </div>
-    <div class="list" id="list"><div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div></div>
-  </div>
+    </section>
+    <section class="panel">
+      <h2>保存</h2>
+      <div class="hint" id="unpub" style="margin-bottom:8px"></div>
+      <div class="row">
+        <button id="saveLean">公開用に保存（data/servants.json）</button>
+        <button id="saveOv">手直し表を保存（data/overrides.json）</button>
+        <button id="saveJson">名簿をJSONで保存</button>
+        <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
+      </div>
+      <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">名簿を空にする</button></div>
+    </section>
+  </section>
+  <section class="view" data-view="pool" hidden>
+    <section class="panel">
+      <h2>クラス別の人数</h2>
+      <div class="pool" id="pool"></div>
+      <div class="hint" id="poolNote" style="margin-top:6px"></div>
+    </section>
+    <section class="panel" id="warPanel" hidden>
+      <h2>聖杯戦争の組み合わせ（試し引き）</h2>
+      <button id="warDraw">7騎を引く</button>
+      <div class="war" id="warOut"></div>
+    </section>
+  </section>
 </main>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog id="ed">
   <h3 id="edTitle"></h3>
@@ -382,6 +415,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <script src="js/build.js"></script>
 <script src="js/master.js"></script>
 <script src="js/war.js"></script>
+<script src="js/voiceedit.js"></script>
 <script>
 (function () {
   'use strict';
@@ -389,8 +423,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const OV_KEY = 'hgw.overrides.v1', ROSTER_KEY = 'hgw.roster.v2';
-  let roster = [], filter = 'all', rosterVer = 0; // rosterVer：名簿が変わるたびに増やす（評価や公開中との比較の作り直しに使う）
-  const open = new Set();
+  let roster = [], filter = 'all', flag = '', rosterVer = 0; // filter：クラス、flag：要確認あり・未公開・手直し中で絞る； // rosterVer：名簿が変わるたびに増やす（評価や公開中との比較の作り直しに使う）
+  let sel = null; // 右に出している騎の id
 
   // ---------- 保存領域 ----------
   const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } } };
@@ -411,7 +445,14 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   const CLS_ORDER = Object.keys(H.CONFIG.CLASS_DEFS);
   const order = s => { const i = CLS_ORDER.indexOf(s.class.key); return i < 0 ? 99 : i; };
-  function status(t) { $('#status').textContent = t; }
+  // 知らせ（取り込み欄の下と、画面の下の小さな知らせ）
+  let toastTimer = null;
+  function status(t) {
+    $('#status').textContent = t;
+    if (!t) return;
+    const el = $('#toast'); el.textContent = t; el.hidden = false;
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => { el.hidden = true; }, 4200);
+  }
 
   // ---------- 表示 ----------
   const MS = H.master.MASTER_STATS;
@@ -443,29 +484,35 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const warn = sv.warnings.length ? `<div class="box err"><b>読み取りの警告</b><ul>${sv.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : '';
     const alt = sv.statsAlt.length ? `<div class="hint" style="margin-top:6px">別のステータス：${sv.statsAlt.map(a => esc(a.label) + '（' + Object.entries(a.stats).map(([k, v]) => B.STAT_JA[k] + R.label(v.rank)).join(' ') + '）').join(' / ')}</div>` : '';
     const PJ = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
-    const prof = Object.entries(sv.profile || {}).map(([k, v]) => `${esc(PJ[k] || k)}：${esc(v)}`).join('<br>');
-    const rel = (sv.relations || []).map(r => `${esc(r.name)}：${esc(r.text)}`).join('<br>');
+    const prof = Object.entries(sv.profile || {}).map(([k, v]) => `<dt>${esc(PJ[k] || k)}</dt><dd>${esc(v)}</dd>`).join('');
+    const rel = (sv.relations || []).map(r => `<dt>${esc(r.name)}</dt><dd>${esc(r.text)}</dd>`).join('');
     const vHas = H.VOICE_SLOTS.map(s => [s.key, H.voiceLines(sv, s.key).length]), vRest = Object.keys(sv.voice || {}).filter(h => !H.voiceSlotOf(h));
     const voice = Object.keys(sv.voice || {}).length ? `ゲームで使う場面（${vHas.filter(x => x[1]).length}/${vHas.length}）：${vHas.filter(x => x[1]).map(([k, n]) => esc(k) + '（' + n + '）').join('・') || 'なし'}`
       + (vHas.some(x => !x[1]) ? `<br><span class="hint">セリフの無い場面：${vHas.filter(x => !x[1]).map(x => esc(x[0])).join('・')}</span>` : '')
       + (vRest.length ? `<br><span class="hint">ゲームでは使わない見出し：${vRest.map(h => esc(h) + '（' + (sv.voice[h] || []).length + '）').join('・')}</span>` : '') : '';
+    // 対戦の見込み（勝ちにくい相手・勝ちやすい相手。押すと試し戦いに入る）
+    const mu = roster.length > 2 ? roster.filter(x => x !== sv).map(x => [x, (B.battleOdds(sv, x, {}).pA + B.battleOdds(sv, x, { np: true }).pA) / 2]).sort((a, b) => a[1] - b[1]) : [];
+    const muBtn = ([x, p]) => `<button data-mu="${esc(x.id)}" title="${esc(optLabel(x))}と試し戦い"><span>${esc(x.trueName)}<span class="hint">（${esc(x.class.label)}）</span></span><b>${Math.round(p * 100)}%</b></button>`;
+    const req = lastReq && (lastReq.servant === sv.trueName) ? lastReq : null;
     return `<div class="body">
+      ${req ? `<div class="box warn reqnote"><b>取り込んだ申請（${req.kind === 'add' ? '追加' : '調整の希望'}${req.from ? '・' + esc(req.from) : ''}）</b>${reqNotesHtml(req)}${req.reason ? `<div style="white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : ''}${req.content ? `<div style="white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : ''}</div>` : ''}
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).join('・')].filter(Boolean).join(' · '))}</div>
       <div class="stats">${st}</div>
-      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm ghost danger" data-del="${i}">名簿から外す</button>
-        <span class="sep"></span><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
-        ${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button></div>
+      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span></div>
+      <div class="dacts"><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-del="${i}">名簿から外す</button></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
       <h3>スキル</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${skills || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
       <h3>宝具</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${nps || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
-      <details class="more"><summary>プロフィール・因縁・セリフ</summary>
-        <p>${prof || '<span class="hint">なし</span>'}</p>
-        ${rel ? '<p><b>因縁</b><br>' + rel + '</p>' : ''}
-        ${voice ? '<p><b>セリフ</b> ' + voice + '</p>' : '<p class="hint">セリフ：なし（ゲームではこのサーヴァントは何も言いません）</p>'}
-        <button class="sm" data-ct="${i}" data-tab="voice">セリフ・解説を編集</button>
-      </details>
+      ${mu.length ? `<h3>対戦の見込み（宝具あり・なしの平均。押すと試し戦いへ）</h3><div class="matchup"><div><h4>勝ちにくい相手</h4>${mu.slice(0, 4).map(muBtn).join('')}</div><div><h4>勝ちやすい相手</h4>${mu.slice(-4).reverse().map(muBtn).join('')}</div></div>` : ''}
+      <h3>セリフ <button class="sm" data-ct="${i}" data-tab="voice">セリフを編集</button></h3>
+      <div style="font-size:13px">${voice || '<span class="hint">なし（ゲームではこのサーヴァントは何も言いません）</span>'}</div>
+      <h3>プロフィール <button class="sm" data-ct="${i}" data-tab="profile">プロフィール・因縁を編集</button></h3>
+      ${prof ? `<dl class="dl">${prof}</dl>` : '<p class="hint">なし</p>'}
+      ${rel ? `<h3>因縁</h3><dl class="dl">${rel}</dl>` : ''}
+      ${sv.text && sv.text.commentary ? `<h3>解説 <button class="sm" data-ct="${i}" data-tab="text">解説・人物を編集</button></h3><p class="desc" style="font-size:13px">${esc(sv.text.commentary.length > 300 ? sv.text.commentary.slice(0, 300) + '…' : sv.text.commentary)}</p>` : ''}
     </div>`;
   }
 
@@ -513,16 +560,16 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function render() {
     const counts = H.war.classCounts(roster);
     const present = CLS_ORDER.filter(k => counts[k]);
-    if (filter !== 'all' && !['review', 'changed', 'edited'].includes(filter) && !counts[filter]) filter = 'all';
+    if (filter !== 'all' && !counts[filter]) filter = 'all';
     const nReview = roster.filter(s => nReviewOf(s)).length;
     const nChanged = roster.filter(s => pubState(s)).length;
     const nEdited = roster.filter(s => (s.contentEdited || []).length).length;
-    $('#filters').innerHTML = roster.length ? [`<button class="sm${filter === 'all' ? ' on' : ''}" data-f="all">すべて ${roster.length}</button>`]
-      .concat(present.map(k => `<button class="sm${filter === k ? ' on' : ''}" data-f="${k}">${esc(H.classDef(k).label)} ${counts[k]}</button>`))
-      .concat(nReview ? [`<button class="sm${filter === 'review' ? ' on' : ''}" data-f="review">要確認あり ${nReview}</button>`] : [])
-      .concat(nChanged ? [`<button class="sm${filter === 'changed' ? ' on' : ''}" data-f="changed">未公開の追加・変更 ${nChanged}</button>`] : [])
-      .concat(nEdited ? [`<button class="sm${filter === 'edited' ? ' on' : ''}" data-f="edited">内容を手直し中 ${nEdited}</button>`] : []).join('') : '';
+    $('#clsSel').innerHTML = `<option value="all">すべてのクラス（${roster.length}）</option>` + present.map(k => `<option value="${k}"${filter === k ? ' selected' : ''}>${esc(H.classDef(k).label)}（${counts[k]}）</option>`).join('');
+    const flags = [['review', '要確認あり', nReview], ['changed', '未公開の追加・変更', nChanged], ['edited', '内容を手直し中', nEdited]].filter(x => x[2]);
+    if (flag && !flags.some(x => x[0] === flag)) flag = '';
+    $('#filters').innerHTML = flags.map(([k, t, n]) => `<button class="sm${flag === k ? ' on' : ''}" data-f="${k}" aria-pressed="${flag === k}">${t} ${n}</button>`).join('');
     renderList();
+    renderDetail();
 
     // クラス別の人数
     const std = H.standardClasses();
@@ -541,35 +588,92 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     syncInfo();
   }
   // 一覧だけを描き直す（探す・並べ替えるとき）
+  let shownIds = [];
   function renderList() {
     const f = fold(query);
-    const shown = roster.map((s, i) => [s, i]).filter(([s]) => (filter === 'all' || (filter === 'review' ? nReviewOf(s) : filter === 'changed' ? pubState(s) : filter === 'edited' ? (s.contentEdited || []).length : s.class.key === filter))
+    const shown = roster.map((s, i) => [s, i]).filter(([s]) => (filter === 'all' || s.class.key === filter)
+      && (!flag || (flag === 'review' ? nReviewOf(s) : flag === 'changed' ? pubState(s) : (s.contentEdited || []).length))
       && (!f || hay(s).includes(f)));
     shown.sort((x, y) => SORTS[sortBy](x[0], y[0]));
+    shownIds = shown.map(([s]) => s.id);
     $('#cnt').textContent = roster.length ? `${shown.length} / ${roster.length}騎` : '';
-    $('#list').innerHTML = shown.length ? shown.map(([s, i]) => {
+    $('#list').innerHTML = shown.length ? shown.map(([s]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
-      return `<details class="sv" data-id="${esc(s.id)}"${open.has(s.id) ? ' open' : ''}><summary><span class="cls${isExtra(s) ? ' ex' : ''}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="16" height="16" loading="lazy">${esc(s.class.label)}</span><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="sumname">${mark(s.trueName)}<small>${esc(s.origin || '')}</small></span><span class="nums"><span>戦闘力<b>${s.power}</b></span><span>宝具<b>${s.npPeak || '—'}</b></span>${ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開の変更</span>' : ''}${nr ? `<span class="badge">要確認 ${nr}</span>` : ''}${(s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''}</span></summary>${open.has(s.id) ? body(s, i) : ''}</details>`;
-    }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">左にページを貼り付けるか、JSONを読み込んでください</div>';
+      const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : ''].join('');
+      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（名簿の全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="sumname">${mark(s.trueName)}</span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
+    }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div>';
+    // 選んでいる騎が一覧から消えたら、一覧の先頭を選ぶ（スマホで詳細を開いていないときだけ）
+    if (!roster.some(x => x.id === sel)) { sel = shownIds[0] || (roster[0] && roster[0].id) || null; renderDetail(); }
   }
-  $('#q').addEventListener('input', e => { query = e.target.value.trim(); renderList(); });
+  // 右（スマホでは一覧の代わり）に、選んだ騎の詳細を出す
+  function renderDetail() {
+    const i = roster.findIndex(x => x.id === sel), sv = roster[i];
+    if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : '名簿が空です'}</div>`; $('#browse').classList.remove('show'); return; }
+    const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
+    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="sp"></span>`
+      + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
+  }
+  function select(id, o) {
+    o = o || {};
+    if (!roster.some(x => x.id === id)) return;
+    const changed = sel !== id; sel = id; store.set(SEL_KEY, id);
+    for (const b of $('#list').querySelectorAll('.svr')) b.setAttribute('aria-selected', String(b.dataset.id === id));
+    if (changed || o.force) renderDetail();
+    const row = $(`#list .svr[data-id="${CSS.escape(id)}"]`);
+    if (row && o.scrollList !== false) row.scrollIntoView({ block: 'nearest' });
+    if (o.open) { $('#browse').classList.add('show'); if (narrow()) toTop(); }
+    else if (changed && !narrow()) { const d = $('#detail'); if (d.getBoundingClientRect().top < 0) d.scrollIntoView({ block: 'start' }); }
+    if (o.flash && row) { row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash'); }
+  }
+  const narrow = () => matchMedia('(max-width: 900px)').matches;
+  // 画面の切り替えの帯のすぐ下まで戻す
+  const toTop = () => { const m = document.querySelector('main'), y = Math.max(0, m.getBoundingClientRect().top + window.scrollY - $('#views').offsetHeight); if (window.scrollY > y) window.scrollTo({ top: y }); };
+  function step(d) {
+    const k = shownIds.indexOf(sel), n = k < 0 ? 0 : Math.min(shownIds.length - 1, Math.max(0, k + d));
+    if (shownIds[n]) select(shownIds[n], { open: $('#browse').classList.contains('show') });
+  }
+  $('#list').addEventListener('click', e => { const b = e.target.closest('.svr'); if (b) select(b.dataset.id, { open: true, scrollList: false }); });
+  $('#detail').addEventListener('click', e => {
+    const st = e.target.closest('[data-step]'); if (st) { step(+st.dataset.step); return; }
+    if (e.target.closest('[data-back]')) { $('#browse').classList.remove('show'); const row = $(`#list .svr[data-id="${CSS.escape(sel)}"]`); if (row) row.scrollIntoView({ block: 'center' }); return; }
+    const mu = e.target.closest('[data-mu]');
+    if (mu) { const a = roster.find(x => x.id === sel), b = roster.find(x => x.id === mu.dataset.mu); if (a && b) { cmpA = a; cmpB = b; $('#cmpA').value = optLabel(a); $('#cmpB').value = optLabel(b); showView('cmp'); compare(); } }
+  });
+  document.addEventListener('keydown', e => {
+    if (view !== 'roster' || e.target.closest('input, textarea, select, dialog') || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); step(1); }
+    else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); step(-1); }
+  });
+  $('#q').addEventListener('input', e => { query = e.target.value.trim(); renderList(); if (shownIds.length && !shownIds.includes(sel)) select(shownIds[0], { scrollList: false }); });
   $('#q').addEventListener('keydown', e => {
-    // Enter：見つかったのが1騎なら開く
-    if (e.key === 'Enter') { const d = $('#list details.sv'); if (d && $('#list').querySelectorAll('details.sv').length === 1 && !d.open) d.open = true; }
+    // Enter：一覧の先頭の騎を開く
+    if (e.key === 'Enter') { e.preventDefault(); if (shownIds[0]) select(shownIds[0], { open: true }); }
     if (e.key === 'Escape') { e.target.value = ''; query = ''; renderList(); }
   });
-  $('#sort').addEventListener('change', e => { sortBy = e.target.value; renderList(); });
-  $('#closeAll').onclick = () => { open.clear(); renderList(); };
+  $('#sort').addEventListener('change', e => { sortBy = e.target.value; renderList(); renderDetail(); });
   // 「/」で検索欄へ（入力中は除く）
-  document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.closest('input, textarea, select, dialog')) { e.preventDefault(); $('#q').focus(); $('#q').select(); } });
-  // 名簿の1騎へ移る（試し戦いの一覧などから）
+  document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.closest('input, textarea, select, dialog')) { e.preventDefault(); showView('roster'); $('#browse').classList.remove('show'); $('#q').focus(); $('#q').select(); } });
+  // 名簿の1騎へ移る（申請・取り込み・試し戦いの一覧などから）
   function jumpTo(id) {
     const s = roster.find(x => x.id === id); if (!s) return;
-    open.add(id);
-    if (filter !== 'all' || query) { filter = 'all'; query = ''; $('#q').value = ''; render(); } else renderList();
-    const d = $(`#list details.sv[data-id="${CSS.escape(id)}"]`); if (!d) return;
-    d.scrollIntoView({ block: 'start', behavior: 'smooth' }); d.classList.add('flash'); setTimeout(() => d.classList.remove('flash'), 1300);
+    showView('roster');
+    if (!shownIds.includes(id)) { filter = 'all'; flag = ''; query = ''; $('#q').value = ''; render(); }
+    select(id, { open: true, flash: true, force: true });
   }
+
+  // ---------- 画面の切り替え ----------
+  const VIEW_KEY = 'hgw.roster.view', SEL_KEY = 'hgw.roster.sel';
+  let view = 'roster';
+  function showView(v) {
+    if (!document.querySelector(`.view[data-view="${v}"]`)) v = 'roster';
+    view = v; store.set(VIEW_KEY, v);
+    for (const b of $('#views').querySelectorAll('[data-v]')) b.setAttribute('aria-selected', String(b.dataset.v === v));
+    for (const x of document.querySelectorAll('.view')) x.hidden = x.dataset.view !== v;
+    if (v === 'import') $('#impBadge').hidden = true;
+    toTop();
+  }
+  $('#views').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) showView(b.dataset.v); });
+  $('#syncBanner').addEventListener('click', e => { if (e.target.closest('[data-pull]')) $('#syncPull').click(); const v = e.target.closest('[data-v2]'); if (v) showView(v.dataset.v2); });
 
   // ---------- 試し戦い ----------
   let cmpA = null, cmpB = null;
@@ -614,10 +718,6 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       `<div><button data-vs="${esc(s.id)}" title="${esc(optLabel(s))}">${esc(s.trueName)}</button><b>${Math.round(p * 100)}%</b><span class="meter"><i style="width:${p * 100}%"></i></span></div>`).join('')}</div>`;
   }
   $('#vsAll').addEventListener('toggle', () => { if ($('#vsAll').open) vsAll(); });
-  // 試し戦いを開いておくか閉じておくかは、このブラウザに残す
-  const TB_KEY = 'hgw.roster.tbOpen';
-  if (store.get(TB_KEY, true) === false) $('#cmpPanel').open = false;
-  $('#cmpPanel').addEventListener('toggle', () => store.set(TB_KEY, $('#cmpPanel').open));
   $('#vsAllOut').addEventListener('click', e => { const b = e.target.closest('[data-vs]'); if (!b) return; cmpB = roster.find(s => s.id === b.dataset.vs); $('#cmpB').value = optLabel(cmpB); compare(); $('#cmpPanel').scrollIntoView({ block: 'start', behavior: 'smooth' }); });
   // 各騎の「試し戦いの左に／右に」
   document.addEventListener('click', e => {
@@ -625,17 +725,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const [side, i] = b.dataset.cmp.split(':'), s = roster[+i]; if (!s) return;
     if (side === 'A') { cmpA = s; if (cmpB === s) cmpB = roster.find(x => x !== s); } else { cmpB = s; if (cmpA === s) cmpA = roster.find(x => x !== s); }
     $('#cmpA').value = optLabel(cmpA); $('#cmpB').value = optLabel(cmpB);
-    $('#cmpPanel').open = true; compare();
-    $('#cmpPanel').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    showView('cmp'); compare();
   });
 
-  $('#list').addEventListener('toggle', e => {
-    const d = e.target; if (!d.matches || !d.matches('details.sv')) return;
-    const id = d.dataset.id;
-    if (d.open && !open.has(id)) { open.add(id); const i = roster.findIndex(s => s.id === id); d.insertAdjacentHTML('beforeend', body(roster[i], i)); }
-    else if (!d.open && open.has(id)) { open.delete(id); const b = d.querySelector('.body'); if (b) b.remove(); }
-  }, true);
-  $('#filters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; filter = b.dataset.f; render(); });
+  $('#filters').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (!b) return; flag = flag === b.dataset.f ? '' : b.dataset.f; render(); });
+  $('#clsSel').addEventListener('change', e => { filter = e.target.value; render(); });
 
   // ---------- 取り込み ----------
   function splitPages(text) { return text.split(/\n\s*={5,}\s*\n/).map(s => s.trim()).filter(Boolean); }
@@ -652,23 +746,57 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (!raw.startsWith('{')) return null;
     try { const d = JSON.parse(raw); return d && d.format === 'hgw-request' ? d : null; } catch (e) { return null; }
   }
+  // 申請の「直してほしいところ」（項目ごと）。取り込み欄と、その英霊の詳細に出す
+  let lastReq = null;
+  const reqNotesHtml = req => (req.notes || []).length ? `<div style="margin-top:4px"><b>直してほしいところ</b><ul>${req.notes.map(x => `<li><b>${esc(x.target)}</b>：<span style="white-space:pre-wrap">${esc(x.text)}</span></li>`).join('')}</ul></div>` : '';
   function applyRequest(req) {
     const notes = [];
     let sv = null;
-    if (req.wiki) { sv = B.importServant(req.wiki, { title: req.page || null }); const r = upsert([sv]); open.add(sv.id); notes.push(r.add ? '英霊を1騎追加' : '英霊を1騎置き換え'); }
+    if (req.wiki) { sv = B.importServant(req.wiki, { title: req.page || null }); const r = upsert([sv]); notes.push(r.add ? '英霊を1騎追加' : '英霊を1騎置き換え'); }
     let n = 0;
     for (const t of Object.keys(req.overrides || {})) if (TABLES[t]) for (const [k, v] of Object.entries(req.overrides[t])) { TABLES[t][k] = v; n++; }
-    if (n) { ovStore(); ovVer++; notes.push(`手直し ${n}件`); }
+    if (n) notes.push(`効果・ステータスの手直し ${n}件`);
+    // セリフ・解説などの書き換え（変えた見出し・項目だけ）と、読み取りの間違いとして消すスキル・宝具（内容の手直しに重ねる）
+    const ce = req.contentEdit || {}, dr = req.drop || {};
+    if (Object.keys(ce).length || Object.keys(dr).length) {
+      const name = req.servant, now = roster.find(x => x.trueName === name);
+      if (!now) notes.push('セリフなどの書き換えは、英霊がまだ名簿にいないので掛けていません（取り込んでから、もう一度この申請を読んでください）');
+      else {
+        const wk = B.wikiOf(now), c = Object.assign({}, E.CONTENT_OVERRIDES[name] || {}), cb = Object.assign({}, c.base || {}), secs = [];
+        const put = (sec, val) => {
+          if (same(val, B.contentOf(wk, sec))) { delete c[sec]; delete cb[sec]; } // Wikiと同じに戻す申請
+          else { c[sec] = val; cb[sec] = B.hashOf(B.contentOf(wk, sec)); }
+          secs.push(B.CONTENT_JA[sec]);
+        };
+        const patch = (sec, p, isEmpty) => { const v = B.contentOf(now, sec); for (const [k, x] of Object.entries(p || {})) { if (isEmpty(x)) delete v[k]; else v[k] = x; } return v; };
+        if (ce.voice) put('voice', patch('voice', ce.voice, x => !Array.isArray(x) || !x.length));
+        if (ce.text) put('text', patch('text', ce.text, x => !x));
+        if (ce.profile) put('profile', patch('profile', ce.profile, x => !x));
+        if (Array.isArray(ce.relations)) put('relations', ce.relations);
+        for (const sec of ['skills', 'nps']) {
+          const d = dr[sec]; if (!d || !d.length) continue;
+          const list = B.contentOf(now, sec), gone = new Set();
+          for (const x of d) { const j = list[x.i] && list[x.i].name === x.name ? x.i : list.findIndex((y, k) => y.name === x.name && !gone.has(k)); if (j >= 0) gone.add(j); }
+          if (gone.size) put(sec, list.filter((_, k) => !gone.has(k)));
+        }
+        c.base = cb;
+        if (Object.keys(c).some(k => k !== 'base')) E.CONTENT_OVERRIDES[name] = c; else delete E.CONTENT_OVERRIDES[name];
+        if (secs.length) { n += secs.length; notes.push(`内容の書き換え（${secs.join('・')}）`); }
+      }
+    }
+    if (n) { ovStore(); ovVer++; }
+    lastReq = req;
     rebuildAll(); save(); render();
     if (req.kind === 'add' && !req.wiki && req.page) {
       $('#ghNames').value = req.page; $('#ghMode').value = 'add'; $('#ghMode').onchange();
       notes.push(`ページのテキストが無いので、下の「ページ名で取り込む」に「${req.page}」を入れました`);
     }
     const who = [req.from, req.contact].filter(Boolean).join(' ／ ');
-    $('#reqBox').hidden = false;
+    $('#reqBox').hidden = false; if (view !== 'import') $('#impBadge').hidden = false;
     $('#reqBox').innerHTML = `<b>${req.kind === 'add' ? '追加申請' : '調整の希望'}：${esc(req.class ? req.class + '「' + req.servant + '」' : req.servant)}</b>${who ? `<div>申請者：${esc(who)}</div>` : ''}`
       + `<div>${esc(notes.join('・') || '反映するものはありません（文面だけの申請です）')}</div>`
       + (req.reason ? `<div style="margin-top:4px;white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : '')
+      + reqNotesHtml(req)
       + (req.content ? `<div style="margin-top:4px;white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : '')
       + `<div class="hint" style="margin-top:4px">反映した内容は未公開の変更です。確かめてから「公開用に保存」「手直し表を保存」で公開してください。</div>`;
     status('申請を取り込みました');
@@ -693,8 +821,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (req) { try { applyRequest(req); $('#src').value = ''; } catch (e) { status('申請を読めませんでした：' + e.message); } return; }
     const pages = splitPages($('#src').value); if (!pages.length) return;
     const { out, errs } = fromText(pages);
-    const res = upsert(out); out.forEach(s => open.add(s.id));
-    done(res, errs); if (out.length) $('#src').value = '';
+    const res = upsert(out);
+    done(res, errs); if (out.length) { $('#src').value = ''; jumpTo(out[0].id); }
   };
   $('#files').onchange = async e => {
     const fs = Array.from(e.target.files || []); e.target.value = '';
@@ -707,6 +835,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       } catch (err) { errs.push(f.name + '：' + err.message); }
     }
     done(upsert(all), errs, harvested ? `（ファイルに残っていた手直し ${harvested}件を引き継ぎ）` : '');
+    if (all[0]) jumpTo(all[0].id);
   };
 
   // ---------- 書き出し ----------
@@ -820,96 +949,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const ctWiki = sec => B.contentOf(ct.wiki, sec);
   const ctNow = sec => B.contentOf(ct.sv, sec);
 
-  function voiceToText(v) { return Object.entries(v || {}).map(([k, ls]) => ls.map(l => `${k}：「${l}」`).join('\n')).join('\n\n'); }
-  function parseVoiceText(t) {
-    const voice = {}, bad = []; let last = null;
-    for (const raw of String(t).split('\n')) {
-      const l = raw.trim(); if (!l) continue;
-      const m = l.match(/^([^：:「」]{1,16})\s*[:：]\s*(.+)$/);
-      if (!m) { bad.push(l); continue; }
-      let k = m[1].trim(), v = m[2].trim();
-      const q = v.match(/^「([\s\S]*)」$/); if (q) v = q[1].trim();
-      if (!v) continue;
-      if (/^(その)?\d+$/.test(k) && last) k = last; else last = k;
-      (voice[k] = voice[k] || []).push(v);
-    }
-    return { voice, bad };
-  }
-  // ---- セリフ：場面ごとの編集（場面は config.js の VOICE_SLOTS。別名の見出しも同じ場面の行として使われる） ----
-  const VSLOT = H.VOICE_SLOTS, VUNUSED = H.VOICE_UNUSED;
-  const vUnusedGroup = h => { const g = VUNUSED.find(([, hs]) => hs.includes(h)); return g ? g[0] : null; };
-  const vLines = t => String(t).split('\n').map(l => l.trim().replace(/^「([\s\S]*)」$/, '$1').trim()).filter(Boolean);
-  // 見出しの一つ分の欄（1行に1つ）
-  function vField(h, lines) {
-    return `<div class="vf" data-h="${esc(h)}"><textarea rows="${Math.min(8, Math.max(2, lines.length + 1))}" placeholder="1行に1つ">${esc(lines.join('\n'))}</textarea></div>`;
-  }
-  function voiceRows(p, v) {
-    v = v || {};
-    const rows = p.querySelector('.vrows'); let html = '<h4 class="vsec">ゲームで使う場面</h4>';
-    for (const s of VSLOT) {
-      const hs = [s.key].concat(s.aliases), present = hs.filter(h => (v[h] || []).length);
-      const fields = (present.length ? present : [s.key]).map(h => (h !== s.key ? `<div class="al">見出し「${esc(h)}」（${esc(s.key)}として使う）</div>` : present.length > 1 ? `<div class="al">見出し「${esc(h)}」</div>` : '') + vField(h, v[h] || [])).join('');
-      html += `<div class="vcard" data-slot="${esc(s.key)}"><div class="vh"><b>${esc(s.key)}</b><span class="n"></span>${s.aliases.length ? `<span class="hint">別名：${esc(s.aliases.join('・'))}</span>` : ''}</div><div class="use">${esc(s.use)}</div>${fields}${s.key === '宝具' ? '<div class="npv"></div>' : ''}</div>`;
-    }
-    const rest = Object.keys(v).filter(h => !H.voiceSlotOf(h) && (v[h] || []).length);
-    const odd = rest.filter(h => !vUnusedGroup(h)), unused = rest.filter(h => vUnusedGroup(h));
-    html += `<h4 class="vsec">ゲームでは使わない見出し（${rest.length}）</h4><div class="vextra">`;
-    for (const h of odd.concat(unused)) html += vExtra(h, v[h]);
-    html += '</div>';
-    rows.innerHTML = html;
-    voiceUpd(p);
-  }
-  // 場面に当てはまらない見出しの説明（odd = どの表にも無い見出し）
-  function vWhy(h) {
-    const sl = H.voiceSlotOf(h), g = vUnusedGroup(h);
-    return !h ? { t: '見出しを入れてください。上の場面の名前（例：会話）にするとゲームで使います' } : sl ? { t: `「${sl}」の場面として使います` }
-      : g ? { t: `${g}（Wikiのテンプレートの見出し。ゲームでは使いません）` } : { t: 'どの場面にも当てはまらない見出しです。名前を上の場面（例：会話・霊基再臨）に直すか、前の見出しにまとめてください', odd: true };
-  }
-  function vExtra(h, lines) {
-    return `<div class="vcard extra"><div class="vh"><input type="text" data-vh value="${esc(h)}" placeholder="見出し" aria-label="見出し"><span class="n"></span><span class="sp"></span><button class="sm ghost danger" data-vrm title="この見出しを消す">×</button></div><div class="use"></div>${vField(h, lines || [])}</div>`;
-  }
-  // 入力中の内容を読む（場面ごと／まとめてテキスト のどちらでも）
-  function voiceRead(p) {
-    if (!p.querySelector('.vtext').hidden) return parseVoiceText(p.querySelector('.vtext textarea').value);
-    const voice = {};
-    for (const card of p.querySelectorAll('.vrows .vcard')) {
-      const hi = card.querySelector('[data-vh]');
-      for (const f of card.querySelectorAll('.vf')) {
-        const h = hi ? hi.value.trim().replace(/[：:]/g, '') : f.dataset.h, ls = vLines(f.querySelector('textarea').value);
-        if (h && ls.length) voice[h] = (voice[h] || []).concat(ls);
-      }
-    }
-    return { voice, bad: [] };
-  }
-  // 場面ごとの数・宝具のセリフが当たる宝具・上の一覧を更新
-  function voiceUpd(p) {
-    const r = voiceRead(p), v = r.voice, cnt = p.querySelector('[data-count]');
-    const tmp = { voice: v, nps: ct.sv.nps };
-    const cov = VSLOT.map(s => ({ s, n: H.voiceLines(tmp, s.key).length }));
-    p.querySelector('.vcov').innerHTML = cov.map(({ s, n }) => `<button type="button" class="sm ${n ? 'has' : 'none'}" data-vgo="${esc(s.key)}" title="${esc(s.use)}">${esc(s.key)} ${n || '—'}</button>`).join('');
-    for (const card of p.querySelectorAll('.vrows .vcard')) {
-      const n = Array.from(card.querySelectorAll('.vf textarea')).reduce((t, x) => t + vLines(x.value).length, 0);
-      card.querySelector('.n').textContent = n ? n + '行' : 'なし';
-      if (card.dataset.slot) card.classList.toggle('none', !n);
-      const hi = card.querySelector('[data-vh]');
-      if (hi) { const w = vWhy(hi.value.trim()); card.querySelector('.use').textContent = w.t; card.classList.toggle('odd', !!w.odd); }
-    }
-    const npv = p.querySelector('.npv');
-    if (npv) npv.innerHTML = (ct.sv.nps || []).length && H.voiceLines(tmp, '宝具').length ? (ct.sv.nps || []).map(np => { const m = H.npVoiceLines(tmp, np); return `<div>『${esc(np.name)}』：${m.named ? `名前を含む行 ${m.lines.length}` : m.lines.length ? `名前を含む行が無いので、ほかの宝具の名前を含まない ${m.lines.length}行から選びます` : '<span class="ng">使える行がありません（どの行も別の宝具の名前を含んでいます）</span>'}</div>`; }).join('') : '';
-    const used = cov.filter(x => x.n).length, all = Object.values(v).reduce((t, x) => t + x.length, 0);
-    cnt.textContent = `ゲームで使う場面 ${used}/${VSLOT.length}・全${Object.keys(v).length}見出し${all}行` + (r.bad.length ? `　読めない行 ${r.bad.length}` : '');
-  }
-  function voiceMode(p, mode) {
-    const toText = mode === 'text', vt = p.querySelector('.vtext');
-    if (toText === !vt.hidden) return;
-    const rd = voiceRead(p), cur = rd.voice;
-    if (!toText && rd.bad.length && !confirm(`次の${rd.bad.length}行は「見出し：「セリフ」」の形で読めないため、場面ごとの表示では消えます。よろしいですか？\n\n${rd.bad.slice(0, 6).join('\n')}`)) return;
-    if (toText) { vt.querySelector('textarea').value = voiceToText(cur); }
-    vt.hidden = !toText; p.querySelector('.vrows').hidden = toText; p.querySelector('.vcov').hidden = toText; p.querySelector('[data-vadd]').hidden = toText;
-    if (!toText) voiceRows(p, cur);
-    for (const b of p.querySelectorAll('[data-vmode]')) b.classList.toggle('on', b.dataset.vmode === mode);
-    voiceUpd(p);
-  }
+  const VE = H.voiceEdit;
   const relToText = rs => (rs || []).map(r => `${r.name}：${r.text}`).join('\n');
   function parseRelText(t) {
     const out = [], bad = [];
@@ -941,12 +981,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const lst = p.querySelector('.lst');
       for (const x of val || ctNow(tab)) lst.appendChild(tab === 'skills' ? skillCard(x) : npCard(x));
     } else if (tab === 'voice') {
-      p.innerHTML = note + '<p class="ctnote hint">場面ごとに、1行に1つセリフを書きます（カギかっこは要りません）。テンプレートのままの行や、別のキャラクターのセリフは行ごと消してください。点線の場面はセリフが無く、ゲームではその場面で何も言いません。</p>'
-        + '<div class="vmode"><button class="sm on" data-vmode="rows">場面ごと</button><button class="sm" data-vmode="text">まとめてテキストで</button></div>'
-        + '<div class="vcov"></div><div class="vrows"></div>'
-        + `<div class="vtext" hidden><p class="ctnote hint">1行に1つ「見出し：「セリフ」」の形（Wikiからの貼り付け用。「その2」は前の見出しにまとめます）。</p><textarea class="code" spellcheck="false"></textarea></div>`
-        + foot('<button class="sm" data-vadd>＋ 見出しを追加</button><span class="hint" data-count></span>');
-      voiceRows(p, val || ctNow('voice'));
+      p.innerHTML = note + '<div class="vbox"></div>' + foot();
+      VE.mount(p.querySelector('.vbox'), val || ctNow('voice'), { nps: ct.sv.nps });
     } else if (tab === 'text') {
       const t = val || ctNow('text');
       p.innerHTML = note + Object.entries(TEXT_JA).map(([k, ja]) => `<label class="f">${ja}<textarea data-k="${k}" rows="${k === 'commentary' ? 8 : 4}">${esc(t[k] || '')}</textarea></label>`).join('') + foot();
@@ -963,7 +999,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const out = {};
     out.skills = cards('skills').map(o => ({ group: o.group === 'class' ? 'class' : 'own', name: o.name, rankRaw: o.rankRaw, desc: o.desc }));
     out.nps = cards('nps').map(o => ({ name: o.name, reading: o.reading, rankRaw: o.rankRaw, typeRaw: o.typeRaw, rangeRaw: o.rangeRaw, maxRaw: o.maxRaw, desc: o.desc }));
-    const v = voiceRead(P('voice')); out.voice = v.voice;
+    const v = VE.read(P('voice').querySelector('.vbox')); out.voice = v.voice;
     out.text = Object.assign({}, ctNow('text')); P('text').querySelectorAll('textarea[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.text[t.dataset.k] = x; else delete out.text[t.dataset.k]; });
     out.profile = Object.assign({}, ctNow('profile')); P('profile').querySelectorAll('input[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.profile[t.dataset.k] = x; else delete out.profile[t.dataset.k]; });
     const r = parseRelText(P('profile').querySelector('textarea[data-f=relations]').value); out.relations = r.relations;
@@ -988,16 +1024,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#ct').showModal();
   });
   $('#ctTabs').addEventListener('click', e => { const b = e.target.closest('[data-t]'); if (b) ctTab(b.dataset.t); });
-  $('#ctBody').addEventListener('input', e => { const p = e.target.closest('[data-p="voice"]'); if (p) voiceUpd(p); });
   $('#ctBody').addEventListener('click', e => {
-    const vp = e.target.closest('[data-p="voice"]');
-    if (vp) {
-      const m = e.target.closest('[data-vmode]'); if (m) { voiceMode(vp, m.dataset.vmode); return; }
-      const go = e.target.closest('[data-vgo]');
-      if (go) { const c = vp.querySelector(`.vcard[data-slot="${CSS.escape(go.dataset.vgo)}"]`); if (c) { c.scrollIntoView({ block: 'center', behavior: 'smooth' }); c.classList.remove('flash'); void c.offsetWidth; c.classList.add('flash'); c.querySelector('textarea').focus({ preventScroll: true }); } return; }
-      if (e.target.closest('[data-vadd]')) { const x = vp.querySelector('.vextra'); x.insertAdjacentHTML('beforeend', vExtra('', [])); x.lastElementChild.querySelector('input').focus(); voiceUpd(vp); return; }
-      const rmv = e.target.closest('[data-vrm]'); if (rmv) { const c = rmv.closest('.vcard'); if (!vLines(c.querySelector('textarea').value).length || confirm('この見出しのセリフを消します')) { c.remove(); voiceUpd(vp); } return; }
-    }
     const rm = e.target.closest('[data-rm]'); if (rm) { rm.closest('.card').remove(); return; }
     const add = e.target.closest('[data-add]');
     if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
@@ -1154,6 +1181,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#syncActs').hidden = !nPub && !nLoc;
     $('#syncPull').hidden = !nPub;
     $('#unpub').innerHTML = nLoc ? `未公開の変更があります（${[l.add.length + l.upd.length + l.del.length && `${l.add.length + l.upd.length + l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}）。公開するには「公開用に保存」と「手直し表を保存」で書き出し、GitHub の data/ の同じ名前のファイルと置き換えます。` : '';
+    // 画面の上の目印（公開・保存のタブと、名簿の上の知らせ）
+    const sb = $('#saveBadge'); sb.hidden = !nPub && !nLoc; sb.textContent = nPub ? '公開側の更新あり' : nLoc ? `未公開 ${l.add.length + l.upd.length + l.del.length + pl.nOvLocal}` : '';
+    $('#syncBanner').hidden = !nPub;
+    $('#syncBanner').innerHTML = nPub ? `<span>公開中の名簿に、この名簿にまだ入っていない更新があります（${[a.add.length && `追加 ${a.add.length}騎`, a.upd.length && `更新 ${a.upd.length}騎`, a.del.length && `削除 ${a.del.length}騎`, pl.nOvPub && `手直し ${pl.nOvPub}件`].filter(Boolean).join('・')}）。</span><button class="sm primary" data-pull>公開中の名簿にそろえる</button><button class="sm ghost" data-v2="save">くわしく</button>` : '';
   }
   async function loadPub() {
     if (!/^https?:$/.test(location.protocol)) { pubErr = 'ファイルを直接開いているため、公開中の名簿を自動で読めません。「ファイルを読む」で data/servants.json を選んでください。'; syncInfo(); return; }
@@ -1205,8 +1236,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- 起動 ----------
   roster = store.get(ROSTER_KEY, []);
+  sel = store.get(SEL_KEY, null);
   rebuildAll(); render();
-  if (roster.length) status(`この名簿に ${roster.length}騎`);
+  showView(store.get(VIEW_KEY, 'roster'));
+  if (roster.length) $('#status').textContent = `この名簿に ${roster.length}騎`;
   loadPub();
 })();
 </script>

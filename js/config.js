@@ -155,7 +155,7 @@
     { key: '戦闘不能', aliases: ['消滅', '退場'], use: '倒れて脱落する場面。倒れて終わったときの最後の一言（結果の画面）' },
     { key: '敗北', aliases: [], use: '倒れて終わったときの最後の一言（戦闘不能が無いとき）' },
     { key: '勝利', aliases: [], use: '勝ち残ったときの最後の一言（結果の画面。聖杯についてが無ければ結末の記録にも）' },
-    { key: '聖杯について', aliases: ['願い'], use: '日常（聖杯の話）・勝ち残って聖杯が降臨する結末の記録' },
+    { key: '聖杯について', aliases: ['願い', '聖杯'], use: '日常（聖杯の話）・勝ち残って聖杯が降臨する結末の記録' },
     { key: '会話', aliases: ['マイルーム', '主従関係'], use: '日常（何気ない会話）・生き残って終わったときの最後の一言' },
     { key: '好きなこと', aliases: [], use: '日常（好きなものの話）' },
     { key: '嫌いなこと', aliases: [], use: '日常（好きなものの話。好きなことが無いとき）' },
@@ -171,12 +171,18 @@
   for (const s of VOICE_SLOTS) for (const h of [s.key].concat(s.aliases)) VOICE_OF[h] = s.key;
   G.VOICE_SLOTS = VOICE_SLOTS;
   G.VOICE_UNUSED = VOICE_UNUSED;
-  // 見出し → それを使う場面の key（使わない見出しは null）
-  G.voiceSlotOf = heading => VOICE_OF[heading] || null;
-  // 場面の行をすべて（代表の見出し → 別名の順）
+  // 見出し → それを使う場面の key（使わない見出しは null）。「宝具2」「会話その3」のような番号付きも同じ場面
+  G.voiceSlotOf = heading => { const h = String(heading || '').trim(); return VOICE_OF[h] || VOICE_OF[h.replace(/\s*(その)?[0-9０-９]+$/, '')] || null; };
+  // その場面の見出し（代表の見出し → 別名 → 番号付きなど、ほかの見出しは Wiki の順）
+  G.voiceHeadings = (voice, key) => {
+    const s = VOICE_SLOTS.find(x => x.key === key), first = s ? [s.key].concat(s.aliases) : [key];
+    const v = voice || {};
+    return first.filter(h => v[h]).concat(Object.keys(v).filter(h => !first.includes(h) && G.voiceSlotOf(h) === key));
+  };
+  // 場面の行をすべて
   G.voiceLines = (sv, key) => {
-    const v = (sv && sv.voice) || {}, s = VOICE_SLOTS.find(x => x.key === key);
-    return [].concat(...(s ? [s.key].concat(s.aliases) : [key]).map(h => v[h] || [])).filter(l => l && String(l).trim());
+    const v = (sv && sv.voice) || {};
+    return [].concat(...G.voiceHeadings(v, key).map(h => v[h] || [])).filter(l => l && String(l).trim());
   };
   // 宝具を解放したときに使える行（その宝具の名前・読みを含む行を優先。別の宝具の名前を含む行は除く）
   G.npVoiceLines = (sv, np) => {
