@@ -235,10 +235,13 @@ in classSkills/skills/nps, an FGO item (name matches `FGO_ITEM`, or no rank and 
 a rankless repeat of an earlier name is dropped anywhere; an NP with no rank and no type whose name looks like a sentence (。！？、, > 24
 chars), that has no description, or whose description is only one 「…」/『…』 quote is merged into the previous NP's description (the
 next one's when it comes first; `why: 'merged'`). An NP whose rank field also holds 「種別」 (`B++ 種別 対軍宝具`) is split into rank and type. Removed items are listed in
-`sv.skippedItems` (`{ list: 'skills'|'nps', name, why: 'fgo'|'merged' }`), which is kept in lean data and shown in the roster detail
+`sv.skippedItems` (`{ list: 'skills'|'nps', name, why: 'fgo'|'merged'|'list' }`), which is kept in lean data and shown in the roster detail
 (「読み取りで外した項目」), in submit.html's judgement and in the import workflow's PR body. On the current data this removes 85 items
 from 16 servants (their power / NP peak drop accordingly; e.g. タリエシン's and フリッツ・デュケイン's only "attack NPs" were chant lines /
-FGO entries). `test/fgo.js` covers both paths.
+FGO entries). **Summary lists** (`why: 'list'`, skills only, before the rules above): a run of consecutive skills whose name starts
+with a bullet (`・●○■□◆◇＊*`) and that have no description is dropped as a whole when at least half of its names (bullet and trailing
+「(…)」 removed) already appear as non-bullet skills — a recap of the skills from another block whose heading was not recognised (コンラ:
+「・神性」「・太陽弾」「・ルーン」…). A run of mostly new names is kept. `test/fgo.js` covers all of these paths.
 `roster.html` accepts several pages pasted together separated by a line of `=====`.
 
 ### 4.2 Rank object (`rank.js`)

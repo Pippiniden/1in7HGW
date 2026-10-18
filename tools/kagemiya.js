@@ -201,7 +201,7 @@ function details(r) {
   const np = s.nps.map(n => `『${n.name}』（${L(n.rank)}・${n.typeRaw || '種別不明'}）`).join('、') || 'なし';
   const w = s.warnings.map(x => `  - ⚠ ${x}`).join('\n');
   const rv = s.review.filter(x => x.kind !== 'class').map(x => `  - ${x.target}：${x.why}`).join('\n');
-  const sk2 = (s.skippedItems || []).map(x => x.list === 'section' ? `欄「${x.name}」` : `${x.list === 'nps' ? '宝具' : 'スキル'}「${x.name.length > 30 ? x.name.slice(0, 30) + '…' : x.name}」${x.why === 'merged' ? '（説明に戻した）' : ''}`).join('、');
+  const sk2 = (s.skippedItems || []).map(x => x.list === 'section' ? `欄「${x.name}」` : `${x.list === 'nps' ? '宝具' : 'スキル'}「${x.name.length > 30 ? x.name.slice(0, 30) + '…' : x.name}」${x.why === 'merged' ? '（説明に戻した）' : x.why === 'list' ? '（スキルのまとめの一覧）' : ''}`).join('、');
   return `- **${s.trueName}**（${s.class.label}）\n  - スキル：${sk}\n  - 宝具：${np}` + (sk2 ? `\n  - 読み飛ばし（FGO風の欄・詠唱の行）：${sk2}` : '') + (w ? '\n' + w : '') + (rv ? '\n' + rv : '');
 }
 

@@ -89,7 +89,8 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
   .dhead { top: 41px; }
   .dhead .back { display: inline-block; }
 }
-@media (max-width: 560px) { .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+@media (max-width: 560px) { .dl { grid-template-columns: 5.5em minmax(0, 1fr); } }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 textarea { width: 100%; min-height: 180px; resize: vertical; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
 .hint { font-size: 12px; color: var(--sub); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -566,7 +567,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
-      ${(sv.skippedItems || []).length ? `<details class="more"><summary>読み取りで外した項目（${sv.skippedItems.length}）</summary><p class="hint" style="margin:4px 0">FGO風の欄（レア度・所有カード・Skill1〜・アペンドスキル・攻撃モーションなど）はスキル・宝具として読みません。宝具の説明の中の詠唱・セリフの行は、その宝具の説明に戻しました。ほかにも混ざっているときは「内容を編集」で消せます。</p><ul style="margin:0;padding-left:18px">${sv.skippedItems.map(x => `<li>${x.list === 'section' ? '欄' : x.list === 'nps' ? '宝具' : 'スキル'}「${esc(x.name.length > 40 ? x.name.slice(0, 40) + '…' : x.name)}」${x.why === 'merged' ? '：説明に戻した' : x.list === 'section' ? '：FGO風の欄としてまるごと読み飛ばした' : '：FGO風の欄'}</li>`).join('')}</ul></details>` : ''}
+      ${(sv.skippedItems || []).length ? `<details class="more"><summary>読み取りで外した項目（${sv.skippedItems.length}）</summary><p class="hint" style="margin:4px 0">FGO風の欄（レア度・所有カード・Skill1〜・アペンドスキル・攻撃モーションなど）はスキル・宝具として読みません。宝具の説明の中の詠唱・セリフの行は、その宝具の説明に戻しました。説明の無い「・神性：A」のような箇条書きが、ほかの欄のスキルとほとんど同じなら、まとめの一覧として外します。ほかにも混ざっているときは「内容を編集」で消せます。</p><ul style="margin:0;padding-left:18px">${sv.skippedItems.map(x => `<li>${x.list === 'section' ? '欄' : x.list === 'nps' ? '宝具' : 'スキル'}「${esc(x.name.length > 40 ? x.name.slice(0, 40) + '…' : x.name)}」${x.why === 'merged' ? '：説明に戻した' : x.why === 'list' ? '：ほかの欄のスキルのまとめ（説明の無い箇条書き）' : x.list === 'section' ? '：FGO風の欄としてまるごと読み飛ばした' : '：FGO風の欄'}</li>`).join('')}</ul></details>` : ''}
       <p class="hint" style="margin:10px 0 0">効果の印：<span class="ef"><span class="who">自分</span></span>自分に掛かる / <span class="ef"><span class="who enemy">相手</span></span>戦う相手に掛かる / <span class="ef"><span class="who master">自分のマスター</span></span>マスターに掛かる。宝具の効果のうち戦いの効果は、宝具を使ったその戦いの間だけ働きます（昼・偵察・交渉などの効果は、持っているだけで働きます）。</p>
       <h3>スキル</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${skills || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
       <h3>宝具</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${nps || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>

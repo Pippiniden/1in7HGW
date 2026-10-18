@@ -385,7 +385,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       <li>スキル ${sk.length}つ：名前で分かった ${by('ok') - (sk.filter(x => /override|spec/.test(x.effectSource)).length)}・説明から推定 ${by('guess')}・読み取れなかった（仮の効果）${by('def')}${lost ? `・失われた ${lost}` : ''}${sk.filter(x => /override/.test(x.effectSource)).length ? `・管理者が手直し済み ${sk.filter(x => /override/.test(x.effectSource)).length}` : ''}</li>
       <li>宝具 ${nps.length}つ：攻撃 ${atk.length}${atk.length ? `（いちばん強い宝具の威力 ${cur.npPeak || '—'}）` : ''}・補助 ${sup.length}${dis.length ? `・使えない ${dis.length}` : ''}${guessNp ? `（うち ${guessNp}つは手がかりが少なく推定）` : ''}</li>
       ${nDrop ? `<li>読み取りの間違いとして消してほしい：${nDrop}つ（下の見込みは、消した場合のもの）</li>` : ''}
-      ${(base.skippedItems || []).length ? `<li>スキル・宝具として読まなかったもの ${base.skippedItems.length}つ（「FGO風」などの欄はまるごと）：${esc(base.skippedItems.slice(0, 6).map(x => x.name.length > 16 ? x.name.slice(0, 16) + '…' : x.name).join('・'))}${base.skippedItems.length > 6 ? ' ほか' : ''}（FGO風の欄の項目や、宝具の説明の中の詠唱の行。詠唱はその宝具の説明に入れています）</li>` : ''}
+      ${(base.skippedItems || []).length ? `<li>スキル・宝具として読まなかったもの ${base.skippedItems.length}つ（「FGO風」などの欄はまるごと）：${esc(base.skippedItems.slice(0, 6).map(x => x.name.length > 16 ? x.name.slice(0, 16) + '…' : x.name).join('・'))}${base.skippedItems.length > 6 ? ' ほか' : ''}（FGO風の欄の項目、ほかの欄のスキルをまとめた箇条書き、宝具の説明の中の詠唱の行。詠唱はその宝具の説明に入れています）</li>` : ''}
     </ul><div class="legend"><span><span class="src ok">辞書</span> 名前で分かった</span><span><span class="src guess">推定</span> 説明の文章から読んだ（外れていることがあります）</span><span><span class="src def">仮</span> 読み取れなかった</span></div>
     <p class="hint" style="margin:6px 0 0">違っているところは、各項目の「ここを直してほしい」に文章で書けば十分です。効果をくわしく指定したい人は「効果を自分で指定する」も使えます。</p></div>`;
   }

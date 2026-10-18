@@ -102,6 +102,20 @@ d.nps.push({ name: '我が額よ叡智を引き出せ！', rankRaw: '', typeRaw:
 const e = H.build.fromJSON(d);
 ok(names(e.nps).join() === '紅の褥' && /我が額よ叡智を引き出せ！/.test(e.nps[0].desc), '詠唱の行が説明に戻っていない');
 
+// 4b) ほかの欄のスキルをまとめた、説明の無い箇条書き（「・神性：A」）は一覧ごと外す。半分以上が新しい名前なら残す
+{
+  const sk = (name, rankRaw, desc) => ({ name, rankRaw, rank: H.rank.parseRank(rankRaw), desc });
+  const base = { kind: 'servant', trueName: 'まとめ試験', class: { raw: 'アーチャー' }, stats: {}, nps: [],
+    classSkills: [sk('対魔力', 'C', '魔術に対する抵抗力。'), sk('・対魔力', 'C', '')],
+    skills: [sk('神性', 'A', '神の血を引く。'), sk('勇猛', 'B', '精神干渉を弱める。'), sk('・神性', 'A', ''), sk('・太陽弾', 'A-', ''), sk('・勇猛', 'B', '')] };
+  const a = H.build.fromJSON(JSON.parse(JSON.stringify(base)));
+  ok(names(a.classSkills).join() === '対魔力' && names(a.skills).join() === '神性,勇猛', 'まとめの箇条書きが外れていない：' + names(a.classSkills).concat(names(a.skills)).join());
+  ok((a.skippedItems || []).filter(x => x.why === 'list').length === 4, 'まとめの箇条書きが skippedItems に残っていない');
+  const fresh = JSON.parse(JSON.stringify(base)); fresh.skills = [sk('神性', 'A', '神の血を引く。'), sk('・太陽弾', 'A-', ''), sk('・ルーン', 'B', '')];
+  const f2 = H.build.fromJSON(fresh);
+  ok(names(f2.skills).join() === '神性,・太陽弾,・ルーン', '新しい名前ばかりの箇条書きまで外している：' + names(f2.skills).join());
+}
+
 // 5) ふつうのページは何も外さない
 for (const f of ['lucan.txt', 'variant1.txt']) {
   const s = H.build.fromJSON(H.parser.parseServant(fs.readFileSync(__dirname + '/' + f, 'utf8')));
@@ -111,6 +125,6 @@ for (const f of ['lucan.txt', 'variant1.txt']) {
 // 6) いまのデータで外れるもの（参考）
 const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(H.build.fromJSON);
 const hit = roster.filter(s => (s.skippedItems || []).length);
-console.log(`いまのデータ：${hit.length}騎から ${hit.reduce((t, s) => t + s.skippedItems.length, 0)}項目を外す（FGO風 ${hit.reduce((t, s) => t + s.skippedItems.filter(x => x.why === 'fgo').length, 0)}・詠唱を説明に戻す ${hit.reduce((t, s) => t + s.skippedItems.filter(x => x.why === 'merged').length, 0)}）`);
+console.log(`いまのデータ：${hit.length}騎から ${hit.reduce((t, s) => t + s.skippedItems.length, 0)}項目を外す（FGO風 ${hit.reduce((t, s) => t + s.skippedItems.filter(x => x.why === 'fgo').length, 0)}・詠唱を説明に戻す ${hit.reduce((t, s) => t + s.skippedItems.filter(x => x.why === 'merged').length, 0)}・まとめの箇条書き ${hit.reduce((t, s) => t + s.skippedItems.filter(x => x.why === 'list').length, 0)}）`);
 console.log(fail ? `NG ${fail}件` : 'OK：FGO風の欄と詠唱の行をスキル・宝具として読まない');
 process.exitCode = fail ? 1 : 0;
