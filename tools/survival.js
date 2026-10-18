@@ -11,7 +11,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine', 'data', 'survival']) require(path.join(ROOT, 'js', f + '.js'));
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine', 'data', 'survival']) require(path.join(ROOT, 'js', f + '.js'));
 const H = globalThis.HGW;
 
 // data.js はブラウザの fetch で読むので、手元のファイルを返す fetch を用意する

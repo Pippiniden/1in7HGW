@@ -687,7 +687,7 @@
    * スキル1つに効果を割り当てる。
    * 優先順: サーヴァント個別の上書き > 全体の上書き > 辞書 > 説明文の解析（参照＋キーワード） > 仮
    * 戻り値: { effects, source, matched }
-   *   source: 'servant-override' | 'override' | 'dict' | 'dict-partial' | 'compound' | 'keyword' | 'lost' | 'default'
+   *   source: 'servant-override' | 'override' | 'dict' | 'dict-partial' | 'compound' | 'keyword' | 'fgo' | 'lost' | 'default'
    */
   function resolveSkill(skill, ctx) {
     ctx = ctx || {};
@@ -726,7 +726,12 @@
     specs.push(...refSpecs);
     // 説明文から読んだ効果：同じ部品がもうあれば強い方の係数を使う
     for (const s of kw) { const x = specs.find(x => sameSpec(x.spec, s)); if (!x) specs.push({ spec: s }); else if (Math.abs(s[1]) > Math.abs(x.spec[1] == null ? 1 : x.spec[1])) x.spec = s; }
-    if (!specs.length) return mk([['power', 0.3]], 'default');
+    if (!specs.length) {
+      // 辞書にも説明文にも手がかりが無い：FGO の同名スキル（js/fgoskills.js、Chaldea のデータから）があればその働きを借りる
+      const F = G.FGO_SKILLS || {}, fk = F[n] ? n : F[baseName(n)] ? baseName(n) : null;
+      if (fk) return mk(F[fk].map(s => ({ spec: s })), 'fgo', { matched: fk });
+      return mk([['power', 0.3]], 'default');
+    }
     const source = d ? 'dict-partial' : comp.length ? 'compound' : 'keyword';
     return mk(specs.slice(0, 6), source, { matched: d ? d.key : comp.map(c => c.key).join('・') || null });
   }

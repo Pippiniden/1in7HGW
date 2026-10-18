@@ -1,6 +1,6 @@
 // 生存曲線の集計（js/survival.js）と、プレイヤーの名前が展開を変えないことを確かめる
 // 使い方: node test/survival.js
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine', 'survival']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine', 'survival']) require('../js/' + f + '.js');
 const fs = require('fs');
 const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(HGW.build.fromJSON);
 const S = HGW.survival;

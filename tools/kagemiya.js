@@ -18,7 +18,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
-for (const f of ['config', 'rank', 'parser', 'effects', 'build']) require(path.join(ROOT, 'js', f + '.js'));
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build']) require(path.join(ROOT, 'js', f + '.js'));
 const H = globalThis.HGW;
 
 const WIKI = 'https://seesaawiki.jp/kagemiya/';

@@ -67,9 +67,14 @@ th.on.asc::after { content: " ▲"; }
 th.l, td.l { text-align: left; }
 td.nm, th.nm { position: sticky; left: 0; background: #08193d; z-index: 1; text-align: left; }
 th.nm { z-index: 2; background: #0a1f4a; }
-td.nm button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 6px; max-width: 220px; }
-td.nm .t { overflow: hidden; text-overflow: ellipsis; font-weight: 700; }
-td.nm .c { font-size: 11px; color: var(--mute); }
+td.nm { max-width: 250px; }
+td.nm button { background: none; border: 0; padding: 0; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 6px; max-width: 240px; min-width: 0; }
+/* 長い真名は省略（…）して、クラスはその下に。全部の名前は押して開いた行と、指したときの吹き出しで見られる */
+td.nm button > span { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+td.nm .t { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+td.nm .c { display: block; font-size: 11px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+th.ce, td.ce { text-align: center; }
+@media (max-width: 560px) { td.nm { max-width: 150px; } td.nm button { max-width: 140px; } }
 td.nm img { width: 20px; height: 20px; flex: none; }
 tr.row:hover td { background: rgba(62, 230, 255, .06); }
 tr.row:hover td.nm { background: #0c2350; }
@@ -84,7 +89,9 @@ tr.row.open td { background: rgba(62, 230, 255, .08); }
 .dim { color: var(--mute); }
 /* 開いた行 */
 tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, .7); }
-.more .box { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 18px; padding: 4px 2px; position: sticky; left: 8px; max-width: min(100vw - 48px, 1180px); }
+.more .box { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 18px; padding: 4px 2px; position: sticky; left: 8px; max-width: min(100vw - 48px, 1180px); }
+.more .full { grid-column: 1 / -1; font-weight: 700; font-size: 14px; overflow-wrap: anywhere; }
+.more .full span { font-weight: 400; font-size: 12px; color: var(--mute); margin-left: 6px; }
 .more h4 { margin: 0 0 4px; font-size: 12px; color: var(--gold); font-weight: 500; }
 .more ul { margin: 0; padding-left: 18px; }
 .stl { display: grid; grid-template-columns: repeat(6, auto); gap: 2px 10px; justify-content: start; }
@@ -137,6 +144,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
 <script src="js/rank.js"></script>
 <script src="js/parser.js"></script>
 <script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
 <script src="js/build.js"></script>
 <script src="js/master.js"></script>
 <script src="js/war.js"></script>
@@ -164,13 +172,13 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
   const COLS = [
     { k: 'rank', t: '#', cls: '', sort: false },
     { k: 'name', t: '英霊', cls: 'nm', v: r => r.sv.trueName, str: true },
-    { k: 'grade', t: '評価', v: r => r.rate, html: r => gradeChip(r.grade) },
+    { k: 'grade', t: '評価', cls: 'ce', v: r => r.rate, html: r => gradeChip(r.grade) },
     { k: 'win', t: '優勝率', v: r => r.win, html: r => pctFmt(r.win) + (r.n ? `<span class="dim" title="集計した戦争のうち、この英霊が出た回数" style="font-size:11px">／${r.n}回</span>` : '') },
     { k: 'life', t: '生存', v: r => r.life, html: r => r.life == null ? '<span class="dim">—</span>' : r.lifeAll ? '<span class="num">最後まで</span>' : `<span class="num">${r.life}</span><span class="dim">日</span>` },
     { k: 'rate', t: '平均勝率', v: r => r.rate, html: r => pctFmt(r.rate) },
     { k: 'power', t: '戦闘力', v: r => r.sv.power, html: r => `<span class="num">${r.sv.power}</span>` },
     { k: 'np', t: '宝具', v: r => r.sv.npPeak || 0, html: r => r.sv.npPeak ? `<span class="num">${r.sv.npPeak}</span>` : '<span class="dim">—</span>' },
-    ...ABIL.map(([k, t]) => ({ k, t, v: r => r.ab[k], html: r => `${gradeChip(r.abG[k], true)}<span class="bar"><i style="width:${Math.round(r.abW[k] * 100)}%"></i></span>` })),
+    ...ABIL.map(([k, t]) => ({ k, t, cls: 'l', v: r => r.ab[k], html: r => `${gradeChip(r.abG[k], true)}<span class="bar"><i style="width:${Math.round(r.abW[k] * 100)}%"></i></span>` })),
   ];
   const colOf = k => COLS.find(c => c.k === k);
 
@@ -239,23 +247,20 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
     $('#body').innerHTML = list.map((r, i) => {
       const s = r.sv;
       const tds = COLS.map(col => col.k === 'rank' ? `<td class="rk">${i + 1}</td>`
-        : col.k === 'name' ? `<td class="nm"><button data-open="${esc(s.id)}" aria-expanded="${openId === s.id}"><img src="${H.classIcon(s.class.key)}" alt="" width="20" height="20" loading="lazy"><span><span class="t">${esc(s.trueName)}</span> <span class="c">${esc(s.class.label)}</span></span></button></td>`
-        : `<td>${col.html(r)}</td>`).join('');
+        : col.k === 'name' ? `<td class="nm"><button data-open="${esc(s.id)}" aria-expanded="${openId === s.id}" title="${esc(s.trueName + '（' + s.class.label + '）')}"><img src="${H.classIcon(s.class.key)}" alt="" width="20" height="20" loading="lazy"><span><span class="t">${esc(s.trueName)}</span> <span class="c">${esc(s.class.label)}</span></span></button></td>`
+        : `<td${col.cls ? ` class="${col.cls}"` : ''}>${col.html(r)}</td>`).join('');
       return `<tr class="row${openId === s.id ? ' open' : ''}">${tds}</tr>` + (openId === s.id ? `<tr class="more"><td colspan="${COLS.length}">${more(r)}</td></tr>` : '');
     }).join('');
   }
-  // 開いた行：ステータス・宝具・目立つ効果・勝ちにくい相手
+  // 開いた行：ステータス・宝具・目立つ効果
   function more(r) {
     const s = r.sv, STJA = B.STAT_JA;
     const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(H.rank.label(s.ranks[k]))}</b>`).join('');
     const nps = (s.nps || []).map(n => `<li>『${esc(n.name)}』 <span class="dim">${esc(H.rank.label(n.rank))}・${esc(n.typeRaw || '種別不明')}</span> ${n.disabled ? '<span class="chip neg">使えない</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}</li>`).join('') || '<li class="dim">なし</li>';
     const effs = Object.values(s.effectSummary || {}).filter(e => e.id !== 'tag' && Math.abs(e.passive) >= 0.05).sort((a, b) => Math.abs(b.passive) - Math.abs(a.passive)).slice(0, 8)
       .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc(e.name + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + (e.params && e.params.cond ? '（' + e.params.cond + '）' : ''))}</span>`).join('') || '<span class="dim">なし</span>';
-    const foes = rows.filter(x => x !== r).map(x => [x, (B.battleOdds(s, x.sv, {}).pA + B.battleOdds(s, x.sv, { np: true }).pA) / 2]).sort((a, b) => a[1] - b[1]);
-    const foe = l => l.map(([x, p]) => `<li>${esc(x.sv.trueName)} <span class="dim">（${esc(x.sv.class.label)}）${Math.round(p * 100)}%</span></li>`).join('');
-    return `<div class="box"><div><h4>ステータス</h4><div class="stl">${st}</div><h4 style="margin-top:8px">目立つ効果（スキル・宝具から）</h4>${effs}</div>
-      <div><h4>宝具</h4><ul>${nps}</ul>${s.origin ? `<h4 style="margin-top:8px">元ネタ</h4>${esc(s.origin)}` : ''}</div>
-      <div><h4>勝ちにくい相手（1対1）</h4><ul>${foe(foes.slice(0, 3))}</ul><h4 style="margin-top:8px">勝ちやすい相手</h4><ul>${foe(foes.slice(-3).reverse())}</ul></div></div>`;
+    return `<div class="box"><div class="full">${esc(s.trueName)}<span>${esc(s.class.label)}</span></div><div><h4>ステータス</h4><div class="stl">${st}</div><h4 style="margin-top:8px">目立つ効果（スキル・宝具から）</h4>${effs}</div>
+      <div><h4>宝具</h4><ul>${nps}</ul>${s.origin ? `<h4 style="margin-top:8px">元ネタ</h4>${esc(s.origin)}` : ''}</div></div>`;
   }
 
   // ---------- 操作 ----------

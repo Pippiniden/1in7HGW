@@ -65,16 +65,15 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 .dl { display: grid; grid-template-columns: 7em minmax(0, 1fr); gap: 3px 10px; font-size: 13px; }
 .dl dt { color: var(--sub); }
 .dl dd { margin: 0; overflow-wrap: anywhere; }
-.matchup { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 16px; font-size: 13px; }
-.matchup h4 { margin: 0 0 2px; font-size: 12px; color: var(--sub); font-weight: 600; }
-.matchup button { background: none; border: 0; padding: 1px 0; color: inherit; cursor: pointer; text-align: left; display: flex; justify-content: space-between; width: 100%; gap: 6px; font-size: 13px; }
-.matchup button:hover span:first-child { color: var(--accent); text-decoration: underline; }
 .reqnote { margin-top: 10px; }
 .pagebox { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; font-size: 12px; border: 1px solid var(--rule); border-radius: 8px; padding: 6px 8px; }
 .pagebox label { display: flex; gap: 6px; align-items: center; color: var(--sub); flex: 1 1 260px; min-width: 0; }
 .pagebox input { flex: 1; min-width: 0; }
 .pagebox p { margin: 0; flex-basis: 100%; }
 .pagebox.warn { background: var(--warn-bg); border-color: transparent; }
+.facebox { margin-top: 8px; display: flex; gap: 10px; align-items: center; font-size: 12px; }
+.facebox img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); flex: none; }
+.facebox code { overflow-wrap: anywhere; }
 .pagebox.warn p { color: var(--warn-ink); }
 .dacts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
 .dacts a { color: var(--accent); }
@@ -90,8 +89,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
   .dhead { top: 41px; }
   .dhead .back { display: inline-block; }
 }
-@media (max-width: 560px) { .matchup { grid-template-columns: minmax(0, 1fr); } .dl { grid-template-columns: 5.5em minmax(0, 1fr); } }
-.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+@media (max-width: 560px) { .toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 50; background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 8px; font-size: 13px; max-width: calc(100vw - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.2); }
 textarea { width: 100%; min-height: 180px; resize: vertical; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; background: var(--bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 8px; padding: 10px; }
 .hint { font-size: 12px; color: var(--sub); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -165,7 +163,7 @@ th { font-size: 11px; color: var(--sub); font-weight: 600; border-top: none; whi
 .idrow label { display: grid; gap: 4px; font-size: 13px; }
 .src { font-size: 11px; padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
 .src.dict, .src.override, .src.servant-override, .src.spec { color: var(--ok); border: 1px solid var(--ok); }
-.src.keyword, .src.dict-partial, .src.type, .src.compound { background: var(--warn-bg); color: var(--warn-ink); }
+.src.keyword, .src.dict-partial, .src.type, .src.compound, .src.fgo { background: var(--warn-bg); color: var(--warn-ink); }
 .src.default { background: var(--err-bg); color: var(--err-ink); }
 .src.lost { color: var(--sub); border: 1px solid var(--rule); }
 .desc { color: var(--sub); font-size: 12px; margin-top: 2px; white-space: pre-wrap; }
@@ -462,6 +460,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <script src="js/rank.js"></script>
 <script src="js/parser.js"></script>
 <script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
 <script src="js/build.js"></script>
 <script src="js/master.js"></script>
 <script src="js/war.js"></script>
@@ -512,7 +511,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const tg = p.tag ? '〔' + p.tag + '〕' : p.stat ? '〔' + (MS[p.stat] ? MS[p.stat].name : p.stat) + '〕' : '';
     return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
-  const SRC_JA = { dict: '辞書', 'dict-partial': '辞書＋推定', keyword: '推定', compound: '参照', default: '仮', override: '手直し', 'servant-override': '個別手直し', type: '種別のみ', spec: '指定', lost: '喪失' };
+  const SRC_JA = { dict: '辞書', 'dict-partial': '辞書＋推定', keyword: '推定', compound: '参照', default: '仮', override: '手直し', 'servant-override': '個別手直し', type: '種別のみ', spec: '指定', lost: '喪失', fgo: 'FGOより' };
   const srcBadge = s => `<span class="src ${esc(s)}">${esc(SRC_JA[s] || s)}</span>`;
   const isExtra = s => H.classDef(s.class.key).slot === 'extra';
 
@@ -554,9 +553,6 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const voice = Object.keys(sv.voice || {}).length ? `ゲームで使う場面（${vHas.filter(x => x[1]).length}/${vHas.length}）：${vHas.filter(x => x[1]).map(([k, n]) => esc(k) + '（' + n + '）').join('・') || 'なし'}`
       + (vHas.some(x => !x[1]) ? `<br><span class="hint">セリフの無い場面：${vHas.filter(x => !x[1]).map(x => esc(x[0])).join('・')}</span>` : '')
       + (vRest.length ? `<br><span class="hint">ゲームでは使わない見出し：${vRest.map(h => esc(h) + '（' + (sv.voice[h] || []).length + '）').join('・')}</span>` : '') : '';
-    // 対戦の見込み（勝ちにくい相手・勝ちやすい相手。押すと試し戦いに入る）
-    const mu = roster.length > 2 ? roster.filter(x => x !== sv).map(x => [x, (B.battleOdds(sv, x, {}).pA + B.battleOdds(sv, x, { np: true }).pA) / 2]).sort((a, b) => a[1] - b[1]) : [];
-    const muBtn = ([x, p]) => `<button data-mu="${esc(x.id)}" title="${esc(optLabel(x))}と試し戦い"><span>${esc(x.trueName)}<span class="hint">（${esc(x.class.label)}）</span></span><b>${Math.round(p * 100)}%</b></button>`;
     const req = lastReq && (lastReq.servant === sv.trueName) ? lastReq : null;
     return `<div class="body">
       ${req ? `<div class="box warn reqnote"><b>取り込んだ申請（${req.kind === 'add' ? '追加' : '調整の希望'}${req.from ? '・' + esc(req.from) : ''}）</b>${reqNotesHtml(req)}${req.reason ? `<div style="white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : ''}${req.content ? `<div style="white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : ''}</div>` : ''}
@@ -566,6 +562,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
+      <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
@@ -573,7 +570,6 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <p class="hint" style="margin:10px 0 0">効果の印：<span class="ef"><span class="who">自分</span></span>自分に掛かる / <span class="ef"><span class="who enemy">相手</span></span>戦う相手に掛かる / <span class="ef"><span class="who master">自分のマスター</span></span>マスターに掛かる。宝具の効果のうち戦いの効果は、宝具を使ったその戦いの間だけ働きます（昼・偵察・交渉などの効果は、持っているだけで働きます）。</p>
       <h3>スキル</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${skills || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
       <h3>宝具</h3><div class="tbl"><table><tr><th>名前</th><th>効果</th><th>割り当て</th><th></th></tr>${nps || '<tr><td colspan="4" class="hint">なし</td></tr>'}</table></div>
-      ${mu.length ? `<h3>対戦の見込み（宝具あり・なしの平均。押すと試し戦いへ）</h3><div class="matchup"><div><h4>勝ちにくい相手</h4>${mu.slice(0, 4).map(muBtn).join('')}</div><div><h4>勝ちやすい相手</h4>${mu.slice(-4).reverse().map(muBtn).join('')}</div></div>` : ''}
       <h3>セリフ <button class="sm" data-ct="${i}" data-tab="voice">セリフを編集</button></h3>
       <div style="font-size:13px">${voice || '<span class="hint">なし（ゲームではこのサーヴァントは何も言いません）</span>'}</div>
       <h3>プロフィール <button class="sm" data-ct="${i}" data-tab="profile">プロフィール・因縁を編集</button></h3>
@@ -681,6 +677,16 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
     $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="sp"></span>`
       + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
+    fillFace();
+  }
+  // 顔グラフィック（img/faces/真名.webp など）があれば詳細に出す
+  function fillFace() {
+    const im = $('#detail').querySelector('img[data-face]'); if (!im) return;
+    const name = im.dataset.face, u = H.faceUrl(name, () => { if ($('#detail').querySelector('img[data-face]') === im) fillFace(); });
+    if (!u) return;
+    im.src = u; im.hidden = false;
+    const note = $('#detail').querySelector('[data-face-note]');
+    if (note) note.innerHTML = `顔グラフィック：<code>${esc(decodeURIComponent(u))}</code>。ゲームでは、自分のサーヴァントと真名が分かった英霊に出ます。`;
   }
   function select(id, o) {
     o = o || {};
@@ -705,8 +711,6 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#detail').addEventListener('click', e => {
     const st = e.target.closest('[data-step]'); if (st) { step(+st.dataset.step); return; }
     if (e.target.closest('[data-back]')) { $('#browse').classList.remove('show'); const row = $(`#list .svr[data-id="${CSS.escape(sel)}"]`); if (row) row.scrollIntoView({ block: 'center' }); return; }
-    const mu = e.target.closest('[data-mu]');
-    if (mu) { const a = roster.find(x => x.id === sel), b = roster.find(x => x.id === mu.dataset.mu); if (a && b) { cmpA = a; cmpB = b; $('#cmpA').value = optLabel(a); $('#cmpB').value = optLabel(b); showView('cmp'); compare(); } }
   });
   document.addEventListener('keydown', e => {
     if (view !== 'roster' || e.target.closest('input, textarea, select, dialog') || e.altKey || e.ctrlKey || e.metaKey) return;

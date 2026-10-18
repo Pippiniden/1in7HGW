@@ -5,7 +5,7 @@
 // 大きな決断はおまかせ）。プレイヤーのサーヴァントの評価（S〜E。index.html の evaluate と同じ式）ごとに、方針ごとの勝率と
 // 生き残った日数を出し、おすすめが「最も勝ちやすい方針」より誤差を超えて劣っていないかを見る。
 // エンジンや config.js の数値を変えたら、これを回して REC_FOCUS を見直す。シード1000で約40秒。
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
 const H = HGW, fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const man = JSON.parse(fs.readFileSync(ROOT + '/data/manifest.json', 'utf8'));

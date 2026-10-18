@@ -150,6 +150,23 @@
   // 補助：通常7騎の枠を持つクラスの一覧
   G.standardClasses = () => Object.keys(CLASS_DEFS).filter(k => CLASS_DEFS[k].slot === 'standard');
   // クラスのアイコン（img/classes/{クラス}.webp）。七騎のクラス以外（ルーラーなどエクストラクラス）は星の印（extra.webp）
+  // 顔グラフィック：img/faces/<真名>.webp（.png・.jpg も可）。無い英霊がほとんどなので、見つかったときだけ表示する（UI が順に試す）
+  G.FACE_DIR = 'img/faces/';
+  G.FACE_EXT = ['webp', 'png', 'jpg'];
+  G.faceCandidates = name => { const n = String(name || '').trim(); return n ? G.FACE_EXT.map(x => G.FACE_DIR + encodeURIComponent(n) + '.' + x) : []; };
+  // 一度だけ順に試して、見つかった URL を覚える（ブラウザ用。見つからなければ null）。onFound は見つかったときに呼ぶ
+  const faceSeen = new Map();
+  G.faceUrl = (name, onFound) => {
+    const n = String(name || '').trim(); if (!n || typeof Image === 'undefined') return null;
+    if (faceSeen.has(n)) { const v = faceSeen.get(n); if (v && v.then) { if (onFound) v.then(u => u && onFound(u)); return null; } return v; }
+    const p = new Promise(res => {
+      const list = G.faceCandidates(n); let i = 0;
+      const next = () => { if (i >= list.length) return res(null); const u = list[i++], im = new Image(); im.onload = () => res(u); im.onerror = next; im.src = u; };
+      next();
+    }).then(u => { faceSeen.set(n, u); return u; });
+    faceSeen.set(n, p); if (onFound) p.then(u => u && onFound(u));
+    return null;
+  };
   G.classIcon = key => 'img/classes/' + (CLASS_DEFS[key] && CLASS_DEFS[key].slot === 'standard' ? key : 'extra') + '.webp';
 
   // ---------- 評価（S〜E） ----------

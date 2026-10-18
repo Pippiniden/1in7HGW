@@ -1,7 +1,7 @@
 // FGO風の欄（【FGO風性能】の下のレア度・所有カード・Skill1〜・アペンドスキル・攻撃モーションなど）を
 // スキル・宝具として読まないこと、宝具の説明の中の詠唱の行を宝具として読まないことを確かめる
 // 使い方: node test/fgo.js
-for (const f of ['config', 'rank', 'parser', 'effects', 'build']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build']) require('../js/' + f + '.js');
 const H = HGW, fs = require('fs');
 let fail = 0;
 const ok = (cond, msg) => { if (!cond) { fail++; console.error('NG:', msg); } };

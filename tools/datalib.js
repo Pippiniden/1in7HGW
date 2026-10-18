@@ -7,7 +7,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
-for (const f of ['config', 'rank', 'parser', 'effects', 'build', 'master', 'war']) require(path.join(ROOT, 'js', f + '.js'));
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war']) require(path.join(ROOT, 'js', f + '.js'));
 const H = globalThis.HGW, E = H.effects, B = H.build;
 
 const readJSON = p => JSON.parse(fs.readFileSync(p, 'utf8'));

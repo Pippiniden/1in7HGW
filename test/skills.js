@@ -1,6 +1,6 @@
 // スキル辞書の確認：原作の代表的なスキル名が辞書で決まるか、一般的な名前は説明文と合わせて決まるか
 // 使い方: node test/skills.js
-for (const f of ['config', 'rank', 'parser', 'effects']) require('../js/' + f + '.js');
+for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills']) require('../js/' + f + '.js');
 const assert = require('assert');
 const E = globalThis.HGW.effects, R = globalThis.HGW.rank;
 const res = (name, desc, rank) => E.resolveSkill({ name, rankRaw: rank || 'B', rank: R.parseRank(rank || 'B'), desc: desc || '' }, {});

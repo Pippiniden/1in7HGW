@@ -1,5 +1,5 @@
 // 使い方: node test/rebuild.js <書き出したJSONのフォルダ> [出力先]
-for (const f of ["config","rank","parser","effects","build","master","war"]) require("../js/"+f+".js");
+for (const f of ["config","rank","parser","effects","fgoskills","build","master","war"]) require("../js/"+f+".js");
 const fs = require('fs'), path = require('path');
 const dir = process.argv[2], out = process.argv[3];
 let list = [];
