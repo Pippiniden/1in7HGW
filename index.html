@@ -8,7 +8,6 @@
 <meta name="theme-color" content="#050d22">
 <!-- PWA（ホーム画面に追加・オフライン）。アイコンは icons/ に。差し替え方は icons/README.md -->
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
@@ -450,6 +449,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .result td, .result th { text-align: left; padding: 6px 8px 6px 0; border-bottom: 1px solid rgba(80, 196, 255, .16); vertical-align: top; }
 .result th { font: 600 12px var(--en); letter-spacing: .1em; color: var(--mute); }
 .result tr.win td:first-child { color: var(--gold); }
+.result td:first-child { white-space: nowrap; }
 /* 結末：陣営の目的と歩み・絆の推移・決断の一覧 */
 .result .rsec { margin-top: 16px; }
 .result .rsec > summary { cursor: pointer; }
@@ -508,6 +508,9 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .tipop b { color: var(--gold); font-size: 14px; }
 .tipop p { margin: 4px 0 0; }
 .tipop .tn2 { color: var(--mute); font-size: 12px; }
+.ci { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; display: inline-block; }
+.ci.big { width: 30px; height: 30px; vertical-align: -6px; margin-right: 8px; }
+.hd .ja .ci { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
 .tiphint { font-size: 11px; color: var(--mute); margin: 8px 0 0; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translateX(-50%); padding: 8px 16px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 30; max-width: calc(100vw - 32px); }
 .toast.on { opacity: 1; }
@@ -648,7 +651,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <button class="btn" id="installBtn" hidden>アプリとして追加する</button>
     <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
   </div>
-  <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァント名簿</a>から。</p>
+  <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァント名簿</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。</p>
 </section>
 
 <section class="war">
@@ -1251,7 +1254,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         <p class="note2">方針を「おまかせ」にしている日は、陣営の戦略「${esc(meta.policyLabel || '臨機応変')}」に沿って動く。</p>`;
     } else if (step === 2) {
       $('#opEn').textContent = 'Servant'; $('#opBand').textContent = 'あなたのサーヴァント';
-      $('#opTitle').textContent = `${snap.label}「${meta.trueName}」`;
+      $('#opTitle').innerHTML = `${ci(keyOf(snap.id), true)}${esc(snap.label)}「${esc(meta.trueName)}」`;
       const ranks = `<div class="ranks">${meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], sv ? sv.class.key : '')}><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
       $('#opBody').innerHTML = ev ? `
         <div class="grade"><span class="g ${ev.grade}">${ev.grade}</span><span class="verdict">${esc(GRADE[ev.grade])}</span>
@@ -1368,6 +1371,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   }
 
   // ---------- 表示 ----------
+  // クラスのアイコン（陣営の一覧・サーヴァントの欄・開戦の案内・結末）。key はクラスのキー（servantId の前半）
+  const keyOf = id => String((metaOf(id) || {}).servantId || '').split(':')[0];
+  const ci = (key, big) => key ? `<img class="ci${big ? ' big' : ''}" src="${H.classIcon(key)}" alt="" width="20" height="20" loading="lazy" decoding="async">` : '';
   const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   const KIND_JA = { prologue: '開幕', summon: '召喚', day: '昼の行動', night: '夜の行動', battle: '戦闘', np: '宝具', cs: '令呪', death: '脱落', event: '出来事',
     world: '街の出来事', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
@@ -1540,6 +1546,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
     if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
     try { const u = eucEncode(sv.page || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
     return `<div class="links">${links.join('')}</div>`;
   }
   // 解説の冒頭（文の切れ目で limit 字まで）
@@ -1928,7 +1935,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const won = c.id === result.winner;
       const st = won ? '聖杯を手にした' : c.alive ? '生き残った' : c.fate ? c.fate.day + '日目に脱落' : '脱落';
       return `<li class="${won ? 'win' : c.alive ? 'alive' : ''}">
-        <div class="ph"><span>${esc(c.label)}「${esc(c.trueName)}」</span><span class="st">${esc(st)}</span></div>
+        <div class="ph"><span>${ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}「${esc(c.trueName)}」</span><span class="st">${esc(st)}</span></div>
         <dl>
           <dt>マスター</dt><dd>${esc(c.master)}<br><small>${esc([c.origin, c.persona].filter(Boolean).join('・'))}</small></dd>
           <dt>願い</dt><dd class="wish">「${esc(m.wish || c.wish)}」${svWish ? `<br><small>英霊の願い：「${esc(svWish)}」</small>` : ''}</dd>
@@ -2048,7 +2055,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#sealMark').innerHTML = sealSvg(youNow.cs);
       const meta = metaOf(youNow.id);
       $('#mKv').innerHTML = `<dt>出自</dt><dd>${esc(youNow.origin)}</dd>${youNow.persona ? `<dt>性格</dt><dd>${esc(youNow.persona)}</dd>` : ''}<dt${tipAttr('st.cs')}>令呪</dt><dd>残り${youNow.cs}画</dd><dt>状態</dt><dd>${youNow.masterAlive ? '健在' : '死亡'}</dd><dt>願い</dt><dd>${esc(youNow.wish)}</dd>`;
-      $('#svClass').textContent = youNow.label; $('#svLore').hidden = !canLore(youNow.id);
+      $('#svClass').innerHTML = ci(keyOf(youNow.id)) + esc(youNow.label); $('#svLore').hidden = !canLore(youNow.id);
       $('#svName').innerHTML = `${esc(meta.trueName)}${youNow.alive ? '' : '<small>消滅</small>'}`;
       const svNow = servantOf(youNow.id), clsKey = svNow ? svNow.class.key : '';
       $('#svRanks').innerHTML = meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], clsKey)}><span>${k}</span><b>${esc(v)}</b></div>`).join('');
@@ -2064,7 +2071,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const st = win ? '聖杯を手にした' : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
       const can = canLore(c.id);
       return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
-        <div class="row1"><b>${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
+        <div class="row1"><b>${ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
         <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${c.ally != null && e.snap[c.ally] ? ' ・ ' + esc(e.snap[c.ally].label) + 'と同盟' : ''} ${sealsInline(c.cs)}</div>
         ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
       </li>`;
@@ -2104,7 +2111,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       <p>${esc(yours)}${decided ? `あなたが下した大きな決断は${decided}回。` : ''}</p>
       ${lastWordHtml()}
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
-        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
       ${purposeSection()}
       ${bondSection()}
@@ -2298,15 +2305,17 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const won = c.id === result.winner, mine = !!(lastSnap[c.id] && lastSnap[c.id].you) || c.id === youId;
       const fate = won ? '聖杯を手にした' : c.fate ? c.fate.text : '';
       setFont(ctx, 500, 22, CF.go);
-      const cells = [c.label, c.trueName, c.master, fate].map((t, i) => { const max = i === 3 ? 4 : 2, l = wrapText(ctx, t, widths[i]); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });
+      const icon = cardIcons.get(String(c.servantId || '').split(':')[0]), iw = icon ? 34 : 0;
+      const cells = [c.label, c.trueName, c.master, fate].map((t, i) => { const max = i === 3 ? 4 : 2, l = wrapText(ctx, t, widths[i] - (i ? 0 : iw)); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });
       const h = Math.max(...cells.map(l => l.length)) * 31 + 16;
       if (mine) { ctx.fillStyle = 'rgba(62, 230, 255, .12)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, h); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, h); }
       ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + h + 0.5); ctx.lineTo(W - P, y + h + 0.5); ctx.stroke();
       cells.forEach((lines, i) => {
         ctx.fillStyle = won && i < 2 ? CC.gold : i === 3 ? (won ? CC.gold : c.alive ? CC.cyan2 : CC.seal) : i === 2 ? CC.mute : mine && i === 1 ? CC.cyan2 : CC.ice;
         setFont(ctx, i === 1 ? 700 : 500, i === 3 ? 20 : 22, CF.go);
-        lines.forEach((l, j) => ctx.fillText(l, cols[i], y + 30 + j * 31));
+        lines.forEach((l, j) => ctx.fillText(l, cols[i] + (i ? 0 : iw), y + 30 + j * 31));
       });
+      if (icon) ctx.drawImage(icon, cols[0], y + 9, 26, 26);
       y += h;
     }
     return o.foot === false ? y + 24 : cardFoot(ctx, y + 24, `SEED ${seed}`);
@@ -2319,7 +2328,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const sv = servantOf(id), ev = sv ? evaluate(sv) : null;
     const label = (out.camps[id] || {}).label || (sv ? sv.class.label : '');
     let y = cardHead(ctx, 'SERVANT APPRAISAL', o.top != null ? '開戦時の評価' : `${out.city} ・ SEED ${seed}`, '呼んだサーヴァント', o.top);
-    setFont(ctx, 700, 46, CF.go); ctx.fillStyle = CC.ice; y = para(ctx, `${label}「${meta.trueName}」`, P, y, W - P * 2, 60);
+    const icon = cardIcons.get(keyOf(id)), iw = icon ? 70 : 0;
+    if (icon) ctx.drawImage(icon, P, y + 4, 56, 56);
+    setFont(ctx, 700, 46, CF.go); ctx.fillStyle = CC.ice; y = para(ctx, `${label}「${meta.trueName}」`, P + iw, y, W - P * 2 - iw, 60);
     setFont(ctx, 500, 22, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, `マスター ${m.name || ''}${m.originLabel ? '・' + m.originLabel : ''}`, P, y + 2, W - P * 2, 34) + 18;
     if (ev) {
       // 評価の印
@@ -2405,6 +2416,16 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     return { kind, blob, url: URL.createObjectURL(blob), name: `聖杯戦争_${CARD_KINDS[kind].file}_${out.city}_${seed}.png`, title: CARD_KINDS[kind].title };
   }
   let cards = {}, imgCur = null;
+  // 画像に描くクラスのアイコン（読み込めなければ描かない）
+  const cardIcons = new Map();
+  async function loadCardIcons() {
+    const keys = new Set(result.camps.map(c => String(c.servantId || '').split(':')[0]).filter(Boolean));
+    await Promise.all([...keys].map(async k => {
+      if (cardIcons.has(k)) return;
+      const im = new Image(); im.src = H.classIcon(k);
+      try { await im.decode(); cardIcons.set(k, im); } catch (e) { /* アイコンなしで描く */ }
+    }));
+  }
   // 「画像にする」：作れるものをまとめて作り、小さな見本から選んでもらう（観測者は結末のまとめだけ）
   async function openImages() {
     if (!out || !result) return;
@@ -2412,7 +2433,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#imgTitle').textContent = '画像にする'; $('#imgSub').textContent = 'PNG';
     $('#imgPick').innerHTML = '<p class="note2">画像を作っています…</p>'; showImgPick(true);
     $('#imgDlg').classList.add('on');
-    await survQuick();
+    await survQuick(); await loadCardIcons();
     const sv = youId != null ? servantOf(youId) : null, ev = sv ? evaluate(sv) : null;
     await cardFonts(JSON.stringify(out.meta) + JSON.stringify(result.camps) + words.map(w => w.text).join('') + (finalQuote() || { text: '' }).text
       + (ev ? ev.good.join('') + ev.bad.join('') : '') + Object.values(GRADE).join('')

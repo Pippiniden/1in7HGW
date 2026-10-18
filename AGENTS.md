@@ -92,8 +92,10 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
 index.html          Game (single page; inline CSS + inline UI script)
 manifest.webmanifest  PWA manifest (name, colours, icons, start_url ./index.html, scope ./)
 sw.js               Service worker (offline; see §2.8)
-icons/              App icons (placeholders: icon.svg + PNGs 192/512/maskable-512/apple-touch 180/favicon 32; README.md)
-roster.html         Admin tool: import wiki pages, review/fix effects, export data (~490 lines)
+icons/              App icons (hooded figure; PNGs 192/512/maskable-512 (inside the frame)/apple-touch 180/favicon 32 (face crop), 256-colour quantised; README.md)
+roster.html         Admin tool: import wiki pages, review/fix effects, export data; applies player requests
+submit.html         Player request form (new servant / adjustment) → GitHub Issue URL, .json file or copied text (no server)
+img/classes/        Class icons, 128×128 WebP: saber archer lancer rider caster assassin berserker + extra (any extra class)
 .nojekyll
 README.md           Japanese user/maintainer guide
 AGENTS.md           This file
@@ -697,6 +699,9 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   place (`body.locked`, `top: -scrollY`) so phones do not scroll the page behind; closing restores the position. Use `toTop()`
   instead of `scrollTo(0, 0)` (it defers to the lock). `.dlg-in` uses `100dvh` and `overscroll-behavior: contain`; `.dlg-foot`
   is sticky at the bottom (the confirm buttons stay reachable); the keyboard hints (`.keys`) are hidden at ≤820px.
+- **Class icons**: `H.classIcon(key)` (`config.js`) → `img/classes/<key>.webp`, non-standard classes → `extra.webp`. The UI takes
+  the key from `meta.servantId` / `result.camps[].servantId` (`keyOf(id)`, `ci(key, big)`) for the camps list, the Servant panel,
+  the opening's rating title, the result table and purposes; the image cards draw them via `cardIcons` (`loadCardIcons()`).
 - **Stat explanations** (`TIPS`, `tipAttr(key, classKey)`, `#tipPop`): any element with `data-tip="<key>"` shows a short
   explanation on mouse hover, on tap/click (pinned until tapped again or elsewhere), and on keyboard focus (Esc closes).
   Keys: `sv.str|end|agi|mag|luk|np` (servant ranks; `data-cls` adds the class weight note from `classWeights`),
@@ -719,6 +724,19 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
 - **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
   [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)][&n=<player's name>]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
   with the same seed replays the identical war (same data required).
+
+`submit.html` (player request form, Japanese): loads the published roster with `data.js` (published overrides become the
+baseline). Tab 新しい英霊を申請: kagemiya page name and/or pasted wiki text (parsed live with `importServant`; 「Wikiのページと同じ
+内容です」 keeps the text out of the request when a page name is given). Tab 調整を希望: pick a published servant (`?servant=名`; the
+game's lore dialog links here). Players can propose stat overrides, per-skill/NP effect specs (effect + strength preset 0.4/0.7/1/
+1.4/2 + tag/@cond) and NP attack/support; `withProp()` applies them temporarily to `SERVANT_OVERRIDES`/`STAT_OVERRIDES`/
+`NP_OVERRIDES`, rebuilds (`fromJSON(toLean())`) and shows grade (same formula as the opening), average win rate, power and NP
+peak before → after. Output: `{ format:'hgw-request', version:1, kind:'add'|'adjust', servant, class, id, page, wiki, overrides
+{servant,stats,np}, reason, content, from, contact }` as a GitHub new-issue URL (title/body prefilled; the wiki text is dropped
+from the body when the URL would exceed ~7600 chars and the player is told to attach the file), a downloaded .json, or copied
+text. The body ends with a ```` ```hgw-request ```` block. `roster.html` accepts that block (or the bare JSON) pasted into 取り込み,
+and the file via ファイルを読む (`findRequest` / `applyRequest`): imports `wiki` as a servant, merges `overrides`, shows the
+request in `#reqBox`, puts the page name into the GitHub import box when there is no text, and jumps to the servant.
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
 effect editor, stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; writes
