@@ -1,0 +1,115 @@
+# データの反映：リストのファイルを main に上げたら、差分を確かめ、生存曲線の集計を作り直す
+#
+# 1) data/incoming/ にファイルを上げたとき（ファイル名は何でもよい。「servants (3).json」のままでよい）
+#    → 中身を見て data/servants.json・data/overrides.json に反映し（tools/incoming.js）、ゲームが動くか確かめ、
+#      集計を作り直し、何が変わったか（tools/datadiff.js）を本文に書いたプルリクエストを作る。確かめてマージすれば公開される
+# 2) data/servants.json・data/overrides.json などを直接差し替えたとき
+#    → ゲームが動くか確かめ、集計（data/survival.json）が合わなくなっていれば作り直して main に入れる。差分は実行結果の画面に出る
+# 手で動かすときは Actions →「データの反映」→「Run workflow」
+name: データの反映
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/incoming/**'
+      - 'data/servants.json'
+      - 'data/overrides.json'
+      - 'data/manifest.json'
+      - 'data/packs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 変更前のデータを取っておく（差分を出すため）
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/base"
+          if ls data/incoming 2>/dev/null | grep -qvi '^readme'; then
+            # アップロードを反映する前の今のデータ
+            cp -r data "$RUNNER_TEMP/base/data"; rm -rf "$RUNNER_TEMP/base/data/incoming"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # 直接差し替えたときは、その前のコミットのデータ
+            git archive "$BEFORE" data | tar -x -C "$RUNNER_TEMP/base"
+          else
+            git archive HEAD~1 data | tar -x -C "$RUNNER_TEMP/base" || mkdir -p "$RUNNER_TEMP/base/data"
+          fi
+
+      - name: アップロードされたファイルを反映
+        id: inc
+        run: node tools/incoming.js --summary "$RUNNER_TEMP/incoming.md"
+
+      - name: ゲームが動くか確認
+        run: |
+          node test/sim.js 40 > "$RUNNER_TEMP/sim.txt" || { cat "$RUNNER_TEMP/sim.txt"; echo "::error::このデータではシミュレーションがエラーになりました"; exit 1; }
+          head -3 "$RUNNER_TEMP/sim.txt"
+          node test/fgo.js
+
+      - name: 生存曲線の集計
+        id: surv
+        run: |
+          if node tools/survival.js --check; then echo "rebuilt=0" >> "$GITHUB_OUTPUT"
+          else node tools/survival.js 3000; echo "rebuilt=1" >> "$GITHUB_OUTPUT"; fi
+
+      - name: 差分の報告
+        env:
+          REBUILT: ${{ steps.surv.outputs.rebuilt }}
+        run: |
+          node tools/datadiff.js "$RUNNER_TEMP/base/data" --summary "$RUNNER_TEMP/diff.md"
+          {
+            echo "## データの反映"; echo
+            if [ -s "$RUNNER_TEMP/incoming.md" ]; then cat "$RUNNER_TEMP/incoming.md"; echo; fi
+            echo "### 何が変わったか"; echo
+            cat "$RUNNER_TEMP/diff.md"; echo
+            if [ "$REBUILT" = 1 ]; then echo "生存曲線の集計（data/survival.json）を作り直しました（3000回）。"; else echo "生存曲線の集計（data/survival.json）は今のリストと合っています。"; fi
+          } > "$RUNNER_TEMP/summary.md"
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 反映
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APPLIED: ${{ steps.inc.outputs.applied }}
+          KEPT: ${{ steps.inc.outputs.kept }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --cached --quiet; then echo "反映するものはありませんでした" >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          if [ "${APPLIED:-0}" != 0 ]; then
+            # アップロードしたファイルの反映：差分を確かめてからマージしてもらう
+            BR="data/upload-${GITHUB_RUN_NUMBER}"
+            TITLE="データの反映：アップロードしたファイル（${APPLIED}件）"
+            git commit -q -m "$TITLE" -m "GitHub Actions「データの反映」#${GITHUB_RUN_NUMBER} で自動作成"
+            git push -q origin "HEAD:refs/heads/$BR"
+            if gh pr create --base "${GITHUB_REF_NAME}" --head "$BR" --title "$TITLE" --body-file "$RUNNER_TEMP/summary.md"; then
+              echo "プルリクエストを作りました（ブランチ $BR）。中身を確かめてマージしてください" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning::プルリクエストを自動で作れませんでした。Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」を有効にするか、ブランチ $BR から手動で作ってください"
+            fi
+          else
+            # 直接差し替えたときの集計の作り直し（リストから計算で作るファイルなので、そのまま main に入れる）
+            git commit -q -m "生存曲線の集計を作り直す（データの更新に合わせて）" -m "GitHub Actions「データの反映」#${GITHUB_RUN_NUMBER} で自動作成"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+            echo "生存曲線の集計を作り直して ${GITHUB_REF_NAME} に入れました" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ "${KEPT:-0}" != 0 ]; then echo "::notice::data/incoming/ に反映できなかったファイルが ${KEPT} 件残っています（実行結果の画面を見てください）"; fi

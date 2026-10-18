@@ -346,6 +346,15 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button id="saveJson">リストをJSONで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
+      <div class="gh">
+        <h4>公開する（GitHub）</h4>
+        <ol class="hint steps">
+          <li>上のボタンで「公開用に保存」と「手直し表を保存」（変えた方だけでよい）</li>
+          <li>「GitHub にアップロード」で開く画面に、保存したファイルをそのまま入れて「Commit changes」。ファイル名は「servants (3).json」のままでよい</li>
+          <li>Actions の「データの反映」が、反映・確認・生存曲線の集計の作り直しをして、何が変わったかを書いたプルリクエストを作る。確かめてマージすると公開される（数分）</li>
+        </ol>
+        <div class="row" style="margin-top:6px"><a class="btn" id="ghUpload" href="https://github.com/Pippiniden/1in7HGW/upload/main/data/incoming" target="_blank" rel="noopener">GitHub にアップロード（data/incoming）</a></div>
+      </div>
       <div class="row" style="margin-top:8px"><button class="ghost danger sm" id="clearAll">リストを空にする</button></div>
     </section>
   </section>
@@ -1210,7 +1219,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       + (nLoc ? `<div style="margin-top:4px">未公開の変更：${[l.add.length && `追加 ${l.add.length}騎`, l.upd.length && `変更 ${l.upd.length}騎`, l.del.length && `外した ${l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}${nPub ? '（そろえても残ります）' : ''}</div>` : '');
     $('#syncActs').hidden = !nPub && !nLoc;
     $('#syncPull').hidden = !nPub;
-    $('#unpub').innerHTML = nLoc ? `未公開の変更があります（${[l.add.length + l.upd.length + l.del.length && `${l.add.length + l.upd.length + l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}）。公開するには「公開用に保存」と「手直し表を保存」で書き出し、GitHub の data/ の同じ名前のファイルと置き換えます。` : '';
+    $('#unpub').innerHTML = nLoc ? `未公開の変更があります（${[l.add.length + l.upd.length + l.del.length && `${l.add.length + l.upd.length + l.del.length}騎`, pl.nOvLocal && `手直し ${pl.nOvLocal}件`].filter(Boolean).join('・')}）。公開するには「公開用に保存」と「手直し表を保存」で書き出し、下の「GitHub にアップロード」で data/incoming に上げます（ファイル名はそのままでよい）。` : '';
     // 画面の上の目印（公開・保存のタブと、リストの上の知らせ）
     const sb = $('#saveBadge'); sb.hidden = !nPub && !nLoc; sb.textContent = nPub ? '公開側の更新あり' : nLoc ? `未公開 ${l.add.length + l.upd.length + l.del.length + pl.nOvLocal}` : '';
     $('#syncBanner').hidden = !nPub;

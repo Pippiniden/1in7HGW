@@ -127,8 +127,16 @@ js/
 tools/
   kagemiya.js       Fetch kagemiya pages by name (EUC-JP URL) → HTML→wiki markup → parse → data/servants.json (Node CLI)
   survival.js       Build data/survival.json (loads data exactly like the game via data.js with an fs-backed fetch); --check
+  datalib.js        Shared loader for tools: loadDir(dataDir) (clears E.OVERRIDE_TABLES, applies the manifest's overrides, harvest,
+                    fromJSON), grades(roster) (same as the opening), sortLean(list) (class order → true name)
+  incoming.js       Apply files in data/incoming/ by content (see §4.4 Uploads); deletes applied files; GITHUB_OUTPUT incoming/applied/kept
+  datadiff.js       Markdown diff of two data dirs: servants added/removed/changed (sections, power, NP peak, grade), grade-only
+                    moves, override tables (added/changed/removed keys); GITHUB_OUTPUT diff_*
 .github/workflows/
   kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, rebuilds survival.json, opens a PR
+  data.yml          "データの反映": on push to main touching data/incoming/**, servants.json, overrides.json, manifest.json, packs/**
+                    (or by hand) — applies uploads, checks, rebuilds survival.json, reports the diff (§4.4 Uploads)
+data/incoming/      Upload drop folder (README.md explains it; other files are consumed by data.yml)
 test/
   sim.js            N automatic wars → balance stats; or print one war's log
   interactive.js    Random focus/answers through the generator; checks replay determinism
@@ -275,6 +283,19 @@ Identity: two entries with the same `class.key + trueName` are the same servant;
 - `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
 - `content` → `CONTENT_OVERRIDES`: `'trueName': { skills?, nps?, voice?, text?, profile?, relations?, base }` (see 4.5)
 - `pages` → `PAGE_OVERRIDES`: `'trueName': 'kagemiya page name'` (when the page title differs from the true name, e.g. ハイヌヴェレ → ウンコ)
+
+**Uploads (`data/incoming/`, workflow `data.yml`, `tools/incoming.js`).** The owner drops files there with any name (browser
+downloads become `servants (3).json`); the roster's 公開・保存 tab links to `github.com/…/upload/main/data/incoming`. Files are
+classified by content and applied in this order: `hgw-overrides` (or a bare table object) → replaces overrides.json (first, so
+overrides harvested from a list uploaded at the same time survive), then lists (largest first, so a full replacement cannot wipe a
+one-servant page uploaded with it), then `.txt` pages; `hgw-servants` / array / single servant → if it holds ≥ 80 % of the current ids it
+**replaces** the list (servants missing from it are named in the report), else upsert by id; lean packs are taken verbatim (small
+diffs), full exports go through `harvestOverrides` + `toLean(fromJSON())`; `.txt` wiki pages → `importServant` upsert (keeping the existing `page`);
+requests / records / survival files are left in place and reported. The list is re-sorted (`sortLean`). The workflow snapshots
+`data/` first, runs incoming.js, `test/sim.js 40` + `test/fgo.js`, rebuilds survival.json when `--check` fails, writes the
+`datadiff.js` report to the job summary and, if files were applied, opens a PR (`data/upload-N`) with that body; otherwise (data
+replaced directly on main) it commits only the rebuilt survival.json to main. Bot pushes use GITHUB_TOKEN, so they do not retrigger
+workflows; merging the PR retriggers it once, which then finds nothing to do.
 
 Overrides embedded in exported servant JSON (`effectSource: 'override'|'servant-override'`) are harvested
 back into the tables on load (`harvestOverrides`), without overwriting existing entries.
@@ -896,7 +917,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | New world/life event | Add a weighted key in `worldEvent`/`lifeEvent`; use `log()` and, if the player chooses, `ask()`. Put the text in `G.LINES` (`names.js`) and log `line(key, vars)`. |
 | More wording for an existing event | Add strings to the key's array in `G.LINES`; outcomes are unaffected. |
 | Fixed masters | Add a JSON array file and list it under `masters` in `manifest.json`. |
-| Data changed by hand | Run `node tools/survival.js` so `data/survival.json` matches (the game recomputes in the browser otherwise). |
+| Data changed by hand | Nothing to do: `data.yml` rebuilds `data/survival.json` on push (or upload the files to `data/incoming/` for a reviewed PR). Locally `node tools/survival.js`; the game recomputes in the browser while it does not match. |
 | New servant data | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), imports via `roster.html` → "公開用に保存", or drops a pack in `data/packs/` and lists it in the manifest. |
 | Improve wiki reading for old data | Fix `parser.js`, then run the workflow in 取り直し mode (re-fetches every page; lean JSON has no source text). |
 
