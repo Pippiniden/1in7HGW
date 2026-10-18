@@ -74,7 +74,7 @@
     const masterPool = (opts.masters || []).slice();
     const camps = comp.map((x, i) => {
       const sv = JSON.parse(JSON.stringify(x.servant));
-      for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd); sv.score[k] = sv.ranks[k].score; }
+      for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd, G.CONFIG.STAT_SCORE); sv.score[k] = sv.ranks[k].score; }
       sv.power = B.combatPower(sv);
       const def = G.classDef(sv.class.key);
       const base = sv.class.key === 'extra' ? sv.class.label : def.label;
@@ -474,7 +474,8 @@
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
           if (crit) dmg *= 1.5;
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(tg, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
-          tg.hp -= dmg; w.hp -= rnd() * 8;
+          // 負けた側も一矢報いる：戦闘力が拮抗しているほど返す傷は大きい（rnd は増やさない）
+          tg.hp -= dmg; w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           if (w.hp <= 0 && w.alive && o3 !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }

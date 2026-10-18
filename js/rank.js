@@ -18,9 +18,9 @@
       .trim();
   }
 
-  // 段階（小数可）→スコア。段階の間は直線補間、EXより上は伸ばす
-  function scoreAt(step) {
-    const S = CFG().RANK_SCORE, st = CFG().RANK_STEP;
+  // 段階（小数可）→スコア。段階の間は直線補間、EXより上は伸ばす。table を省くと RANK_SCORE
+  function scoreAt(step, table) {
+    const S = table || CFG().RANK_SCORE, st = CFG().RANK_STEP;
     const pts = LEVELS.map(l => [st[l], S[l]]);
     if (step <= pts[0][0]) return Math.max(0, pts[0][1] - (pts[0][0] - step) * 10);
     for (let i = 0; i < pts.length - 1; i++) {
@@ -96,11 +96,18 @@
     return out;
   }
 
-  // 範囲ランクを戦争ごとに1つに確定させる（rnd は 0〜1 の乱数関数）
-  function rollRange(r, rnd) {
+  // サーヴァントのステータス用のスコア（STAT_SCORE）。解析済みのランク（公開データに入っている score は RANK_SCORE のもの）から出し直す
+  function statScore(r) {
+    if (!r || r.none) return r && r.none ? 0 : null;
+    if (r.step == null) return r.score == null ? null : r.score;
+    return Math.round(scoreAt(r.step, CFG().STAT_SCORE || CFG().RANK_SCORE) * 10) / 10;
+  }
+
+  // 範囲ランクを戦争ごとに1つに確定させる（rnd は 0〜1 の乱数関数）。table を渡すとそのスコア表で（ステータスは STAT_SCORE）
+  function rollRange(r, rnd, table) {
     if (!r || !r.range) return r;
     const [lo, hi] = r.range, step = lo.step + (hi.step - lo.step) * (rnd || Math.random)();
-    return Object.assign({}, r, { step, score: Math.round(scoreAt(step) * 10) / 10, mult: Math.round(multAt(step) * 100) / 100, range: null, rolledFrom: r.raw });
+    return Object.assign({}, r, { step, score: Math.round(scoreAt(step, table) * 10) / 10, mult: Math.round(multAt(step) * 100) / 100, range: null, rolledFrom: r.raw });
   }
 
   // 数値（0〜100）またはランク文字列のどちらでも受け付ける（マスター用）
@@ -118,5 +125,5 @@
     return r.range ? one(r.range[0]) + '~' + one(r.range[1]) : one(r);
   }
 
-  G.rank = { normalize, parseRank, parseOne, scoreAt, multAt, rollRange, toScore, label, LEVELS };
+  G.rank = { normalize, parseRank, parseOne, scoreAt, statScore, multAt, rollRange, toScore, label, LEVELS };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -103,6 +103,7 @@
         review.push({ kind: 'stat', target: STAT_JA[k], why: st ? `「${st.raw}」を読めないため${CFG.MISSING_STAT}扱い` : `値が無いため${CFG.MISSING_STAT}扱い` });
       } else if (rk.unknown && src === 'wiki') review.push({ kind: 'stat', target: STAT_JA[k], why: `「${st.raw}」は不確定表記` });
       if (rk.range) review.push({ kind: 'stat', target: STAT_JA[k], why: `範囲ランク「${rk.raw}」：戦争開始時に抽選` });
+      rk = Object.assign({}, rk, { score: R.statScore(rk) }); // ステータスは STAT_SCORE で数える（宝具・マスターは RANK_SCORE のまま）
       sv.ranks[k] = rk; sv.score[k] = rk.score; sv.statSource[k] = src;
     }
     for (const a of sv.statsAlt || []) if (a.fromText && !Object.keys(so).length) review.push({ kind: 'stat', target: 'ステータス', why: `${a.label}、別のステータスが書かれています（どちらを使うか「ステータス編集」で選べます）` });
