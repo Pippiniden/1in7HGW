@@ -364,11 +364,31 @@
    *     その項目から先の、ランクの無い項目と、すでに出た名前の項目をスキル・宝具から外す（ランクの無い同じ名前の項目も外す）
    *   - 宝具の説明の中の詠唱・セリフの行が宝具として読まれたもの（ランクも種別も無く、文のような名前・説明なし）：
    *     ひとつ前の宝具の説明に戻す
+   *   - 「・神性：A」のような、説明の無い箇条書きのスキルが続く一覧（ページの別の欄にあるスキルのまとめ。FGO風の欄の
+   *     見出しが読めなかったときなど）：その半分以上がすでに説明つきで出たスキルなら、一覧ごと外す（why: 'list'）
    */
+  const BULLET_RE = /^[・●○■□◆◇＊*]\s*/;
+  const skillBase = n => String(n || '').replace(BULLET_RE, '').replace(/\s*[(（][^)）]*[)）]\s*$/, '').trim();
   function cleanItems(sv) {
     const skipped = sv.skippedItems || [];
     const note = (list, name, why) => { if (!skipped.some(x => x.list === list && x.name === name && x.why === why)) skipped.push({ list, name, why }); };
     const blank = v => !String(v == null ? '' : v).trim();
+    // 箇条書きのまとめの一覧（スキルの欄だけ）
+    {
+      const known = new Set(); const bullet = x => BULLET_RE.test(x.name || '') && blank(x.desc);
+      for (const key of ['classSkills', 'skills']) for (const x of sv[key] || []) if (!bullet(x)) known.add(skillBase(x.name));
+      for (const key of ['classSkills', 'skills']) {
+        const list = sv[key] || [], drop = new Set();
+        for (let i = 0; i < list.length;) {
+          if (!bullet(list[i])) { i++; continue; }
+          let j = i; while (j < list.length && bullet(list[j])) j++;
+          const run = list.slice(i, j), rep = run.filter(x => known.has(skillBase(x.name))).length;
+          if (rep * 2 >= run.length) run.forEach(x => drop.add(x));
+          i = j;
+        }
+        if (drop.size) { for (const x of drop) note('skills', x.name, 'list'); sv[key] = list.filter(x => !drop.has(x)); }
+      }
+    }
     const isFgo = x => isFgoItemName(x.name || '') || (blank(x.rankRaw) && (FGO_TABLE.test(x.desc || '') || FGO_TEXT.test(x.desc || '') || /^\s*\|\|/.test(x.desc || '')));
     const seen = new Set();
     for (const [key, isNp] of [['classSkills', false], ['skills', false], ['nps', true]]) {
