@@ -246,7 +246,11 @@ FGO entries). `test/fgo.js` covers both paths.
 `parseRank(raw)` → `{ raw, base, plus, minus, step, score, mult, burst, range, alt, unknown, none }`
 
 - `step`: E=1 … EX=6; each `+` adds `PLUS_STEP` (0.15), each `-` subtracts `MINUS_STEP` (0.25).
-- `score`: stat scale, interpolated from `RANK_SCORE` (E10 D20 C32 B46 A62 EX80).
+- `score`: interpolated from `RANK_SCORE` (E10 D20 C32 B46 A62 EX80). Used for NP power and Master stats.
+  **Servant stats (str…luk) are scored on `STAT_SCORE` instead** (E21 D26 C32 B39 A47 EX56, about half the spread):
+  `buildServant` replaces each stat rank's `score` with `R.statScore(rk)` (lean data still carries the `RANK_SCORE` value), and the
+  engine rolls stat ranges with `R.rollRange(r, rnd, CONFIG.STAT_SCORE)`. With `RANK_SCORE` one rank (B→A = 16) was about one
+  `BATTLE_K`, i.e. 73%:27% per exchange, and near-all-E servants almost never won.
 - `mult`: effect multiplier from `RANK_MULT` (E0.4 D0.6 C0.8 B1.0 A1.2 EX1.5).
 - `burst`: momentary multiplier for `+` marks (`PLUS_BURST` [1,2,3,4]).
 - `range`: for "C~A", "B/A", "C→A" → `[lo, hi]`; score is the mean; **rolled once per war** (`rollRange`).
@@ -553,6 +557,8 @@ Per round:
    + npBoost, then ×(0.9–1.1) noise. Charm can cut the other side by 40%.
 4. Winner of the exchange: logistic `p = 1/(1+exp(-(ea-eb)/BATTLE_K))`, `BATTLE_K` = 15.
 5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction.
+   **Counter**: the exchange winner takes `rnd×8 + dmg × counterDmg (0.3) × el/(ew+1)` back (the closer the powers, the more), so the
+   loser is not helpless and strong servants wear down while winning. No extra `rnd()` call.
 6. HP ≤ 0 → `lethal()`: `guts` (+bond) may survive at 5–15 hp; else the Master may use a command seal
    (decision `cs`: escape / rally / none); `cs_resist` can make a seal fail; otherwise `servantDown`.
 7. **Master strike**: rare chance the winning side hits the enemy Master directly:
@@ -944,8 +950,8 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (119 servants, 500 wars): errors 0, ~84–86% decided (draw ~14–16%), median 18 days (P10 10,
-P90 30), ~17 battles, ~27 NP uses, ~4.4 command-seal events, ~0.8 joint (allied) battles per war; berserker camps lose their Master
+Baseline with current data (119 servants, 500 wars): errors 0, ~88–89% decided (draw ~11–12%), median 18 days (P10 10,
+P90 30), ~15 battles, ~24 NP uses, ~4.3 command-seal events, ~0.6 joint (allied) battles per war; berserker camps lose their Master
 ~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 
@@ -961,7 +967,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | Task | Where / how |
 |---|---|
 | Add a class | One entry in `CLASS_DEFS` (`config.js`). |
-| Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`. |
+| Tune balance | `CONFIG.ENGINE` (incl. `counterDmg`), `BATTLE_K`, `STAT_W`, `STAT_SCORE` (servant stats), `RANK_SCORE` (NPs, Masters), `NP_TYPE`; re-run `sim.js`, `test/focus.js`, rebuild `data/survival.json`. |
 | Tune what a stat does | `CONFIG.STAT_FX` (see §7.5 Stat roles). Keep Master coefficients smaller than servant ones; update `TIPS` in `index.html` if a role changes. |
 | Voice heading the game should read | Add it to a slot's `aliases` in `VOICE_SLOTS` (`config.js`); a new scene needs a slot + a `say(c, ['key'])` call. |
 | Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. If the name is an ordinary word whose meaning depends on the description, also add it to `GENERIC`. Add canonical names to `test/skills.js`. |
