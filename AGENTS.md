@@ -563,6 +563,13 @@ The last `finaleDays` (3) days add aggression.
 
 Battle start: every participant (incl. helpers) pays `battleMana` (5) × `upk(c)`; a stored item (`c.items`, from `craft`,
 max 3) is consumed for temp guard +0.2 / power +0.05; `initiative` (≤0.5) may give `surprise` +0.08 (only rolled when > 0).
+**Opening NP**: `openingNP(c, terrain)` picks the usable NP (not disabled, not `self_retire` ≥ 0.5, affordable or `wildOf`; not in
+retreat stance) with the strongest on-use `initiative` (cond-checked, × `params.chance`) and adds it to that roll (main fighters only; no
+extra `rnd()` for servants without one). If the roll succeeds, `c.openNP` is set (log 「〇〇が宝具『…』で先手を取った。」) and the NP is
+fired through `fireNP` at the head of round 1 (before the ailment rolls; skipped if dead, stunned/sealed or no longer affordable); that
+side makes no other `useNP` that round. `useNP` = activation roll + weighted pick, then `fireNP(c, o, np, round, ctx)` (payment, power,
+on-use effects, exposure, log, backfire, self_retire). `battleOdds` with `opts.np` adds the best NP initiative too; `E.describe` shows
+its timing as 「戦いの始めに（先手を取れたら、この宝具を開幕に放つ）」.
 
 Per round:
 1. Retreat-stance camps may disengage immediately (round 1).

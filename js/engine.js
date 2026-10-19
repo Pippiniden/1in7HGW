@@ -408,7 +408,7 @@
       // どの宝具を使うか：威力だけで決めず、状況で重みを付けて選ぶ（複数の宝具を使い分ける）
       //   劣勢・瀕死・終盤 → 最大火力を優先 / 相手が弱っている・魔力が心もとない → 軽い宝具で足りる
       //   真名を知られていなければ、正体が露見しやすい宝具は控えめ / 自滅する宝具は追い詰められたときだけ
-      const fx = (n, id) => (n.effects || []).filter(e => e.id === id).reduce((t, e) => t + e.mag, 0);
+      const fx = npFx;
       const desperate = c.hp < 25, pressed = losing || c.hp < 40 || day > ENG.maxDays - ENG.finaleDays;
       const atkAll = nps.filter(n => n.attackResolved);
       const maxP = Math.max(1, ...atkAll.map(n => n.power)), minCost = Math.min(...nps.map(n => n.cost));
@@ -433,7 +433,13 @@
       };
       const ws = {}; nps.forEach((n, i) => { const w = weight(n); if (w > 0) ws[i] = w; });
       if (!Object.keys(ws).length) return;
-      const np = nps[+wpick(ws)];
+      fireNP(c, o, nps[+wpick(ws)], round, ctx);
+    }
+    // 宝具の効果の強さ（その宝具が持つ id の効果の合計）
+    const npFx = (n, id) => (n.effects || []).filter(e => e.id === id).reduce((t, e) => t + e.mag, 0);
+    // 選んだ宝具を放つ（魔力の支払い・宝具の威力・使ったときの効果・真名の露見・記録・反動）
+    function fireNP(c, o, np, round, ctx) {
+      const fx = npFx;
       const over = c.mana < npCostOf(c, np);
       c.mana -= npCostOf(c, np); c.npUses++;
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
@@ -453,6 +459,23 @@
       if (sr && chance(sr.mag)) c.pendingRetire = np.name;
     }
 
+    // 戦いの始めに切れる先手の宝具：{ np, ini（その宝具の先手の強さ） } または null
+    //   使える宝具（封じられていない・魔力が足りる／魔力を顧みない英霊・自滅する宝具でない）のうち、先手のいちばん強いもの
+    //   先手の付いた宝具を持たない英霊では何もしない（乱数も引かない）
+    function openingNP(c, terrain) {
+      if (c.stance === 'retreat' || (!c.masterAlive && c.mana < 5)) return null;
+      const wild = wildOf(c);
+      let best = null;
+      for (const n of c.sv.nps || []) {
+        if (n.disabled || npFx(n, 'self_retire') >= 0.5) continue;
+        let ini = 0;
+        for (const e of n.effects || []) if (e.id === 'initiative' && condOk(c, e.params, terrain)) ini += e.mag * (e.params && e.params.chance != null ? clamp(e.params.chance, 0, 1) : 1);
+        if (ini <= 0 || !(c.mana >= npCostOf(c, n) || wild)) continue;
+        if (!best || ini > best.ini) best = { np: n, ini };
+      }
+      return best;
+    }
+
     // ---------- 戦闘 ----------
     let witnessed = [];
     // ctx.helpA / ctx.helpB：同盟相手の加勢（a・b の味方として並んで戦う）
@@ -460,7 +483,7 @@
       const help = new Map([[a, ctx.helpA || null], [b, ctx.helpB || null]]);
       const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
       const all = () => side(a).concat(side(b));
-      for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; }
+      for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null; }
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
@@ -488,8 +511,14 @@
       // 用意していた道具 / 先手
       for (const [c, o] of [[a, b], [b, a]]) {
         if (c.items > 0) { c.items--; c.temp.push({ id: 'guard', mag: 0.2, params: null }, { id: 'power', mag: 0.05, params: null }); if (c.you || o.you) log('battle', `${sn(c)}は用意していた道具で身を固めた。`, [c.id, o.id]); }
-        const ini = Math.min(0.5, eff(c, 'initiative', ctx.terrain));
-        if (ini > 0 && chance(ini)) { c.surprise = (c.surprise || 0) + 0.08; log('battle', `${sn(c)}が先手を取った。`, [c.id, o.id]); }
+        // 先手の付いた宝具は、戦いの始めに切れる（いちばん先手の強い1つ。魔力が足りること、退く戦い方でないこと）
+        const op = openingNP(c, ctx.terrain);
+        const ini = Math.min(0.5, eff(c, 'initiative', ctx.terrain) + (op ? op.ini : 0));
+        if (ini > 0 && chance(ini)) {
+          c.surprise = (c.surprise || 0) + 0.08;
+          if (op) { c.openNP = op.np; log('battle', `${sn(c)}が宝具『${op.np.name}』で先手を取った。`, [c.id, o.id]); }
+          else log('battle', `${sn(c)}が先手を取った。`, [c.id, o.id]);
+        }
       }
       // 加勢の力：味方の戦闘力（傷の具合）＋宝具の一部。統率が連携を強める
       const assist = (x, o) => {
@@ -516,8 +545,14 @@
           const p = tryAil(x, y, id, ctx.terrain);
           if (p) { y.ail[id] = true; y.ail[id + 'P'] = p; log('battle', ailText(AIL_KEY[id], id, p, x, y), [y.id, x.id]); }
         }
-        useNP(a, b, round, ctx);
-        useNP(b, a, round, ctx);
+        // 開幕の宝具：先手を取った宝具は、1回目の打ち合いの頭で放つ（その打ち合いでは、ほかの宝具は使わない）
+        const opened = new Set();
+        for (const [c, o] of [[a, b], [b, a]]) if (c.openNP) {
+          const np = c.openNP; c.openNP = null;
+          if (c.alive && !(c.ail.stun || c.ail.seal) && (c.mana >= npCostOf(c, np) || (wildOf(c) && !c.overUsed))) { fireNP(c, o, np, round, ctx); opened.add(c); }
+        }
+        if (!opened.has(a)) useNP(a, b, round, ctx);
+        if (!opened.has(b)) useNP(b, a, round, ctx);
         for (const [x, o] of [[a, b], [b, a]]) { const y = help.get(x); if (y && y.alive) useNP(y, o, round, ctx); }
         for (const c of all()) if (c.pendingRetire) {
           const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`);
@@ -607,7 +642,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; } }
+      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; } }
     }
 
     function* ambushMaster(h, t) {

@@ -184,7 +184,7 @@
     const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
     const p = e.params || null;
     const bad = !!inf.bad === !(m < 0);
-    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : '宝具を使ったその戦いの間') : hasCond(p) ? '' : '常に',
+    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めに（先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間') : hasCond(p) ? '' : '常に',
       condText(p)].filter(Boolean).join('・');
     return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
   }
