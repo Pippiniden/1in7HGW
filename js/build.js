@@ -181,17 +181,24 @@
   // 全スキル・宝具の効果を部品ごとに合計（宝具の効果は「宝具使用時」扱いで別集計）
   function summarize(sv) {
     const out = {};
-    const add = (e, np) => {
+    // kind：'skill'（スキル）／'use'（宝具を使ったその戦いの間）／'hold'（宝具を持っているだけで）
+    // 発動のしかた（effects.js の TRIGGERS）があるものは常時に数えず、trig（スキル）・npTrig（宝具を使ったあと）に分ける
+    const add = (e, kind) => {
       const p = e.params || {};
-      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '');
+      const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
+      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '')
+        + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
-      if (np) o.onNP += e.mag; else o.passive += e.mag;
+      if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }
+      else if (kind === 'use') o.onNP += e.mag;
+      else { o.passive += e.mag; if (kind === 'skill') { o.by = o.by || {}; o.by[e.from] = (o.by[e.from] || 0) + e.mag; } }
       o.from.push(e.from + (e.persistent ? '(消滅後も持続)' : ''));
     };
-    for (const s of sv.allSkills || []) for (const e of s.effects || []) add(e, false);
+    for (const s of sv.allSkills || []) for (const e of s.effects || []) add(e, 'skill');
     // 宝具の効果：戦いの効果は「宝具を使ったその戦いの間」だけ（onNP）。昼・偵察・維持魔力などの効果は持っているだけで働く（passive）
-    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) add(e, E.npOnUse(e));
-    for (const k in out) { out[k].passive = Math.round(out[k].passive * 1000) / 1000; out[k].onNP = Math.round(out[k].onNP * 1000) / 1000; }
+    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) add(e, E.npOnUse(e) || (e.params && e.params.on) || E.INSTANT.includes(e.id) ? 'use' : 'hold');
+    const r3 = v => Math.round(v * 1000) / 1000;
+    for (const k in out) { const o = out[k]; o.passive = r3(o.passive); o.onNP = r3(o.onNP); if (o.trig) o.trig = r3(o.trig); if (o.npTrig) o.npTrig = r3(o.npTrig); }
     return out;
   }
   // 見積もり（評価・戦闘力・試し戦い）での条件付き効果の重み（effects.js の効果の条件）。エンジンでは engine.js の condOk で本当に判定する
@@ -206,7 +213,11 @@
     return w;
   }
   // 常時効果の合計。terrain を渡すと、その場所の条件付き効果も足す。o = { opp: 相手, home: 拠点で戦う }
-  const eff = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + x.passive * condW(x.params, terrain, o), 0);
+  //   発動する効果（effects.js の TRIGGERS）は、その場面の起きやすさ（TRIG_W）を掛けて足す（回復・吸収などその場で働く効果は inst で別に数える）
+  const trigW = x => (x.trig || 0) * (E.TRIG_W[x.on] || 0) + (x.npTrig || 0) * 0.4 * (E.TRIG_W[x.on] || 0);
+  const eff = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (x.passive + (E.INSTANT.includes(id) ? 0 : trigW(x))) * condW(x.params, terrain, o), 0);
+  // その場で働く効果（回復・吸収など）の見積もり：発動の起きやすさ × 強さ（宝具を使ったときのものは半分）
+  const inst = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (trigW(x) + x.onNP * 0.5) * condW(x.params, terrain, o), 0);
 
   // 基本戦闘力：重み付きのステータス平均 × (1 + 戦闘力上昇の合計)
   // sumOf を渡すと、戦闘力上昇の合計をそれで数える（エンジンが、その戦いで本当に働く効果だけを数えるため）
@@ -243,7 +254,8 @@
       const ox = ctxOf(x), oy = ctxOf(y);
       const pierce = Math.min(0.9, eff(y, 'pierce', T, oy));                       // 相手の防御無視で自分の守りが削られる
       const mg = y.class.key === 'caster' || (y.score.mag || 0) > (y.score.str || 0) ? eff(x, 'magic_guard', T, ox) * 0.5 : 0;
-      const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T, ox) * 0.5 + eff(x, 'evade', T, ox) * 0.5 + mg) * (1 - pierce)));
+      const sure = Math.min(1, Math.max(0, eff(y, 'sure_hit', T, oy)));                   // 相手の必中で回避が消える
+      const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T, ox) * 0.5 + eff(x, 'evade', T, ox) * 0.5 * (1 - sure) + mg) * (1 - pierce)));
       let p = combatPower(x, T, () => eff(x, 'power', T, ox)) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
       // 先手：宝具ありの見積もりでは、先手の付いた宝具（戦いの始めに切る）の先手も足す（engine.js の openingNP）
       const npIni = opts.np ? Math.max(0, ...(x.nps || []).filter(n => !n.disabled).map(n => (n.effects || []).filter(e => e.id === 'initiative')
@@ -254,13 +266,16 @@
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
       p *= 1 - Math.min(0.5, eff(y, 'debuff', T, oy));
       if (ox.home) p *= 1 + eff(x, 'territory', T, ox);
+      // 固定値の傷の増減（1回の傷はおよそ40）と、回復・吸収（霊基100のうちどれだけ取り戻せるか）
+      p *= (1 + Math.max(-0.5, eff(x, 'dmg_plus', T, ox)) / 40) * (1 + Math.max(-0.5, eff(x, 'dmg_cut', T, ox)) / 40);
+      p *= 1 + Math.min(0.4, (inst(x, 'heal', T, ox) + inst(x, 'drain_hp', T, ox) * 2) / 200);
       // 相手から受ける状態異常（engine.js の tryAil）：スタン・混乱で戦闘力が下がり、毒で少し削られ、宝具封印・スタンで宝具を使いにくい
       const EN = G.CONFIG.ENGINE;
       const ail = id => Math.min(E.AIL_CAP[id], Math.max(0, eff(y, id, T, oy)))
         * (1 - Math.min(0.95, Math.max(0, eff(x, 'ail_guard', T, ox) + (id === 'confuse' ? eff(x, 'mental_guard', T, ox) : 0))));
       const st = ail('stun'), cf = ail('confuse'), ps = ail('poison'), sl = ail('seal');
       p *= (1 - (1 - EN.stunPower) * st) * (1 - (1 - EN.confusePower) * cf) * (1 - 0.08 * ps);
-      if (opts.np) p += x.npPeak * 0.5 * (1 - 0.6 * sl) * (1 - 0.5 * st);
+      if (opts.np) p += x.npPeak * 0.5 * (1 - 0.6 * sl) * (1 - 0.5 * st) * (1 + Math.min(0.5, Math.max(-0.5, eff(x, 'np_charge', T, ox))));
       return p;
     };
     const ea = side(a, b), eb = side(b, a);

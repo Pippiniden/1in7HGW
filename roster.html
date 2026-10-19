@@ -220,6 +220,12 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .erow .econd select { width: auto; max-width: 13em; }
 .erow .econd input[data-e=vs] { width: 9em; }
 .erow .econd input[data-e=chance] { width: 4.5em; }
+#edLegend tr.lg th { text-align: left; font-size: 12px; color: var(--accent); padding-top: 10px; border-bottom: 1px solid var(--rule); }
+.estrip { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .estrip[hidden] { display: none; } .estrip label { display: inline-flex; align-items: center; gap: 4px; } .erow .estrip select { width: auto; max-width: 16em; }
+.etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
+.etrig label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .etrig select { width: auto; max-width: 14em; }
+.erow .etrig input[data-e=cost] { width: 4.5em; } .erow .etrig input[data-e=uses] { width: 6em; }
 .estat { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
 .estat[hidden] { display: none; }
 .estat label { display: inline-flex; align-items: center; gap: 4px; }
@@ -446,7 +452,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <div class="desc" id="edDesc" style="margin-bottom:10px;max-height:160px;overflow:auto"></div>
   <p class="hint" id="edNote" style="margin:0 0 8px"></p>
   <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span>特攻・弱点の相手／マスターの能力</span><span></span></div>
-  <p class="hint" style="margin:-2px 0 8px">各行の下の「条件」「相手」「確率」で、その効果が働く場面を絞れます（空ならいつでも）。確率は戦いごとに一度判定し、当たった戦いの間だけ働きます。状態異常（魅了・毒・スタン・混乱・宝具封印）は「名前」で呼び名を（石化・火傷など）、「記録の文」で掛けたときの記録を変えられます（{S}＝掛けた側、{O}＝掛けられた側、{N}＝名前）。</p>
+  <p class="hint" style="margin:-2px 0 8px">各行の下の「条件」「相手」「確率」で、その効果が働く場面を絞れます（空ならいつでも）。確率は戦いごとに一度判定し、当たった戦いの間だけ働きます。「発動」「魔力」「回数」で、効果が働く場面（戦いの始め・押し勝ったとき・瀕死のとき・毎朝など）と、発動ごとに払う魔力、1回の戦いで発動できる回数を決められます（発動を選んだ効果の確率は、発動のたびに判定します）。状態異常（魅了・毒・スタン・混乱・宝具封印）は「名前」で呼び名を（石化・火傷など）、「記録の文」で掛けたときの記録を変えられます（{S}＝掛けた側、{O}＝掛けられた側、{N}＝名前）。</p>
   <datalist id="tagList"></datalist>
   <div id="edRows"></div>
   <div class="row" style="margin:8px 0 12px"><button class="sm" id="edAdd">＋ 効果を追加</button></div>
@@ -1052,8 +1058,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- 効果の編集 ----------
   let edCtx = null;
   const whoOf = id => E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—';
-  const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(whoOf(id))}）</option>`).join('');
-  $('#edLegend').innerHTML = Object.entries(E.EFFECTS).map(([id, d]) => `<tr><td><b>${esc(d.name)}</b><div class="hint">${esc(id)}</div></td><td style="white-space:nowrap">${esc(whoOf(id))}</td><td>${esc(d.desc)}</td></tr>`).join('');
+  // 効果の選択肢と凡例は、ジャンル（effects.js の EFFECT_GROUPS）ごとに分ける
+  const effOptions = sel => E.effOptionsHtml(sel, esc, id => `${E.EFFECTS[id].name}（${whoOf(id)}）`);
+  $('#edLegend').innerHTML = E.EFFECT_GROUPS.map(([, title, ids]) => `<tr class="lg"><th colspan="3">${esc(title)}</th></tr>`
+    + ids.map(id => { const d = E.EFFECTS[id]; return `<tr><td><b>${esc(d.name)}</b><div class="hint">${esc(id)}</div></td><td style="white-space:nowrap">${esc(whoOf(id))}</td><td>${esc(d.desc)}${d.trig ? `<div class="hint">発動の既定：${esc(E.TRIG_JA[d.trig])}</div>` : ''}</td></tr>`; }).join('')).join('');
   // 行の入力 → [部品ID, 係数, params]。条件は「条件」「相手」「確率」の欄（以前の「竜@水辺」の書き方も読む）
   function specOf(r) {
     const q = k => r.querySelector(`[data-e=${k}]`);
@@ -1064,7 +1072,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const c = q('cond').value || cond; if (c) p.cond = c;
     const vs = q('vs').value.trim(); if (vs) p.vs = vs;
     const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-    readStat(q, id, p);
+    readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p);
     return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
   }
   // 条件欄の選択肢（効果の条件は effects.js の COND_OPTS。知らない値はそのまま残す）
@@ -1092,12 +1100,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const [id, f, p] = spec || ['power', 1, null];
     const pv = p ? p.tag || p.stat || '' : '';
     const div = document.createElement('div'); div.className = 'erow';
-    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="竜 / luck"><button class="sm ghost" title="削除">×</button>${condFields(p)}${statFields(id, p)}`;
+    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="${esc(E.paramHint(id) || '竜 / luck')}"><button class="sm ghost" title="削除">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, edCtx && edCtx.kind === 'n')}${E.stripFieldsHtml(id, p, esc)}${statFields(id, p)}`;
     const fx = document.createElement('div'); fx.className = 'efx';
     div.querySelector('button').onclick = () => { div.remove(); fx.remove(); };
     div.addEventListener('input', () => edExplain(div));
     div.addEventListener('change', e => {
-      if (e.target.matches('[data-e=id]')) { const st = div.querySelector('.estat'), id2 = e.target.value; st.hidden = !E.AILMENTS[id2]; st.querySelector('[data-e=name]').placeholder = E.AILMENTS[id2] || ''; st.querySelector('[data-e=msg]').placeholder = E.AIL_MSG_HINT[id2] || ''; }
+      if (e.target.matches('[data-e=id]')) { const st = div.querySelector('.estat'), id2 = e.target.value; st.hidden = !E.AILMENTS[id2]; st.querySelector('[data-e=name]').placeholder = E.AILMENTS[id2] || ''; st.querySelector('[data-e=msg]').placeholder = E.AIL_MSG_HINT[id2] || ''; div.querySelector('[data-e=p]').placeholder = E.paramHint(id2) || '竜 / luck'; div.querySelector('.estrip').hidden = !E.STRIP_IDS.includes(id2); }
       edExplain(div);
     });
     $('#edRows').appendChild(div); $('#edRows').appendChild(fx);
@@ -1113,8 +1121,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
     $('#edAtkRow').hidden = kind !== 'n';
     $('#edNote').textContent = kind === 'n'
-      ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。`
-      : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。';
+      ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。`
+      : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。「発動」を選ぶと、その場面で発動します（魔力を払う・回数を限ることもできます）。回復・吸収・解除は、選ばなければ効果ごとの既定の場面で発動します。';
     if (kind === 'n') { const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)]; document.querySelector(`input[name=atk][value=${o ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true; }
     document.querySelector(`input[name=scope][value=${item.effectSource === 'override' ? 'global' : 'servant'}]`).checked = true;
     $('#ed').showModal();

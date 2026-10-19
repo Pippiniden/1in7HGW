@@ -42,6 +42,9 @@
     confuse:      { name: '混乱',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '打ち合いごとに相手を混乱させる確率。混乱した相手は戦闘力が下がり、自分を傷つけることもある' },
     seal:         { name: '宝具封印',     phase: 'battle',    unit: 'chance', base: 0.15, desc: '押し勝ったとき、相手の宝具をその戦いの間封じる確率' },
     ail_guard:    { name: '状態異常耐性', phase: 'battle',    unit: 'chance', base: 0.40, desc: '毒・スタン・混乱・宝具封印・魅了を防ぐ確率' },
+    sure_hit:     { name: '必中',         phase: 'battle',    unit: 'chance', base: 0.50, desc: '相手の回避を打ち消す（回避の効果を割合で消す）' },
+    dmg_plus:     { name: 'ダメージプラス', phase: 'battle',  unit: 'pt',     base: 4,    desc: '押し勝ったときに与える傷を固定値で増やす' },
+    skill_seal:   { name: 'スキル封印',   phase: 'battle',    unit: 'chance', base: 0.30, trig: 'win', desc: '相手の「発動するスキル」（発動のしかたが「常に」以外の効果）を、その戦いの間止める確率。状態異常耐性で防がれる' },
     rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟相手と並んで戦うときの連携（加勢の力）を強める' },
     anti_master:  { name: 'マスター狙い', phase: 'battle',    unit: 'chance', base: 0.15, desc: '敵マスターを直接狙える確率' },
     // 被ダメージ・生存
@@ -49,8 +52,19 @@
     magic_guard:  { name: '魔術耐性',     phase: 'damage',    unit: 'rate',   base: 0.30, desc: '魔力の高い相手（キャスターなど）との戦いで守りになる' },
     mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了に抵抗する確率' },
     guts:         { name: '致命傷耐性',   phase: 'lethal',    unit: 'chance', base: 0.35, desc: '倒れるはずの一撃で踏みとどまる確率' },
+    dmg_cut:      { name: 'ダメージカット', phase: 'damage',  unit: 'pt',     base: 4,    desc: '押し負けたときに受ける傷を固定値で減らす' },
+    taunt:        { name: 'かばう',       phase: 'battle',    unit: 'chance', base: 0.20, desc: '同盟相手に加勢したとき、味方の代わりに一撃を受ける確率を上げる（ターゲット集中）' },
     weakness:     { name: '弱点',         phase: 'damage',    unit: 'rate',   base: 0.30, desc: '特定の相手（params.tag）から受けるダメージが増える（不利な効果）' },
     master_guard: { name: 'マスター護衛', phase: 'damage',    unit: 'chance', base: 0.20, desc: 'マスターが狙われたときに守る確率' },
+    // 回復・吸収（その場で働く効果。発動のしかた params.on が無いときは trig の場面で発動する）
+    heal:         { name: '回復',         phase: 'battle',    unit: 'pt',     base: 20,   trig: 'pinch', desc: 'その場で自分の霊基を回復する（既定は瀕死になったとき）' },
+    drain_hp:     { name: '体力吸収',     phase: 'battle',    unit: 'pt',     base: 10,   trig: 'win',   desc: '相手の霊基を吸い取って自分を回復する（既定は押し勝ったとき。吸い取りでは倒れない）' },
+    mana_gain:    { name: '魔力回復',     phase: 'battle',    unit: 'pt',     base: 20,   trig: 'start', desc: 'その場でマスターの魔力（魔力の蓄え）を回復する（既定は戦いの始め）' },
+    drain_mana:   { name: '魔力吸収',     phase: 'battle',    unit: 'pt',     base: 10,   trig: 'win',   desc: '相手の魔力を吸い取って自分の魔力にする（既定は押し勝ったとき）' },
+    // 解除
+    strip:        { name: '強化解除',     phase: 'battle',    unit: 'chance', base: 0.50, trig: 'start', desc: '相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手など）を消す確率。消す効果（params.eff）を選ぶと、相手のその効果だけを、常に持っている分も含めてその戦いの間止める' },
+    cleanse:      { name: '弱体解除',     phase: 'battle',    unit: 'rate',   base: 0.50, trig: 'start', desc: '自分の状態異常（毒・スタン・混乱・宝具封印・スキル封印）を消し、その戦いの間は相手の弱体化・状態異常を弱める' },
+    self_strip:   { name: '自己強化解除', phase: 'battle',    unit: 'flag',   base: 1, fixed: true, trig: 'start', desc: '自分の効果を外す。params.tag に書いたスキル・宝具の、params.eff の効果（どちらかだけでもよい）を、その戦いの間止める（両方空なら、その戦いで得た強化を消す）。両立しない効果の切り替えに' },
     // 遭遇・情報
     stealth:      { name: '隠密',         phase: 'encounter', unit: 'chance', base: 0.25, desc: '敵に見つからない確率' },
     detect:       { name: '索敵',         phase: 'encounter', unit: 'chance', base: 0.20, desc: '敵を見つける・待ち伏せを見抜く確率' },
@@ -77,11 +91,82 @@
     tag:          { name: '属性付与',     phase: 'passive',   unit: 'flag',   base: 1, fixed: true, desc: '特攻の対象になる属性（params.tag）を持つ' },
     // 宝具使用時
     np_boost:     { name: '宝具強化',     phase: 'np',        unit: 'rate',   base: 0.15, desc: '宝具の威力' },
+    np_charge:    { name: '宝具チャージ', phase: 'np',        unit: 'chance', base: 0.15, desc: '打ち合いごとに宝具を放つ確率を上げる' },
     np_cost:      { name: '宝具消費',     phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具の魔力消費の増減（マイナスで軽くなる）' },
     backfire:     { name: '反動',         phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具を使うと自分も傷つく' },
     self_retire:  { name: '自滅',         phase: 'np',        unit: 'chance', base: 1.0, fixed: true, desc: '宝具を使うと自分が脱落する確率' },
     disabled:     { name: '使用不可',     phase: 'np',        unit: 'flag',   base: 1, fixed: true, desc: 'この宝具は今回の召喚では使えない' },
   };
+
+  // ---------- ジャンル（リストツール・申請フォームの効果の選択肢と凡例を分ける） ----------
+  const EFFECT_GROUPS = [
+    ['atk', '攻め', ['power', 'power_vs', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'instakill', 'initiative']],
+    ['def', '守り', ['guard', 'evade', 'magic_guard', 'dmg_cut', 'guts', 'luck', 'weakness']],
+    ['heal', '回復・吸収', ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'regen', 'heal_other']],
+    ['ail', '弱体・状態異常', ['debuff', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal']],
+    ['resist', '耐性', ['ail_guard', 'mental_guard', 'cs_resist']],
+    ['clear', '解除', ['strip', 'cleanse', 'self_strip']],
+    ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'self_retire', 'disabled']],
+    ['intel', '索敵・情報', ['stealth', 'detect', 'intel', 'reveal', 'conceal']],
+    ['move', '撤退・追撃', ['escape', 'pin']],
+    ['camp', '陣営・魔力', ['territory', 'craft', 'resource', 'upkeep_down', 'upkeep_up', 'solo', 'uncontrolled']],
+    ['team', '同盟・マスター', ['rally', 'taunt', 'negotiate', 'anti_master', 'master_guard', 'master_buff']],
+    ['other', 'その他', ['tag']],
+  ];
+  const GROUP_OF = {};
+  for (const [g, , ids] of EFFECT_GROUPS) for (const id of ids) GROUP_OF[id] = g;
+  for (const id of Object.keys(EFFECTS)) if (!GROUP_OF[id]) { GROUP_OF[id] = 'other'; EFFECT_GROUPS[EFFECT_GROUPS.length - 1][2].push(id); }
+
+  // ---------- 発動のしかた（params.on。どの効果にも付けられる。engine.js の fireTrig と合わせる） ----------
+  //   ''     ：常に（いままでの常時効果）
+  //   start  ：戦いの始めに      round：打ち合いのたびに     win：押し勝ったとき     lose：押し負けたとき
+  //   pinch  ：瀕死になったとき（霊基が ENGINE.pinchAt を切ったとき。1回の戦いに一度）
+  //   np     ：宝具を使ったとき  kill：相手を倒したとき     day：毎朝（戦いの外）
+  // 一緒に付けられるもの：cost＝発動ごとの魔力（払えなければ発動しない。「打ち合いのたびに」と組めば「魔力がある限り自動発動」）／
+  //   uses＝1回の戦いで何回まで（戦いの始め・瀕死・相手を倒したときは、もともと一度）／chance＝発動のたびに判定する確率
+  // 発動して得た強化（戦闘力・守りなど）は、その戦いの終わりまで続く（同じスキルからは重ねない）。打ち合いのたびに発動したものはその打ち合いの間だけ
+  //   （魔力を払い続ければ毎回掛かる）。毎朝・相手を倒したときに得た強化は、次の朝まで。
+  // 回復・吸収・解除・スキル封印は、発動したその場で働く（instant）。これらは params.on が無ければ EFFECTS の trig の場面で発動する。
+  // 宝具の効果は、params.on が無ければ使ったときに働く（いままでどおり）。params.on があれば、使ったあとその場面のたびに発動する。
+  const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['lose', '押し負けたとき'],
+    ['pinch', '瀕死になったとき'], ['np', '宝具を使ったとき'], ['kill', '相手を倒したとき'], ['day', '毎朝（戦いの外）']];
+  const TRIG_JA = Object.fromEntries(TRIGGERS);
+  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal'];
+  // 効果の発動の場面（スキル）。'' は常時
+  const trigOf = e => (e && e.params && e.params.on) || (EFFECTS[e.id] && EFFECTS[e.id].trig) || '';
+  // 見積もり（評価・試し戦い）での発動の重み：その場面がどのくらい起きるか
+  const TRIG_W = { '': 1, start: 1, round: 1, win: 0.5, lose: 0.4, pinch: 0.3, np: 0.4, kill: 0.15, day: 0.8 };
+  const trigText = (p, id, np) => {
+    const on = (p && p.on) || '', def = (EFFECTS[id] || {}).trig;
+    const t = [];
+    if (on) t.push(TRIG_JA[on] + '発動' + (np ? '（宝具を使ったあと）' : ''));
+    else if (def && !np) t.push(TRIG_JA[def] + '発動');
+    if (p && p.cost > 0) t.push(`魔力${p.cost}を払って`);
+    if (p && p.uses > 0) t.push(`1回の戦いに${p.uses}回まで`);
+    return t.join('・');
+  };
+
+  // ---------- 編集画面の部品（roster.html・submit.html で共通。文字列を作るだけで、画面には触らない） ----------
+  // 効果の選択肢：ジャンルごとの <optgroup>。label(id) で「名前（誰に）」を作る
+  const effOptionsHtml = (sel, esc, label) => EFFECT_GROUPS.map(([, title, ids]) => `<optgroup label="${esc(title)}">`
+    + ids.map(id => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(label(id))}</option>`).join('') + '</optgroup>').join('');
+  // 発動のしかた・魔力・回数の欄。宝具では空欄が「使ったとき」（使ったあとでは起きない「戦いの始め」「毎朝」は出さない）
+  const trigFieldsHtml = (p, esc, np) => { p = p || {}; return `<div class="etrig"><label>発動<select data-e="on">`
+    + TRIGGERS.filter(([k]) => !np || !['start', 'day'].includes(k) || k === p.on).map(([k, t]) => `<option value="${k}"${k === (p.on || '') ? ' selected' : ''}>${esc(k ? t + (np ? '（使ったあと）' : '') : np ? '使ったとき' : '既定（常に／効果ごと）')}</option>`).join('')
+    + `</select></label><label>魔力<input type="number" data-e="cost" min="0" step="5" value="${p.cost > 0 ? p.cost : ''}" placeholder="0"></label>`
+    + `<label>回数<input type="number" data-e="uses" min="0" step="1" value="${p.uses > 0 ? p.uses : ''}" placeholder="制限なし">回まで</label></div>`; };
+  const readTrig = (q, p) => {
+    const on = q('on') ? q('on').value : ''; if (on) p.on = on;
+    const c = parseFloat(q('cost') ? q('cost').value : ''); if (isFinite(c) && c > 0) p.cost = Math.round(c * 10) / 10;
+    const u = parseInt(q('uses') ? q('uses').value : '', 10); if (isFinite(u) && u > 0) p.uses = u;
+  };
+  // 解除する効果の欄（強化解除・自己強化解除だけ）。空なら「すべて」
+  const STRIP_IDS = ['strip', 'self_strip'];
+  const stripFieldsHtml = (id, p, esc) => `<div class="estrip"${STRIP_IDS.includes(id) ? '' : ' hidden'}><label>止める効果<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>`
+    + effOptionsHtml((p && p.eff) || '', esc, x => EFFECTS[x].name) + '</select></label></div>';
+  const readStrip = (q, id, p) => { if (!STRIP_IDS.includes(id) || !q('eff')) return; const v = q('eff').value; if (v) p.eff = v; };
+  // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
+  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
 
   // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
   // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
@@ -103,6 +188,7 @@
   // 確率の効果がマイナスのとき：その確率が下がる（同じ効果のほかのスキルや幸運などと合わせて、0%未満にはならない）
   const less = (what, m) => `${what} −${pc(m)}（ほかの効果と合わせて0%未満にはならない）`;
   const pm = v => (v < 0 ? '−' : '+') + num(Math.abs(v));
+  const effName = id => (EFFECTS[id] || {}).name || id;
   const EFFECT_INFO = {
     power:        { who: 'self', fx: m => `戦闘力 ${sg(m)}` },
     power_vs:     { who: 'self', fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
@@ -118,6 +204,21 @@
     confuse:      { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'confuse')}させる確率`, m) : `打ち合いごとに ${pc(Math.min(AIL_CAP.confuse, m))} の確率で相手を${ailName(p, 'confuse')}させる。その打ち合いの戦闘力 −${pc(1 - ENG().confusePower)}、${pc(ENG().confuseSelf)} の確率で自分を傷つける（霊基 −${ENG().confuseSelfDmg}）（精神耐性・状態異常耐性・マスターの精神で防がれる）` },
     seal:         { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手の宝具を封じる確率`, m) : `押し勝ったとき ${pc(Math.min(AIL_CAP.seal, m))} の確率で相手の宝具を封じ（${ailName(p, 'seal')}）、その戦いの間は使わせない（状態異常耐性で防がれる）` },
     ail_guard:    { who: 'self', fx: m => m < 0 ? `毒・スタン・混乱・宝具封印・魅了を防ぐ確率 −${pc(m)}（ほかの耐性と合わせて0%未満にはならない）` : `毒・スタン・混乱・宝具封印・魅了を ${pc(Math.min(0.95, m))} の確率で防ぐ` },
+    sure_hit:     { who: 'enemy', fx: m => m < 0 ? `相手の回避が ${pc(m)} 強まる` : `相手の回避を ${pc(Math.min(1, m))} 打ち消す` },
+    dmg_plus:     { who: 'enemy', fx: m => `押し勝ったときに与える傷 ${pm(m)}` },
+    dmg_cut:      { who: 'self', fx: m => `押し負けたときに受ける傷 ${pm(-m)}（1未満にはならない）` },
+    taunt:        { who: 'ally', fx: m => m < 0 ? less('加勢したときに味方の代わりに一撃を受ける確率', m) : `同盟相手に加勢したとき、味方の代わりに一撃を受ける確率 +${pc(m)}` },
+    skill_seal:   { who: 'enemy', fx: m => m < 0 ? less('相手のスキルを封じる確率', m) : `${pc(Math.min(0.8, m))} の確率で、相手の「発動するスキル」をその戦いの間止める（状態異常耐性で防がれる）` },
+    heal:         { who: 'self', fx: m => `その場で霊基 ${pm(m)}（最大100）` },
+    drain_hp:     { who: 'enemy', fx: m => `相手の霊基を ${num(Math.abs(m))} 吸い取り、自分の霊基を同じだけ回復（相手は霊基1より下にならない）` },
+    mana_gain:    { who: 'master', fx: m => `その場で魔力 ${pm(m)}（上限まで）` },
+    drain_mana:   { who: 'enemyMaster', fx: m => `相手の魔力を ${num(Math.abs(m))} 吸い取り、自分の魔力にする` },
+    strip:        { who: 'enemy', fx: (m, p) => p && p.eff ? `${pc(Math.min(1, m))} の確率で、相手の「${effName(p.eff)}」を、常に持っている分も含めてその戦いの間止める` : `${pc(Math.min(1, m))} の確率で、相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手）を消す` },
+    cleanse:      { who: 'self', fx: m => `自分の毒・スタン・混乱・宝具封印・スキル封印をその場で消し、その戦いの間は相手の弱体化と状態異常の確率 −${pc(Math.min(1, m))}` },
+    self_strip:   { who: 'self', fx: (m, p) => p && p.tag && p.eff ? `自分の「${p.tag}」の「${effName(p.eff)}」を、その戦いの間止める（ほかの効果はそのまま）`
+      : p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : p && p.eff ? `自分の「${effName(p.eff)}」を（どのスキル・宝具のものも）、その戦いの間止める`
+      : '自分がその戦いで得た強化（補助宝具・発動したスキル・道具）を消す' },
+    np_charge:    { who: 'self', fx: m => `打ち合いごとに宝具を放つ確率 ${sg(m)}` },
     rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
     guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m * 0.5))}、守りとして戦闘力 ${sg(m * 0.5)}` },
@@ -165,13 +266,14 @@
   const COND_OPTS = [['', 'いつでも'], ['水辺', '水辺・雨の夜'], ['森', '森'], ['山', '山'], ['夜', '夜（満月を除く）'], ['拠点', '自分の拠点で'], ['瀕死', '瀕死のとき（霊基4割未満）']];
   const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1)));
   // 条件の説明（「いつ働くか」に足す）
-  function condText(p) {
+  function condText(p, id) {
     if (!p) return '';
+    const each = p.on || (id && EFFECTS[id] && EFFECTS[id].trig);
     return [p.cond ? COND_JA[p.cond] || p.cond + 'でだけ' : '', p.vs ? `「${p.vs}」の相手と戦うときだけ` : '',
-      p.chance != null && p.chance < 1 ? `戦いごとに ${pc(Math.max(0, p.chance))} の確率で発動` : ''].filter(Boolean).join('・');
+      p.chance != null && p.chance < 1 ? `${each ? '発動のたびに' : '戦いごとに'} ${pc(Math.max(0, p.chance))} の確率で${each ? '' : '発動'}` : ''].filter(Boolean).join('・');
   }
   // 短い表記（一覧の札など）：（水辺）〔対 竜〕（30%）
-  const condShort = p => !p ? '' : (p.cond ? '（' + p.cond + '）' : '') + (p.vs ? '〔対 ' + p.vs + '〕' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '');
+  const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + '〉' : '') + (p.cond ? '（' + p.cond + '）' : '') + (p.vs ? '〔対 ' + p.vs + '〕' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '');
   /**
    * 効果ひとつの説明。e は instantiate の結果（mag を持つ）か [id, factor, params] と rank。
    * ctx.np：宝具の効果 / ctx.attack：攻撃宝具
@@ -184,8 +286,10 @@
     const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
     const p = e.params || null;
     const bad = !!inf.bad === !(m < 0);
-    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めに（先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間') : hasCond(p) ? '' : '常に',
-      condText(p)].filter(Boolean).join('・');
+    const tt = trigText(p, e.id, ctx.np), inst = INSTANT.includes(e.id);
+    const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めに（先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
+      : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の朝まで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
+      condText(p, e.id)].filter(Boolean).join('・');
     return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
   }
 
@@ -240,7 +344,9 @@
     '変化':         [['conceal', 0.8]],
     '無辜の怪物':   [['power', 0.4], ['conceal', -0.6]],
     '自己回復':     [['regen', 0.6], ['upkeep_down', 0.6]],
-    '吸血':         [['regen', 0.8], ['power', 0.2]],
+    '吸血':         [['regen', 0.8], ['power', 0.2], ['drain_hp', 0.6]],
+    '魔力吸収':     [['drain_mana', 1]],
+    'エナジードレイン': [['drain_hp', 0.8], ['drain_mana', 0.6]],
     '嵐の航海者':   [['rally', 0.6], ['escape', 0.5]],
     '竜殺し':       [['power_vs', 1, { tag: '竜' }]],
     '獣殺し':       [['power_vs', 1, { tag: '獣' }]],
@@ -589,6 +695,15 @@
     { re: /(?:相手|敵|対象)[^。]{0,12}(?:混乱|錯乱|幻惑)させ|混乱を(?:付与|与え|招)|錯乱させ|幻覚(?:を見せ|作用|に陥)|幻惑の効果/, id: 'confuse', not: /無効化|弱体化し|耐性|防ぐ|効かな/ },
     { re: /宝具[^。]{0,10}(?:を封じ|を封印す|の使用を(?:封|禁|妨)|を使えなく)|真名解放を(?:封|阻|させな)/, id: 'seal', not: /自身|自分|この宝具/ },
     { re: /毒[^。]{0,6}(?:耐性|無効|効かな)|(?:状態異常|バッドステータス|病毒)[^。]{0,8}(?:耐性|無効|効かな|防|抵抗)/, id: 'ail_guard', not: /(?:相手|敵)の|引き下げ|下げ|低下|弱め/ },
+    // 回復・吸収・解除（その場で働く効果。発動の場面は効果ごとの既定）。言い回しがはっきりしたものだけ
+    { re: /(?:生命力|精気|体力|霊基|血液?|命)[^。]{0,6}(?:を)?(?:吸収|吸い取|吸い上げ|啜|奪い取)|吸血(?:し|を行|によ)|エナジードレイン/, id: 'drain_hp', not: /吸収され|奪われ|吸われ/ },
+    { re: /魔力[^。]{0,8}(?:を)?(?:吸収|吸い取|吸い上げ|奪い取|奪う|簒奪)|魔力(?:の)?(?:略奪|強奪)/, id: 'drain_mana', not: /吸収され|奪われ|吸われ|大気|大地|マナ|霊脈|地脈|周囲の魔力|自然/ },
+    { re: /(?:強化|バフ|加護|祝福)(?:状態|効果)?[^。]{0,4}(?:を)?(?:解除|打ち消|剥ぎ取|剥が)/, id: 'strip', not: /自身|自分|されない|受けない/ },
+    { re: /(?:弱体|状態異常|呪い|呪詛|バッドステータス)(?:効果)?[^。]{0,6}(?:を)?(?:解除|解呪|浄化|祓|消し去|取り除)|解呪/, id: 'cleanse', not: /(?:相手|敵)の/ },
+    { re: /スキル[^。]{0,8}(?:を封じ|を封印|の使用を(?:封|禁|妨)|を使えなく|を無力化)/, id: 'skill_seal', not: /自身|自分|このスキル/ },
+    { re: /ダメージカット|(?:攻撃|ダメージ)を[^。]{0,6}(?:一定量|一定値)(?:軽減|減ら|カット)/, id: 'dmg_cut' },
+    { re: /ターゲット集中|攻撃を(?:引き付け|引きつけ|一身に)|(?:味方|仲間|マスター)を(?:かば|庇)/, id: 'taunt' },
+    { re: /宝具(?:の)?(?:連続(?:使用|解放)|連発|再使用|チャージ|充填)/, id: 'np_charge', not: /できない|不可|出来ない/ },
   ];
   // 場所などの条件
   const CONDS = [['水辺', /水場|水辺|海上|海で|海に|水中|川で/], ['森', /森の中|森で|樹木|木々/], ['山', /山中|山で/], ['夜', /夜間|夜に|暗闇/]];
@@ -840,5 +955,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});
