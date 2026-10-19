@@ -370,7 +370,9 @@ Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`
 **Effect spec** (used everywhere): `[effectId, factor = 1, params?]`.
 **Meaning** (`E.EFFECT_INFO[id] = { who, bad?, fx(mag, params) }`, `E.describe(effect, { np, attack })` → `{ name, who, whoJa, bad,
 when, text }`): who = self / enemy / ally / master / enemyMaster / none; `fx` states what the engine actually does with the magnitude
-(keep it in sync with engine.js). Shown in roster.html (skill/NP tables, effect editor rows, legend) and submit.html.
+(keep it in sync with engine.js). Shown in roster.html (skill/NP tables, effect editor rows, legend) and submit.html. Every `fx` must read
+correctly for a **negative** magnitude too (an override can set one): chance effects say the chance drops and cannot go below 0%
+(`less()`), counts use `pm()` (no 「−-18」), and wording that flips (見つかりにくい／やすい) follows the sign.
 **Magnitude**: `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank` → table lookup;
 unknown rank → ×0.8).
 
@@ -516,7 +518,8 @@ for day = 1..maxDays (30):
     battle → checkFallen
   quiet days are collapsed into one 'quiet' log entry
   stop when ≤ 1 servant alive
-end: winner (1 alive) / mutual destruction (0) / draw (time out); result
+end: winner (1 alive with a living Master, or a stray that still has solo days) / wipe (0 alive — e.g. a mutual kill —, or the last
+     servant has no Master and no solo days left: it fades before the Grail descends) / draw (time out); result.ending = 'win'|'wipe'|'draw'
 ```
 
 The last `finaleDays` (3) days add aggression.
@@ -562,6 +565,8 @@ Per round:
 5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction.
    **Counter**: the exchange winner takes `rnd×8 + dmg × counterDmg (0.3) × el/(ew+1)` back (the closer the powers, the more), so the
    loser is not helpless and strong servants wear down while winning. No extra `rnd()` call.
+   If the winner's own hp drops to ≤ 0 it goes through `lethal()` too — also when the loser has just died (cause `'mutual'`,
+   `fin.how = 'mutual'`, narration 「…を討った…もまた、受けた傷に崩れ落ちた。相討ちだった。」). Before, a winner at ≤ 0 hp stayed alive.
 6. HP ≤ 0 → `lethal()`: `guts` (+bond) may survive at 5–15 hp; else the Master may use a command seal
    (decision `cs`: escape / rally / none); `cs_resist` can make a seal fail; otherwise `servantDown`.
 7. **Master strike**: rare chance the winning side hits the enemy Master directly:
@@ -703,7 +708,7 @@ The meta is filled after the prologue without using `rnd()`, so it does not affe
 
 ### 7.10 Result
 
-`{ seed, city, days, you, winner, camps:[{ id, label, slot, trueName, cls, servantId, master, origin, wish,
+`{ seed, city, days, you, winner, ending ('win'|'wipe'|'draw'), camps:[{ id, label, slot, trueName, cls, servantId, master, origin, wish,
 alive, masterAlive, fate, kills, npUses, battles, power, you, bond, policy, persona }], entries }`
 
 ---

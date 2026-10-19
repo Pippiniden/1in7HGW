@@ -224,6 +224,7 @@
     const md = (c, k) => c.masterAlive ? dev(c.master.stats[k]) : 0;
     const npCostOf = (c, n) => n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag'));
     const active = () => camps.filter(c => c.alive);
+    let lastMutual = null;   // 最後に相討ちがあった日（結末の書き分けに使う）
     const isBerserk = c => c.sv.class.key === 'berserker';
     // 維持魔力の倍率：クラス（バーサーカーは重い）× 燃費のスキル
     // 制御の利かない英霊（バーサーカーと、制御困難の強い英霊）：魔力が尽きても止まらず、足りない分をマスターの生命力から食う
@@ -277,6 +278,7 @@
         : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${nm(c)}は消滅した。`
         : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
         : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${nm(c)}は消滅した。`
+        : fin.how === 'mutual' ? `${nm(by)}を討った${nm(c)}もまた、受けた傷に崩れ落ちた。相討ちだった。`
         : line('blow', { by: nm(by), c: nm(c) });
       log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
@@ -328,8 +330,9 @@
       }
       // 決め手：この打ち合いで宝具を使っていれば宝具、同じ戦いの前の打ち合いで使っていれば「宝具で追い詰めた」
       const ln = w.lastNP;
-      const fin = ln && ln.round === round ? { how: 'np', np: ln.name } : ln ? { how: 'np-earlier', np: ln.name } : { how: cause === 'instakill' ? 'instakill' : 'blow' };
-      servantDown(l, `${day}日目の夜、${nm(w)}${fin.how === 'np' ? 'の宝具『' + ln.name + '』に倒れた' : cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w, fin);
+      const fin = cause === 'mutual' ? { how: 'mutual' } : ln && ln.round === round ? { how: 'np', np: ln.name } : ln ? { how: 'np-earlier', np: ln.name } : { how: cause === 'instakill' ? 'instakill' : 'blow' };
+      if (cause === 'mutual') lastMutual = day;
+      servantDown(l, `${day}日目の夜、${nm(w)}${cause === 'mutual' ? 'と相討ちになった' : fin.how === 'np' ? 'の宝具『' + ln.name + '』に倒れた' : cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w, fin);
       return 'dead';
     }
 
@@ -478,7 +481,8 @@
           tg.hp -= dmg; w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
-          if (w.hp <= 0 && w.alive && o3 !== 'dead') { const o2 = yield* lethal(w, l, 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
+          // 押し勝った側も深手で倒れることがある（相手を討ち取った打ち合いなら相討ち）
+          if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
         if (cover) { if (o3 === 'dead' || o3 === 'escaped') leave(lh); else if (lh.alive && lh.hp < 25) leave(lh, `深手を負った${sn(lh)}は、戦いの場を離れた。`); }
         else outcome = outcome || o3;
@@ -1023,13 +1027,22 @@
     phase = 'end';
     const left = active();
     let winner = null;
-    if (left.length === 1) {
-      winner = left[0];
+    let ending = left.length ? 'draw' : 'wipe';
+    // マスターを失い、単独行動でも現界を保てない最後の一騎は、聖杯の降臨を待たずに消える（全滅）
+    if (left.length === 1 && !left[0].masterAlive && !(left[0].soloLeft > 0)) {
+      const c = left[0];
+      c.alive = false; c.out = true; c.hp = 0; c.fate = { day, text: 'マスターを失い、聖杯の降臨を待たずに消えた' };
+      log('end', `${day}日目。最後に残ったのは${nm(c)}だった。だが主を失った霊基は、聖杯の降臨を待たずにほどけていった。聖杯を手にする者はいなかった。`, [c.id], { big: true, quote: say(c, ['戦闘不能', '敗北']) });
+      left.length = 0; ending = 'wipe';
+    } else if (left.length === 1) {
+      winner = left[0]; ending = 'win';
       const wish = (winner.sv.profile && winner.sv.profile.wish) || null;
-      log('end', `${day}日目。最後に残ったのは${nm(winner)}と、マスターの${winner.masterAlive ? mn(winner) : '（なし）'}だった。聖杯が降臨する。`, [winner.id], { big: true, quote: say(winner, ['聖杯について', '勝利']) });
+      log('end', winner.masterAlive ? `${day}日目。最後に残ったのは${nm(winner)}と、マスターの${mn(winner)}だった。聖杯が降臨する。`
+        : `${day}日目。最後に残ったのは${nm(winner)}だった。マスターを失いながらも単独で現界を保ち、ただ一騎で聖杯の降臨を迎える。`, [winner.id], { big: true, quote: say(winner, ['聖杯について', '勝利']) });
       log('end', (winner.masterAlive ? `${mn(winner)}の願いは「${winner.master.wish}」。` : '') + (wish ? `${nm(winner)}の願いは「${wish}」。` : ''), [winner.id]);
-    } else if (!left.length) log('end', `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。`, [], { big: true });
-    else log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
+    }
+    if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
+    else if (ending === 'draw') log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
     for (const c of camps) pubName.add(c.id);
     for (const c of left) c.fate = { day, text: c === winner ? '勝者' : '生き残った' };
     log('end', '——聖杯戦争、終結。', [], { head: true });
@@ -1038,6 +1051,7 @@
       seed, city, days: day,
       you: you ? you.id : null,
       winner: winner ? winner.id : null,
+      ending,   // 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）
       camps: camps.map(c => ({
         id: c.id, label: c.label, slot: c.slot, trueName: c.sv.trueName, cls: c.sv.class.label, servantId: c.sv.id,
         master: c.master.name, origin: c.master.originLabel, wish: c.master.wish, alive: c.alive, masterAlive: c.masterAlive,
