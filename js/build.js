@@ -186,7 +186,7 @@
     const add = (e, kind) => {
       const p = e.params || {};
       const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
-      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '')
+      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '')
         + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }

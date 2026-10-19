@@ -62,9 +62,9 @@
     mana_gain:    { name: '魔力回復',     phase: 'battle',    unit: 'pt',     base: 20,   trig: 'start', desc: 'その場でマスターの魔力（魔力の蓄え）を回復する（既定は戦いの始め）' },
     drain_mana:   { name: '魔力吸収',     phase: 'battle',    unit: 'pt',     base: 10,   trig: 'win',   desc: '相手の魔力を吸い取って自分の魔力にする（既定は押し勝ったとき）' },
     // 解除
-    strip:        { name: '強化解除',     phase: 'battle',    unit: 'chance', base: 0.50, trig: 'start', desc: '相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手など）を消す確率' },
+    strip:        { name: '強化解除',     phase: 'battle',    unit: 'chance', base: 0.50, trig: 'start', desc: '相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手など）を消す確率。消す効果（params.eff）を選ぶと、相手のその効果だけを、常に持っている分も含めてその戦いの間止める' },
     cleanse:      { name: '弱体解除',     phase: 'battle',    unit: 'rate',   base: 0.50, trig: 'start', desc: '自分の状態異常（毒・スタン・混乱・宝具封印・スキル封印）を消し、その戦いの間は相手の弱体化・状態異常を弱める' },
-    self_strip:   { name: '自己強化解除', phase: 'battle',    unit: 'flag',   base: 1, fixed: true, trig: 'start', desc: '自分の効果を外す。params.tag に書いたスキル・宝具の効果をその戦いの間止める（空なら、その戦いで得た強化を消す）。両立しない効果の切り替えに' },
+    self_strip:   { name: '自己強化解除', phase: 'battle',    unit: 'flag',   base: 1, fixed: true, trig: 'start', desc: '自分の効果を外す。params.tag に書いたスキル・宝具の、params.eff の効果（どちらかだけでもよい）を、その戦いの間止める（両方空なら、その戦いで得た強化を消す）。両立しない効果の切り替えに' },
     // 遭遇・情報
     stealth:      { name: '隠密',         phase: 'encounter', unit: 'chance', base: 0.25, desc: '敵に見つからない確率' },
     detect:       { name: '索敵',         phase: 'encounter', unit: 'chance', base: 0.20, desc: '敵を見つける・待ち伏せを見抜く確率' },
@@ -160,8 +160,13 @@
     const c = parseFloat(q('cost') ? q('cost').value : ''); if (isFinite(c) && c > 0) p.cost = Math.round(c * 10) / 10;
     const u = parseInt(q('uses') ? q('uses').value : '', 10); if (isFinite(u) && u > 0) p.uses = u;
   };
+  // 解除する効果の欄（強化解除・自己強化解除だけ）。空なら「すべて」
+  const STRIP_IDS = ['strip', 'self_strip'];
+  const stripFieldsHtml = (id, p, esc) => `<div class="estrip"${STRIP_IDS.includes(id) ? '' : ' hidden'}><label>止める効果<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>`
+    + effOptionsHtml((p && p.eff) || '', esc, x => EFFECTS[x].name) + '</select></label></div>';
+  const readStrip = (q, id, p) => { if (!STRIP_IDS.includes(id) || !q('eff')) return; const v = q('eff').value; if (v) p.eff = v; };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
-  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
+  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
 
   // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
   // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
@@ -183,6 +188,7 @@
   // 確率の効果がマイナスのとき：その確率が下がる（同じ効果のほかのスキルや幸運などと合わせて、0%未満にはならない）
   const less = (what, m) => `${what} −${pc(m)}（ほかの効果と合わせて0%未満にはならない）`;
   const pm = v => (v < 0 ? '−' : '+') + num(Math.abs(v));
+  const effName = id => (EFFECTS[id] || {}).name || id;
   const EFFECT_INFO = {
     power:        { who: 'self', fx: m => `戦闘力 ${sg(m)}` },
     power_vs:     { who: 'self', fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
@@ -207,9 +213,11 @@
     drain_hp:     { who: 'enemy', fx: m => `相手の霊基を ${num(Math.abs(m))} 吸い取り、自分の霊基を同じだけ回復（相手は霊基1より下にならない）` },
     mana_gain:    { who: 'master', fx: m => `その場で魔力 ${pm(m)}（上限まで）` },
     drain_mana:   { who: 'enemyMaster', fx: m => `相手の魔力を ${num(Math.abs(m))} 吸い取り、自分の魔力にする` },
-    strip:        { who: 'enemy', fx: m => `${pc(Math.min(1, m))} の確率で、相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手）を消す` },
+    strip:        { who: 'enemy', fx: (m, p) => p && p.eff ? `${pc(Math.min(1, m))} の確率で、相手の「${effName(p.eff)}」を、常に持っている分も含めてその戦いの間止める` : `${pc(Math.min(1, m))} の確率で、相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手）を消す` },
     cleanse:      { who: 'self', fx: m => `自分の毒・スタン・混乱・宝具封印・スキル封印をその場で消し、その戦いの間は相手の弱体化と状態異常の確率 −${pc(Math.min(1, m))}` },
-    self_strip:   { who: 'self', fx: (m, p) => p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : '自分がその戦いで得た強化（補助宝具・発動したスキル・道具）を消す' },
+    self_strip:   { who: 'self', fx: (m, p) => p && p.tag && p.eff ? `自分の「${p.tag}」の「${effName(p.eff)}」を、その戦いの間止める（ほかの効果はそのまま）`
+      : p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : p && p.eff ? `自分の「${effName(p.eff)}」を（どのスキル・宝具のものも）、その戦いの間止める`
+      : '自分がその戦いで得た強化（補助宝具・発動したスキル・道具）を消す' },
     np_charge:    { who: 'self', fx: m => `打ち合いごとに宝具を放つ確率 ${sg(m)}` },
     rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
@@ -947,5 +955,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -388,12 +388,12 @@ battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, st
 source never stacks), or to `c.dayTemp` for `day`/`kill` (until next morning; copied into `c.temp` at the next battle start). **NP effects**:
 without `on` they behave as before (instants fire at use); with `on` they are armed after the NP is used (`c.armed`) and fire on that event for
 the rest of the battle — i.e. 「発動した瞬間」 vs 「押し勝ってから」 is chosen with `on`. Summary (`build.js summarize`): triggered entries get
-`trig` (skills) or `npTrig` (NP, armed) and `on`, never `passive`; keys add `!on`, `$cost`, `*uses`; passive skill entries also keep `by`
+`trig` (skills) or `npTrig` (NP, armed) and `on`, never `passive`; keys add `~eff` (strip/self_strip target), `!on`, `$cost`, `*uses`; passive skill entries also keep `by`
 (per source skill name) so `self_strip` can subtract a named skill (`c.off`, `offW` in effS/effVs/ailInfo). Estimates: `eff` adds triggered
 non-instant effects × `E.TRIG_W[on]` (start/round/always 1, day 0.8, win 0.5, lose 0.4, np 0.4, pinch 0.3, kill 0.15; NP armed × 0.4);
 `battleOdds` adds dmg_plus/dmg_cut (÷40), heal/drain_hp (`inst`, ÷200, cap +40%), sure_hit (cuts the other side's evade), np_charge (NP add-on
 × up to 1.5). ranking.html's abilities count `trig`/`npTrig` the same way. Editors (roster/submit) have 発動/魔力/回数 fields (`E.trigFieldsHtml`,
-`E.readTrig`); `describe().when` uses `E.trigText` (e.g. 「押し勝ったとき発動・魔力10を払って（その戦いの終わりまで）」) and `condShort` adds
+`E.readTrig`) and, for strip/self_strip only, 止める効果 (`E.stripFieldsHtml`/`E.readStrip`, grouped `<select>` → `params.eff`); `describe().when` uses `E.trigText` (e.g. 「押し勝ったとき発動・魔力10を払って（その戦いの終わりまで）」) and `condShort` adds
 〈trigger〉.
 **Conditions** (any effect, combinable; `E.COND_OPTS`, `E.condText`, `E.condShort`, `E.hasCond`):
 - `params.cond`: `'水辺'|'森'|'山'|'夜'` (terrain / night battles), `'拠点'` (fighting at its own base), `'瀕死'` (own hp < `ENGINE.pinchAt` 40).
@@ -655,10 +655,13 @@ participant), each round (`round`, after the poison tick) then `pinch()`, after 
 when the target died, then `pinch()`), `fireNP` (NP's own instants without `on` at use, NP effects with `on` armed, then the servant's `np`
 triggers), and each morning in `dayPhase` (`c.dayTemp` is reset first). A trigger is skipped when cond fails, `uses` is spent, mana < `cost`, the
 `chance` roll fails, or the servant is skill-sealed (`c.ail.skseal`, not for `day`). Instants: heal (+hp ≤ 100), drain_hp (opponent floors at 1),
-mana_gain (≤ manaMax), drain_mana, strip (chance = mag; removes the opponent's buff temp entries — `isBuff`: good and not aimed at the enemy — and
+mana_gain (≤ manaMax), drain_mana, strip without `eff` (chance = mag; removes the opponent's buff temp entries — `isBuff`: good and not aimed at the enemy — and
 `surprise`), cleanse (clears own poison/stun/confuse/seal/skill seal and the opponent's hex temp entries; for the battle `c.cleanse` cuts the
-opponent's `debuff` and ailment chances by mag), self_strip (`params.tag` = skill/NP name → `c.off` + removes that source's temp; empty → own buff
-temp), skill_seal (min(0.8, mag) × (1 − cleanse), resisted by ail_guard). Logs: once per battle per source (day triggers only for the player,
+opponent's `debuff` and ailment chances by mag), self_strip (`params.tag` = skill/NP name and/or `params.eff` = effect id →
+`c.off` gets `'name'` / `'name|eff'` / `'|eff'`; `offMatch` then subtracts those from passive sums (`offW` via the summary's per-source `by`),
+`dropOff` removes them from `temp`/`dayTemp`, `fireNP` stops pushing them and `fireTrig` stops firing them; neither → own buff temp),
+strip with `params.eff` (stops that effect on the opponent for the battle, passive included: `o.off` += `'|eff'`; skipped without a roll when
+the opponent does not hold it), skill_seal (min(0.8, mag) × (1 − cleanse), resisted by ail_guard). Logs: once per battle per source (day triggers only for the player,
 once per war). Battle-scoped state (`tUsed`, `tLog`, `armed`, `pinched`, `cleanse`, `off`) is reset in `cleanup`/`leave`/day end. Reads of the
 new passives: `sure_hit` in `power()` (evade × (1 − sure)), `dmg_plus`/`dmg_cut` after guard (`Math.max(1, dmg + plus − cut)`, only when
 non-zero), `np_charge` in `useNP` (activation chance), `taunt` in the cover roll (`allyCover + taunt`, ≤ 0.9). None of this calls `rnd()` for

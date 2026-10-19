@@ -161,6 +161,17 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   // 発動する効果を持つ英霊がいても、同じ種なら同じ展開（乱数の使い方が決まっている）
   const r1 = H.engine.runWar({ roster: ros, seed: 'trig-det', player: 'none', war: { pick: 'open' } }), r2 = H.engine.runWar({ roster: ros, seed: 'trig-det', player: 'none', war: { pick: 'open' } });
   ok(JSON.stringify(r1.entries.map(e => e.text)) === JSON.stringify(r2.entries.map(e => e.text)), '発動する効果で展開が決まらない');
+  // 特定の効果だけを止める：自己強化解除（スキル名＋効果）と、効果を指定した強化解除
+  ok(/「騎乗」の「先手」/.test(E.describe({ id: 'self_strip', mag: 1, params: { tag: '騎乗', eff: 'initiative' } }).text) && /相手の「致命傷耐性」/.test(E.describe({ id: 'strip', mag: 1, params: { eff: 'guts' } }).text), '特定の効果を止める説明が違う');
+  const sw = mk([['self_strip', 1, { tag: sk2, eff: 'power' }], ['strip', 2, { eff: 'guts' }]]);
+  ok(sw.effectSummary['self_strip:' + sk2 + '~power!start'] && sw.effectSummary['strip~guts!start'], '止める効果が集計の鍵に入っていない：' + Object.keys(sw.effectSummary).join(','));
+  const ros2 = roster.filter(s => s.id !== base.id && Object.values(s.effectSummary).some(x => x.id === 'guts' && x.passive)).slice(0, 7).concat([sw]);
+  let selfStop = 0, foeStop = 0;
+  for (let i = 0; i < 30; i++) {
+    const r = H.engine.runWar({ roster: ros2, seed: 'stop' + i, player: 'none', war: { pick: 'open' } });
+    for (const e of r.entries) { if (e.text.includes(`『${sk2}』の戦闘力上昇を収めた`)) selfStop++; if (e.text.includes('致命傷耐性を打ち消した')) foeStop++; }
+  }
+  ok(selfStop > 0 && foeStop > 0, `特定の効果を止める効果が発動していない（自己 ${selfStop}・相手 ${foeStop}）`);
   // 見積もり：回復・ダメージカットは強さとして数える
   const plain = mk([['power', 0]]), tough = mk([['heal', 2], ['dmg_cut', 2]]);
   ok(B.battleOdds(tough, roster[1], {}).a > B.battleOdds(plain, roster[1], {}).a, '回復・ダメージカットが見積もりに効いていない');

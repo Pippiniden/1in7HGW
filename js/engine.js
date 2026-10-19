@@ -225,8 +225,14 @@
     // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
     const chanceW = (c, key, p) => !p || p.chance == null ? 1 : c.bx ? (c.bx.rolls[key] ? 1 : 0) : clamp(p.chance, 0, 1);
     // effS：スキル・宝具の常時の効果だけ（戦闘力の計算用）／eff：それに、この戦いだけの効果（c.temp）を足したもの
-    // 自己強化解除（effects.js の self_strip）で止めたスキル（c.off：名前の集合）の分は、常時の効果から引く
-    const offW = (c, x) => { if (!c.off || !x.by) return 0; let t = 0; for (const n in x.by) if (c.off.has(E.normName(n))) t += x.by[n]; return t; };
+    // 止めた効果（自己強化解除 self_strip・特定の効果の強化解除 strip）：c.off は '名前'（その源のすべて）／'名前|効果'（その源のその効果）／
+    //   '|効果'（どの源のものでもその効果）の集合。常時の効果からはその分を引き、その戦いだけの効果（c.temp）からは外す
+    const offMatch = (c, from, id) => !!c.off && (c.off.has('|' + id) || (from ? c.off.has(E.normName(from)) || c.off.has(E.normName(from) + '|' + id) : false));
+    const offW = (c, x) => { if (!c.off || !x.by) return 0; let t = 0; for (const n in x.by) if (offMatch(c, n, x.id)) t += x.by[n]; return t; };
+    // 止めた効果を、その戦いだけの効果（と次の朝までの効果）から外す
+    const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => !offMatch(c, e.from, e.id)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => !offMatch(c, e.from, e.id)); };
+    // 相手がその効果を持っているか（常時の分か、その戦いだけの分）
+    const holds = (c, id) => (c.temp || []).some(e => e.id === id) || Object.values(c.sv.effectSummary || {}).some(x => x.id === id && x.passive);
     function effS(c, id, terrain) {
       let t = 0;
       for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params);
@@ -296,7 +302,7 @@
       if (on !== 'day' && c.ail && c.ail.skseal) return;   // スキル封印
       for (const [k, id, mag, p0, from] of list) {
         const p = p0 || {};
-        if (!condOk(c, p, T)) continue;
+        if (!condOk(c, p, T) || offMatch(c, from, id)) continue;   // 止めた効果は発動しない
         const used = (c.tUsed && c.tUsed[k]) || 0;
         const lim = p.uses > 0 ? p.uses : on === 'start' || on === 'pinch' || on === 'kill' ? 1 : 0;
         if (c.tUsed && lim && used >= lim) continue;
@@ -321,6 +327,13 @@
       if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${sn(c)}の${src}が、魔力を満たした。`); } return; }
       if (id === 'drain_mana') { if (!o) return; const v = Math.min(mag, Math.max(0, o.mana)); if (v > 0) { o.mana -= v; c.mana = Math.min(c.manaMax, c.mana + v); say(`${sn(c)}の${src}が、${sn(o)}の魔力を奪い取った。`); } return; }
       if (id === 'strip') {
+        // 効果を指定したもの（params.eff）：相手のその効果を、常に持っている分も含めてその戦いの間止める
+        if (p.eff) {
+          if (!o || !o.temp || (o.off && o.off.has('|' + p.eff)) || !holds(o, p.eff)) return;
+          if (mag < 1 && !chance(Math.max(0, mag))) return;
+          (o.off = o.off || new Set()).add('|' + p.eff); dropOff(o);
+          say(`${sn(c)}の${src}が、${sn(o)}の${(E.EFFECTS[p.eff] || {}).name || '力'}を打ち消した。`); return;
+        }
         if (!o || !o.temp || !(o.temp.some(isBuff) || o.surprise)) return;
         if (mag < 1 && !chance(Math.max(0, mag))) return;
         o.temp = o.temp.filter(e => !isBuff(e)); o.surprise = 0;
@@ -334,10 +347,12 @@
         if (had) say(`${sn(c)}の${src}が、身を蝕むものを祓った。`); return;   // 消すものが無ければ記録しない（守りは掛かっている）
       }
       if (id === 'self_strip') {
-        const tag = p.tag ? E.normName(p.tag) : '';
-        if (tag) { (c.off = c.off || new Set()).add(tag); if (c.temp) c.temp = c.temp.filter(e => !(e.from && E.normName(e.from) === tag)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => !(e.from && E.normName(e.from) === tag)); }
+        // tag＝止めるスキル・宝具の名前、eff＝止める効果（どちらか、または両方）。どちらも無ければ、その戦いで得た強化を消す
+        const tag = p.tag ? E.normName(p.tag) : '', ef = p.eff || '';
+        const effName = ef ? (E.EFFECTS[ef] || {}).name || ef : '';
+        if (tag || ef) { (c.off = c.off || new Set()).add(tag + (ef ? '|' + ef : '')); dropOff(c); }
         else if (c.temp) c.temp = c.temp.filter(e => !isBuff(e));
-        say(tag ? `${sn(c)}の${src}が発動し、『${p.tag}』の力を収めた。` : `${sn(c)}の${src}が発動し、まとっていた力を解いた。`); return;
+        say(tag ? `${sn(c)}の${src}が発動し、『${p.tag}』の${effName || '力'}を収めた。` : ef ? `${sn(c)}の${src}が発動し、${effName}を収めた。` : `${sn(c)}の${src}が発動し、まとっていた力を解いた。`); return;
       }
       if (id === 'skill_seal') {
         if (!o || !o.ail || o.ail.skseal) return;
@@ -528,7 +543,7 @@
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
-        && !(e.params && e.params.on) && !E.INSTANT.includes(e.id)
+        && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
         && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) c.temp.push(e);   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
       // 発動のしかたのある効果は、この戦いの残りでその場面のたびに発動する（c.armed）
