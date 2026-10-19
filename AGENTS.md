@@ -67,7 +67,7 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
    This lets the game run from `file://` and lets Node tests `require()` the same files.
 3. **Script load order matters** (each file reads what earlier files put on `HGW`):
    `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
-   `index.html` and `ranking.html` load all of them; `roster.html` loads `config…war` + `voiceedit`; `submit.html` loads `config…war` + `voiceedit` + `data`. Node tests use the same order.
+   `index.html` and `ranking.html` load all of them; `roster.html` loads `config…war` + `voiceedit` + `names…engine` + `survival` + `simlab` (the 聖杯戦争で試す tab runs wars); `submit.html` loads `config…war` + `voiceedit` + `data`. Node tests use the same order.
    When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and the
    `PRECACHE` list in `sw.js`** (then bump `VERSION` there).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All
@@ -125,6 +125,9 @@ js/
   engine.js         The simulation (generator), ~870 lines
   data.js           Loading published data / browser-local roster / user-picked files
   survival.js       Survival curves: many auto wars → per-servant elimination days; roster fingerprint
+  simlab.js         聖杯戦争で試す (roster.html): core (applyConfig/buildRoster/runOne/merge/rowsOf/summaryOf/groups/commentsOf, DOM-free,
+                    also used by simworker.js and test/simlab.js) + mount(el, api) for the tab (see §8 roster)
+  simworker.js      Web Worker for simlab: importScripts the chain, applies the config patch, rebuilds the roster, runs strided war indices
   voiceedit.js      Per-scene voice editor (DOM, HGW.voiceEdit: mount/read/toText/parseText); used by roster.html and submit.html only
 tools/
   chaldea.js        node tools/chaldea.js <chaldea-data checkout>: FGO servants' skills (dist/servants.*.json, baseSkills, baseFunctions) →
@@ -154,6 +157,7 @@ test/
   content.js        Content overrides (edit/remove/add skills, NPs, voice…) incl. toLean/harvest/reset
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   survival.js       Survival tally sanity + playerName never changes the outcome
+  simlab.js         simlab core: same counts as survival.js runner, strided halves merge to the same tally, config patch/undo, groups/comments
   voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
   fgo.js            FGO-style blocks / chant lines are not read as skills or NPs; old data is cleaned at load
   effects.js        Every EFFECTS id is read by engine/build and described; NP effect timing; identity override
@@ -950,6 +954,20 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   class, origin, page, skill and NP names; `/` focuses, Enter opens the first hit, Esc clears), sort (class/name/grade/power/
   NP/review count), class select (`#clsSel`, `filter`) and toggle chips (`flag`: 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–E grade (same formula as
   the game's opening: `strengthTable`, cached per `rosterVer`, which `save()`/`rebuildAll()` bump).
+- **聖杯戦争で試す** (tab `lab`, `js/simlab.js` `mount`, opened lazily by `openLab()`; `var lab` because the remembered view may open it
+  early): runs N (300/1000/3000/10000) automatic wars with the **browser roster and overrides** (unpublished edits included) and an optional
+  **config patch** (`{ 'ENGINE.huntBase': 0.5, 'BATTLE_K': 18, 'NP_TYPE.anti_fort.power': 1.4, 'CLASS_DEFS.berserker.upkeep': 1.2, … }`,
+  numeric leaves of G.CONFIG only; `groups()` lists ENGINE (minus player-only lifeChance/councilEvery/fallenDeath/stealBase), BATTLE_K,
+  STAT_SCORE, STAT_W, STAT_FX, NP_TYPE power/cost/exposure, RANK_SCORE, CLASS_DEFS upkeep, WAR.extraChance; labels come from the
+  line comments of `js/config.js`, fetched and parsed by `commentsOf`). Wars run in `min(8, cores−1)` Web Workers (`js/simworker.js`,
+  index i = start + k·step, seed `'sv' + i` like survival.js — so with no changes the numbers equal `data/survival.json`); without Worker
+  support (file://) it runs in chunks on the page, patching/unpatching `G.CONFIG` around each chunk. Output: summary (勝者あり/全滅/引き分け,
+  median end day, battles and NPs per war), per-servant table (rank + grade by win-rate percentile, 優勝率 ± 95% margin, 差 vs the
+  comparison, 半数脱落 day, appearances, 1v1 grade from `gradeOf`, 未公開 badge from `pubState`; sortable, search, class filter; a row
+  opens the servant). Comparison: 公開中の集計 (`data/survival.json`) or a saved result (「この結果を比べる相手として保存」); a diff is coloured
+  only when it exceeds √(m₁²+m₂²). 「config.js に書く値をコピー」 copies `path: old → new` lines. localStorage: `hgw.lab.v1` (patch, wars,
+  cmp, sort), `hgw.lab.last` (last tally + fp + patch; a stale note shows when the roster fingerprint or patch changed), `hgw.lab.saved`.
+  The patch never touches the game or the roster's own estimates.
 - **試し戦い** (its own tab, `section#cmpPanel`): left/right pickers are text
   inputs with a `<datalist>` (`findSv` matches label, then prefix/substring of the folded name), swap, NP/home/terrain options,
   `battleOdds` result, and 「全騎との勝率」 (`vsAll`, hardest opponents first; clicking one puts it on the right). Each servant card
@@ -988,6 +1006,7 @@ node test/skills.js             # skill dictionary (canonical names, generic nam
 node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
+node test/simlab.js             # 聖杯戦争で試す core (counts match survival.js, merge, config patch, config field list)
 node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
 node test/fgo.js                # FGO-style blocks and chant lines are not read as skills/NPs (parse + load-time cleanup)
 node test/effects.js            # every effect primitive is read by the engine/build and has a description; identity override round trip
