@@ -300,6 +300,12 @@ Identity: two entries with the same `class.key + trueName` are the same servant;
 - `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
 - `content` → `CONTENT_OVERRIDES`: `'trueName': { skills?, nps?, voice?, text?, profile?, relations?, base }` (see 4.5)
 - `pages` → `PAGE_OVERRIDES`: `'trueName': 'kagemiya page name'` (when the page title differs from the true name, e.g. ハイヌヴェレ → ウンコ)
+- `reviewed` → `REVIEWED`: `'trueName': [review sig, …]` — review items the owner checked off in the roster (「確認した」). `buildServant`
+  gives every review item `sig = B.reviewSig(sv, r)` = hash of kind, target, why and the target's content (skill/NP: rank, type and
+  description of the items with that name; stat: all stat strings + alt-stat labels; class: the raw class; content: hash of the wiki
+  value). Items whose sig is listed go to `sv.reviewDone` (derived, stripped by `toLean`) instead of `sv.review`, so every count/badge/
+  filter ignores them. A re-import with the same content keeps them checked; a changed description, rank or reason makes a new sig and
+  the item comes back. The roster prunes sigs that no longer match any current item whenever it writes the entry.
 
 **Uploads (`data/incoming/`, workflow `data.yml`, `tools/incoming.js`).** The owner drops files there with any name (browser
 downloads become `servants (3).json`); the roster's 公開・保存 tab links to `github.com/…/upload/main/data/incoming`. Files are
@@ -364,8 +370,18 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 | passive | `luck`, `tag` (adds a trait tag) |
 | np | `np_boost`, `np_cost`, `backfire`, `self_retire`, `disabled` |
 
-Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`. `params.cond`
-(`'水辺'|'森'|'山'|'夜'`) makes an effect apply only on matching terrain.
+Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`.
+**Conditions** (any effect, combinable; `E.COND_OPTS`, `E.condText`, `E.condShort`, `E.hasCond`):
+- `params.cond`: `'水辺'|'森'|'山'|'夜'` (terrain / night battles), `'拠点'` (fighting at its own base), `'瀕死'` (own hp < `ENGINE.pinchAt` 40).
+- `params.vs`: an opponent trait tag — the effect works only against opponents with that tag (power_vs/weakness keep using `params.tag`).
+- `params.chance` (0–1): rolled once per battle at battle start (`enterBattle`: one `rnd()` per such summary entry, so servants without
+  chance effects consume no extra rolls); NP support effects with a chance roll when the NP is used. Outside battle the magnitude ×
+  chance is used.
+Engine: `condOk(c, params, terrain)` + `chanceW` inside `eff`/`effS`/`effVs`; `c.bx = { opp, home, rolls }` exists only during a battle
+(cleared in `cleanup`, `leave` and at the end of each day). `effS` = summary only; `power()` passes it to `B.combatPower(sv, T, sumOf)`.
+Estimates (`build.js` `condW`): terrain must match, 拠点 only with `opts.home`, 瀕死 ×0.3, vs only when the opponent has the tag, chance
+× probability. `summarize` keys add `>vs` and `%chance`. The editor rows in roster.html / submit.html have 条件／相手／確率 fields;
+the old `竜@水辺` text form is still read.
 
 **Effect spec** (used everywhere): `[effectId, factor = 1, params?]`.
 **Meaning** (`E.EFFECT_INFO[id] = { who, bad?, fx(mag, params) }`, `E.describe(effect, { np, attack })` → `{ name, who, whoJa, bad,
@@ -417,7 +433,7 @@ Anything not from an override or exact dict hit is added to the servant's `revie
 
 ### 5.4 Summary and power (`build.js`)
 
-- `effectSummary`: effects summed per `id[:tag|stat][@cond]` → `{passive, onNP, from[]}`. NP effects
+- `effectSummary`: effects summed per `id[:tag|stat][@cond][>vs][%chance]` → `{passive, onNP, from[]}`. NP effects
   count as `onNP` (applied only when the NP is used), except `master_buff`/persistent ones.
 - `combatPower = weightedMean(str,end,agi,mag,luk scores; STAT_W × classWeights) × (1 + Σpower)`.
 - `npPeak` = strongest usable attack NP power × (1 + np_boost).
@@ -902,6 +918,9 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   `hgw.roster.sel`); ↑↓/j/k move within the shown list (`shownIds`). ≤900px: one column, `#browse.show` swaps list ↔ detail
   (「← 一覧へ」). `jumpTo(id)` switches to the roster view, clears filters if needed and selects. Sync state also shows as a badge on the
   公開・保存 tab and a `#syncBanner` with 「公開中のリストにそろえる」; `status()` also shows a toast (`#toast`).
+- **Review check-off**: the detail's 要確認 box has 「確認した」 per item and 「すべて確認した」 (`data-rvok` / `data-rvall`); checked items
+  are listed under 「確認済みの要確認」 with 「要確認に戻す」 (`data-rvundo`). `setReviewed()` writes `REVIEWED[trueName]` (keeping only
+  sigs of current items), then `afterEdit()`. The rename (`moveKeys`) and 「どの英霊にも当たらない手直し」 include the table.
 - **Wiki page name** (`pageBox`): every detail has 「Wikiのページ名」 (input + 保存 → `PAGE_OVERRIDES`; a pasted kagemiya URL is
   decoded from EUC-JP; equal to `page` or empty removes the override). `pageState(sv)`: `missing` (has `pageMissing`, no override),
   `fixed` (override set after a miss), `unknown` (no `page` and no override) → row badge 「ページ名？」 and filter chip

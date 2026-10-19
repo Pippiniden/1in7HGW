@@ -96,7 +96,12 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .erows { display: grid; gap: 6px; margin-top: 4px; }
 .erow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
 .erow select, .erow input { width: 100%; min-width: 0; font-size: 13px; padding: 5px 6px; }
-@media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .erow input { grid-column: 1 / 3; } }
+.econd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
+.econd label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .econd select { width: auto; max-width: 13em; }
+.erow .econd input[data-e=vs] { width: 9em; }
+.erow .econd input[data-e=chance] { width: 4.5em; }
+@media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .erow > input { grid-column: 1 / 3; } }
 .npkind { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
 .edesc { font-size: 12px; color: var(--sub); }
 /* 出力 */
@@ -163,6 +168,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     <h2>1. 調整してほしい英霊</h2>
     <label class="f">真名・クラスで探す<input type="search" id="pick" list="svList" placeholder="例：ルーカン" autocomplete="off"></label>
     <datalist id="svList"></datalist>
+    <datalist id="tagList"></datalist>
     <p class="status" id="pickNote"></p>
   </section>
 
@@ -258,6 +264,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       roster = res.servants;
       $('#pubNote').textContent = `公開中のリスト：${roster.length}騎。評価はこのリストと比べて出します。`;
       $('#svList').innerHTML = roster.map(s => `<option value="${esc(label(s))}"></option>`).join('');
+      $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}"></option>`).join('');
       if (mode === 'add') parseWiki(); else pickServant();
     } catch (e) { $('#pubNote').textContent = '公開中のリストを読めませんでした（' + e.message + '）。'; }
   })();
@@ -397,7 +404,13 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
   const keyOf = (sv, item) => sv.trueName + '/' + E.normName(item.name);
-  const specOf = e => { const p = {}; if (e.params && e.params.tag) p.tag = e.params.tag; if (e.params && e.params.stat) p.stat = e.params.stat; if (e.params && e.params.cond) p.cond = e.params.cond; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
+  const specOf = e => { const p = {}, q = e.params || {}; for (const k of ['tag', 'stat', 'cond', 'vs']) if (q[k]) p[k] = q[k]; if (q.chance != null) p.chance = q.chance; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
+  // 条件欄（効果が働く場面：場所・拠点・瀕死／相手の属性／戦いごとの発動確率。effects.js の COND_OPTS）
+  const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
+    .map(([k, t]) => `<option value="${esc(k)}"${k === (sel || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
+  const condFields = p => { p = p || {}; return `<div class="econd"><label>条件<select data-e="cond">${condOptions(p.cond)}</select></label>`
+    + `<label>相手<input type="text" data-e="vs" list="tagList" value="${esc(p.vs || '')}" placeholder="属性（男性・竜など）" autocomplete="off"></label>`
+    + `<label>確率<input type="number" data-e="chance" min="0" max="100" step="5" value="${p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : ''}" placeholder="100">%</label></div>`; };
   const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—')}）</option>`).join('');
   function strengthOptions(f) {
     const has = STRENGTH.some(([, v]) => Math.abs(v - f) < 1e-9);
@@ -405,8 +418,8 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   }
   function effRow(spec) {
     const [id, f, p] = spec || ['power', 1, null];
-    const pv = p ? [p.tag || p.stat || '', p.cond ? '@' + p.cond : ''].join('') : '';
-    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="対象・条件（竜 / luck / @水辺）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button></div>`;
+    const pv = p ? p.tag || p.stat || '' : '';
+    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}</div>`;
   }
   function itemHtml(kind, item, j) {
     const k = keyOf(base, item), changed = k in prop.servant || (kind === 'n' && k in prop.np);
@@ -520,9 +533,13 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   function readItem(el) {
     const k = el.dataset.key;
     const specs = Array.from(el.querySelectorAll('.erow')).map(r => {
-      const id = r.querySelector('[data-e=id]').value, f = parseFloat(r.querySelector('[data-e=f]').value), v = r.querySelector('[data-e=p]').value.trim();
+      const q = k => r.querySelector(`[data-e=${k}]`);
+      const id = q('id').value, f = parseFloat(q('f').value), v = q('p').value.trim();
       const [main, cond] = v.split('@').map(x => (x || '').trim()); const p = {};
-      if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main; if (cond) p.cond = cond;
+      if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main;
+      const c = q('cond').value || cond; if (c) p.cond = c;
+      const vs = q('vs').value.trim(); if (vs) p.vs = vs;
+      const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
       return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
     });
     const item = el.dataset.kind === 's' ? base.allSkills.find(x => keyOf(base, x) === k) : base.nps.find(x => keyOf(base, x) === k);
@@ -541,7 +558,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   });
   let pItem = null;
   const readP = () => { if (pItem && pItem.isConnected) { readItem(pItem); showEdit(); } };
-  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p]')) { pItem = e.target.closest('.item'); soon(readP); } });
+  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p], [data-e=vs], [data-e=chance]')) { pItem = e.target.closest('.item'); soon(readP); } });
   function readStats() {
     const o = {}; for (const inp of $('#stats').querySelectorAll('[data-stat]')) if (inp.value.trim()) o[inp.dataset.stat] = inp.value.trim();
     if (Object.keys(o).length) prop.stats[base.trueName] = o; else delete prop.stats[base.trueName];
@@ -560,7 +577,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   function strengthLabel(f) { const s = STRENGTH.find(([, v]) => Math.abs(v - f) < 1e-9); return s ? s[0].replace(/く$/, 'い') : '×' + f; }
   function specText(sp) {
     const [id, f, p] = sp; const d = E.EFFECTS[id];
-    return `${d ? d.name : id}${p && (p.tag || p.stat) ? '〔' + (p.tag || p.stat) + '〕' : ''}${p && p.cond ? '（' + p.cond + 'で）' : ''} ${strengthLabel(f)}`;
+    return `${d ? d.name : id}${p && (p.tag || p.stat) ? '〔' + (p.tag || p.stat) + '〕' : ''}${E.condShort(p)} ${strengthLabel(f)}`;
   }
   function request() {
     const page = $('#page').value.trim();
