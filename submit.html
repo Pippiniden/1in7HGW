@@ -96,6 +96,9 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .erows { display: grid; gap: 6px; margin-top: 4px; }
 .erow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
 .erow select, .erow input { width: 100%; min-width: 0; font-size: 13px; padding: 5px 6px; }
+.etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
+.etrig label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .etrig select { width: auto; max-width: 14em; } .erow .etrig input[data-e=cost] { width: 4.5em; } .erow .etrig input[data-e=uses] { width: 6em; }
 .econd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
 .econd label { display: inline-flex; align-items: center; gap: 4px; }
 .erow .econd select { width: auto; max-width: 13em; }
@@ -421,15 +424,15 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   const statFields = (id, p) => { p = p || {}; return `<div class="estat"${E.AILMENTS[id] ? '' : ' hidden'}><label>名前<input type="text" data-e="name" value="${esc(p.name || '')}" placeholder="${esc(E.AILMENTS[id] || '')}" autocomplete="off"></label>`
     + `<label class="msg">記録の文<input type="text" data-e="msg" value="${esc(p.msg || '')}" placeholder="${esc(E.AIL_MSG_HINT[id] || '')}" autocomplete="off"></label></div>`; };
   const readStat = (q, id, p) => { if (!E.AILMENTS[id]) return; const n = q('name').value.trim(), m = q('msg').value.trim(); if (n) p.name = n; if (m) p.msg = m; };
-  const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—')}）</option>`).join('');
+  const effOptions = sel => E.effOptionsHtml(sel, esc, id => `${E.EFFECTS[id].name}（${E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—'}）`);   // ジャンルごと
   function strengthOptions(f) {
     const has = STRENGTH.some(([, v]) => Math.abs(v - f) < 1e-9);
     return (has ? '' : `<option value="${f}" selected>×${f}</option>`) + STRENGTH.map(([t, v]) => `<option value="${v}"${Math.abs(v - f) < 1e-9 ? ' selected' : ''}>${t}（×${v}）</option>`).join('');
   }
-  function effRow(spec) {
-    const [id, f, p] = spec || ['power', 1, null];
+  function effRow(spec, np) {
+    const [id, f, p] = spec || ['power', 1, null], rowNp = !!np;
     const pv = p ? p.tag || p.stat || '' : '';
-    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${statFields(id, p)}</div>`;
+    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, rowNp)}${statFields(id, p)}</div>`;
   }
   function itemHtml(kind, item, j) {
     const k = keyOf(base, item), changed = k in prop.servant || (kind === 'n' && k in prop.np);
@@ -449,7 +452,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       ${noteBox(nk, `${nk}をどう直してほしいか（例：「対軍の攻撃宝具です」「戦闘続行と同じ効果です」）`)}
       ${dropped ? '' : npKind}
       ${dropped ? '' : `<details${changed ? ' open' : ''}><summary class="hint" style="cursor:pointer">効果を自分で指定する（くわしい人向け）</summary>
-        <div class="erows">${rows.map(effRow).join('')}</div>
+        <div class="erows">${rows.map(r => effRow(r, kind === 'n')).join('')}</div>
         <div class="row" style="margin-top:6px"><button class="sm" data-addrow>＋ 効果を足す</button>${changed ? '<button class="sm ghost" data-undo>元に戻す</button>' : ''}<span class="edesc">強さは、Bランクの標準を「ふつう」とした目安です（ランクの倍率は自動で掛かります）</span></div>
 </details>`}
     </div>`;
@@ -550,7 +553,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       const c = q('cond').value || cond; if (c) p.cond = c;
       const vs = q('vs').value.trim(); if (vs) p.vs = vs;
       const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-      readStat(q, id, p);
+      readStat(q, id, p); E.readTrig(q, p);
       return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
     });
     const item = el.dataset.kind === 's' ? base.allSkills.find(x => keyOf(base, x) === k) : base.nps.find(x => keyOf(base, x) === k);
@@ -579,7 +582,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     if (nb) { const box = nb.closest('.item, #statNote').querySelector('label.note'); box.hidden = false; box.querySelector('textarea').focus(); return; }
     const it = e.target.closest('.item');
     if (e.target.closest('[data-rmrow]')) { const r = e.target.closest('.erow'); r.remove(); readItem(it); return showEdit(); }
-    if (e.target.closest('[data-addrow]')) { it.querySelector('.erows').insertAdjacentHTML('beforeend', effRow()); readItem(it); return showEdit(); }
+    if (e.target.closest('[data-addrow]')) { it.querySelector('.erows').insertAdjacentHTML('beforeend', effRow(null, it.dataset.kind === 'n')); readItem(it); return showEdit(); }
     if (e.target.closest('[data-undo]')) { delete prop.servant[it.dataset.key]; delete prop.np[it.dataset.key]; return showEdit(); }
   });
   ['reason', 'content', 'from', 'contact'].forEach(id => $('#' + id).addEventListener('input', () => soon(refreshOut)));

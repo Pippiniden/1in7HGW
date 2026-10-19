@@ -361,8 +361,8 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 
 | Phase | IDs |
 |---|---|
-| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `instakill`, `evade`, `initiative`, `charm`, `rally`, `anti_master`, `mental_guard`; ailments `poison`, `stun`, `confuse`, `seal` and their resistance `ail_guard` (see 7.5 Ailments) |
-| damage | `guard`, `magic_guard`, `weakness` (vs tag), `master_guard` |
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard`; ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
+| damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `weakness` (vs tag), `master_guard` |
 | lethal | `guts` |
 | encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
 | scout | `intel` |
@@ -372,9 +372,29 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 | talk | `negotiate` |
 | master | `cs_resist`, `master_buff` (`params.stat` → adds to a master stat) |
 | passive | `luck`, `tag` (adds a trait tag) |
-| np | `np_boost`, `np_cost`, `backfire`, `self_retire`, `disabled` |
+| np | `np_boost`, `np_charge` (+NP release chance per round), `np_cost`, `backfire`, `self_retire`, `disabled` |
 
-Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`.
+Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`/`trig` (default trigger of an instant effect).
+**Genres** (`E.EFFECT_GROUPS` = [[key, label, ids]], `E.GROUP_OF`): 攻め, 守り, 回復・吸収, 弱体・状態異常, 耐性, 解除, 宝具, 索敵・情報, 撤退・追撃,
+陣営・魔力, 同盟・マスター, その他 (any id not listed falls into その他). The editors build their `<select>` with `E.effOptionsHtml` (one `<optgroup>`
+per genre) and roster.html's legend has one header row per genre.
+**Triggers** (`params.on`, `E.TRIGGERS`/`TRIG_JA`): `''` always (the old passive behaviour), `start` battle start, `round` every exchange, `win` /
+`lose` after winning / losing an exchange, `pinch` hp < `pinchAt` (once per battle), `np` when the servant fires an NP, `kill` after killing the
+opponent, `day` every morning (outside battle). With `params.cost` (mana paid per activation; skipped when short — `round` + cost = "fires every
+exchange while mana lasts"), `params.uses` (max per battle; start/pinch/kill are once anyway) and `params.chance` (rolled per activation, not per
+battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal) act on the spot; without
+`on` a skill's instant uses `EFFECTS[id].trig` (heal → pinch, drain_* → win, mana_gain/strip/cleanse/self_strip → start, skill_seal → win)
+(`E.trigOf`). Other effects with `on` go to `c.temp` when triggered: until the battle ends (`round`: that exchange only, `rnd` flag; the same
+source never stacks), or to `c.dayTemp` for `day`/`kill` (until next morning; copied into `c.temp` at the next battle start). **NP effects**:
+without `on` they behave as before (instants fire at use); with `on` they are armed after the NP is used (`c.armed`) and fire on that event for
+the rest of the battle — i.e. 「発動した瞬間」 vs 「押し勝ってから」 is chosen with `on`. Summary (`build.js summarize`): triggered entries get
+`trig` (skills) or `npTrig` (NP, armed) and `on`, never `passive`; keys add `!on`, `$cost`, `*uses`; passive skill entries also keep `by`
+(per source skill name) so `self_strip` can subtract a named skill (`c.off`, `offW` in effS/effVs/ailInfo). Estimates: `eff` adds triggered
+non-instant effects × `E.TRIG_W[on]` (start/round/always 1, day 0.8, win 0.5, lose 0.4, np 0.4, pinch 0.3, kill 0.15; NP armed × 0.4);
+`battleOdds` adds dmg_plus/dmg_cut (÷40), heal/drain_hp (`inst`, ÷200, cap +40%), sure_hit (cuts the other side's evade), np_charge (NP add-on
+× up to 1.5). ranking.html's abilities count `trig`/`npTrig` the same way. Editors (roster/submit) have 発動/魔力/回数 fields (`E.trigFieldsHtml`,
+`E.readTrig`); `describe().when` uses `E.trigText` (e.g. 「押し勝ったとき発動・魔力10を払って（その戦いの終わりまで）」) and `condShort` adds
+〈trigger〉.
 **Conditions** (any effect, combinable; `E.COND_OPTS`, `E.condText`, `E.condShort`, `E.hasCond`):
 - `params.cond`: `'水辺'|'森'|'山'|'夜'` (terrain / night battles), `'拠点'` (fighting at its own base), `'瀕死'` (own hp < `ENGINE.pinchAt` 40).
 - `params.vs`: an opponent trait tag — the effect works only against opponents with that tag (power_vs/weakness keep using `params.tag`).
@@ -629,6 +649,24 @@ one command seal is spent for `sealMana` (30) mana, else `masterDown` (「…に
 (berserker or `uncontrolled` ≥ `wildAt` 0.1): no low-mana power penalty, and may fire one NP per battle without enough mana
 (overdraw → drain). Berserkers also pay `wildMana` (3) × upk per round. AI rests more when the Master is drained (mhp < 50%, upk > 1.2)
 and hunts less with mana < 20% (non-berserkers).
+
+**Triggered effects** (`fireTrig(c, o, on, T)` → `applyTrig`; see §5.1 Triggers). Hooks: battle start (after items/initiative, every
+participant), each round (`round`, after the poison tick) then `pinch()`, after each exchange (`win` for the winner, `lose` for the target, `kill`
+when the target died, then `pinch()`), `fireNP` (NP's own instants without `on` at use, NP effects with `on` armed, then the servant's `np`
+triggers), and each morning in `dayPhase` (`c.dayTemp` is reset first). A trigger is skipped when cond fails, `uses` is spent, mana < `cost`, the
+`chance` roll fails, or the servant is skill-sealed (`c.ail.skseal`, not for `day`). Instants: heal (+hp ≤ 100), drain_hp (opponent floors at 1),
+mana_gain (≤ manaMax), drain_mana, strip (chance = mag; removes the opponent's buff temp entries — `isBuff`: good and not aimed at the enemy — and
+`surprise`), cleanse (clears own poison/stun/confuse/seal/skill seal and the opponent's hex temp entries; for the battle `c.cleanse` cuts the
+opponent's `debuff` and ailment chances by mag), self_strip (`params.tag` = skill/NP name → `c.off` + removes that source's temp; empty → own buff
+temp), skill_seal (min(0.8, mag) × (1 − cleanse), resisted by ail_guard). Logs: once per battle per source (day triggers only for the player,
+once per war). Battle-scoped state (`tUsed`, `tLog`, `armed`, `pinched`, `cleanse`, `off`) is reset in `cleanup`/`leave`/day end. Reads of the
+new passives: `sure_hit` in `power()` (evade × (1 − sure)), `dmg_plus`/`dmg_cut` after guard (`Math.max(1, dmg + plus − cut)`, only when
+non-zero), `np_charge` in `useNP` (activation chance), `taunt` in the cover roll (`allyCover + taunt`, ≤ 0.9). None of this calls `rnd()` for
+servants without such effects, so existing data replays identically (verified: 200 seeds, identical logs before the keyword rules were added).
+Keyword rules (end of `RULES`) read clear wording only: 生命力/霊基…を吸収・吸い取 → drain_hp, 魔力を吸収・奪う → drain_mana (not ambient mana),
+強化を解除・打ち消 → strip, 弱体/状態異常/呪いを解除・浄化・祓 → cleanse, スキルを封じ → skill_seal, ダメージカット → dmg_cut, ターゲット集中・
+味方をかばう → taunt, 宝具の連続使用・チャージ → np_charge; `SKILL_DICT` 吸血 adds drain_hp 0.6, plus 魔力吸収 and エナジードレイン. On the current
+data this added 3 effects (ファーディア dmg_cut, リュンコス / アレクトリオン cleanse).
 
 **Other effect reads** (all deterministic apart from the rolls noted): `np_boost` (passive + the NP's own) multiplies attack NP power
 (also in `npPeak`); `luck` adds ×0.5 to guts, ×0.3 to retreat and cuts instakill received by (1 − luck); `resource` adds mana daily;
@@ -922,7 +960,8 @@ with a message if the servant is not in the roster yet), shows the request in `#
 detail (`lastReq`), puts the page name into the GitHub import box when there is no text, and jumps to the servant.
 
 `roster.html` (admin tool, Japanese): import wiki text/JSON, list with review flags (要確認), per-skill
-effect editor (each row explains who/when/what via `E.describe`, plus a legend of all effects), 「真名・クラスを変える」 (`#idd`,
+effect editor (each row explains who/when/what via `E.describe`, plus a legend of all effects grouped by genre; rows have 条件／相手／確率 and
+発動／魔力／回数 fields, see §5.1 Triggers), 「真名・クラスを変える」 (`#idd`,
 writes `CONTENT_OVERRIDES[wikiName].identity` and moves the servant/np/stats/pages keys), 「どの英霊にも当たらない手直し」 in 公開・保存
 (override keys that match no servant / skill, with 消す), stat editor and content editor (「内容を編集」: skills/NPs/voice/text/profile/relations; the voice tab shows one
 field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matches, unused/unknown headings (renamable), and a
@@ -1045,7 +1084,7 @@ Chromium + Playwright may be available in agent sandboxes.
 | Teach a skill name | `SKILL_DICT` in `effects.js`: `'名前': [['effect', factor, params?], …]`. If the name is an ordinary word whose meaning depends on the description, also add it to `GENERIC`. Add canonical names to `test/skills.js`. |
 | Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`). Check with `test/rebuild.js` that existing servants did not change unexpectedly. |
 | Fix one servant | Use `roster.html` (writes `overrides.json`) or edit `data/overrides.json` directly. Prefer overrides over editing `servants.json`. |
-| New effect primitive | Add to `EFFECTS`, then read it in `engine.js` via `eff(c, id, terrain)` / `effVs`. Unread primitives do nothing. |
+| New effect primitive | Add to `EFFECTS` (and a genre in `EFFECT_GROUPS`, a description in `EFFECT_INFO`), then read it in `engine.js` via `eff(c, id, terrain)` / `effVs`. Unread primitives do nothing. An on-the-spot effect also goes in `E.INSTANT` (with a default `trig`) and gets a branch in `applyTrig`. |
 | New persona | Add to `G.PERSONAS` (all bias keys optional). Keep magnitudes small; `cs` and `retreat` strongly affect draw rate. |
 | New big decision | Use `yield* ask(camp, kind, {title, body, options}, autoFn)`; new kinds need no UI work. Add the kind to §7.7. |
 | New focus | Add to `FOCUS` with a unique one-char `code`. |

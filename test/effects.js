@@ -127,6 +127,45 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(opened > 0 && fired >= opened * 0.9, `先手を取った宝具が開幕に放たれていない（先手 ${opened}・開幕の宝具 ${fired}）`);
 }
 
+// 5d) 発動する効果（params.on・cost・uses）と、回復・吸収・解除などその場で働く効果
+{
+  // 説明と集計：発動する効果は常時に数えない
+  ok(/押し勝ったとき/.test(E.describe({ id: 'power', mag: 0.1, params: { on: 'win' } }).when) && /打ち合いの間/.test(E.describe({ id: 'power', mag: 0.1, params: { on: 'round', cost: 10 } }).when), '発動のしかたの説明が違う');
+  ok(/瀕死/.test(E.describe({ id: 'heal', mag: 20 }).when) && /使ったとき/.test(E.describe({ id: 'heal', mag: 20 }, { np: true }).when), '回復の既定の場面の説明が違う');
+  ok(E.EFFECT_GROUPS.reduce((t, g) => t + g[2].length, 0) === Object.keys(E.EFFECTS).length, 'どのジャンルにも入っていない効果がある');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster.find(s => s.nps.some(n => n.attackResolved && !n.disabled) && s.allSkills.length >= 2);
+  const sk = base.allSkills[0].name, sk2 = base.allSkills[1].name;
+  const mk = (specs, npSpecs) => {
+    const k = base.trueName + '/' + E.normName(sk), k2 = base.trueName + '/' + E.normName(sk2);
+    const np = base.nps.find(n => n.attackResolved && !n.disabled), kn = base.trueName + '/' + E.normName(np.name);
+    E.SERVANT_OVERRIDES[k] = specs; E.SERVANT_OVERRIDES[k2] = [['power', 3]]; if (npSpecs) E.SERVANT_OVERRIDES[kn] = npSpecs;
+    const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[k]; delete E.SERVANT_OVERRIDES[k2]; delete E.SERVANT_OVERRIDES[kn]; return me;
+  };
+  const me = mk([['heal', 1], ['drain_hp', 1], ['mana_gain', 1], ['drain_mana', 1], ['cleanse', 1], ['skill_seal', 2], ['power', 2, { on: 'round', cost: 5 }], ['self_strip', 1, { on: 'pinch', tag: sk2 }]],
+    [['drain_hp', 1, { on: 'win' }], ['heal', 1]]);
+  const S = me.effectSummary;
+  ok(S['heal!pinch'] && S['heal!pinch'].trig > 0 && !S['heal!pinch'].passive && S['power!round$5'] && S['power!round$5'].trig > 0, '発動する効果が集計で分かれていない：' + Object.keys(S).join(','));
+  ok(S['drain_hp!win'] && S['drain_hp!win'].npTrig > 0 && S['heal'] && S['heal'].onNP > 0, '宝具の発動する効果・その場の効果が集計で分かれていない');
+  // 7騎のうち1騎がほぼ必ず出るように、少ない顔ぶれから選ぶ戦争で回す
+  const ros = roster.filter(s => s.id !== base.id).slice(0, 7).concat([me]);
+  const seen = {}, keys = { heal: '癒やした', drain: '吸い上げた', mana: '満たした', dmana: '奪い取った', seal: 'スキルを封じた', strip: '力を収めた', round: 'が発動した' };
+  let errs = 0;
+  for (let i = 0; i < 40; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'trig' + i, player: 'none', war: { pick: 'open' } }); } catch (e) { errs++; console.error(e); continue; }
+    for (const e of r.entries) for (const [k, w] of Object.entries(keys)) if (e.text.includes(w)) seen[k] = (seen[k] || 0) + 1;
+    ok(r.entries.every(e => !/undefined|NaN/.test(e.text)), '記録に undefined / NaN：' + (r.entries.find(e => /undefined|NaN/.test(e.text)) || {}).text);
+  }
+  ok(!errs, '発動する効果を持つ英霊で戦争がエラーになった');
+  ok(Object.keys(keys).every(k => seen[k] > 0), '発動していない効果がある：' + JSON.stringify(seen));
+  // 発動する効果を持つ英霊がいても、同じ種なら同じ展開（乱数の使い方が決まっている）
+  const r1 = H.engine.runWar({ roster: ros, seed: 'trig-det', player: 'none', war: { pick: 'open' } }), r2 = H.engine.runWar({ roster: ros, seed: 'trig-det', player: 'none', war: { pick: 'open' } });
+  ok(JSON.stringify(r1.entries.map(e => e.text)) === JSON.stringify(r2.entries.map(e => e.text)), '発動する効果で展開が決まらない');
+  // 見積もり：回復・ダメージカットは強さとして数える
+  const plain = mk([['power', 0]]), tough = mk([['heal', 2], ['dmg_cut', 2]]);
+  ok(B.battleOdds(tough, roster[1], {}).a > B.battleOdds(plain, roster[1], {}).a, '回復・ダメージカットが見積もりに効いていない');
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -144,5 +183,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;

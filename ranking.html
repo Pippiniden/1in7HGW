@@ -194,16 +194,17 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
   // スキル・宝具の効果の合計（宝具を使ったときだけの効果は半分、条件の付いた効果（場所・相手・確率など）も半分に数える）
   function effOf(sv, id) {
     let t = 0;
-    for (const e of Object.values(sv.effectSummary || {})) if (e.id === id) t += ((e.passive || 0) + (e.onNP || 0) * 0.5) * (HGW.effects.hasCond(e.params) ? 0.5 : 1);
+    // 発動する効果（スキルの trig・宝具を使ったあとの npTrig）は、その場面の起きやすさ（effects.js の TRIG_W）で数える
+    for (const e of Object.values(sv.effectSummary || {})) if (e.id === id) t += ((e.passive || 0) + (e.onNP || 0) * 0.5 + ((e.trig || 0) + (e.npTrig || 0) * 0.5) * (HGW.effects.TRIG_W[e.on] || 0)) * (HGW.effects.hasCond(e.params) ? 0.5 : 1);
     return t;
   }
   function abilities(sv) {
     const d = k => B.statDev((sv.score || {})[k] || 32), f = id => effOf(sv, id);
     return {
       atk: d('str') * 0.5 + f('power') + f('crit') * 0.5 + f('pierce') * 0.4 + f('instakill') * 2 + f('power_vs') * 0.3 + f('debuff') * 0.5 + f('initiative') * 0.3
-        + f('stun') * 0.8 + f('confuse') * 0.5 + f('poison') * 0.4 + f('seal') * 0.5,
-      def: d('end') * 0.5 + f('guard') + f('evade') + f('magic_guard') * 0.4 + f('mental_guard') * 0.2 + f('master_guard') * 0.3 + f('ail_guard') * 0.3,
-      tough: d('end') * 0.2 + d('luk') * 0.2 + f('guts') + f('escape') * 0.5 + f('regen') * 0.5 + f('solo') * 0.05,
+        + f('stun') * 0.8 + f('confuse') * 0.5 + f('poison') * 0.4 + f('seal') * 0.5 + f('sure_hit') * 0.3 + f('dmg_plus') * 0.03 + f('np_charge') * 0.5 + f('skill_seal') * 0.3 + f('strip') * 0.2,
+      def: d('end') * 0.5 + f('guard') + f('evade') + f('magic_guard') * 0.4 + f('mental_guard') * 0.2 + f('master_guard') * 0.3 + f('ail_guard') * 0.3 + f('dmg_cut') * 0.03 + f('cleanse') * 0.2,
+      tough: d('end') * 0.2 + d('luk') * 0.2 + f('guts') + f('escape') * 0.5 + f('regen') * 0.5 + f('solo') * 0.05 + f('heal') * 0.02 + f('drain_hp') * 0.03,
       stealth: d('agi') * 0.2 + f('stealth') + f('conceal') * 0.5,
       scout: d('agi') * 0.1 + f('detect') + f('intel') + f('reveal') * 0.5,
     };
