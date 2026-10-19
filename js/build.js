@@ -183,7 +183,7 @@
     const out = {};
     const add = (e, np) => {
       const p = e.params || {};
-      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '');
+      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (np) o.onNP += e.mag; else o.passive += e.mag;
       o.from.push(e.from + (e.persistent ? '(消滅後も持続)' : ''));
@@ -251,7 +251,13 @@
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
       p *= 1 - Math.min(0.5, eff(y, 'debuff', T, oy));
       if (ox.home) p *= 1 + eff(x, 'territory', T, ox);
-      if (opts.np) p += x.npPeak * 0.5;
+      // 相手から受ける状態異常（engine.js の tryAil）：スタン・混乱で戦闘力が下がり、毒で少し削られ、宝具封印・スタンで宝具を使いにくい
+      const EN = G.CONFIG.ENGINE;
+      const ail = id => Math.min(E.AIL_CAP[id], Math.max(0, eff(y, id, T, oy)))
+        * (1 - Math.min(0.95, Math.max(0, eff(x, 'ail_guard', T, ox) + (id === 'confuse' ? eff(x, 'mental_guard', T, ox) : 0))));
+      const st = ail('stun'), cf = ail('confuse'), ps = ail('poison'), sl = ail('seal');
+      p *= (1 - (1 - EN.stunPower) * st) * (1 - (1 - EN.confusePower) * cf) * (1 - 0.08 * ps);
+      if (opts.np) p += x.npPeak * 0.5 * (1 - 0.6 * sl) * (1 - 0.5 * st);
       return p;
     };
     const ea = side(a, b), eb = side(b, a);

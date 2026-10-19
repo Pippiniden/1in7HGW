@@ -357,7 +357,7 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 
 | Phase | IDs |
 |---|---|
-| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `instakill`, `evade`, `initiative`, `charm`, `rally`, `anti_master`, `mental_guard` |
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `instakill`, `evade`, `initiative`, `charm`, `rally`, `anti_master`, `mental_guard`; ailments `poison`, `stun`, `confuse`, `seal` and their resistance `ail_guard` (see 7.5 Ailments) |
 | damage | `guard`, `magic_guard`, `weakness` (vs tag), `master_guard` |
 | lethal | `guts` |
 | encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
@@ -433,7 +433,7 @@ Anything not from an override or exact dict hit is added to the servant's `revie
 
 ### 5.4 Summary and power (`build.js`)
 
-- `effectSummary`: effects summed per `id[:tag|stat][@cond][>vs][%chance]` → `{passive, onNP, from[]}`. NP effects
+- `effectSummary`: effects summed per `id[:tag|stat][@cond][>vs][%chance][#name]` → `{passive, onNP, from[]}`. NP effects
   count as `onNP` (applied only when the NP is used), except `master_buff`/persistent ones.
 - `combatPower = weightedMean(str,end,agi,mag,luk scores; STAT_W × classWeights) × (1 + Σpower)`.
 - `npPeak` = strongest usable attack NP power × (1 + np_boost).
@@ -590,6 +590,20 @@ Per round:
    capped at 0.15. Lethal unless saved by a command seal (`csSaveMaster` 0.5).
 8. Retreat check for the weaker side (threshold `retreatAt` 35 ± stance ± persona; success from
    `retreatBase` + escape − pin + bond …).
+
+**Ailments** (`E.AILMENTS` charm/poison/stun/confuse/seal, chance caps `E.AIL_CAP`, numbers in `CONFIG.ENGINE`). `tryAil(x, y, id)` rolls
+min(cap, Σ magnitude) — no `rnd()` when the holder has none — then the target's resistance `ailResist` (ail_guard; + mental_guard and
+Master mind for charm/confuse; + 0.05·end dev for stun/poison) and logs 「…は…を振り払った」 on a resist. Per round, after the retreat
+check: poison ticks (`poisonTick` 5 hp, logged once per battle), then **stun** (that round: no NP, power × `stunPower` 0.5) and **confuse**
+(power × `confusePower` 0.75, `confuseSelf` 0.4 chance of −`confuseSelfDmg` 6 hp) are rolled for both main fighters. After the exchange the
+winner may inflict **poison** (`c.poison = { p, day }`; −`poisonDay` 10 hp the next day, then it clears) and **seal** (no NP for the rest of
+the battle). Ailments never kill (hp floors at 1). Charm now also yields to ail_guard. Per-battle state `c.ail` (stun/confuse/seal flags)
+is reset in `cleanup`/`leave`/day end. **Names and messages**: an effect's `params.name` renames the ailment (「石化」 for a stun) and
+`params.msg` replaces the infliction line (`{S}` inflicter, `{O}` target, `{N}` name); otherwise `G.LINES.ail*` in `names.js` (picked by
+`line()`, not `rnd()`). `ailInfo` uses the params of the strongest contributing entry; summary keys add `#name`. Estimates (`battleOdds`)
+scale the target's power by the expected stun/confuse/poison and its NP add-on by seal/stun. Keyword rules (end of `RULES`) read clear
+wording only (毒を与える/猛毒/毒性, 相手を行動不能/麻痺させ/石化させ, 混乱させ/幻覚作用/幻惑の効果, 宝具を封じ, 毒・状態異常への耐性);
+`SKILL_DICT` has 耐毒/対毒/毒耐性 → ail_guard. On the current data 7 skills/NPs gained an ailment.
 
 **Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`): x's ally joins with
 `clamp(allyJoin 0.3 + hunting 0.15 + defending its own base 0.2 + rally(x) + rally(ally) + persona ally×0.5 − wander 0.2, 0.05, 0.85)`

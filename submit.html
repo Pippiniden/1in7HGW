@@ -101,6 +101,12 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .erow .econd select { width: auto; max-width: 13em; }
 .erow .econd input[data-e=vs] { width: 9em; }
 .erow .econd input[data-e=chance] { width: 4.5em; }
+.estat { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
+.estat[hidden] { display: none; }
+.estat label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .estat input[data-e=name] { width: 8em; }
+.estat label.msg { flex: 1 1 16em; }
+.erow .estat input[data-e=msg] { flex: 1; min-width: 0; }
 @media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .erow > input { grid-column: 1 / 3; } }
 .npkind { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
 .edesc { font-size: 12px; color: var(--sub); }
@@ -404,13 +410,17 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
   const keyOf = (sv, item) => sv.trueName + '/' + E.normName(item.name);
-  const specOf = e => { const p = {}, q = e.params || {}; for (const k of ['tag', 'stat', 'cond', 'vs']) if (q[k]) p[k] = q[k]; if (q.chance != null) p.chance = q.chance; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
+  const specOf = e => { const p = {}, q = e.params || {}; for (const k of ['tag', 'stat', 'cond', 'vs', 'name', 'msg']) if (q[k]) p[k] = q[k]; if (q.chance != null) p.chance = q.chance; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
   // 条件欄（効果が働く場面：場所・拠点・瀕死／相手の属性／戦いごとの発動確率。effects.js の COND_OPTS）
   const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
     .map(([k, t]) => `<option value="${esc(k)}"${k === (sel || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
   const condFields = p => { p = p || {}; return `<div class="econd"><label>条件<select data-e="cond">${condOptions(p.cond)}</select></label>`
     + `<label>相手<input type="text" data-e="vs" list="tagList" value="${esc(p.vs || '')}" placeholder="属性（男性・竜など）" autocomplete="off"></label>`
     + `<label>確率<input type="number" data-e="chance" min="0" max="100" step="5" value="${p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : ''}" placeholder="100">%</label></div>`; };
+  // 状態異常（魅了・毒・スタン・混乱・宝具封印）だけ：表示名と、掛けたときの記録の文（{S} 掛けた側・{O} 掛けられた側・{N} 名前）
+  const statFields = (id, p) => { p = p || {}; return `<div class="estat"${E.AILMENTS[id] ? '' : ' hidden'}><label>名前<input type="text" data-e="name" value="${esc(p.name || '')}" placeholder="${esc(E.AILMENTS[id] || '')}" autocomplete="off"></label>`
+    + `<label class="msg">記録の文<input type="text" data-e="msg" value="${esc(p.msg || '')}" placeholder="${esc(E.AIL_MSG_HINT[id] || '')}" autocomplete="off"></label></div>`; };
+  const readStat = (q, id, p) => { if (!E.AILMENTS[id]) return; const n = q('name').value.trim(), m = q('msg').value.trim(); if (n) p.name = n; if (m) p.msg = m; };
   const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—')}）</option>`).join('');
   function strengthOptions(f) {
     const has = STRENGTH.some(([, v]) => Math.abs(v - f) < 1e-9);
@@ -419,7 +429,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   function effRow(spec) {
     const [id, f, p] = spec || ['power', 1, null];
     const pv = p ? p.tag || p.stat || '' : '';
-    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}</div>`;
+    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${statFields(id, p)}</div>`;
   }
   function itemHtml(kind, item, j) {
     const k = keyOf(base, item), changed = k in prop.servant || (kind === 'n' && k in prop.np);
@@ -540,6 +550,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       const c = q('cond').value || cond; if (c) p.cond = c;
       const vs = q('vs').value.trim(); if (vs) p.vs = vs;
       const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
+      readStat(q, id, p);
       return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
     });
     const item = el.dataset.kind === 's' ? base.allSkills.find(x => keyOf(base, x) === k) : base.nps.find(x => keyOf(base, x) === k);
@@ -558,7 +569,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   });
   let pItem = null;
   const readP = () => { if (pItem && pItem.isConnected) { readItem(pItem); showEdit(); } };
-  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p], [data-e=vs], [data-e=chance]')) { pItem = e.target.closest('.item'); soon(readP); } });
+  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p], [data-e=vs], [data-e=chance], [data-e=name], [data-e=msg]')) { pItem = e.target.closest('.item'); soon(readP); } });
   function readStats() {
     const o = {}; for (const inp of $('#stats').querySelectorAll('[data-stat]')) if (inp.value.trim()) o[inp.dataset.stat] = inp.value.trim();
     if (Object.keys(o).length) prop.stats[base.trueName] = o; else delete prop.stats[base.trueName];
@@ -577,7 +588,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   function strengthLabel(f) { const s = STRENGTH.find(([, v]) => Math.abs(v - f) < 1e-9); return s ? s[0].replace(/く$/, 'い') : '×' + f; }
   function specText(sp) {
     const [id, f, p] = sp; const d = E.EFFECTS[id];
-    return `${d ? d.name : id}${p && (p.tag || p.stat) ? '〔' + (p.tag || p.stat) + '〕' : ''}${E.condShort(p)} ${strengthLabel(f)}`;
+    return `${d ? d.name : id}${p && p.name ? '「' + p.name + '」' : ''}${p && (p.tag || p.stat) ? '〔' + (p.tag || p.stat) + '〕' : ''}${E.condShort(p)} ${strengthLabel(f)}${p && p.msg ? '（記録の文：' + p.msg + '）' : ''}`;
   }
   function request() {
     const page = $('#page').value.trim();

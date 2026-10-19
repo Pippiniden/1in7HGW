@@ -76,6 +76,13 @@
       personaReveal: 0.35,  // 戦ったあと、相手マスターの性格が分かる確率
       retreatBase: 0.2,     // 撤退の基本成功率（＋離脱−相手の逃走阻止）
       retreatAt: 35,        // 体力がこれを下回ると撤退を考える
+      // 状態異常（effects.js の poison / stun / confuse / seal）
+      poisonTick: 5,        // 毒：その戦いの打ち合いのたびに削る霊基（毒では倒れない。霊基1で止まる）
+      poisonDay: 10,        // 毒：翌日に削る霊基（そこで毒は抜ける）
+      stunPower: 0.5,       // スタン：その打ち合いの戦闘力の倍率（宝具も使えない）
+      confusePower: 0.75,   // 混乱：その打ち合いの戦闘力の倍率
+      confuseSelf: 0.4,     // 混乱：自分を傷つける確率
+      confuseSelfDmg: 6,    // 混乱：自分を傷つけたときの霊基の減り
       pinchAt: 40,          // 霊基がこれを下回ると「瀕死のとき」の条件が付いた効果が働く（effects.js の COND_JA の文も合わせる）
     },
 

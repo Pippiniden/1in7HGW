@@ -36,6 +36,12 @@
     evade:        { name: '回避',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '攻撃を避ける確率' },
     initiative:   { name: '先手',         phase: 'battle',    unit: 'chance', base: 0.15, desc: '戦いの始めに先手を取り、その戦いで少し有利になる確率' },
     charm:        { name: '魅了',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '相手が攻撃をためらう確率' },
+    // 状態異常（params.name で表示名、params.msg で記録の文を変えられる。AILMENTS）
+    poison:       { name: '毒',           phase: 'battle',    unit: 'chance', base: 0.20, desc: '押し勝ったとき相手を毒にする確率。毒の英霊は打ち合いのたびと翌日に霊基を削られる（毒では倒れない）' },
+    stun:         { name: 'スタン',       phase: 'battle',    unit: 'chance', base: 0.10, desc: '打ち合いごとに相手の動きを止める確率。止まった相手は宝具を使えず、その打ち合いの戦闘力が下がる' },
+    confuse:      { name: '混乱',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '打ち合いごとに相手を混乱させる確率。混乱した相手は戦闘力が下がり、自分を傷つけることもある' },
+    seal:         { name: '宝具封印',     phase: 'battle',    unit: 'chance', base: 0.15, desc: '押し勝ったとき、相手の宝具をその戦いの間封じる確率' },
+    ail_guard:    { name: '状態異常耐性', phase: 'battle',    unit: 'chance', base: 0.40, desc: '毒・スタン・混乱・宝具封印・魅了を防ぐ確率' },
     rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟相手と並んで戦うときの連携（加勢の力）を強める' },
     anti_master:  { name: 'マスター狙い', phase: 'battle',    unit: 'chance', base: 0.15, desc: '敵マスターを直接狙える確率' },
     // 被ダメージ・生存
@@ -87,6 +93,13 @@
   const sg = v => (v < 0 ? '−' : '+') + pc(v);
   const num = v => Math.round(v * 10) / 10;
   const tagOf = p => (p && p.tag) || '特定の相手';
+  const ENG = () => G.CONFIG.ENGINE;
+  // 状態異常：既定の名前と、確率の上限（engine.js も同じ表を使う）。params.name があればその名前で呼ぶ
+  const AILMENTS = { charm: '魅了', poison: '毒', stun: 'スタン', confuse: '混乱', seal: '宝具封印' };
+  const AIL_CAP = { charm: 1, poison: 0.6, stun: 0.5, confuse: 0.5, seal: 0.5 };
+  const ailName = (p, id) => '「' + ((p && p.name) || AILMENTS[id]) + '」';
+  // 記録の文の例（編集画面の入力欄に出す。実際の既定の文は names.js の G.LINES の ail*）
+  const AIL_MSG_HINT = { charm: '{O}の刃が一瞬鈍った。{N}だ。', poison: '{O}は{N}に冒された。', stun: '{O}は体の自由を奪われた。{N}だ。', confuse: '{O}の目が焦点を失う。{N}だ。', seal: '{S}の一撃が{O}の宝具を封じた。{N}だ。' };
   // 確率の効果がマイナスのとき：その確率が下がる（同じ効果のほかのスキルや幸運などと合わせて、0%未満にはならない）
   const less = (what, m) => `${what} −${pc(m)}（ほかの効果と合わせて0%未満にはならない）`;
   const pm = v => (v < 0 ? '−' : '+') + num(Math.abs(v));
@@ -99,7 +112,12 @@
     instakill:    { who: 'enemy', fx: m => m < 0 ? less('押し勝ったときに相手を一撃で倒す確率', m) : `押し勝つたびに ${pc(Math.min(0.4, m))} の確率で相手を一撃で倒す（相手の幸運で減る）` },
     evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}` },
     initiative:   { who: 'self', fx: m => m < 0 ? less('戦いの始めに先手を取る確率', m) : `戦いの始めに ${pc(Math.min(0.5, m))} の確率で先手を取り、その戦いの戦闘力 +8%` },
-    charm:        { who: 'enemy', fx: m => m < 0 ? less('相手を魅了する（戦闘力を4割下げる）確率', m) : `打ち合いごとに ${pc(m)} の確率で相手の戦闘力を4割下げる（精神耐性・マスターの精神で防がれる）` },
+    charm:        { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'charm')}にする（戦闘力を4割下げる）確率`, m) : `打ち合いごとに ${pc(m)} の確率で相手を${ailName(p, 'charm')}にし、その打ち合いの戦闘力を4割下げる（精神耐性・状態異常耐性・マスターの精神で防がれる）` },
+    poison:       { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'poison')}にする確率`, m) : `押し勝ったとき ${pc(Math.min(AIL_CAP.poison, m))} の確率で相手を${ailName(p, 'poison')}にする。その戦いの打ち合いのたびに霊基 −${ENG().poisonTick}、翌日にも −${ENG().poisonDay}（これでは倒れない。状態異常耐性・耐久で防がれる）` },
+    stun:         { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'stun')}にする確率`, m) : `打ち合いごとに ${pc(Math.min(AIL_CAP.stun, m))} の確率で相手を${ailName(p, 'stun')}にする。その打ち合いは宝具を使えず、戦闘力 −${pc(1 - ENG().stunPower)}（状態異常耐性・耐久で防がれる）` },
+    confuse:      { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'confuse')}させる確率`, m) : `打ち合いごとに ${pc(Math.min(AIL_CAP.confuse, m))} の確率で相手を${ailName(p, 'confuse')}させる。その打ち合いの戦闘力 −${pc(1 - ENG().confusePower)}、${pc(ENG().confuseSelf)} の確率で自分を傷つける（霊基 −${ENG().confuseSelfDmg}）（精神耐性・状態異常耐性・マスターの精神で防がれる）` },
+    seal:         { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手の宝具を封じる確率`, m) : `押し勝ったとき ${pc(Math.min(AIL_CAP.seal, m))} の確率で相手の宝具を封じ（${ailName(p, 'seal')}）、その戦いの間は使わせない（状態異常耐性で防がれる）` },
+    ail_guard:    { who: 'self', fx: m => m < 0 ? `毒・スタン・混乱・宝具封印・魅了を防ぐ確率 −${pc(m)}（ほかの耐性と合わせて0%未満にはならない）` : `毒・スタン・混乱・宝具封印・魅了を ${pc(Math.min(0.95, m))} の確率で防ぐ` },
     rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
     guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m * 0.5))}、守りとして戦闘力 ${sg(m * 0.5)}` },
@@ -168,7 +186,7 @@
     const bad = !!inf.bad === !(m < 0);
     const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : '宝具を使ったその戦いの間') : hasCond(p) ? '' : '常に',
       condText(p)].filter(Boolean).join('・');
-    return { name: def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
+    return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
   }
 
   // ---------- 既知のスキル辞書 ----------
@@ -427,7 +445,9 @@
     '黄金の杯':     [['debuff', 0.6], ['pierce', 0.4]],
     'アクセルターン': [['evade', 1], ['crit', 0.4]],
     'スケープゴート': [['master_guard', 1]],
-    '耐毒':         [['guard', 0.4]],
+    '耐毒':         [['guard', 0.4], ['ail_guard', 0.8]],
+    '対毒':         [['ail_guard', 1]],
+    '毒耐性':       [['ail_guard', 1]],
     '病弱':         [['guard', -0.8], ['luck', -0.3]],
     '忍術':         [['stealth', 1], ['evade', 0.5]],
     '幻術':         [['conceal', 0.6], ['debuff', 0.5], ['charm', 0.3]],
@@ -563,6 +583,12 @@
     { re: /単独行動|単独で(?:も)?現界|マスター不在|現界を維持/, id: 'solo', f: 0.7 },
     { re: /理性[^。]{0,8}(?:失|奪|引き換え|蒸発)|暴走|言うことを聞かない|勝手に/, id: 'uncontrolled', f: 0.7, not: /暴走させた|奪われていようとも|奪われても/ },
     { re: /攻撃力|威力|膂力|怪力|筋力[^。]{0,8}(?:上昇|向上|ランクアップ)|(?:ステータス|パラメーター|パラメータ)[^。]{0,10}(?:上昇|向上|強化|ランクアップ)|ランク(?:が)?上昇|強化され|戦闘能力(?:を向上|が増幅)|増幅させ|大幅に上昇|ボーナスを(?:獲得|得)|バフが発生|ブーストアップ|放出能力|攻撃(?:時|判定)?に補正|攻撃時[^。]{0,6}補正|(?:耐久|敏捷|魔力|幸運)[^。]{0,12}(?:を|が)?上昇させ/, id: 'power', f: 0.8, cond: true, not: /(?:幸運|耐久|神性|黄金律)(?:の|値)?(?:パラメーター|パラメータ)?(?:を|は|が)[^。、・]{0,10}ランクアップ/ },
+    // 状態異常（毒・スタン・混乱・宝具封印）と、その耐性。言い回しがはっきりしたものだけ（防ぐ・治す話は除く）
+    { re: /毒[^。]{0,12}(?:付与|与え|蝕|冒|侵|回る|塗|を持つ|を武器)|猛毒|毒の(?:刃|矢|牙|霧|息)|毒素が|毒性(?:と|の|を持)/, id: 'poison', not: /耐性|抵抗|無効|効かな|切除|取り除|消毒|解毒|治療|対毒|耐毒|毒婦/ },
+    { re: /(?:相手|敵|対象)[^。]{0,12}(?:行動不能|身動きが取れな|動きを封じ|動けなく)|麻痺させ|痺れさせ|硬直させ|石化させ|凍りつかせ|気絶させ|昏倒させ|スタン(?:を付与|させ)/, id: 'stun', not: /自身|自分|耐性|無効|防ぐ/ },
+    { re: /(?:相手|敵|対象)[^。]{0,12}(?:混乱|錯乱|幻惑)させ|混乱を(?:付与|与え|招)|錯乱させ|幻覚(?:を見せ|作用|に陥)|幻惑の効果/, id: 'confuse', not: /無効化|弱体化し|耐性|防ぐ|効かな/ },
+    { re: /宝具[^。]{0,10}(?:を封じ|を封印す|の使用を(?:封|禁|妨)|を使えなく)|真名解放を(?:封|阻|させな)/, id: 'seal', not: /自身|自分|この宝具/ },
+    { re: /毒[^。]{0,6}(?:耐性|無効|効かな)|(?:状態異常|バッドステータス|病毒)[^。]{0,8}(?:耐性|無効|効かな|防|抵抗)/, id: 'ail_guard', not: /(?:相手|敵)の|引き下げ|下げ|低下|弱め/ },
   ];
   // 場所などの条件
   const CONDS = [['水辺', /水場|水辺|海上|海で|海に|水中|川で/], ['森', /森の中|森で|樹木|木々/], ['山', /山中|山で/], ['夜', /夜間|夜に|暗闇/]];
@@ -814,5 +840,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

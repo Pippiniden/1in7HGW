@@ -1213,6 +1213,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (eff('territory') >= 0.2) good.push('拠点で戦えば強い');
     if (eff('escape') >= 0.2) good.push('不利になっても逃げ切りやすい');
     if (eff('charm') > 0) good.push('相手の攻撃をためらわせる魅了を持つ');
+    const ails = ['poison', 'stun', 'confuse', 'seal'].filter(id => eff(id) > 0).map(id => H.effects.AILMENTS[id]);
+    if (ails.length) good.push(`相手を${ails.join('・')}にする状態異常を持つ`);
+    if (eff('ail_guard') >= 0.3) good.push('状態異常に強い');
     if (eff('solo') >= 2) good.push('マスターを失っても長く現界できる');
     const vs = Object.values(sv.effectSummary || {}).filter(e => e.id === 'power_vs' && e.passive > 0).map(e => e.params.tag);
     if (vs.length) good.push(`〔${vs.slice(0, 2).join('〕〔')}〕への特攻を持つ`);
