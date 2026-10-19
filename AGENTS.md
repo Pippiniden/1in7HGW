@@ -955,12 +955,17 @@ field per `VOICE_SLOTS` scene with its `use`, a coverage row, per-NP line matche
   NP/review count), class select (`#clsSel`, `filter`) and toggle chips (`flag`: 要確認あり, 未公開の追加・変更, 内容を手直し中). Each row shows the S–E grade (same formula as
   the game's opening: `strengthTable`, cached per `rosterVer`, which `save()`/`rebuildAll()` bump).
 - **聖杯戦争で試す** (tab `lab`, `js/simlab.js` `mount`, opened lazily by `openLab()`; `var lab` because the remembered view may open it
-  early): runs N (300/1000/3000/10000) automatic wars with the **browser roster and overrides** (unpublished edits included) and an optional
+  early): runs N (300/1000/3000 default/10000) automatic wars with the **browser roster and overrides** (unpublished edits included) and an optional
   **config patch** (`{ 'ENGINE.huntBase': 0.5, 'BATTLE_K': 18, 'NP_TYPE.anti_fort.power': 1.4, 'CLASS_DEFS.berserker.upkeep': 1.2, … }`,
   numeric leaves of G.CONFIG only; `groups()` lists ENGINE (minus player-only lifeChance/councilEvery/fallenDeath/stealBase), BATTLE_K,
   STAT_SCORE, STAT_W, STAT_FX, NP_TYPE power/cost/exposure, RANK_SCORE, CLASS_DEFS upkeep, WAR.extraChance; labels come from the
   line comments of `js/config.js`, fetched and parsed by `commentsOf`). Wars run in `min(8, cores−1)` Web Workers (`js/simworker.js`,
-  index i = start + k·step, seed `'sv' + i` like survival.js — so with no changes the numbers equal `data/survival.json`); without Worker
+  index i = start + k·step, seed `'sv' + i` like survival.js). **The roster is first put in the published file order** (`orderLike(roster,
+  api.order(), B.wikiId)`; unpublished additions go last): `composeWar` draws by roster position, so the browser's own order (class → name)
+  turns the same seeds into different wars — before this fix the tab compared a different random sample with data/survival.json (mean
+  ±2 pt, up to ±15 pt for rare classes). With no changes and 3000 wars (the default) the numbers now equal `data/survival.json` exactly.
+  `api.pubFp()` (roster.html `pubFingerprint()`: the published servants rebuilt under the *published* override tables, cached per `pub`)
+  flags a stale survival.json; the comparison note also says when the war counts differ or when everything matches; without Worker
   support (file://) it runs in chunks on the page, patching/unpatching `G.CONFIG` around each chunk. Output: summary (勝者あり/全滅/引き分け,
   median end day, battles and NPs per war), per-servant table (rank + grade by win-rate percentile, 優勝率 ± 95% margin, 差 vs the
   comparison, 半数脱落 day, appearances, 1v1 grade from `gradeOf`, 未公開 badge from `pubState`; sortable, search, class filter; a row

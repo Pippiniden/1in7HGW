@@ -32,6 +32,17 @@ const rows = L.rowsOf(t), S = L.summaryOf(t);
 ok(Object.values(rows).every(r => r.rate >= 0 && r.rate <= 1 && r.margin > 0), '優勝率の行がおかしい');
 ok(S.win > 0.5 && S.medDays >= 1 && S.battles > 0, 'まとめがおかしい：' + JSON.stringify(S));
 
+// 2b) 並びをそろえる：リストツールの並び（クラス→名前順など）でも、公開中の並びにそろえれば同じ戦争になる
+{
+  const ids = roster.map(H.build.wikiId);
+  const CO = Object.keys(H.CONFIG.CLASS_DEFS), ord = s => { const i = CO.indexOf(s.class.key); return i < 0 ? 99 : i; };
+  const browser = roster.slice().sort((x, y) => ord(x) - ord(y) || x.trueName.localeCompare(y.trueName, 'ja')).reverse();
+  const back = L.orderLike(browser, ids, H.build.wikiId);
+  ok(H.survival.fingerprint(back) === H.survival.fingerprint(roster), '公開中の並びにそろえても指紋が戻らない');
+  const extra = L.orderLike(browser.concat([{ id: 'x:new' }]), ids, s => s.id === 'x:new' ? s.id : H.build.wikiId(s));
+  ok(extra[extra.length - 1].id === 'x:new' && L.orderLike(browser, null) !== browser && L.orderLike(browser, null).length === browser.length, '公開中に無い騎の扱いが違う');
+}
+
 // 3) 設定の差し替え
 const K0 = H.CONFIG.BATTLE_K, h0 = H.CONFIG.ENGINE.huntBase, p0 = H.CONFIG.NP_TYPE.anti_fort.power;
 const undo = L.applyConfig({ BATTLE_K: 40, 'ENGINE.huntBase': 0.3, 'NP_TYPE.anti_fort.power': 2, 'NP_TYPE.anti_fort.name': 9, 'ENGINE.nope': 1, 'WAR.slots': 3 });
@@ -50,5 +61,5 @@ ok(!paths.includes('ENGINE.lifeChance') && paths.includes('ENGINE.counterDmg') &
 const notes = L.commentsOf(fs.readFileSync(__dirname + '/../js/config.js', 'utf8'));
 ok(/出撃/.test(notes['ENGINE.huntBase'] || '') && /筋力/.test(notes['STAT_FX.str'] || '') && /0 で以前と同じ/.test(notes['ENGINE.counterDmg'] || ''), 'config.js の説明が読めない：' + JSON.stringify([notes['ENGINE.huntBase'], notes['STAT_FX.str'], notes['ENGINE.counterDmg']]));
 
-console.log(fail ? `NG ${fail}件` : `OK：聖杯戦争で試す（survival.js と同じ数え方／分けて足しても同じ／設定の差し替えと戻し／設定の一覧 ${paths.length}項目）`);
+console.log(fail ? `NG ${fail}件` : `OK：聖杯戦争で試す（survival.js と同じ数え方／分けて足しても同じ／公開中の並びにそろえる／設定の差し替えと戻し／設定の一覧 ${paths.length}項目）`);
 process.exitCode = fail ? 1 : 0;

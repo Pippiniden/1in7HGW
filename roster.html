@@ -837,12 +837,26 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (lab) { lab.refresh(); return; }
     lab = H.simLab.mount($('#lab'), {
       roster: () => roster,
-      lean: () => roster.map(B.toLean),
       overrides: () => ovGet(),
+      order: () => (pub ? [...pub.servants.keys()] : null),
+      pubFp: () => pubFingerprint(),
       grade: sv => gradeOf(sv),
       local: sv => pubState(sv),
       open: id => { if (id) jumpTo(id); },
     });
+  }
+
+  // 公開中のリストの指紋（公開中の手直し表で組み直したもの。data/survival.json が今の公開中のリストの集計かを見分ける）
+  let pubFpCache = null;
+  function pubFingerprint() {
+    if (!pub) return null;
+    if (pubFpCache && pubFpCache.pub === pub) return pubFpCache.fp;
+    const keep = ovGet(); let fp = null;
+    try { ovSet(pub.ov); fp = H.survival.fingerprint([...pub.servants.values()].map(s => B.fromJSON(B.toLean(s)))); }
+    catch (e) { console.error(e); }
+    finally { ovSet(keep); }
+    pubFpCache = { pub, fp };
+    return fp;
   }
 
   // ---------- 試し戦い ----------
