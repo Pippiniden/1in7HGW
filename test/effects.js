@@ -71,6 +71,36 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(!errs, '条件付きの効果を持つ英霊で戦争がエラーになった');
 }
 
+// 5b) 状態異常（毒・スタン・混乱・宝具封印）と名前・記録の文の差し替え
+{
+  const d = E.describe({ id: 'poison', mag: 0.3, params: { name: '火傷' } });
+  ok(d.name === '火傷（毒）' && /「火傷」/.test(d.text), '状態異常の名前が説明に出ていない：' + d.name + ' / ' + d.text);
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster[0], key = base.trueName + '/' + E.normName(base.allSkills[0].name);
+  E.SERVANT_OVERRIDES[key] = [['stun', 5, { name: '石化', msg: '{S}の眼差しに、{O}の手足が石と化した。' }], ['poison', 5], ['confuse', 5], ['seal', 5]];
+  const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[key];
+  ok(me.effectSummary['stun#石化'] && me.effectSummary['poison'], '状態異常が集計に入っていない：' + Object.keys(me.effectSummary).join(','));
+  const ros = roster.filter(s => s.id !== base.id).concat([me]);
+  const seen = { stun: 0, poison: 0, confuse: 0, seal: 0, tick: 0 }; let errs = 0;
+  for (let i = 0; i < 60; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'ail' + i }); } catch (e) { errs++; console.error(e); continue; }
+    for (const e of r.entries) {
+      if (/手足が石と化した/.test(e.text)) seen.stun++;
+      if (/毒/.test(e.text) && /蝕み始めた|冒された|回る/.test(e.text)) seen.poison++;
+      if (/混乱/.test(e.text)) seen.confuse++;
+      if (/宝具を封じ|真名解放が、何かに阻まれた/.test(e.text)) seen.seal++;
+      if (/霊基を削っていく|じわじわと蝕む/.test(e.text)) seen.tick++;
+      ok(!/\{[SON]\}/.test(e.text), '記録の文の差し込みが残っている：' + e.text);
+    }
+  }
+  ok(!errs, '状態異常を持つ英霊で戦争がエラーになった');
+  ok(seen.stun && seen.poison && seen.confuse && seen.seal && seen.tick, '状態異常が戦いで起きていない：' + JSON.stringify(seen));
+  // 状態異常耐性：とても高ければ、ほぼ掛からない
+  const gkey = roster[1].trueName + '/' + E.normName(roster[1].allSkills[0].name);
+  E.SERVANT_OVERRIDES[gkey] = [['ail_guard', 10]]; const guard = B.fromJSON(B.toLean(roster[1])); delete E.SERVANT_OVERRIDES[gkey];
+  ok(B.battleOdds(guard, me, {}).a > B.battleOdds(roster[1], me, {}).a, '状態異常耐性が見積もりに効いていない');
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -88,5 +118,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;

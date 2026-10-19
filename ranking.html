@@ -135,7 +135,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
       <dt>生存</dt><dd>同じ集計で、半分以上が脱落するまでの日数（中央値）。「最後まで」は、出た戦争の半分以上で最後の日まで残ったもの。</dd>
       <dt>平均勝率</dt><dd>リストの全騎と1対1で戦った場合の勝ちやすさ（宝具を使う・使わないの平均）。</dd>
       <dt>戦闘力・宝具</dt><dd>ステータスとスキルから出した戦いの強さと、いちばん強い攻撃宝具の威力。</dd>
-      <dt>攻め・守り・粘り・隠密・索敵</dt><dd>ステータスとスキル・宝具の効果を合わせた得意分野。攻め（筋力・戦闘力の上昇・クリティカル・防御無視・即死・特攻）、守り（耐久・被ダメージ軽減・回避・魔術耐性）、粘り（致命傷耐性・離脱・自己回復・幸運）、隠密（敏捷・気配遮断・真名の秘匿）、索敵（索敵・情報収集・看破）。文字はリストの中での順位で、評価と同じ S〜E。</dd>
+      <dt>攻め・守り・粘り・隠密・索敵</dt><dd>ステータスとスキル・宝具の効果を合わせた得意分野。攻め（筋力・戦闘力の上昇・クリティカル・防御無視・即死・特攻・状態異常）、守り（耐久・被ダメージ軽減・回避・魔術耐性・状態異常耐性）、粘り（致命傷耐性・離脱・自己回復・幸運）、隠密（敏捷・気配遮断・真名の秘匿）、索敵（索敵・情報収集・看破）。文字はリストの中での順位で、評価と同じ S〜E。</dd>
     </dl>
   </section>
 </div>
@@ -200,8 +200,9 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
   function abilities(sv) {
     const d = k => B.statDev((sv.score || {})[k] || 32), f = id => effOf(sv, id);
     return {
-      atk: d('str') * 0.5 + f('power') + f('crit') * 0.5 + f('pierce') * 0.4 + f('instakill') * 2 + f('power_vs') * 0.3 + f('debuff') * 0.5 + f('initiative') * 0.3,
-      def: d('end') * 0.5 + f('guard') + f('evade') + f('magic_guard') * 0.4 + f('mental_guard') * 0.2 + f('master_guard') * 0.3,
+      atk: d('str') * 0.5 + f('power') + f('crit') * 0.5 + f('pierce') * 0.4 + f('instakill') * 2 + f('power_vs') * 0.3 + f('debuff') * 0.5 + f('initiative') * 0.3
+        + f('stun') * 0.8 + f('confuse') * 0.5 + f('poison') * 0.4 + f('seal') * 0.5,
+      def: d('end') * 0.5 + f('guard') + f('evade') + f('magic_guard') * 0.4 + f('mental_guard') * 0.2 + f('master_guard') * 0.3 + f('ail_guard') * 0.3,
       tough: d('end') * 0.2 + d('luk') * 0.2 + f('guts') + f('escape') * 0.5 + f('regen') * 0.5 + f('solo') * 0.05,
       stealth: d('agi') * 0.2 + f('stealth') + f('conceal') * 0.5,
       scout: d('agi') * 0.1 + f('detect') + f('intel') + f('reveal') * 0.5,
@@ -258,7 +259,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
     const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(H.rank.label(s.ranks[k]))}</b>`).join('');
     const nps = (s.nps || []).map(n => `<li>『${esc(n.name)}』 <span class="dim">${esc(H.rank.label(n.rank))}・${esc(n.typeRaw || '種別不明')}</span> ${n.disabled ? '<span class="chip neg">使えない</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}</li>`).join('') || '<li class="dim">なし</li>';
     const effs = Object.values(s.effectSummary || {}).filter(e => e.id !== 'tag' && Math.abs(e.passive) >= 0.05).sort((a, b) => Math.abs(b.passive) - Math.abs(a.passive)).slice(0, 8)
-      .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc(e.name + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + HGW.effects.condShort(e.params))}</span>`).join('') || '<span class="dim">なし</span>';
+      .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc((e.params && e.params.name ? e.params.name + '（' + e.name + '）' : e.name) + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + HGW.effects.condShort(e.params))}</span>`).join('') || '<span class="dim">なし</span>';
     return `<div class="box"><div class="full">${esc(s.trueName)}<span>${esc(s.class.label)}</span></div><div><h4>ステータス</h4><div class="stl">${st}</div><h4 style="margin-top:8px">目立つ効果（スキル・宝具から）</h4>${effs}</div>
       <div><h4>宝具</h4><ul>${nps}</ul>${s.origin ? `<h4 style="margin-top:8px">元ネタ</h4>${esc(s.origin)}` : ''}</div></div>`;
   }

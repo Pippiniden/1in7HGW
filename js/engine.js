@@ -241,6 +241,34 @@
       for (const e of c.temp) if (e.id === id && e.params && o.sv.tags.includes(e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     };
+    // ---------- 状態異常（effects.js の AILMENTS：魅了・毒・スタン・混乱・宝具封印。防ぐのは ail_guard ほか） ----------
+    // ailInfo：その効果の強さの合計と、いちばん強いものの params（表示名 name・記録の文 msg）
+    function ailInfo(c, id, terrain) {
+      let t = 0, top = null, best = -Infinity;
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && condOk(c, x.params, terrain)) { const m = x.passive * chanceW(c, k, x.params); t += m; if (m > best) { best = m; top = x.params; } }
+      for (const e of c.temp) if (e.id === id && condOk(c, e.params, terrain)) { t += e.mag; if (e.mag > best) { best = e.mag; top = e.params; } }
+      return { t, p: top };
+    }
+    // 防ぐ確率：状態異常耐性＋（魅了・混乱は精神耐性とマスターの精神／毒・スタンは耐久）
+    const ailResist = (y, id, T) => clamp(eff(y, 'ail_guard', T)
+      + (id === 'confuse' || id === 'charm' ? eff(y, 'mental_guard', T) + FX.mMindCharm * md(y, 'mind') : 0)
+      + (id === 'stun' || id === 'poison' ? 0.05 * Math.max(0, sd(y, 'end')) : 0), 0, 0.95);
+    // 記録の文：掛けたときの文は、効果に params.msg があればそれ（{S} 掛けた側・{O} 掛けられた側・{N} 状態の名前）、
+    // 無ければ names.js の G.LINES。どちらも乱数ではなく選ぶので、文を変えても展開は変わらない
+    const AIL_KEY = { charm: 'ailCharm', poison: 'ailPoison', stun: 'ailStun', confuse: 'ailConfuse', seal: 'ailSeal' };
+    const fillT = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => v[k] != null ? v[k] : m);
+    const ailText = (key, id, p, x, y) => {
+      const v = { S: x ? sn(x) : '', O: sn(y), N: (p && p.name) || E.AILMENTS[id] };
+      return p && p.msg && key === AIL_KEY[id] ? fillT(p.msg, v) : line(key, v);
+    };
+    // 掛ける：強さ（上限つき）で判定し、相手の耐性で防がれることもある。強さが0なら乱数を使わない
+    function tryAil(x, y, id, T) {
+      const { t, p } = ailInfo(x, id, T);
+      if (!(t > 0) || !chance(Math.min(E.AIL_CAP[id], t))) return null;
+      const r = ailResist(y, id, T);
+      if (r > 0 && chance(r)) { log('battle', ailText('ailResist', id, p, x, y), [y.id, x.id]); return null; }
+      return p || {};
+    }
     // 戦いの始め：相手・拠点を覚え、発動確率のある効果をこの戦いの分だけ判定する（確率のある効果を持たない英霊では rnd を使わない）
     const enterBattle = (c, opp, home) => {
       c.bx = { opp, home, rolls: {} };
@@ -367,6 +395,7 @@
     // ---------- 宝具 ----------
     function useNP(c, o, round, ctx) {
       if (!c.masterAlive && c.mana < 5) return;
+      if (c.ail && (c.ail.stun || c.ail.seal)) return;   // スタンした打ち合い・宝具を封じられた戦いでは使えない
       // 制御の利かない英霊は、魔力が足りなくても宝具を放つ（足りない分はマスターの生命力から）
       const wild = wildOf(c);
       const nps = (c.sv.nps || []).filter(n => !n.disabled && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 魔力を顧みない宝具は1回の戦いに一度まで
@@ -431,7 +460,7 @@
       const help = new Map([[a, ctx.helpA || null], [b, ctx.helpB || null]]);
       const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
       const all = () => side(a).concat(side(b));
-      for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; }
+      for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; }
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
@@ -468,7 +497,7 @@
         const T = ctx.terrain;
         return (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) c.npBoost = 0;
         // バーサーカーは、打ち合いのたびに魔力を食う
@@ -476,6 +505,16 @@
         // 退く戦い方なら最初に離脱を試みる
         for (const [c, o] of [[a, b], [b, a]]) if (c.stance === 'retreat' && round === 1 && chance(clamp(ENG.retreatBase + 0.25 + eff(c, 'escape', ctx.terrain) + eff(c, 'luck') * 0.3 - eff(o, 'pin', ctx.terrain) * 0.8 + c.bond / 500 + FX.agiRetreat * (sd(c, 'agi') - sd(o, 'agi')), 0.05, 0.9))) {
           log('battle', `${sn(c)}は刃を交えずに退いた。`, [c.id, o.id]); cleanup(); return;
+        }
+        // 状態異常：毒は打ち合いのたびに霊基を削る（毒では倒れない）。スタン・混乱はこの打ち合いの始めに判定する
+        for (const c of all()) { c.ail.stun = c.ail.confuse = false; }
+        for (const c of [a, b]) if (c.poison && c.alive) {
+          c.hp = Math.max(1, c.hp - ENG.poisonTick);
+          if (!c.ail.ticked) { c.ail.ticked = true; log('battle', ailText('ailPoisonTick', 'poison', c.poison.p, null, c), [c.id]); }
+        }
+        for (const [x, y] of [[a, b], [b, a]]) for (const id of ['stun', 'confuse']) {
+          const p = tryAil(x, y, id, ctx.terrain);
+          if (p) { y.ail[id] = true; y.ail[id + 'P'] = p; log('battle', ailText(AIL_KEY[id], id, p, x, y), [y.id, x.id]); }
         }
         useNP(a, b, round, ctx);
         useNP(b, a, round, ctx);
@@ -485,11 +524,22 @@
           if (c === a || c === b) { cleanup(); return; } else leave(c);
         }
         let ea = power(a, b, ctx) + assist(a, b), eb = power(b, a, ctx) + assist(b, a);
+        // スタン・混乱：その打ち合いの戦闘力が下がる。混乱は自分を傷つけることもある（これでは倒れない）
+        for (const y of [a, b]) {
+          let f = 1;
+          if (y.ail.stun) f *= ENG.stunPower;
+          if (y.ail.confuse) {
+            f *= ENG.confusePower;
+            if (chance(ENG.confuseSelf)) { y.hp = Math.max(1, y.hp - ENG.confuseSelfDmg); log('battle', ailText('ailConfuseSelf', 'confuse', y.ail.confuseP, null, y), [y.id]); }
+          }
+          if (y === a) ea *= f; else eb *= f;
+        }
         // 魅了：マスターの精神が強いと、呼びかけで正気を取り戻しやすい
         for (const [x, y] of [[a, b], [b, a]]) {
-          if (!chance(eff(x, 'charm', ctx.terrain))) continue;
-          if (!chance(clamp(eff(y, 'mental_guard', ctx.terrain) + FX.mMindCharm * md(y, 'mind'), 0, 0.95))) { if (y === b) eb *= 0.6; else ea *= 0.6; log('battle', `${sn(y)}の刃が一瞬鈍った。魅了だ。`, [x.id, y.id]); }
-          else if (md(y, 'mind') >= 0.45 && !eff(y, 'mental_guard', ctx.terrain)) log('battle', `魅了に呑まれかけた${sn(y)}を、${mn(y)}の呼びかけが引き戻した。`, [y.id, x.id]);
+          const ci = ailInfo(x, 'charm', ctx.terrain);
+          if (!chance(ci.t)) continue;
+          if (!chance(clamp(eff(y, 'mental_guard', ctx.terrain) + eff(y, 'ail_guard', ctx.terrain) + FX.mMindCharm * md(y, 'mind'), 0, 0.95))) { if (y === b) eb *= 0.6; else ea *= 0.6; log('battle', ailText('ailCharm', 'charm', ci.p, x, y), [x.id, y.id]); }
+          else if (md(y, 'mind') >= 0.45 && !eff(y, 'mental_guard', ctx.terrain)) log('battle', `${(ci.p && ci.p.name) || '魅了'}に呑まれかけた${sn(y)}を、${mn(y)}の呼びかけが引き戻した。`, [y.id, x.id]);
         }
         const p = 1 / (1 + Math.exp(-(ea - eb) / G.CONFIG.BATTLE_K));
         const [w, l, ew, el] = chance(p) ? [a, b, ea, eb] : [b, a, eb, ea];
@@ -514,6 +564,11 @@
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           // 押し勝った側も深手で倒れることがある（相手を討ち取った打ち合いなら相討ち）
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
+        }
+        // 押し勝った一撃に乗る状態異常：毒（翌日まで残る）・宝具封印（この戦いの間）
+        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail) {
+          if (!tg.poison) { const p = tryAil(w, tg, 'poison', ctx.terrain); if (p) { tg.poison = { p, day }; log('battle', ailText('ailPoison', 'poison', p, w, tg), [tg.id, w.id]); } }
+          if (!tg.ail.seal) { const p = tryAil(w, tg, 'seal', ctx.terrain); if (p) { tg.ail.seal = true; log('battle', ailText('ailSeal', 'seal', p, w, tg), [tg.id, w.id]); } }
         }
         if (cover) { if (o3 === 'dead' || o3 === 'escaped') leave(lh); else if (lh.alive && lh.hp < 25) leave(lh, `深手を負った${sn(lh)}は、戦いの場を離れた。`); }
         else outcome = outcome || o3;
@@ -552,7 +607,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; } }
+      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; } }
     }
 
     function* ambushMaster(h, t) {
@@ -833,6 +888,8 @@
       for (const c of shuffle(alive)) {
         c.hunting = c.hidden = c.wander = c.fought = false;
         bondUp(c, 0.5);
+        // 昨夜の毒：もう一度霊基を削って抜ける（毒では倒れない）
+        if (c.poison && c.poison.day < day) { c.hp = Math.max(1, c.hp - ENG.poisonDay); if (c.you) log('day', ailText('ailPoisonDay', 'poison', c.poison.p, null, c), [c.id]); c.poison = null; }
         if (c.warned > 0 && day % 3 === 0) c.warned = Math.max(0, c.warned - 1);
         // はぐれサーヴァント
         if (!c.masterAlive) {
@@ -1042,7 +1099,7 @@
       yield* checkFallen();
       if (active().length > 1) yield* nightPhase();
       yield* checkFallen();
-      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; }
+      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
       if (quiet) { entries.splice(entries.indexOf(head)); if (quietFrom == null) quietFrom = day; }
       else if (quietFrom != null) {
