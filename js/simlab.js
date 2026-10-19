@@ -57,6 +57,13 @@
     for (const c of res.camps) { t.battles += c.battles; t.nps += c.npUses; }
     return res;
   }
+  /** list を ids の並び（公開中のリストの並び）にそろえる。ids に無いもの（未公開の追加）は後ろに、元の順で。
+   *  聖杯戦争の顔ぶれはリストの並び順でも変わるので、並びが違うと同じ種でも別の戦争になり、公開中の集計と比べられない */
+  function orderLike(list, ids, keyOf) {
+    if (!ids || !ids.length) return list.slice();
+    const at = new Map(ids.map((id, i) => [id, i])), key = keyOf || (s => s.id);
+    return list.map((s, i) => [s, at.has(key(s)) ? at.get(key(s)) : ids.length + i]).sort((x, y) => x[1] - y[1]).map(x => x[0]);
+  }
   /** 集計を足し合わせる（a に b を足す。並列に回した分をまとめる） */
   function merge(a, b) {
     a.wars += b.wars; a.errors += b.errors; a.battles += b.battles; a.nps += b.nps;
@@ -132,7 +139,8 @@
   // ---------- 画面 ----------
   /**
    * el に「聖杯戦争で試す」を組み立てる。api：
-   *   roster(): 今のリスト（組み立て済み）／ lean(): 公開用の軽い形 ／ overrides(): 手直し表
+   *   roster(): 今のリスト（組み立て済み）／ overrides(): 手直し表
+   *   order(): 公開中のリストの並び（Wiki での id の配列。無ければ null）／ pubFp(): 公開中のリストの指紋（無ければ null）
    *   grade(sv): 1対1の評価（S〜E）／ local(sv): 'new'|'changed'|null（未公開の変更）／ open(id): その騎を一覧で開く
    */
   function mount(el, api) {
@@ -140,19 +148,19 @@
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const KEY = 'hgw.lab.v1', LAST = 'hgw.lab.last', SAVED = 'hgw.lab.saved';
     const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v == null ? '' : JSON.stringify(v)); if (v == null) localStorage.removeItem(k); return true; } catch (e) { return false; } } };
-    const st = Object.assign({ patch: {}, wars: 1000, cmp: 'pub', sort: 'rate', q: '', cls: '' }, store.get(KEY, {}));
+    const st = Object.assign({ patch: {}, wars: 3000, cmp: 'pub', sort: 'rate', q: '', cls: '' }, store.get(KEY, {}));
     const keep = () => store.set(KEY, { patch: st.patch, wars: st.wars, cmp: st.cmp, sort: st.sort });
     const GS = groups(), DEF = {};
     for (const g of GS) for (const p of g.paths) DEF[p] = getPath(p);
     for (const p of Object.keys(st.patch)) if (!(p in DEF) || st.patch[p] === DEF[p]) delete st.patch[p];
     let notes = {};
     let last = store.get(LAST, null), saved = store.get(SAVED, null), pubT = null, pubErr = '';
-    let job = null;
+    let job = null, runFp = null;
 
     el.innerHTML = `
 <section class="panel">
   <h2>聖杯戦争で試す <span class="hint" style="font-weight:400;letter-spacing:0">総合の優勝率</span></h2>
-  <p class="hint" style="margin:0 0 8px">このブラウザのリスト（未公開の追加・手直しも含む）と下の設定の数値で、全自動の聖杯戦争をたくさん回し、英霊ごとに聖杯を手にした割合（優勝率）と、半数が脱落する日を数えます。公開しなくても、調整した結果がここで分かります。戦争の種は公開中の集計（data/survival.json）と同じなので、何も変えていなければ公開中の数字とそろい、差はそのまま変更の影響です。</p>
+  <p class="hint" style="margin:0 0 8px">このブラウザのリスト（未公開の追加・手直しも含む）と下の設定の数値で、全自動の聖杯戦争をたくさん回し、英霊ごとに聖杯を手にした割合（優勝率）と、半数が脱落する日を数えます。公開しなくても、調整した結果がここで分かります。リストを公開中の並びにそろえ、戦争の種も公開中の集計（data/survival.json：3000回）と同じにして回すので、3000回で何も変えていなければ公開中の数字とぴったりそろいます。回数が少ないと、登場の少ない英霊（エクストラクラスなど）ほど数字が大きく揺れます。</p>
   <div class="row">
     <label class="hint">回数 <select id="labN"><option>300</option><option>1000</option><option>3000</option><option>10000</option></select></label>
     <button class="primary" id="labRun">回す</button>
@@ -239,7 +247,7 @@
       $('#labRun').hidden = false; $('#labStop').hidden = true; $('#labBar').hidden = true;
       $('#labProg').textContent = `${stopped ? '止めました：' : ''}${t.wars}回・${((Date.now() - t0) / 1000).toFixed(1)}秒${t.errors ? `・エラー ${t.errors}回` : ''}`;
       if (!t.wars) return;
-      last = { at: Date.now(), fp: fpNow(), patch: Object.assign({}, st.patch), tally: t };
+      last = { at: Date.now(), fp: fpNow(), runFp, patch: Object.assign({}, st.patch), tally: t };
       if (!store.set(LAST, last)) store.set(LAST, null);
       renderRes();
     }
@@ -247,7 +255,10 @@
       if (job) return;
       const total = st.wars, roster = api.roster();
       if (roster.length < 2) { $('#labProg').textContent = 'リストに2騎以上必要です'; return; }
-      const lean = api.lean(), ov = api.overrides(), patch = Object.assign({}, st.patch);
+      // 公開中の並びにそろえる（並びが違うと、同じ種でも顔ぶれが変わって別の戦争になる）
+      const ordered = orderLike(roster, api.order ? api.order() : null, G.build.wikiId);
+      const lean = ordered.map(G.build.toLean), ov = api.overrides(), patch = Object.assign({}, st.patch);
+      runFp = G.survival.fingerprint(ordered);
       const days = (patch['ENGINE.maxDays'] || DEF['ENGINE.maxDays'] || 30);
       const t = emptyTally(days), t0 = Date.now();
       $('#labRun').hidden = true; $('#labStop').hidden = false;
@@ -305,7 +316,14 @@
     const fold = s => String(s || '').normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s・･=＝]/g, '');
     function cmpRows() {
       if (st.cmp === 'saved') return saved ? { rows: saved.rows, sum: saved.sum, label: `保存した結果（${new Date(saved.at).toLocaleString('ja-JP')}${Object.keys(saved.patch || {}).length ? `・数値を${Object.keys(saved.patch).length}件変えたもの` : ''}）` } : { rows: null, note: 'まだ保存した結果がありません。「この結果を比べる相手として保存」で置けます。' };
-      if (st.cmp === 'pub') return pubT ? { rows: rowsOf(pubT), label: `公開中の集計（${pubT.wars}回）` } : { rows: null, note: pubErr || '公開中の集計を読んでいます…' };
+      if (st.cmp === 'pub') {
+        if (!pubT) return { rows: null, note: pubErr || '公開中の集計を読んでいます…' };
+        const pf = api.pubFp ? api.pubFp() : null, notes = [];
+        if (pf && pubT.fp !== pf) notes.push('公開中の集計は、いま公開中のリストより古いものです（データの反映が集計を作り直すまで、差には古さも混じります）');
+        if (last && last.tally.wars !== pubT.wars) notes.push(`回数が公開中の集計（${pubT.wars}回）と違うので、差には回数の少なさによる揺れも混じります。${pubT.wars}回で回すと、変えていない英霊はそろいます`);
+        else if (last && last.runFp && last.runFp === pubT.fp && !Object.keys(last.patch || {}).length) notes.push('リストも設定も公開中と同じなので、公開中の集計と一致しています');
+        return { rows: rowsOf(pubT), label: `公開中の集計（${pubT.wars}回）` + (notes.length ? '。' + notes.join('。') : '') };
+      }
       return { rows: null };
     }
     function renderRes() {
@@ -358,5 +376,5 @@
     return { refresh() { renderRes(); }, stop() { if (job) job.stop(); } };
   }
 
-  G.simLab = { getPath, applyConfig, buildRoster, emptyTally, runOne, merge, rowsOf, summaryOf, groups, commentsOf, mount };
+  G.simLab = { getPath, applyConfig, buildRoster, orderLike, emptyTally, runOne, merge, rowsOf, summaryOf, groups, commentsOf, mount };
 })(globalThis.HGW = globalThis.HGW || {});
