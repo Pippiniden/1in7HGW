@@ -50,7 +50,7 @@ function main() {
       if (!/\.json$/i.test(f)) return [2, 0];
       try {
         const d = L.readJSON(path.join(IN, f));
-        if (d && (d.format === 'hgw-overrides' || (!d.format && !Array.isArray(d) && !d.servants && (d.global || d.servant || d.content || d.stats || d.np || d.pages)))) return [0, 0];
+        if (d && (d.format === 'hgw-overrides' || (!d.format && !Array.isArray(d) && !d.servants && (d.global || d.servant || d.content || d.stats || d.np || d.pages || d.reviewed)))) return [0, 0];
         const n = L.listOf(d).length; return n ? [1, -n] : [3, 0];
       } catch (e) { return [3, 0]; }
     };
@@ -67,7 +67,7 @@ function main() {
         } else {
           const d = JSON.parse(fs.readFileSync(p, 'utf8'));
           const fmt = d && !Array.isArray(d) ? d.format : null;
-          if (fmt === 'hgw-overrides' || (!fmt && d && (d.global || d.servant || d.content || d.stats || d.np || d.pages) && !d.servants)) {
+          if (fmt === 'hgw-overrides' || (!fmt && d && (d.global || d.servant || d.content || d.stats || d.np || d.pages || d.reviewed) && !d.servants)) {
             L.clearOverrides(); L.applyOverrides(d);
             notes.push(`- ${label}：手直し表（overrides.json）をまるごと置き換え`);
           } else if (fmt === 'hgw-servants' || Array.isArray(d) || (d && d.kind === 'servant')) {

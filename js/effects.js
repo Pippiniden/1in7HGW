@@ -20,7 +20,11 @@
   //   passive=常時 / battle=戦闘中 / damage=被ダメージ時 / lethal=致命傷時 / encounter=遭遇判定 / retreat=撤退判定
   //   scout=偵察・情報収集 / day=昼の行動 / upkeep=魔力の維持 / talk=交渉・同盟 / master=マスター関連 / np=宝具使用時
   // unit: rate=割合(+0.10 で10%) / chance=確率 / days=日数 / pt=ポイント / flag=有無
-  // params.cond を持つ効果は、その条件（'水辺' など）を満たす場面でだけ働く
+  // 効果の条件（params。どの部品にも付けられる。engine.js の condOk、build.js の condW と合わせる）
+  //   cond  : 場面 — '水辺' '森' '山' '夜'（その場所・時間の戦い）／ '拠点'（自分の拠点で戦うとき）／ '瀕死'（自分の霊基が ENGINE.pinchAt 未満）
+  //   vs    : 相手の属性（'男性' '竜' など）— その属性を持つ相手と戦うときだけ
+  //   chance: 発動確率（0〜1）— 戦いごとに一度判定し、当たった戦いの間だけ働く（戦い以外の場面では強さ×確率）
+  //   特攻（power_vs）・弱点（weakness）の相手は従来どおり tag、マスター強化の能力は stat
   const EFFECTS = {
     // 戦闘
     power:        { name: '戦闘力上昇',   phase: 'battle',    unit: 'rate',   base: 0.10, desc: '戦闘力に加算' },
@@ -137,7 +141,19 @@
   // 制御困難・魔力消費増は、宝具の説明にあっても「使ったときの代償」なので常時にはしない（エンジンは戦いの間は読まないので、実際には効かない）
   const NP_USE_ONLY = ['uncontrolled', 'upkeep_up'];
   const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id)) && !e.persistent;
-  const COND_JA = { 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ' };
+  const COND_JA = { 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ',
+    拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ' };
+  // 条件欄の選択肢（リストツール・申請フォーム）。[値, 表示]
+  const COND_OPTS = [['', 'いつでも'], ['水辺', '水辺・雨の夜'], ['森', '森'], ['山', '山'], ['夜', '夜（満月を除く）'], ['拠点', '自分の拠点で'], ['瀕死', '瀕死のとき（霊基4割未満）']];
+  const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1)));
+  // 条件の説明（「いつ働くか」に足す）
+  function condText(p) {
+    if (!p) return '';
+    return [p.cond ? COND_JA[p.cond] || p.cond + 'でだけ' : '', p.vs ? `「${p.vs}」の相手と戦うときだけ` : '',
+      p.chance != null && p.chance < 1 ? `戦いごとに ${pc(Math.max(0, p.chance))} の確率で発動` : ''].filter(Boolean).join('・');
+  }
+  // 短い表記（一覧の札など）：（水辺）〔対 竜〕（30%）
+  const condShort = p => !p ? '' : (p.cond ? '（' + p.cond + '）' : '') + (p.vs ? '〔対 ' + p.vs + '〕' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '');
   /**
    * 効果ひとつの説明。e は instantiate の結果（mag を持つ）か [id, factor, params] と rank。
    * ctx.np：宝具の効果 / ctx.attack：攻撃宝具
@@ -150,8 +166,8 @@
     const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
     const p = e.params || null;
     const bad = !!inf.bad === !(m < 0);
-    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : '宝具を使ったその戦いの間') : '常に',
-      p && p.cond ? COND_JA[p.cond] || p.cond + 'でだけ' : ''].filter(Boolean).join('・');
+    const when = [ctx.np ? (!npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' ? 'この宝具を使ったとき' : '宝具を使ったその戦いの間') : hasCond(p) ? '' : '常に',
+      condText(p)].filter(Boolean).join('・');
     return { name: def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
   }
 
@@ -567,7 +583,9 @@
   const CONTENT_OVERRIDES = {};  // '真名': { skills, nps, voice, text, profile, relations, base }  内容の手直し（build.js の applyContent）
   const PAGE_OVERRIDES = {};     // '真名': 'kagemiya のページ名'  ページ名が真名と違うとき（build.js の pageOf・取り込みツール）
   // overrides.json の表の名前 → 表。読み込む・書き出す・公開中と見比べるときはこれを使う
-  const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES };
+  // 確認済みの「要確認」：'真名': [要確認の目印（build.js の reviewSig）…]。取り直しても、同じ内容の要確認なら確認済みのまま
+  const REVIEWED = {};
+  const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES, reviewed: REVIEWED };
 
   // ---------- 名前の正規化と照合 ----------
   function normName(s) {
@@ -795,6 +813,6 @@
     };
   }
 
-  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, OVERRIDE_TABLES,
-    normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
+    COND_JA, COND_OPTS, condText, condShort, hasCond, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

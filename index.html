@@ -1197,7 +1197,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const T = strengthTable(), n = roster.length, rate = T.rates.has(sv.id) ? T.rates.get(sv.id) : 0.5;
     const rank = rankIn(T.sorted, rate), pct = (rank - 1) / Math.max(1, n - 1);
     const grade = H.gradeOfPct(pct);
-    const eff = id => Object.values(sv.effectSummary || {}).filter(e => e.id === id && !(e.params && e.params.cond)).reduce((t, e) => t + e.passive, 0);
+    const eff = id => Object.values(sv.effectSummary || {}).filter(e => e.id === id && !H.effects.hasCond(e.params)).reduce((t, e) => t + e.passive, 0);
     const good = [], bad = [];
     const STJA = H.build.STAT_JA, high = H.build.STAT_KEYS.filter(k => k !== 'np' && sv.score[k] >= 46).sort((a, b) => sv.score[b] - sv.score[a]).slice(0, 2);
     if (high.length) good.push(`${high.map(k => STJA[k]).join('・')}が高い`);

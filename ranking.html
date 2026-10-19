@@ -191,10 +191,10 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
     for (const a of roster) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } m.set(a.id, n ? t / n : 0.5); }
     return m;
   }
-  // スキル・宝具の効果の合計（宝具を使ったときだけの効果は半分、場所を選ぶ効果も半分に数える）
+  // スキル・宝具の効果の合計（宝具を使ったときだけの効果は半分、条件の付いた効果（場所・相手・確率など）も半分に数える）
   function effOf(sv, id) {
     let t = 0;
-    for (const e of Object.values(sv.effectSummary || {})) if (e.id === id) t += ((e.passive || 0) + (e.onNP || 0) * 0.5) * (e.params && e.params.cond ? 0.5 : 1);
+    for (const e of Object.values(sv.effectSummary || {})) if (e.id === id) t += ((e.passive || 0) + (e.onNP || 0) * 0.5) * (HGW.effects.hasCond(e.params) ? 0.5 : 1);
     return t;
   }
   function abilities(sv) {
@@ -258,7 +258,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
     const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(H.rank.label(s.ranks[k]))}</b>`).join('');
     const nps = (s.nps || []).map(n => `<li>『${esc(n.name)}』 <span class="dim">${esc(H.rank.label(n.rank))}・${esc(n.typeRaw || '種別不明')}</span> ${n.disabled ? '<span class="chip neg">使えない</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}</li>`).join('') || '<li class="dim">なし</li>';
     const effs = Object.values(s.effectSummary || {}).filter(e => e.id !== 'tag' && Math.abs(e.passive) >= 0.05).sort((a, b) => Math.abs(b.passive) - Math.abs(a.passive)).slice(0, 8)
-      .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc(e.name + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + (e.params && e.params.cond ? '（' + e.params.cond + '）' : ''))}</span>`).join('') || '<span class="dim">なし</span>';
+      .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc(e.name + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + HGW.effects.condShort(e.params))}</span>`).join('') || '<span class="dim">なし</span>';
     return `<div class="box"><div class="full">${esc(s.trueName)}<span>${esc(s.class.label)}</span></div><div><h4>ステータス</h4><div class="stl">${st}</div><h4 style="margin-top:8px">目立つ効果（スキル・宝具から）</h4>${effs}</div>
       <div><h4>宝具</h4><ul>${nps}</ul>${s.origin ? `<h4 style="margin-top:8px">元ネタ</h4>${esc(s.origin)}` : ''}</div></div>`;
   }

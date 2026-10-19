@@ -170,6 +170,11 @@ th { font-size: 11px; color: var(--sub); font-weight: 600; border-top: none; whi
 .desc { color: var(--sub); font-size: 12px; margin-top: 2px; white-space: pre-wrap; }
 .box { border-radius: 8px; padding: 8px 10px; font-size: 13px; margin-top: 10px; }
 .box.warn { background: var(--warn-bg); color: var(--warn-ink); }
+.rv .rvhead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.rv ul, .rvdone ul { margin: 6px 0 0; padding-left: 18px; }
+.rv li, .rvdone li { margin: 2px 0; }
+.rv li button, .rvdone li button { margin-left: 6px; font-size: 11px; padding: 1px 7px; vertical-align: 1px; }
+.rvdone { font-size: 12px; color: var(--sub); }
 .box.err { background: var(--err-bg); color: var(--err-ink); }
 .box ul { margin: 2px 0 0; padding-left: 18px; }
 details.more { margin-top: 10px; font-size: 13px; }
@@ -178,6 +183,11 @@ dialog { border: 1px solid var(--rule); border-radius: 12px; background: var(--p
 dialog::backdrop { background: rgba(0,0,0,.35); }
 dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .erow { display: grid; grid-template-columns: minmax(0, 1.6fr) 72px minmax(0, 1fr) 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.econd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); margin-top: -2px; }
+.econd label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .econd select { width: auto; max-width: 13em; }
+.erow .econd input[data-e=vs] { width: 9em; }
+.erow .econd input[data-e=chance] { width: 4.5em; }
 .srow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .srow label { font-size: 11px; color: var(--sub); display: grid; gap: 2px; min-width: 0; }
 .srow input, .erow input, .erow select { width: 100%; min-width: 0; }
@@ -395,7 +405,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <h3 id="edTitle"></h3>
   <div class="desc" id="edDesc" style="margin-bottom:10px;max-height:160px;overflow:auto"></div>
   <p class="hint" id="edNote" style="margin:0 0 8px"></p>
-  <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span>相手の属性・マスターの能力・@場所</span><span></span></div>
+  <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span>特攻・弱点の相手／マスターの能力</span><span></span></div>
+  <p class="hint" style="margin:-2px 0 8px">各行の下の「条件」「相手」「確率」で、その効果が働く場面を絞れます（空ならいつでも）。確率は戦いごとに一度判定し、当たった戦いの間だけ働きます。</p>
+  <datalist id="tagList"></datalist>
   <div id="edRows"></div>
   <div class="row" style="margin:8px 0 12px"><button class="sm" id="edAdd">＋ 効果を追加</button></div>
   <div class="row" id="edAtkRow" style="margin-bottom:12px">
@@ -535,16 +547,38 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     afterEdit(); status(name && name !== sv.page ? `${sv.trueName}のWikiのページ名を「${name}」にしました（手直し表に入ります）` : `${sv.trueName}のWikiのページ名を、取り込んだときのものに戻しました`);
   }
   document.addEventListener('click', e => { const b = e.target.closest('[data-pagesave]'); if (b) savePage(+b.dataset.pagesave); });
+
+  // ---------- 要確認の消し込み（手直し表 reviewed：'真名': [目印…]） ----------
+  // 目印は今出ている要確認（未確認・確認済み）のものだけ残す（取り直して消えた要確認の目印は掃除する）
+  function setReviewed(sv, sigs) {
+    const now = new Set(sv.review.concat(sv.reviewDone || []).map(r => r.sig));
+    const keep = Array.from(new Set(sigs)).filter(s => now.has(s));
+    if (keep.length) E.REVIEWED[sv.trueName] = keep; else delete E.REVIEWED[sv.trueName];
+    afterEdit();
+  }
+  document.addEventListener('click', e => {
+    const ok = e.target.closest('[data-rvok]'), all = e.target.closest('[data-rvall]'), undo = e.target.closest('[data-rvundo]');
+    if (!ok && !all && !undo) return;
+    const [i, sig] = (ok || all || undo).dataset[ok ? 'rvok' : all ? 'rvall' : 'rvundo'].split('|'), sv = roster[+i]; if (!sv) return;
+    const cur = (sv.reviewDone || []).map(r => r.sig);
+    if (ok) setReviewed(sv, cur.concat(sig));
+    else if (all) setReviewed(sv, cur.concat(sv.review.map(r => r.sig)));
+    else setReviewed(sv, cur.filter(s => s !== sig));
+    status(undo ? `${sv.trueName}の要確認を1件戻しました` : `${sv.trueName}の要確認を${all ? 'すべて' : '1件'}確認済みにしました（手直し表に入ります）`);
+  });
   document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('[data-page]')) { e.preventDefault(); savePage(+e.target.dataset.page); } });
 
   function body(sv, i) {
     const st = B.STAT_KEYS.map(k => {
       const rk = sv.ranks[k], raw = sv.stats[k] ? sv.stats[k].raw : '', src = sv.statSource[k];
-      return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(R.label(rk))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / 80 * 100)}%"></i></div></div>`;
+      return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(R.label(rk))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / (H.CONFIG.STAT_SCORE || H.CONFIG.RANK_SCORE).EX * 100)}%"></i></div></div>`;
     }).join('');
     const skills = sv.allSkills.map((s, j) => `<tr><td><b>${esc(s.name)}</b> <span class="hint">${esc(R.label(s.rank))}</span>${s.group === 'class' ? '<div class="hint">クラス別</div>' : ''}${s.desc ? `<div class="desc">${esc(s.desc.length > 90 ? s.desc.slice(0, 90) + '…' : s.desc)}</div>` : ''}</td><td>${s.effects.map(e => fmtEff(e)).join('') || '<span class="hint">なし</span>'}</td><td>${srcBadge(s.effectSource)}${s.matched ? `<div class="hint">${esc(s.matched)}</div>` : ''}</td><td><button class="sm" data-ed="${i}:s:${j}">編集</button></td></tr>`).join('');
     const nps = sv.nps.map((n, j) => `<tr><td><b>${esc(n.name)}</b>${n.reading ? `<div class="hint">${esc(n.reading)}</div>` : ''}<div class="hint">${esc(R.label(n.rank))} · ${esc(n.typeRaw || '種別不明')}${n.maxTargets ? ' · 最大' + n.maxTargets + '人' : ''}</div></td><td>${n.disabled ? '<span class="chip neg">使用不可</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}<span class="chip">消費×${n.cost}</span>${n.effects.filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: true, attack: n.attackResolved })).join('')}</td><td>${srcBadge(n.effectSource)}${n.attackBasis === 'override' ? '<div class="hint">扱いを手直し</div>' : ''}</td><td><button class="sm" data-ed="${i}:n:${j}">編集</button></td></tr>`).join('');
-    const review = sv.review.length ? `<div class="box warn"><b>要確認</b><ul>${sv.review.map(r => `<li>${esc(r.target)}：${esc(r.why)}</li>`).join('')}</ul></div>` : '';
+    // 要確認：見て問題なければ「確認した」で消せる（手直し表 reviewed に残り、取り直しても同じ内容なら出てこない）
+    const done = sv.reviewDone || [];
+    const review = (sv.review.length ? `<div class="box warn rv"><div class="rvhead"><b>要確認（${sv.review.length}）</b>${sv.review.length > 1 ? `<button class="sm" data-rvall="${i}">すべて確認した</button>` : ''}</div><ul>${sv.review.map(r => `<li><span>${esc(r.target)}：${esc(r.why)}</span><button class="sm ghost" data-rvok="${i}|${esc(r.sig)}" title="見て問題なければ消す。取り直して内容が変わったら、また出ます">確認した</button></li>`).join('')}</ul></div>` : '')
+      + (done.length ? `<details class="more rvdone"><summary>確認済みの要確認（${done.length}）</summary><ul>${done.map(r => `<li><span>${esc(r.target)}：${esc(r.why)}</span><button class="sm ghost" data-rvundo="${i}|${esc(r.sig)}">要確認に戻す</button></li>`).join('')}</ul></details>` : '');
     const warn = sv.warnings.length ? `<div class="box err"><b>読み取りの警告</b><ul>${sv.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : '';
     const alt = sv.statsAlt.length ? `<div class="hint" style="margin-top:6px">別のステータス：${sv.statsAlt.map(a => esc(a.label) + '（' + Object.entries(a.stats).map(([k, v]) => B.STAT_JA[k] + R.label(v.rank)).join(' ') + '）').join(' / ')}</div>` : '';
     const PJ = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
@@ -944,16 +978,24 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const whoOf = id => E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—';
   const effOptions = sel => Object.entries(E.EFFECTS).map(([id, d]) => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(d.name)}（${esc(whoOf(id))}）</option>`).join('');
   $('#edLegend').innerHTML = Object.entries(E.EFFECTS).map(([id, d]) => `<tr><td><b>${esc(d.name)}</b><div class="hint">${esc(id)}</div></td><td style="white-space:nowrap">${esc(whoOf(id))}</td><td>${esc(d.desc)}</td></tr>`).join('');
-  // 行の入力 → [部品ID, 係数, params]
+  // 行の入力 → [部品ID, 係数, params]。条件は「条件」「相手」「確率」の欄（以前の「竜@水辺」の書き方も読む）
   function specOf(r) {
-    const [sel, num, txt] = r.querySelectorAll('select, input');
-    const id = sel.value, f = parseFloat(num.value), v = txt.value.trim();
+    const q = k => r.querySelector(`[data-e=${k}]`);
+    const id = q('id').value, f = parseFloat(q('f').value), v = q('p').value.trim();
     const [main, cond] = v.split('@').map(x => (x || '').trim());
     const p = {};
     if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main;
-    if (cond) p.cond = cond;
+    const c = q('cond').value || cond; if (c) p.cond = c;
+    const vs = q('vs').value.trim(); if (vs) p.vs = vs;
+    const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
     return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
   }
+  // 条件欄の選択肢（効果の条件は effects.js の COND_OPTS。知らない値はそのまま残す）
+  const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
+    .map(([k, t]) => `<option value="${esc(k)}"${k === (sel || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
+  const condFields = p => { p = p || {}; return `<div class="econd"><label>条件<select data-e="cond">${condOptions(p.cond)}</select></label>`
+    + `<label>相手<input type="text" data-e="vs" list="tagList" value="${esc(p.vs || '')}" placeholder="属性（男性・竜など）" autocomplete="off"></label>`
+    + `<label>確率<input type="number" data-e="chance" min="0" max="100" step="5" value="${p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : ''}" placeholder="100">%</label></div>`; };
   // 行の下に、ゲームでの実際の働き（ランク倍率を掛けた強さ）を出す
   function edExplain(div) {
     const out = div.nextElementSibling; if (!out || !edCtx) return;
@@ -962,14 +1004,14 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const e = E.instantiate(specOf(div), rk, it.name, 'spec');
     if (!e) { out.textContent = ''; return; }
     const d = E.describe(e, { np, attack: np && it.attackResolved });
-    const extra = np && it.attackResolved && e.id === 'power' && !(e.params && e.params.cond) ? '（攻撃宝具の威力そのものはランクと種別で決まります。これは使ったその戦いの間の上乗せです）' : '';
+    const extra = np && it.attackResolved && e.id === 'power' && !E.hasCond(e.params) ? '（攻撃宝具の威力そのものはランクと種別で決まります。これは使ったその戦いの間の上乗せです）' : '';
     out.innerHTML = `<span class="who">${esc(d.whoJa)}</span>に・${esc(d.when)}：${esc(d.text)}${esc(extra)}`;
   }
   function edRow(spec) {
     const [id, f, p] = spec || ['power', 1, null];
-    const pv = p ? [p.tag || p.stat || '', p.cond ? '@' + p.cond : ''].join('') : '';
+    const pv = p ? p.tag || p.stat || '' : '';
     const div = document.createElement('div'); div.className = 'erow';
-    div.innerHTML = `<select>${effOptions(id)}</select><input type="number" step="0.1" value="${f == null ? 1 : f}"><input type="text" value="${esc(pv)}" placeholder="竜 / luck / @水辺"><button class="sm ghost" title="削除">×</button>`;
+    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="竜 / luck"><button class="sm ghost" title="削除">×</button>${condFields(p)}`;
     const fx = document.createElement('div'); fx.className = 'efx';
     div.querySelector('button').onclick = () => { div.remove(); fx.remove(); };
     div.addEventListener('input', () => edExplain(div)); div.addEventListener('change', () => edExplain(div));
@@ -982,11 +1024,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     edCtx = { sv, item, kind };
     $('#edTitle').textContent = `${sv.trueName} ／ ${item.name}（${R.label(item.rank)}）`;
     $('#edDesc').textContent = item.desc || '';
+    $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
     $('#edAtkRow').hidden = kind !== 'n';
     $('#edNote').textContent = kind === 'n'
       ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。`
-      : 'スキルの効果は常に働きます（「@水辺」などの場所の条件を付けたものは、その場所だけ）。';
+      : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。';
     if (kind === 'n') { const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)]; document.querySelector(`input[name=atk][value=${o ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true; }
     document.querySelector(`input[name=scope][value=${item.effectSource === 'override' ? 'global' : 'servant'}]`).checked = true;
     $('#ed').showModal();
@@ -1021,7 +1064,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   });
   function moveKeys(from, to) {
     for (const t of [E.SERVANT_OVERRIDES, E.NP_OVERRIDES]) for (const k of Object.keys(t)) if (k.startsWith(from + '/')) { const nk = to + k.slice(from.length); if (!(nk in t)) t[nk] = t[k]; delete t[k]; }
-    for (const t of [E.STAT_OVERRIDES, E.PAGE_OVERRIDES]) if (from in t) { if (!(to in t)) t[to] = t[from]; delete t[from]; }
+    for (const t of [E.STAT_OVERRIDES, E.PAGE_OVERRIDES, E.REVIEWED]) if (from in t) { if (!(to in t)) t[to] = t[from]; delete t[from]; }
   }
   function setIdentity(name, cls) {
     const { sv, wk } = idCtx, key = wk.trueName, wkCls = wk.class.raw || wk.class.label, from = sv.trueName;
@@ -1052,7 +1095,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const i = k.indexOf('/'), s = byName.get(k.slice(0, i));
       if (!s) out.push([t, k, ja]); else if (!hasItem(s, k.slice(i + 1))) out.push([t, k, ja + '（その名前のスキル・宝具が無い）']);
     }
-    for (const [t, ja] of [['stats', 'ステータスの手直し'], ['pages', 'Wikiのページ名']]) for (const k of Object.keys(TABLES[t])) if (!byName.has(k)) out.push([t, k, ja]);
+    for (const [t, ja] of [['stats', 'ステータスの手直し'], ['pages', 'Wikiのページ名'], ['reviewed', '確認済みの要確認']]) for (const k of Object.keys(TABLES[t])) if (!byName.has(k)) out.push([t, k, ja]);
     return out;
   }
   function renderOrphans() {

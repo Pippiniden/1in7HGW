@@ -209,15 +209,43 @@
 
     // ---------- 効果の参照 ----------
     // 条件付きの効果：水辺・森・山はその場所（雨の夜は水辺）、夜（夜間・暗闇）は夜の戦い（満月の夜を除く）か地下
-    const condOk = (cond, terrain) => !cond || cond === terrain || (cond === '夜' && phase === 'night' && !tonight.moon);
-    function eff(c, id, terrain) {
+    // 効果の条件（effects.js の params）：cond＝場面、vs＝相手の属性、chance＝戦いごとの発動確率
+    //   c.bx は戦いの間だけある { opp: 相手の陣営, home: 自分の拠点で戦う, rolls: { 効果の集計キー: 当たったか } }
+    const condOk = (c, p, terrain) => {
+      if (!p) return true;
+      const k = p.cond;
+      if (k) {
+        if (k === '拠点') { if (!(c.bx && c.bx.home)) return false; }
+        else if (k === '瀕死') { if (!(c.hp < ENG.pinchAt)) return false; }
+        else if (!(k === terrain || (k === '夜' && phase === 'night' && !tonight.moon))) return false;
+      }
+      if (p.vs && !(c.bx && c.bx.opp && c.bx.opp.sv.tags.includes(p.vs))) return false;
+      return true;
+    };
+    // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
+    const chanceW = (c, key, p) => !p || p.chance == null ? 1 : c.bx ? (c.bx.rolls[key] ? 1 : 0) : clamp(p.chance, 0, 1);
+    // effS：スキル・宝具の常時の効果だけ（戦闘力の計算用）／eff：それに、この戦いだけの効果（c.temp）を足したもの
+    function effS(c, id, terrain) {
       let t = 0;
-      for (const x of Object.values(c.sv.effectSummary || {})) if (x.id === id && condOk(x.params && x.params.cond, terrain)) t += x.passive;
-      for (const e of c.temp) if (e.id === id && condOk(e.params && e.params.cond, terrain)) t += e.mag;
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && condOk(c, x.params, terrain)) t += x.passive * chanceW(c, k, x.params);
       return t;
     }
-    const effVs = (c, id, o) => Object.values(c.sv.effectSummary || {}).filter(x => x.id === id && x.params && o.sv.tags.includes(x.params.tag)).reduce((t, x) => t + x.passive, 0)
-      + c.temp.filter(e => e.id === id && e.params && o.sv.tags.includes(e.params.tag)).reduce((t, e) => t + e.mag, 0);
+    function eff(c, id, terrain) {
+      let t = effS(c, id, terrain);
+      for (const e of c.temp) if (e.id === id && condOk(c, e.params, terrain)) t += e.mag;
+      return t;
+    }
+    const effVs = (c, id, o, terrain) => {
+      let t = 0;
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && o.sv.tags.includes(x.params.tag) && condOk(c, x.params, terrain)) t += x.passive * chanceW(c, k, x.params);
+      for (const e of c.temp) if (e.id === id && e.params && o.sv.tags.includes(e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
+      return t;
+    };
+    // 戦いの始め：相手・拠点を覚え、発動確率のある効果をこの戦いの分だけ判定する（確率のある効果を持たない英霊では rnd を使わない）
+    const enterBattle = (c, opp, home) => {
+      c.bx = { opp, home, rolls: {} };
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.params && x.params.chance != null) c.bx.rolls[k] = x.params.chance >= 1 || chance(x.params.chance);
+    };
     // ステータスの役割（config.js の STAT_FX）。sd：サーヴァントの偏差、md：マスターの偏差（C相当を0、A相当を約+1）
     const FX = G.CONFIG.STAT_FX, dev = B.statDev;
     const sd = (c, k) => dev(c.sv.score[k]);
@@ -247,8 +275,8 @@
 
     function power(c, o, ctx) {
       const T = ctx.terrain;
-      let p = B.combatPower(c.sv, T) * (1 + c.temp.filter(e => e.id === 'power').reduce((t, e) => t + e.mag, 0));
-      p *= (1 + effVs(c, 'power_vs', o)) * (1 - effVs(c, 'weakness', o) * 0.5);
+      let p = B.combatPower(c.sv, T, id => effS(c, id, T)) * (1 + c.temp.filter(e => e.id === 'power' && condOk(c, e.params, T)).reduce((t, e) => t + e.mag, 0));
+      p *= (1 + effVs(c, 'power_vs', o, T)) * (1 - effVs(c, 'weakness', o, T) * 0.5);
       const magHeavy = o.sv.class.key === 'caster' || (o.sv.score.mag || 0) > (o.sv.score.str || 0);
       const def = clamp(eff(c, 'guard', T) * 0.5 + eff(c, 'evade', T) * 0.5 + (magHeavy ? eff(c, 'magic_guard', T) * 0.5 : 0), -0.5, 0.6) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
       p *= 1 + def;
@@ -383,7 +411,8 @@
       if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
-      for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)) c.temp.push(e);
+      for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
+        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) c.temp.push(e);   // 発動確率のある効果は、使ったときに判定
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (np.exposure >= 1) pubName.add(c.id);
       if (np.exposure >= 0.8) witnessed.push(c.id);
@@ -403,6 +432,8 @@
       const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
       const all = () => side(a).concat(side(b));
       for (const c of all()) { c.fought = true; c.battles++; c.temp = []; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; }
+      for (const x of side(a)) enterBattle(x, b, ctx.home === x);
+      for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
@@ -435,9 +466,9 @@
       const assist = (x, o) => {
         const y = help.get(x); if (!y || !y.alive) return 0;
         const T = ctx.terrain;
-        return (B.combatPower(y.sv, T) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
+        return (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) c.npBoost = 0;
         // バーサーカーは、打ち合いのたびに魔力を食う
@@ -521,7 +552,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; } }
+      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; } }
     }
 
     function* ambushMaster(h, t) {
@@ -1011,7 +1042,7 @@
       yield* checkFallen();
       if (active().length > 1) yield* nightPhase();
       yield* checkFallen();
-      for (const c of camps) { c.temp = []; c.npBoost = 0; }
+      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
       if (quiet) { entries.splice(entries.indexOf(head)); if (quietFrom == null) quietFrom = day; }
       else if (quietFrom != null) {

@@ -25,7 +25,7 @@ const SECTIONS = [
 ];
 const canon = x => Array.isArray(x) ? x.map(canon) : x && typeof x === 'object' ? Object.keys(x).sort().reduce((o, k) => (o[k] = canon(x[k]), o), {}) : x;
 const same = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b));
-const TABLE_JA = { global: 'スキル全体の効果', servant: '英霊ごとの効果', stats: 'ステータス', np: '宝具の攻撃／補助', content: '内容の手直し', pages: 'ページ名' };
+const TABLE_JA = { global: 'スキル全体の効果', servant: '英霊ごとの効果', stats: 'ステータス', np: '宝具の攻撃／補助', content: '内容の手直し', pages: 'ページ名', reviewed: '確認済みの要確認' };
 
 function diff(oldDir, newDir) {
   const A = L.loadDir(oldDir), gA = L.grades(A.roster);

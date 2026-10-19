@@ -44,5 +44,49 @@ B.harvestOverrides([exp]);
 ok(JSON.stringify((E.CONTENT_OVERRIDES[lucan.trueName] || {}).identity) === JSON.stringify({ trueName: 'ルーカン卿', cls: 'セイバー' }), '書き出したJSONから真名・クラスの手直しを戻せない');
 delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカン卿'];
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し`);
+// 5) 効果の条件（params.cond／vs／chance）：説明・見積もり・エンジン
+{
+  const d = E.describe({ id: 'power', mag: 0.2, params: { cond: '拠点', vs: '竜', chance: 0.3 } });
+  ok(/拠点/.test(d.when) && /「竜」の相手/.test(d.when) && /30%/.test(d.when), '条件の説明が出ていない：' + d.when);
+  ok(E.hasCond({ chance: 0.5 }) && !E.hasCond({ chance: 1 }) && !E.hasCond({ tag: '竜' }), 'hasCond の見分けが違う');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const foe = roster.find(s => s.tags.includes('男性')), other = roster.find(s => !s.tags.includes('男性') && s.id !== foe.id);
+  const me = B.fromJSON(B.toLean(roster.find(s => s.id !== foe.id && s.id !== other.id)));
+  const withSpec = spec => { const key = me.trueName + '/' + E.normName(me.allSkills[0].name); E.SERVANT_OVERRIDES[key] = [spec]; const s = B.fromJSON(B.toLean(me)); delete E.SERVANT_OVERRIDES[key]; return s; };
+  const plain = withSpec(['guard', 0.0001]), vsMale = withSpec(['power', 5, { vs: '男性' }]), half = withSpec(['power', 5, { chance: 0.5 }]), home = withSpec(['power', 5, { cond: '拠点' }]);
+  const odds = (a, b, o) => B.battleOdds(a, b, o).a;
+  ok(odds(vsMale, foe) > odds(plain, foe) * 1.2 && Math.abs(odds(vsMale, other) - odds(plain, other)) < 1e-9, '相手の属性の条件が見積もりに効いていない');
+  ok(odds(half, other) > odds(plain, other) && odds(half, other) < odds(withSpec(['power', 5]), other), '発動確率が見積もりで強さ×確率になっていない');
+  ok(Math.abs(odds(home, other) - odds(plain, other)) < 1e-9 && odds(home, other, { home: true }) > odds(plain, other, { home: true }), '拠点の条件が見積もりに効いていない');
+  // エンジン：誰も持たない属性が条件の効果は、戦争の展開を変えない（判定に乱数を使わない）
+  const ros = roster.filter(s => s.id !== me.id), sig = r => r.winner + ':' + r.days + ':' + r.entries.length;
+  const ghost = withSpec(['power', 5, { vs: 'だれも持たない属性' }]);
+  let same = true, errs = 0;
+  for (let i = 0; i < 30; i++) {
+    const a = H.engine.runWar({ roster: ros.concat([plain]), seed: 'cnd' + i }), g = H.engine.runWar({ roster: ros.concat([ghost]), seed: 'cnd' + i });
+    if (sig(a) !== sig(g)) same = false;
+    try { H.engine.runWar({ roster: ros.concat([half, home, withSpec(['guard', 2, { cond: '瀕死', chance: 0.4 }])]), seed: 'cnd' + i }); } catch (e) { errs++; console.error(e); }
+  }
+  ok(same, '誰も持たない属性が条件の効果で、戦争の展開が変わった');
+  ok(!errs, '条件付きの効果を持つ英霊で戦争がエラーになった');
+}
+
+// 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
+{
+  const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
+  const s0 = B.fromJSON(lean), r0 = s0.review.find(r => r.kind === 'skill');
+  ok(r0 && r0.sig, '要確認に目印が無い');
+  E.REVIEWED[s0.trueName] = [r0.sig];
+  const s1 = B.fromJSON(JSON.parse(JSON.stringify(lean)));
+  ok(!s1.review.some(r => r.sig === r0.sig) && s1.reviewDone.some(r => r.sig === r0.sig), '確認済みにした要確認が消えていない');
+  ok(s1.review.length === s0.review.length - 1, '確認済みにしていない要確認まで消えた');
+  const edited = JSON.parse(JSON.stringify(lean));
+  for (const k of ['classSkills', 'skills']) for (const x of edited[k] || []) if (x.name === r0.target) x.desc = (x.desc || '') + '（Wikiで書き足した）';
+  const s2 = B.fromJSON(edited);
+  ok(s2.review.some(r => r.target === r0.target && r.why === r0.why), 'スキルの説明が変わったのに、要確認に戻らない');
+  ok(!('reviewDone' in B.toLean(s1)), '書き出したデータに reviewDone が残る');
+  delete E.REVIEWED[s0.trueName];
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;
