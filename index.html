@@ -1795,6 +1795,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   addEventListener('pagehide', saveProgress);
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
 
+  // 結末の見出し。勝者あり（マスターを失って単独で勝ち残った場合も）／全滅（相討ちなど）／期限切れ
+  function endHead(r) {
+    const w = r.winner != null ? r.camps[r.winner] : null;
+    if (w) return w.masterAlive === false ? `${w.cls}「${w.trueName}」が、マスターを失いながらもただ一騎で聖杯を手にした` : `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした`;
+    return r.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった' : '聖杯を手にした者はいなかった';
+  }
   // 終わった戦争を記録に足す（同じ戦争の再生なら足さない）
   function addHistory() {
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
@@ -1803,7 +1809,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       name: playerName || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
-        winner: w ? { label: w.label, name: w.trueName, master: w.master } : null,
+        winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending,
         you: y ? { label: y.label, name: y.trueName, master: y.master, won: y.id === result.winner, fate: y.fate ? y.fate.text : '' } : null,
         decided: choices.filter(k => k !== 'auto').length,
       },
@@ -1869,7 +1875,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const y = r.sum.you, w = r.sum.winner;
       const title = y ? `${y.label}「${y.name}」のマスター、${y.master}` : 'すべてを知る観測者として';
       const res = y ? (y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
-        : w ? `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。` : '聖杯を手にした者はいなかった。';
+        : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
         <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
@@ -2135,7 +2141,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (wordsOn && youId != null && !wordAsked.has('end')) { wordArm = []; return askWord('end'); }
     const w = result.winner != null ? result.camps[result.winner] : null;
     const you = result.you != null ? result.camps[result.you] : null;
-    const head = w ? `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした` : '聖杯を手にした者はいなかった';
+    const head = endHead(result);
     const yours = you ? (you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
     const decided = choices.filter(k => k !== 'auto').length;
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">結末・${result.days}日間</span></div><div class="body">
@@ -2310,7 +2316,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const w = result.winner != null ? result.camps[result.winner] : null, you = result.you != null ? result.camps[result.you] : null;
     let y = cardHead(ctx, 'HOLY GRAIL WAR ／ RESULT', `${out.city} ・ ${result.days}日間`, '聖杯戦争 観戦記');
     setFont(ctx, 700, 34, CF.go); ctx.fillStyle = CC.gold; ctx.shadowColor = 'rgba(255, 216, 74, .35)'; ctx.shadowBlur = 12;
-    y = para(ctx, w ? `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした` : '聖杯を手にした者はいなかった', P, y, W - P * 2, 48) + 6;
+    y = para(ctx, endHead(result), P, y, W - P * 2, 48) + 6;
     ctx.shadowBlur = 0;
     const decided = choices.filter(k => k !== 'auto').length;
     // 呼んだサーヴァント（再契約や令呪を奪って陣営が移っていれば、最後に契約していたサーヴァントも）
