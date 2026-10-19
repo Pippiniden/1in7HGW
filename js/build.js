@@ -245,7 +245,10 @@
       const mg = y.class.key === 'caster' || (y.score.mag || 0) > (y.score.str || 0) ? eff(x, 'magic_guard', T, ox) * 0.5 : 0;
       const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T, ox) * 0.5 + eff(x, 'evade', T, ox) * 0.5 + mg) * (1 - pierce)));
       let p = combatPower(x, T, () => eff(x, 'power', T, ox)) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
-      p *= (1 + eff(x, 'crit', T, ox) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox)) * 0.08);
+      // 先手：宝具ありの見積もりでは、先手の付いた宝具（戦いの始めに切る）の先手も足す（engine.js の openingNP）
+      const npIni = opts.np ? Math.max(0, ...(x.nps || []).filter(n => !n.disabled).map(n => (n.effects || []).filter(e => e.id === 'initiative')
+        .reduce((t, e) => t + e.mag * condW(e.params, T, ox), 0))) : 0;
+      p *= (1 + eff(x, 'crit', T, ox) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox) + npIni) * 0.08);
       // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運でクリティカル）を、打ち合いの強さにならして足す
       const F = G.CONFIG.STAT_FX;
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;

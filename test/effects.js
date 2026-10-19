@@ -101,6 +101,32 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(B.battleOdds(guard, me, {}).a > B.battleOdds(roster[1], me, {}).a, '状態異常耐性が見積もりに効いていない');
 }
 
+// 5c) 先手の付いた宝具は、戦いの始めに切る（先手を取れたら、1回目の打ち合いの頭でその宝具を放つ）
+{
+  ok(/戦いの始め/.test(E.describe({ id: 'initiative', mag: 0.3 }, { np: true }).when), '宝具の先手の働く場面の説明が違う');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster.find(s => s.nps.some(n => n.attackResolved && !n.disabled) && !s.nps.some(n => (n.effects || []).some(e => e.id === 'initiative')));
+  const np = base.nps.find(n => n.attackResolved && !n.disabled), key = base.trueName + '/' + E.normName(np.name);
+  E.SERVANT_OVERRIDES[key] = [['initiative', 5]];
+  const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[key];
+  const foe = roster.find(s => s.id !== base.id);
+  ok(B.battleOdds(me, foe, { np: true }).a > B.battleOdds(base, foe, { np: true }).a && B.battleOdds(me, foe, {}).a === B.battleOdds(base, foe, {}).a, '宝具の先手が見積もり（宝具あり）に効いていない');
+  const ros = roster.filter(s => s.id !== base.id).concat([me]);
+  let opened = 0, fired = 0, errs = 0;
+  for (let i = 0; i < 60; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'open' + i }); } catch (e) { errs++; console.error(e); continue; }
+    const es = r.entries;
+    es.forEach((e, j) => {
+      if (!e.text.includes(`宝具『${np.name}』で先手を取った`)) return;
+      opened++;
+      const next = es.slice(j + 1).find(x => x.kind === 'np' || x.kind === 'death' || x.head);
+      if (next && next.kind === 'np' && next.ids[0] === e.ids[0] && next.text.includes(np.name)) fired++;
+    });
+  }
+  ok(!errs, '先手の宝具を持つ英霊で戦争がエラーになった');
+  ok(opened > 0 && fired >= opened * 0.9, `先手を取った宝具が開幕に放たれていない（先手 ${opened}・開幕の宝具 ${fired}）`);
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -118,5 +144,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;
