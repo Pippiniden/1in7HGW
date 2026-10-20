@@ -233,14 +233,16 @@
     const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => !offMatch(c, e.from, e.id)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => !offMatch(c, e.from, e.id)); };
     // 相手がその効果を持っているか（常時の分か、その戦いだけの分）
     const holds = (c, id) => (c.temp || []).some(e => e.id === id) || Object.values(c.sv.effectSummary || {}).some(x => x.id === id && x.passive);
-    function effS(c, id, terrain) {
+    // self：自分に掛ける不利な効果（params.self）だけを数える。ふだん（false）は相手に掛ける分・自分のための分だけ
+    const isSelf = p => !!(p && p.self);
+    function effS(c, id, terrain, self) {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params);
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params);
       return t;
     }
-    function eff(c, id, terrain) {
-      let t = effS(c, id, terrain);
-      for (const e of c.temp) if (e.id === id && condOk(c, e.params, terrain)) t += e.mag;
+    function eff(c, id, terrain, self) {
+      let t = effS(c, id, terrain, self);
+      for (const e of c.temp) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     }
     const effVs = (c, id, o, terrain) => {
@@ -251,10 +253,10 @@
     };
     // ---------- 状態異常（effects.js の AILMENTS：魅了・毒・スタン・混乱・宝具封印。防ぐのは ail_guard ほか） ----------
     // ailInfo：その効果の強さの合計と、いちばん強いものの params（表示名 name・記録の文 msg）
-    function ailInfo(c, id, terrain) {
+    function ailInfo(c, id, terrain, self) {
       let t = 0, top = null, best = -Infinity;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && condOk(c, x.params, terrain)) { const m = (x.passive - offW(c, x)) * chanceW(c, k, x.params); t += m; if (m > best) { best = m; top = x.params; } }
-      for (const e of c.temp) if (e.id === id && condOk(c, e.params, terrain)) { t += e.mag; if (e.mag > best) { best = e.mag; top = e.params; } }
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) { const m = (x.passive - offW(c, x)) * chanceW(c, k, x.params); t += m; if (m > best) { best = m; top = x.params; } }
+      for (const e of c.temp) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) { t += e.mag; if (e.mag > best) { best = e.mag; top = e.params; } }
       return { t, p: top };
     }
     // 防ぐ確率：状態異常耐性＋（魅了・混乱は精神耐性とマスターの精神／毒・スタンは耐久）
@@ -264,6 +266,10 @@
     // 記録の文：掛けたときの文は、効果に params.msg があればそれ（{S} 掛けた側・{O} 掛けられた側・{N} 状態の名前）、
     // 無ければ names.js の G.LINES。どちらも乱数ではなく選ぶので、文を変えても展開は変わらない
     const AIL_KEY = { charm: 'ailCharm', poison: 'ailPoison', stun: 'ailStun', confuse: 'ailConfuse', seal: 'ailSeal' };
+    // 自分に掛かる状態異常の記録の文（params.msg があればそれ）
+    const SELF_AIL = ['stun', 'confuse', 'poison', 'seal'];
+    const SELF_AIL_LINE = { stun: '{O}の体が、不意に言うことを聞かなくなった。{N}だ。', confuse: '{O}の意識が揺らぎ、刃先が定まらない。{N}だ。',
+      poison: '{O}の霊基を、内側からの{N}が蝕み始めた。', seal: '{O}の宝具が、己の内に閉ざされた。{N}だ。' };
     const fillT = (t, v) => String(t).replace(/\{(\w+)\}/g, (m, k) => v[k] != null ? v[k] : m);
     const ailText = (key, id, p, x, y) => {
       const v = { S: x ? sn(x) : '', O: sn(y), N: (p && p.name) || E.AILMENTS[id] };
@@ -339,9 +345,19 @@
         o.temp = o.temp.filter(e => !isBuff(e)); o.surprise = 0;
         say(`${sn(c)}の${src}が、${sn(o)}の強化を打ち消した。`); return;
       }
+      if (id === 'wither') {
+        // 衰弱：相手（params.self なら自分）の戦闘力を少しずつ削り、重なって残る。相手からのものは耐久と対魔力で防ぐ
+        const tg = p.self ? c : o; if (!tg || !tg.alive) return;
+        const key = p.self ? 'witherSelf' : 'wither', before = tg[key] || 0;
+        const v = p.self ? mag : mag * (1 - bodyRes(tg, T)) * (1 - (tg.cleanse || 0));
+        if (!(v > 0)) return;
+        tg[key] = Math.min(ENG.witherCap, before + v);
+        if (tg[key] > before) say(p.self ? `${sn(c)}の${src}が、その身を少しずつ蝕んでいく。` : `${sn(c)}の${src}が、${sn(tg)}の霊基をじわじわと蝕んでいく。`);
+        return;
+      }
       if (id === 'cleanse') {
-        const had = !!(c.poison || (c.ail && (c.ail.stun || c.ail.confuse || c.ail.seal || c.ail.skseal)) || (o && o.temp && o.temp.some(isHex)));
-        c.poison = null; if (c.ail) c.ail.stun = c.ail.confuse = c.ail.seal = c.ail.skseal = false;
+        const had = !!(c.poison || c.wither || c.witherSelf || (c.ail && (c.ail.stun || c.ail.confuse || c.ail.seal || c.ail.skseal)) || (o && o.temp && o.temp.some(isHex)));
+        c.poison = null; c.wither = 0; c.witherSelf = 0; if (c.ail) c.ail.stun = c.ail.confuse = c.ail.seal = c.ail.skseal = false;
         if (o && o.temp) o.temp = o.temp.filter(e => !isHex(e));
         if (on !== 'day') c.cleanse = clamp(Math.max(c.cleanse || 0, mag), 0, 1);
         if (had) say(`${sn(c)}の${src}が、身を蝕むものを祓った。`); return;   // 消すものが無ければ記録しない（守りは掛かっている）
@@ -396,6 +412,8 @@
       } else masterDown(c, `${sn(c)}に魔力を吸い尽くされ、${day}日目に力尽きた`);
     }
 
+    // 体への干渉（肉体弱体・衰弱）を防ぐ割合：耐久と対魔力（魔術耐性。重なると鈍る）
+    const bodyRes = (y, T) => clamp(ENG.bodyEndGuard * sd(y, 'end') + B.softDef(Math.max(0, eff(y, 'magic_guard', T))) * ENG.bodyMagicGuard, -0.5, 0.8);
     function power(c, o, ctx) {
       const T = ctx.terrain;
       let p = B.combatPower(c.sv, T, id => effS(c, id, T)) * (1 + c.temp.filter(e => e.id === 'power' && condOk(c, e.params, T)).reduce((t, e) => t + e.mag, 0));
@@ -408,7 +426,17 @@
       p *= 1 + def;
       // 精神耐性：精神への干渉（弱体化・不意打ち）に動じず、傷を負っても心が折れない（ENGINE.mental*）。魅了・混乱は ailResist／魅了の判定で
       const mgd = clamp(B.softDef(eff(c, 'mental_guard', T)), -0.5, 1.5);   // 重なると鈍る（守りの効果と同じ defSoft）
-      p *= 1 - Math.min(0.5, eff(o, 'debuff', T) * clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5) * (1 - (c.cleanse || 0)) * (1 - clamp(mgd * ENG.mentalDebuff, -0.5, 0.6)));
+      // 相手の弱体化：種類なし（精神耐性で少し防ぐ）・精神弱体（精神耐性とマスターの精神）・肉体弱体（耐久と対魔力）。合わせて最大5割
+      const rMind = clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5);
+      let deb = eff(o, 'debuff', T) * rMind * (1 - clamp(mgd * ENG.mentalDebuff, -0.5, 0.6));
+      const dm = eff(o, 'debuff_mind', T), db = eff(o, 'debuff_body', T);
+      if (dm) deb += dm * rMind * (1 - clamp(mgd * ENG.mindDebuffGuard, -0.5, 0.8));
+      if (db) deb += db * (1 - bodyRes(c, T));
+      p *= 1 - Math.min(0.5, deb * (1 - (c.cleanse || 0)));
+      // 自分に掛かる弱体化（デメリット）と衰弱（重なって残る）
+      const selfDeb = eff(c, 'debuff', T, true) + eff(c, 'debuff_mind', T, true) + eff(c, 'debuff_body', T, true);
+      if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
+      if (c.wither || c.witherSelf) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
       if (c.knowName.has(o.id)) p *= 1.08;
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
@@ -693,6 +721,15 @@
           const p = tryAil(x, y, id, ctx.terrain);
           if (p) { y.ail[id] = true; y.ail[id + 'P'] = p; log('battle', ailText(AIL_KEY[id], id, p, x, y), [y.id, x.id]); }
         }
+        // 自分に掛かる状態異常（デメリット）：打ち合いのたびに判定する。防げない（持っていない英霊では乱数を使わない）
+        for (const y of [a, b]) for (const id of SELF_AIL) {
+          if (id === 'poison' ? y.poison : y.ail[id]) continue;
+          const si = ailInfo(y, id, ctx.terrain, true);
+          if (!(si.t > 0) || !chance(Math.min(E.AIL_CAP[id], si.t))) continue;
+          const sp = si.p || {};
+          if (id === 'poison') y.poison = { p: sp, day }; else { y.ail[id] = true; y.ail[id + 'P'] = sp; }
+          log('battle', sp.msg ? fillT(sp.msg, { S: sn(y), O: sn(y), N: sp.name || E.AILMENTS[id] }) : fillT(SELF_AIL_LINE[id], { O: sn(y), N: sp.name || E.AILMENTS[id] }), [y.id]);
+        }
         // 開幕の宝具：先手を取った宝具は、1回目の打ち合いの頭で放つ（その打ち合いでは、ほかの宝具は使わない）
         const opened = new Set();
         for (const [c, o] of [[a, b], [b, a]]) if (c.openNP) {
@@ -739,7 +776,12 @@
         const tg = cover ? lh : l;
         if (cover) log('battle', `${sn(lh)}が${sn(l)}をかばって前に出た。`, [lh.id, l.id, w.id]);
         let outcome = null, o3 = null;
-        if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
+        // 攻撃を受ける直前に発動する効果（ここで得た守り・見切りはこの一撃から効く）と、見切り（一撃をかわす。必中で減る）
+        if (tg.alive) fireTrig(tg, w, 'hit', ctx.terrain);
+        const dg = eff(tg, 'dodge', ctx.terrain);
+        const dodged = dg > 0 && chance(Math.min(ENG.dodgeCap, dg) * (1 - clamp(eff(w, 'sure_hit', ctx.terrain), 0, 1)));
+        if (dodged) log('battle', `${sn(w)}が押し込んだ一撃を、${sn(tg)}は紙一重で見切った。`, [tg.id, w.id]);
+        else if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
           log('battle', `${sn(w)}の一撃が、${sn(tg)}の霊核を捉えた。`, [w.id, tg.id]);
           tg.hp = 0; o3 = yield* lethal(tg, w, 'instakill', round);
         } else {
@@ -747,19 +789,22 @@
           // 筋力の高い側ほど深く斬り込み、耐久の高い側ほど持ちこたえる
           dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(tg, 'end'), 0.6, 1.5);
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
-          if (crit) dmg *= 1.5;
+          if (crit) dmg *= ENG.critMult;
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(B.softDef(eff(tg, 'guard', ctx.terrain)) * ENG.guardDmgW, -0.5, ENG.guardDmgCap);
           const flat = eff(w, 'dmg_plus', ctx.terrain) - eff(tg, 'dmg_cut', ctx.terrain);   // ダメージプラス・ダメージカット（固定値）
           if (flat) dmg = Math.max(1, dmg + flat);
           // 負けた側も一矢報いる：戦闘力が拮抗しているほど返す傷は大きい（rnd は増やさない）
           tg.hp -= dmg; w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
+          // 反撃：傷を受けても立っていれば、その傷の一部を返す
+          const ctr = tg.hp > 0 ? eff(tg, 'counter', ctx.terrain) : 0;
+          if (ctr > 0) { w.hp -= dmg * Math.min(1, ctr); if (tg.tLog && !tg.tLog.has('#counter')) { tg.tLog.add('#counter'); log('battle', `${sn(tg)}は退かず、すかさず反撃を返した。`, [tg.id, w.id]); } }
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           // 押し勝った側も深手で倒れることがある（相手を討ち取った打ち合いなら相討ち）
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
         // 押し勝った一撃に乗る状態異常：毒（翌日まで残る）・宝具封印（この戦いの間）
-        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail) {
+        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail && !dodged) {
           if (!tg.poison) { const p = tryAil(w, tg, 'poison', ctx.terrain); if (p) { tg.poison = { p, day }; log('battle', ailText('ailPoison', 'poison', p, w, tg), [tg.id, w.id]); } }
           if (!tg.ail.seal) { const p = tryAil(w, tg, 'seal', ctx.terrain); if (p) { tg.ail.seal = true; log('battle', ailText('ailSeal', 'seal', p, w, tg), [tg.id, w.id]); } }
         }
@@ -1086,6 +1131,8 @@
         c.hunting = c.hidden = c.wander = c.fought = false;
         bondUp(c, 0.5);
         // 毎朝発動する効果（回復・魔力回復・解除はその場で、強化はその日の夜の戦いまで）。昨夜の「相手を倒したとき」の強化はここで切れる
+        // 相手から受けた衰弱は、毎朝一定の確率で抜ける（休んだ翌朝は抜けやすい）。自分に掛けた衰弱は残る
+        if (c.wither > 0 && chance(clamp(ENG.witherFade * (c.rested === day - 1 ? 2 : 1), 0, 1))) { c.wither = 0; if (c.you) log('day', `${sn(c)}を蝕んでいた衰えが、ようやく抜けた。`, [c.id]); }
         c.dayTemp = null; fireTrig(c, null, 'day', null);
         // 昨夜の毒：もう一度霊基を削って抜ける（毒では倒れない）
         if (c.poison && c.poison.day < day) { c.hp = Math.max(1, c.hp - ENG.poisonDay); if (c.you) log('day', ailText('ailPoisonDay', 'poison', c.poison.p, null, c), [c.id]); c.poison = null; }
@@ -1114,7 +1161,7 @@
         // 昼の行動
         const P = POLICIES[c.policy] || POLICIES.balanced;
         const w = {
-          scout: 1 + (eff(c, 'intel') + eff(c, 'detect')) * 3,
+          scout: 1 + eff(c, 'intel') * 3 + eff(c, 'detect') * ENG.detectScout,   // 索敵は偵察に向くが、偵察ばかりにならないように
           fortify: c.workshop >= 5 ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
           rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0) + (c.mhp < c.mhpMax * 0.5 && upk(c) > 1.2 ? 1.5 : 0),
           ally: alive.length > ENG.allianceBreakAt + 1 && c.ally == null && c.masterAlive ? Math.max(0, 0.3 + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) : 0,
@@ -1161,7 +1208,8 @@
         } else if (c.you) log('day', line('fortifyFail', { S: sn(c) }), [c.id]);
         if (c.items < 3 && chance(eff(c, 'craft'))) { c.items++; if (c.you) log('day', `${sn(c)}が戦いに役立つ道具を用意した。`, [c.id]); }
       } else if (act === 'rest') {
-        c.hp = Math.min(100, c.hp + ENG.restHeal + eff(c, 'regen') * 60);
+        c.rested = day;
+        c.hp = Math.min(100, c.hp + ENG.restHeal + eff(c, 'regen') * ENG.regenHeal);
         c.mhp = Math.min(c.mhpMax, c.mhp + 15 + eff(c, 'heal_other') * 60);
         c.mana = Math.min(c.manaMax, c.mana + 10); c.spirit = true;
         if (c.you) log('day', line('rest', { S: sn(c) }), [c.id]);
@@ -1241,6 +1289,8 @@
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
         if (assault) { h.surprise = h.betray ? 0.2 : 0.15; h.betray = false; }
+        // 索敵：先に相手を見つけたぶん、有利な形で仕掛けられる（相手の索敵が高ければ打ち消される）
+        else { const dt = eff(h, 'detect') - eff(t, 'detect') * 0.5; if (dt > 0) h.surprise = (h.surprise || 0) + Math.min(ENG.detectEdgeCap, dt * ENG.detectEdge); }
         // 同盟相手が加勢に来ることがある（拠点を守る戦いや、同じ夜に出ている味方ほど来やすい。統率で上がる）
         const helpA = joinAlly(h, t, home), helpB = joinAlly(t, h, home);
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain, helpA, helpB });

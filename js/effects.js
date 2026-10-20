@@ -29,7 +29,10 @@
     // 戦闘
     power:        { name: '戦闘力上昇',   phase: 'battle',    unit: 'rate',   base: 0.10, desc: '戦闘力に加算' },
     power_vs:     { name: '特攻',         phase: 'battle',    unit: 'rate',   base: 0.30, desc: '特定の相手（params.tag）にだけ戦闘力上昇' },
-    debuff:       { name: '弱体化',       phase: 'battle',    unit: 'rate',   base: 0.10, desc: '相手の戦闘力を下げる' },
+    debuff:       { name: '弱体化',       phase: 'battle',    unit: 'rate',   base: 0.10, desc: '相手の戦闘力を下げる（種類を決めていない弱体化。精神耐性で少し防がれる）' },
+    debuff_mind:  { name: '精神弱体',     phase: 'battle',    unit: 'rate',   base: 0.10, desc: '相手の戦闘力を下げる（威圧・恐怖・幻惑など心への干渉）。精神耐性とマスターの精神で防がれる' },
+    debuff_body:  { name: '肉体弱体',     phase: 'battle',    unit: 'rate',   base: 0.10, desc: '相手の戦闘力を下げる（呪い・衰え・重圧など体への干渉）。耐久と対魔力（魔術耐性）で防がれる' },
+    wither:       { name: '衰弱',         phase: 'battle',    unit: 'rate',   base: 0.05, trig: 'win', selfTrig: 'day', desc: '相手の戦闘力を少しずつ削り、重なっていく（既定は押し勝つたび）。戦いが終わっても残り、毎朝一定の確率で消える。耐久と対魔力で防がれる' },
     crit:         { name: 'クリティカル',         phase: 'battle',    unit: 'chance', base: 0.10, desc: '大ダメージを与える確率' },
     pierce:       { name: '防御無視',     phase: 'battle',    unit: 'chance', base: 0.25, desc: '相手の回避・軽減・対魔力・致命傷耐性を無視する確率（必中など）' },
     instakill:    { name: '即死',         phase: 'battle',    unit: 'chance', base: 0.05, desc: '戦闘力に関係なく相手を倒す確率' },
@@ -53,6 +56,8 @@
     mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了・混乱に抵抗する確率。相手の弱体化や不意打ちに動じず、傷を負っても戦闘力が落ちにくい' },
     guts:         { name: '致命傷耐性',   phase: 'lethal',    unit: 'chance', base: 0.35, desc: '倒れるはずの一撃で踏みとどまる確率' },
     dmg_cut:      { name: 'ダメージカット', phase: 'damage',  unit: 'pt',     base: 4,    desc: '押し負けたときに受ける傷を固定値で減らす' },
+    dodge:        { name: '見切り',       phase: 'damage',    unit: 'chance', base: 0.15, desc: '押し負けたとき、その一撃をかわして傷を受けない確率（必中で打ち消される）' },
+    counter:      { name: '反撃',         phase: 'damage',    unit: 'rate',   base: 0.25, desc: '押し負けて傷を受けたとき、その傷の一部を相手に返す' },
     taunt:        { name: 'かばう',       phase: 'battle',    unit: 'chance', base: 0.20, desc: '同盟相手に加勢したとき、味方の代わりに一撃を受ける確率を上げる（ターゲット集中）' },
     weakness:     { name: '弱点',         phase: 'damage',    unit: 'rate',   base: 0.30, desc: '特定の相手（params.tag）から受けるダメージが増える（不利な効果）' },
     master_guard: { name: 'マスター護衛', phase: 'damage',    unit: 'chance', base: 0.20, desc: 'マスターが狙われたときに守る確率' },
@@ -90,7 +95,7 @@
     luck:         { name: '幸運補正',     phase: 'passive',   unit: 'chance', base: 0.10, desc: '運に左右される場面（踏みとどまり・撤退・即死を免れる）で有利になる（マイナスなら不利）' },
     tag:          { name: '属性付与',     phase: 'passive',   unit: 'flag',   base: 1, fixed: true, desc: '特攻の対象になる属性（params.tag）を持つ' },
     // 宝具使用時
-    np_boost:     { name: '宝具強化',     phase: 'np',        unit: 'rate',   base: 0.15, desc: '宝具の威力' },
+    np_boost:     { name: '宝具強化',     phase: 'np',        unit: 'rate',   base: 0.25, desc: '宝具の威力（宝具を切った打ち合いはもともと勝ちやすいので、強めにしてある）' },
     np_charge:    { name: '宝具チャージ', phase: 'np',        unit: 'chance', base: 0.15, desc: '打ち合いごとに宝具を放つ確率を上げる' },
     np_cost:      { name: '宝具消費',     phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具の魔力消費の増減（マイナスで軽くなる）' },
     backfire:     { name: '反動',         phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具を使うと自分も傷つく' },
@@ -101,9 +106,9 @@
   // ---------- ジャンル（リストツール・申請フォームの効果の選択肢と凡例を分ける） ----------
   const EFFECT_GROUPS = [
     ['atk', '攻め', ['power', 'power_vs', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'instakill', 'initiative']],
-    ['def', '守り', ['guard', 'evade', 'magic_guard', 'dmg_cut', 'guts', 'luck', 'weakness']],
+    ['def', '守り', ['guard', 'evade', 'dodge', 'counter', 'magic_guard', 'dmg_cut', 'guts', 'luck', 'weakness']],
     ['heal', '回復・吸収', ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'regen', 'heal_other']],
-    ['ail', '弱体・状態異常', ['debuff', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal']],
+    ['ail', '弱体・状態異常', ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal']],
     ['resist', '耐性', ['ail_guard', 'mental_guard', 'cs_resist']],
     ['clear', '解除', ['strip', 'cleanse', 'self_strip']],
     ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'self_retire', 'disabled']],
@@ -119,7 +124,8 @@
 
   // ---------- 発動のしかた（params.on。どの効果にも付けられる。engine.js の fireTrig と合わせる） ----------
   //   ''     ：常に（いままでの常時効果）
-  //   start  ：戦いの始めに      round：打ち合いのたびに     win：押し勝ったとき     lose：押し負けたとき
+  //   start  ：戦いの始めに      round：打ち合いのたびに     win：押し勝ったとき     lose：押し負けたとき（傷を受けたあと）
+  //   hit    ：攻撃を受ける直前（押し負けが決まり、傷を受ける前。ここで得た守り・見切りはその一撃から効く）
   //   pinch  ：瀕死になったとき（霊基が ENGINE.pinchAt を切ったとき。1回の戦いに一度）
   //   np     ：宝具を使ったとき  kill：相手を倒したとき     day：毎朝（戦いの外）
   // 一緒に付けられるもの：cost＝発動ごとの魔力（払えなければ発動しない。「打ち合いのたびに」と組めば「魔力がある限り自動発動」）／
@@ -128,16 +134,18 @@
   //   （魔力を払い続ければ毎回掛かる）。毎朝・相手を倒したときに得た強化は、次の朝まで。
   // 回復・吸収・解除・スキル封印は、発動したその場で働く（instant）。これらは params.on が無ければ EFFECTS の trig の場面で発動する。
   // 宝具の効果は、params.on が無ければ使ったときに働く（いままでどおり）。params.on があれば、使ったあとその場面のたびに発動する。
-  const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['lose', '押し負けたとき'],
+  const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['hit', '攻撃を受ける直前に'], ['lose', '押し負けたとき'],
     ['pinch', '瀕死になったとき'], ['np', '宝具を使ったとき'], ['kill', '相手を倒したとき'], ['day', '毎朝（戦いの外）']];
   const TRIG_JA = Object.fromEntries(TRIGGERS);
-  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal'];
-  // 効果の発動の場面（スキル）。'' は常時
-  const trigOf = e => (e && e.params && e.params.on) || (EFFECTS[e.id] && EFFECTS[e.id].trig) || '';
+  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither'];
+  // 自分にも掛けられる不利な効果（params.self）。デメリットや「日ごとに弱っていく」英霊に。自分に掛けた分は防げない
+  const SELF_IDS = ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'poison', 'stun', 'confuse', 'seal'];
+  // 効果の発動の場面（スキル）。'' は常時。自分に掛ける衰弱は既定で毎朝
+  const trigOf = e => (e && e.params && e.params.on) || (e && e.params && e.params.self && EFFECTS[e.id] && EFFECTS[e.id].selfTrig) || (EFFECTS[e.id] && EFFECTS[e.id].trig) || '';
   // 見積もり（評価・試し戦い）での発動の重み：その場面がどのくらい起きるか
-  const TRIG_W = { '': 1, start: 1, round: 1, win: 0.5, lose: 0.4, pinch: 0.3, np: 0.4, kill: 0.15, day: 0.8 };
+  const TRIG_W = { '': 1, start: 1, round: 1, win: 0.5, hit: 0.4, lose: 0.4, pinch: 0.3, np: 0.4, kill: 0.15, day: 0.8 };
   const trigText = (p, id, np) => {
-    const on = (p && p.on) || '', def = (EFFECTS[id] || {}).trig;
+    const on = (p && p.on) || '', def = (p && p.self && (EFFECTS[id] || {}).selfTrig) || (EFFECTS[id] || {}).trig;
     const t = [];
     if (on) t.push(TRIG_JA[on] + '発動' + (np ? '（宝具を使ったあと）' : ''));
     else if (def && !np) t.push(TRIG_JA[def] + '発動');
@@ -165,6 +173,9 @@
   const stripFieldsHtml = (id, p, esc) => `<div class="estrip"${STRIP_IDS.includes(id) ? '' : ' hidden'}><label>止める効果<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>`
     + effOptionsHtml((p && p.eff) || '', esc, x => EFFECTS[x].name) + '</select></label></div>';
   const readStrip = (q, id, p) => { if (!STRIP_IDS.includes(id) || !q('eff')) return; const v = q('eff').value; if (v) p.eff = v; };
+  // 自分に掛ける欄（SELF_IDS の不利な効果だけ）
+  const selfFieldsHtml = (id, p, esc) => `<div class="eself"${SELF_IDS.includes(id) ? '' : ' hidden'}><label><input type="checkbox" data-e="self"${p && p.self ? ' checked' : ''}>${esc('自分に掛ける（不利な効果・デメリット）')}</label></div>`;
+  const readSelf = (q, id, p) => { if (SELF_IDS.includes(id) && q('self') && q('self').checked) p.self = true; };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
   const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
 
@@ -192,8 +203,13 @@
   const EFFECT_INFO = {
     power:        { who: 'self', fx: m => `戦闘力 ${sg(m)}` },
     power_vs:     { who: 'self', fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
-    debuff:       { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（相手マスターの精神で増減・最大50%）` },
-    crit:         { who: 'self', fx: m => m < 0 ? less('クリティカルヒット（与える傷1.5倍）の確率', m) : `押し勝ったとき ${pc(m)} の確率で与える傷が1.5倍` },
+    debuff:       { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（相手の精神耐性で少し減り、相手マスターの精神で増減する。弱体化は合わせて最大50%）` },
+    debuff_mind:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（心への干渉。相手の精神耐性と相手マスターの精神で防がれる。弱体化は合わせて最大50%）` },
+    debuff_body:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（体への干渉。相手の耐久と対魔力で防がれる。弱体化は合わせて最大50%）` },
+    wither:       { who: 'enemy', fx: m => m < 0 ? `相手の衰弱を ${pc(m)} 和らげる` : `発動するたびに相手の戦闘力を ${pc(m)} ずつ削る（重なって最大 ${pc(ENG().witherCap)}。戦いが終わっても残り、毎朝 ${pc(ENG().witherFade)} の確率で消える。相手の耐久と対魔力で防がれる）` },
+    dodge:        { who: 'self', fx: m => m < 0 ? less('押し負けた一撃をかわす確率', m) : `押し負けたとき ${pc(Math.min(ENG().dodgeCap, m))} の確率でその一撃をかわし、傷を受けない（相手の必中で減る）` },
+    counter:      { who: 'enemy', fx: m => m < 0 ? `押し負けたとき、相手から受ける傷が ${pc(m)} 増える` : `押し負けて傷を受けたとき、その傷の ${pc(Math.min(1, m))} を相手に返す` },
+    crit:         { who: 'self', fx: m => m < 0 ? less(`クリティカルヒット（与える傷${ENG().critMult}倍）の確率`, m) : `押し勝ったとき ${pc(m)} の確率で与える傷が${ENG().critMult}倍` },
     pierce:       { who: 'enemy', fx: m => m < 0 ? `相手の守り（被ダメージ軽減・回避・魔術耐性）が ${pc(m)} 強まる（打ち消しや踏みとどまりの封じは起きない）` : `相手の守り（被ダメージ軽減・回避・魔術耐性）を ${pc(Math.min(0.9, m))} 打ち消し、同じ確率で踏みとどまりも許さない` },
     instakill:    { who: 'enemy', fx: m => m < 0 ? less('押し勝ったときに相手を一撃で倒す確率', m) : `押し勝つたびに ${pc(Math.min(0.4, m))} の確率で相手を一撃で倒す（相手の幸運で減る）` },
     evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}` },
@@ -222,7 +238,7 @@
     np_charge:    { who: 'self', fx: m => `打ち合いごとに宝具を放つ確率 ${sg(m)}` },
     rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
-    guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m * 0.5))}、守りとして戦闘力 ${sg(m * 0.5)}` },
+    guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(ENG().guardDmgCap, m * ENG().guardDmgW))}、守りとして戦闘力 ${sg(m * ENG().defPowerW)}（ほかの被ダメージ軽減と重なると鈍る）` },
     magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}` },
     mental_guard: { who: 'self', fx: m => {
       if (m < 0) return `精神への干渉に弱い：相手の魅了・混乱を防ぐ確率 −${pc(-m)}（マスターの精神と合わせて0%未満にはならない）。相手の弱体化がよく効き、傷を負うと戦闘力がより落ちる`;
@@ -234,13 +250,13 @@
     weakness:     { who: 'self', bad: true, fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${m < 0 ? '+' : '−'}${pc(m * 0.5)}` },
     master_guard: { who: 'master', fx: m => m < 0 ? `自分のマスターの守り −${pc(m)}（工房・幸運などの守りを打ち消す。守りが0%を下回ることはない）` : `自分のマスターが狙われたとき、刃が届く確率 −${pc(Math.min(0.8, m))}` },
     stealth:      { who: 'self', fx: m => `夜に相手に見つかる確率 ${m < 0 ? '+' : '−'}${pc(m * 0.7)}、偵察・使い魔にも見つかり${m < 0 ? 'やすい' : 'にくい'}` },
-    detect:       { who: 'self', fx: m => `夜に相手を見つける確率 ${sg(m * 0.8)}、マスターを狙う奇襲を見抜き${m < 0 ? 'にくい' : 'やすい'}` },
+    detect:       { who: 'self', fx: m => `夜に相手を見つける確率 ${sg(m * 0.8)}、先に見つけて仕掛けたとき戦闘力 +${pc(Math.max(0, Math.min(ENG().detectEdgeCap, m * ENG().detectEdge)))}（相手の索敵で減る）、マスターを狙う奇襲を見抜き${m < 0 ? 'にくい' : 'やすい'}` },
     intel:        { who: 'self', fx: m => `偵察・使い魔・噂の追跡の成功 ${sg(m)}、真名の推理 ${sg(m * 0.5)}` },
     reveal:       { who: 'enemy', fx: m => `相手の真名を見抜く確率 ${sg(m)}（戦い・偵察・推理）` },
     conceal:      { who: 'self', fx: m => `自分の真名を見抜かれる確率 ${m < 0 ? '+' : '−'}${pc(m * 0.6)}` },
     escape:       { who: 'self', fx: m => `撤退の成功 ${sg(m)}` },
     pin:          { who: 'enemy', fx: m => `相手の撤退の成功 ${m < 0 ? '+' : '−'}${pc(m * 0.8)}` },
-    regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * 60)}` },
+    regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * ENG().regenHeal)}` },
     heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
     craft:        { who: 'self', fx: m => m < 0 ? less('1日ごとに道具を作る確率', m) : `1日ごとに ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）` },
@@ -285,12 +301,25 @@
    * ctx.np：宝具の効果 / ctx.attack：攻撃宝具
    * 戻り値 { name, who, whoJa, bad, when, text }
    */
+  // 自分に掛ける不利な効果（params.self）の働き
+  const SELF_FX = {
+    debuff: m => `自分の戦闘力 −${pc(Math.min(0.5, m))}（自分に掛かる不利な効果。防げない）`,
+    debuff_mind: m => `自分の戦闘力 −${pc(Math.min(0.5, m))}（心の乱れ。自分に掛かる不利な効果で、防げない）`,
+    debuff_body: m => `自分の戦闘力 −${pc(Math.min(0.5, m))}（体の不調。自分に掛かる不利な効果で、防げない）`,
+    wither: m => `発動するたびに自分の戦闘力が ${pc(m)} ずつ落ちていく（重なって最大 ${pc(ENG().witherCap)}。自分に掛けた衰弱は朝になっても消えず、弱体解除でだけ消える）`,
+    poison: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.poison, m))} の確率で自分が${ailName(p, 'poison')}になる（防げない。これでは倒れない）`,
+    stun: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.stun, m))} の確率で自分が${ailName(p, 'stun')}になり、その打ち合いは宝具を使えず戦闘力 −${pc(1 - ENG().stunPower)}（防げない）`,
+    confuse: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.confuse, m))} の確率で自分が${ailName(p, 'confuse')}し、戦闘力 −${pc(1 - ENG().confusePower)}（防げない）`,
+    seal: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.seal, m))} の確率で自分の宝具が封じられ（${ailName(p, 'seal')}）、その戦いの間は使えない（防げない）`,
+  };
   function describe(e, ctx) {
     ctx = ctx || {};
-    const def = EFFECTS[e.id], inf = EFFECT_INFO[e.id];
-    if (!def || !inf) return { name: e.id, who: 'none', whoJa: '—', bad: false, when: '', text: '（エンジンが知らない効果）' };
+    const def = EFFECTS[e.id], inf0 = EFFECT_INFO[e.id];
+    if (!def || !inf0) return { name: e.id, who: 'none', whoJa: '—', bad: false, when: '', text: '（エンジンが知らない効果）' };
     const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
     const p = e.params || null;
+    // 自分に掛ける不利な効果：誰に＝自分、不利な効果として書く
+    const inf = p && p.self && SELF_FX[e.id] ? { who: 'self', bad: true, fx: SELF_FX[e.id] } : inf0;
     const bad = !!inf.bad === !(m < 0);
     // 常時発動の宝具の効果はスキルと同じに、自動で発動する宝具の効果は「その場面で自動で発動したその戦いの間」として書く
     if (ctx.np && ctx.npMode === 'always') ctx = Object.assign({}, ctx, { np: false, always: true });
@@ -365,7 +394,7 @@
     '獣殺し':       [['power_vs', 1, { tag: '獣' }]],
     '獣狩り':       [['power_vs', 1, { tag: '獣' }]],
     '神殺し':       [['power_vs', 1, { tag: '神性' }]],
-    '対英雄':       [['debuff', 1]],
+    '対英雄':       [['debuff_body', 1]],
     '透化':         [['mental_guard', 1], ['stealth', 0.5]],
     '圏境':         [['stealth', 1.2], ['evade', 0.5]],
     '縮地':         [['initiative', 1], ['escape', 0.8]],
@@ -396,7 +425,7 @@
     '真名看破':     [['reveal', 1.5]],
     '神明裁決':     [['debuff', 0.6], ['negotiate', 0.6], ['reveal', 0.3]],
     '聖人':         [['regen', 0.6], ['heal_other', 0.4], ['negotiate', 0.4]],
-    '領域外の生命': [['mental_guard', 1], ['magic_guard', 0.3], ['debuff', 0.3]],
+    '領域外の生命': [['mental_guard', 1], ['magic_guard', 0.3], ['debuff_mind', 0.3]],
     '獣の権能':     [['power_vs', 1, { tag: '人型' }], ['guard', 0.4]],
     '自己保存':     [['guard', 0.8], ['escape', 0.6]],
     '自陣防御':     [['master_guard', 1.2], ['guard', 0.6]],
@@ -426,7 +455,7 @@
     '新陰流':       [['evade', 0.8], ['power', 0.5], ['mental_guard', 0.3]],
     '甲賀流':       [['stealth', 1], ['intel', 0.5]],
     '蛮勇':         [['power', 0.8], ['mental_guard', 1], ['guard', -0.3]],
-    '獅子心':       [['mental_guard', 0.6], ['rally', 0.6], ['debuff', 0.3]],
+    '獅子心':       [['mental_guard', 0.6], ['rally', 0.6], ['debuff_mind', 0.3]],
     '至誠':         [['rally', 1], ['negotiate', 0.4]],
     '王佐の才':     [['intel', 0.6], ['rally', 0.6]],
     '英雄の介添':   [['rally', 0.8], ['heal_other', 0.3]],
@@ -454,7 +483,7 @@
     '空想具現化':   [['territory', 1.2], ['power', 0.6]],
     '凶化':         [['power', 0.8], ['upkeep_up', 0.3]],
     '大量生産':     [['craft', 0.8], ['resource', 0.4]],
-    '傾国の寵姫':   [['charm', 0.8], ['negotiate', 0.4], ['debuff', 0.3]],
+    '傾国の寵姫':   [['charm', 0.8], ['negotiate', 0.4], ['debuff_mind', 0.3]],
     '毒婦':         [['charm', 0.8], ['conceal', 0.4]],
     '千変万化':     [['conceal', 1], ['evade', 0.4]],
     '未来視':       [['evade', 0.8], ['initiative', 0.6], ['detect', 0.4]],
@@ -476,10 +505,10 @@
     '殺戮技巧':     [['power_vs', 1, { tag: '人型' }]],
     '霧夜の殺人':   [['crit', 0.8, { cond: '夜' }], ['anti_master', 0.4]],
     '人体理解':     [['crit', 0.8], ['heal_other', 0.4]],
-    '拷問技術':     [['debuff', 0.6], ['power', 0.3]],
+    '拷問技術':     [['debuff_body', 0.6], ['power', 0.3]],
     '魔眼':         [['debuff', 0.8], ['pin', 0.4]],
-    '呪術':         [['debuff', 1], ['craft', 0.3]],
-    '呪詛':         [['debuff', 1]],
+    '呪術':         [['debuff_body', 1], ['craft', 0.3]],
+    '呪詛':         [['debuff_body', 0.6], ['wither', 1]],
     '錬金術':       [['craft', 1], ['resource', 0.5]],
     '薬学':         [['heal_other', 0.8], ['craft', 0.4]],
     '看護':         [['heal_other', 1.2]],
@@ -560,8 +589,8 @@
     '紅顔の美少年': [['charm', 1]],
     '聖者の数字':   [['power', 0.6]],
     '治癒の竪琴':   [['heal_other', 1], ['rally', 0.3]],
-    '正気喪失':     [['debuff', 1], ['charm', 0.4]],
-    '黄金の杯':     [['debuff', 0.6], ['pierce', 0.4]],
+    '正気喪失':     [['debuff_mind', 1], ['charm', 0.4]],
+    '黄金の杯':     [['debuff_mind', 0.6], ['pierce', 0.4]],
     'アクセルターン': [['evade', 1], ['crit', 0.4]],
     'スケープゴート': [['master_guard', 1]],
     '耐毒':         [['guard', 0.4], ['ail_guard', 0.8]],
@@ -569,7 +598,7 @@
     '毒耐性':       [['ail_guard', 1]],
     '病弱':         [['guard', -0.8], ['luck', -0.3]],
     '忍術':         [['stealth', 1], ['evade', 0.5]],
-    '幻術':         [['conceal', 0.6], ['debuff', 0.5], ['charm', 0.3]],
+    '幻術':         [['conceal', 0.6], ['debuff_mind', 0.5], ['charm', 0.3]],
     '外科手術':     [['heal_other', 1.2]],
     '人体研究':     [['crit', 0.8], ['heal_other', 0.4]],
     '一意専心':     [['mental_guard', 0.8], ['power', 0.4]],
@@ -651,6 +680,10 @@
   //   p    : params（関数なら文から計算）
   //   only : 'skill' / 'np' で対象を限定
   //   cond : true なら文中の場所の条件（水辺など）を params.cond に付ける
+  // 弱体化の種類：心への干渉（威圧・恐怖・幻惑…）は精神弱体、体への干渉（呪い・衰え・重圧・毒気…）は肉体弱体、どちらとも言えなければ種類なし
+  const MIND_WORDS = /恐怖|威圧|畏怖|萎縮|気圧|幻惑|幻覚|幻術|錯乱|判断力|精神|戦意|士気を|心を|動揺|洗脳|魅了|狂気|正気/;
+  const BODY_WORDS = /呪い|呪詛|呪術|生命力|衰弱|衰え|重圧|毒|病|腐|疲労|筋力|耐久|敏捷|身体|肉体|体力|鈍化|老化|枯/;
+  const debuffKind = sen => MIND_WORDS.test(sen) ? 'debuff_mind' : BODY_WORDS.test(sen) ? 'debuff_body' : 'debuff';
   const RULES = [
     { re: /脱落する|自爆|(?:自分|自身)が爆発|自身[^。]{0,6}爆発|連行/, id: 'self_retire', only: 'np', f: sen => /(?:と|ると|たら|れば|場合)[^。]{0,4}(?:自爆|脱落|爆発)/.test(sen) ? 0.2 : 1 },
     { re: /(?:この召喚|この霊基|今回の召喚|現界では)[^。]*(?:使用|発動)(?:することが|は)?(?:出来|でき)ない/, id: 'disabled', only: 'np' },
@@ -661,7 +694,7 @@
     { re: /(?:察知|感知|探知)(?:する)?(?:事|こと)が?(?:出来|でき)な/, id: 'detect', f: -1 },
     { re: /必中|防御は無意味|防御を無視|対魔力[^。]{0,8}(?:影響を受けない|無視|貫)|(?:死|蘇生|戦闘続行|耐性|防御|再生)[^。]{0,12}(?:無効化|無意味|効果を発揮しない)/, id: 'pierce' },
     { re: /(?:相手|敵)[^。]{0,10}(?:逃走|撤退|離脱|逃げ)|逃走手段は無|逃さない|逃がさない|拘束|緊縛|閉じ込め|捕縛|引きずりこ/, id: 'pin', not: /令呪/ },
-    { re: /(?:パラメーター|パラメータ|ステータス|能力)[^。]{0,8}(?:ダウン|低下させ|下げ)|弱体化|弱体を付与|弱体付与|デバフ|判断力を鈍|生命力を[^。]{0,10}奪|呪いを(?:かけ|与え)|奪われる|恐怖へと変換/, id: 'debuff', not: /(?:自身|自分)[^。]{0,6}(?:ダウン|低下|下が|マイナス)|デバフ[^。]{0,10}(?:難し|至難|効かな|無効|遮断|防)|弱体化を受け|弱体化(?:が|も)?働く|弱体(?:化)?を[^。]{0,4}(?:受けた|跳ね|防|無効)/ },
+    { re: /(?:パラメーター|パラメータ|ステータス|能力)[^。]{0,8}(?:ダウン|低下させ|下げ)|弱体化|弱体を付与|弱体付与|デバフ|判断力を鈍|生命力を[^。]{0,10}奪|呪いを(?:かけ|与え)|奪われる|恐怖へと変換/, id: debuffKind, not: /(?:自身|自分)[^。]{0,6}(?:ダウン|低下|下が|マイナス)|デバフ[^。]{0,10}(?:難し|至難|効かな|無効|遮断|防)|弱体化を受け|弱体化(?:が|も)?働く|弱体(?:化)?を[^。]{0,4}(?:受けた|跳ね|防|無効)/ },
     { re: /判定に失敗|ドジ|うっかり|ペナルティ/, id: 'luck', f: -1, not: /相手|敵/ },
     { re: /主人公補正|悪運|運命力|豪運|強運|幸運を呼び込/, id: 'luck' },
     { re: /打たれ弱|虚弱|紙装甲|耐久[^。]{0,8}マイナス/, id: 'guard', f: -1.2 },
@@ -687,6 +720,9 @@
     { re: /見抜|看破|見破|暴く|解析|識別|鑑定|構造[^。]{0,6}を?理解/, id: 'reveal', not: /持ちの(?:サーヴァント|マスター)|を持つ(?:相手|者|サーヴァント)|看破(?:可能|され)|看破系[^。]{0,10}(?:に対|抵抗)|に対しては抵抗|見抜(?:く|け)(?:事|こと)?が?(?:出来|でき)な|見抜けな/ },
     { re: /探知|感知|索敵|察知|千里眼|遠くまで見|見通/, id: 'detect', not: /感知は[^。]*不可能|(?:察知|感知|探知)(?:する)?(?:事|こと)が?(?:出来|でき)な/ },
     { re: /情報|諜報|調査|偵察|研究|観察/, id: 'intel', f: 0.8, not: /持ちの(?:サーヴァント|マスター)|情報を?偽|偽造した情報|偽の情報/ },
+    // 反撃（カウンター）・衰弱（重なっていく弱体化）
+    { re: /反撃|カウンター|倍返し|返り討ち|迎え撃つ|やり返す/, id: 'counter', not: /反撃(?:を)?(?:許さ|させ|受け|され)|カウンターを(?:受け|取られ)|反撃するよう|逸話から/ },
+    { re: /衰弱|徐々に[^。]{0,12}(?:弱|蝕|衰|削|奪)|じわじわと[^。]{0,8}(?:蝕|削|弱)|蝕んでいく|重ねるごとに[^。]{0,8}(?:弱|低下)/, id: 'wither', not: /(?:自身|自分)[^。]{0,8}(?:衰弱|弱|蝕|衰)|衰弱(?:を|から)?[^。]{0,4}(?:防|無効|回復|治)/ },
     { re: /回避|避け|かわし|躱/, id: 'evade' },
     { re: /先手|先制|奇襲|俊敏|俊足|神速|高速移動|最高速|加速|跳躍|ジャンプ|脚力|機動力/, id: 'initiative', cond: true },
     { re: /逃走|撤退|離脱|逃げ|飛行|空を(?:飛|走)|天馬|跳び越/, id: 'escape', not: /(?:相手|敵)[^。]{0,10}(?:逃走|撤退|離脱|逃げ)|逃さない|逃がさない|逃走手段|逃げるしか/ },
@@ -795,7 +831,7 @@
         if (!m || (r.not && r.not.test(sen))) continue;
         let p = typeof r.p === 'function' ? r.p(sen, m) : r.p || null;
         if (r.cond && cond) p = Object.assign({}, p || {}, { cond });
-        push(r.id, typeof r.f === 'function' ? r.f(sen, m) : (r.f == null ? 1 : r.f), p);
+        push(typeof r.id === 'function' ? r.id(sen, m) : r.id, typeof r.f === 'function' ? r.f(sen, m) : (r.f == null ? 1 : r.f), p);
       }
     }
     return out.slice(0, limit || 4);
@@ -988,5 +1024,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

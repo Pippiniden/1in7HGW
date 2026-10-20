@@ -369,8 +369,8 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 
 | Phase | IDs |
 |---|---|
-| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard` (see 7.5 Mental resistance); ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
-| damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `weakness` (vs tag), `master_guard` |
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff` (unclassified), `debuff_mind`, `debuff_body`, `wither` (stacking, see 7.5 Debuff kinds), `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard` (see 7.5 Mental resistance); ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
+| damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `dodge` (avoid a lost exchange's hit), `counter` (return part of the damage taken), `weakness` (vs tag), `master_guard` |
 | lethal | `guts` |
 | encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
 | scout | `intel` |
@@ -387,10 +387,11 @@ Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`
 陣営・魔力, 同盟・マスター, その他 (any id not listed falls into その他). The editors build their `<select>` with `E.effOptionsHtml` (one `<optgroup>`
 per genre) and roster.html's legend has one header row per genre.
 **Triggers** (`params.on`, `E.TRIGGERS`/`TRIG_JA`): `''` always (the old passive behaviour), `start` battle start, `round` every exchange, `win` /
-`lose` after winning / losing an exchange, `pinch` hp < `pinchAt` (once per battle), `np` when the servant fires an NP, `kill` after killing the
+`lose` after winning / losing an exchange (`lose` after the damage), `hit` just before taking the hit of a lost exchange (temp effects gained here — guard, dodge — already
+apply to that hit), `pinch` hp < `pinchAt` (once per battle), `np` when the servant fires an NP, `kill` after killing the
 opponent, `day` every morning (outside battle). With `params.cost` (mana paid per activation; skipped when short — `round` + cost = "fires every
 exchange while mana lasts"), `params.uses` (max per battle; start/pinch/kill are once anyway) and `params.chance` (rolled per activation, not per
-battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal) act on the spot; without
+battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal, wither) act on the spot; without
 `on` a skill's instant uses `EFFECTS[id].trig` (heal → pinch, drain_* → win, mana_gain/strip/cleanse/self_strip → start, skill_seal → win)
 (`E.trigOf`). Other effects with `on` go to `c.temp` when triggered: until the battle ends (`round`: that exchange only, `rnd` flag; the same
 source never stacks), or to `c.dayTemp` for `day`/`kill` (until next morning; copied into `c.temp` at the next battle start). **NP effects**:
@@ -403,6 +404,12 @@ non-instant effects × `E.TRIG_W[on]` (start/round/always 1, day 0.8, win 0.5, l
 × up to 1.5). ranking.html's abilities count `trig`/`npTrig` the same way. Editors (roster/submit) have 発動/魔力/回数 fields (`E.trigFieldsHtml`,
 `E.readTrig`) and, for strip/self_strip only, 止める効果 (`E.stripFieldsHtml`/`E.readStrip`, grouped `<select>` → `params.eff`); `describe().when` uses `E.trigText` (e.g. 「押し勝ったとき発動・魔力10を払って（その戦いの終わりまで）」) and `condShort` adds
 〈trigger〉.
+**Self-inflicted** (`params.self`, only for `E.SELF_IDS` = debuff/debuff_mind/debuff_body/wither/poison/stun/confuse/seal; editor checkbox
+`E.selfFieldsHtml`/`E.readSelf`, 「自分に掛ける」): the effect hits its holder and cannot be resisted. Summary keys add `^self`; the engine's
+`eff/effS/ailInfo(c, id, T, self)` and build's `eff/inst(…, self)` count self entries only when `self` is true (never as outgoing effects).
+Self debuffs scale the holder's own power; self ailments are rolled for the holder every round (`SELF_AIL`, own log lines `SELF_AIL_LINE` or
+`params.msg`); self wither defaults to `on: 'day'` (`EFFECTS.wither.selfTrig`, `E.trigOf`) and goes to `c.witherSelf`, which never fades
+(cleanse clears it). `describe` uses `SELF_FX` (who 自分, bad). Use for drawbacks or servants meant to weaken over time.
 **Conditions** (any effect, combinable; `E.COND_OPTS`, `E.condText`, `E.condShort`, `E.hasCond`):
 - `params.cond`: `'水辺'|'森'|'山'|'夜'` (terrain / night battles), `'拠点'` (fighting at its own base), `'瀕死'` (own hp < `ENGINE.pinchAt` 40).
 - `params.vs`: an opponent trait tag — the effect works only against opponents with that tag (power_vs/weakness keep using `params.tag`).
@@ -658,6 +665,22 @@ is reset in `cleanup`/`leave`/day end. **Names and messages**: an effect's `para
 scale the target's power by the expected stun/confuse/poison and its NP add-on by seal/stun. Keyword rules (end of `RULES`) read clear
 wording only (毒を与える/猛毒/毒性, 相手を行動不能/麻痺させ/石化させ, 混乱させ/幻覚作用/幻惑の効果, 宝具を封じ, 毒・状態異常への耐性);
 `SKILL_DICT` has 耐毒/対毒/毒耐性 → ail_guard. On the current data 7 skills/NPs gained an ailment.
+
+**Debuff kinds, wither, dodge, counter.** Received debuff in `power()`: `debuff × rMind × (1 − clamp(mgd × mentalDebuff))` +
+`debuff_mind × rMind × (1 − clamp(mgd × mindDebuffGuard 1, −0.5, 0.8))` + `debuff_body × (1 − bodyRes)`, capped at 0.5, × (1 − cleanse);
+`rMind` = Master mind factor, `bodyRes(y)` = `clamp(bodyEndGuard 0.3 × end dev + softDef(magic_guard) × bodyMagicGuard 0.5, −0.5, 0.8)`.
+Keyword rule `debuffKind` picks the kind from the sentence (`MIND_WORDS` 恐怖/威圧/幻惑/精神…, `BODY_WORDS` 呪い/衰弱/重圧/毒/肉体…); dict:
+呪術/呪詛/対英雄/拷問技術 body, 幻術/傾国の寵姫/正気喪失/領域外の生命/獅子心/黄金の杯 mind. **Wither** (instant, default `win`): target
+`c.wither += mag × (1 − bodyRes) × (1 − cleanse)` (≤ `witherCap` 0.5 together with `witherSelf`), power × (1 − wither); it persists across
+battles and days; each morning it clears with `witherFade` 0.25 (×2 the morning after a rest day, `c.rested`); cleanse clears it. **Dodge**:
+after the `hit` trigger, `chance(min(dodgeCap 0.5, dodge) × (1 − sure_hit))` skips instakill and damage (and the poison/seal infliction) of
+that exchange. **Counter**: if the target survives the hit, the winner loses `dmg × min(1, counter)` (logged once per battle). Keyword
+rules: 反撃/カウンター/返り討ち → counter (not anecdotes 「逸話から」「反撃するよう」), 衰弱/徐々に弱… → wither. `battleOdds`: debuff kinds
+with the same resistances, wither ≈ 2 × its instant estimate as a debuff, self debuffs/wither (×3) and self ailments, dodge (× 1 + 0.5·p),
+counter (× 1 + 0.3·c). **Crit** multiplier is `ENGINE.critMult` (2; 1.5 made a 10 % crit worth +5 % damage), `np_boost` base 0.25 (was 0.15:
+an NP exchange is usually won anyway, so +15 % barely mattered), regen heal on rest days `regenHeal` (40, was 60), guard's weight in power
+`defPowerW` 0.4. **Detect** no longer pulls the day action to scouting ×3 (`detectScout` 1 — holders scouted instead of resting/fortifying
+and lost win rate); a hunter that finds its target gets `surprise += min(detectEdgeCap 0.1, (detect − target detect × 0.5) × detectEdge 0.3)`.
 
 **Mental resistance** (`mental_guard`). Besides resisting charm/confuse (chance = its magnitude, with ail_guard and the Master's mind),
 `power()` uses `mgd = clamp(softDef(mental_guard), −0.5, 1.5)` (stacked sources soften like the defences) for three more roles, each with
