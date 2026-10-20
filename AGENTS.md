@@ -369,7 +369,7 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 
 | Phase | IDs |
 |---|---|
-| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard`; ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard` (see 7.5 Mental resistance); ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
 | damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `weakness` (vs tag), `master_guard` |
 | lethal | `guts` |
 | encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
@@ -626,7 +626,7 @@ Per round:
    (`clamp(soft(guard)×defPowerW 0.5 + soft(evade)×0.5×(1−sure_hit) + soft(magic_guard)×0.5 [vs magic-heavy], −0.5, defCap 0.6)`, reduced by
    opponent `pierce`; `soft(x) = B.softDef(x) = x / (1 + x × ENGINE.defSoft)` for x > 0 — **diminishing returns** for stacked sources, `defSoft`
    1 since the fix for runaway guard stacking (0 = the old plain sum; same formula in `battleOdds`)) × opponent debuff × home territory/workshop ×
-   knows-name 1.08 × hp factor × no-master 0.9 × low-mana 0.85 × stance × command-seal boost × surprise
+   knows-name 1.08 × hp factor (softened by mental_guard, see Mental resistance) × no-master 0.9 × low-mana 0.85 × stance × command-seal boost × surprise
    + npBoost, then ×(0.9–1.1) noise. Charm can cut the other side by 40%.
 4. Winner of the exchange: logistic `p = 1/(1+exp(-(ea-eb)/BATTLE_K))`, `BATTLE_K` = 15.
 5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction
@@ -658,6 +658,15 @@ is reset in `cleanup`/`leave`/day end. **Names and messages**: an effect's `para
 scale the target's power by the expected stun/confuse/poison and its NP add-on by seal/stun. Keyword rules (end of `RULES`) read clear
 wording only (毒を与える/猛毒/毒性, 相手を行動不能/麻痺させ/石化させ, 混乱させ/幻覚作用/幻惑の効果, 宝具を封じ, 毒・状態異常への耐性);
 `SKILL_DICT` has 耐毒/対毒/毒耐性 → ail_guard. On the current data 7 skills/NPs gained an ailment.
+
+**Mental resistance** (`mental_guard`). Besides resisting charm/confuse (chance = its magnitude, with ail_guard and the Master's mind),
+`power()` uses `mgd = clamp(softDef(mental_guard), −0.5, 1.5)` (stacked sources soften like the defences) for three more roles, each with
+an `ENGINE` knob (0 = off): received `debuff` × (1 − clamp(mgd × `mentalDebuff` 0.5, −0.5, 0.6)); the opponent's `surprise` (initiative /
+assault bonus) × (1 − clamp(mental_guard × `mentalSurprise` 1, 0, 1)); and the wound penalty — the hp factor is
+`1 − 0.45 × (1 − hp/100) × (1 − clamp(mgd × mentalWound 0.3, −0.5, 0.6))` (was `0.55 + 0.45 × hp/100`). `battleOdds` estimates the same
+(wounds at an average 70 hp). Why: charm/confuse holders are rare (19 / 7 of 121), so removing mental_guard from all 47 holders changed their
+win rate by −0.02 pt in 3000 wars. With the new roles: +0.44 pt (10000 wars; debuff+surprise alone +0.15, `mentalWound` 0.6 +0.89). The
+wound role favours durable servants that win while hurt: ユーグ・ド・パイヤン (mental_guard 0.86) 36.5 % → 42.9 % (0.6: 45 %, 0: 39 %).
 
 **Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`): x's ally joins with
 `clamp(allyJoin 0.3 + hunting 0.15 + defending its own base 0.2 + rally(x) + rally(ally) + persona ally×0.5 − wander 0.2, 0.05, 0.85)`

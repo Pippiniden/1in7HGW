@@ -271,11 +271,14 @@
       // 先手：宝具ありの見積もりでは、先手の付いた宝具（戦いの始めに切る）の先手も足す（engine.js の openingNP）
       const npIni = opts.np ? Math.max(0, ...(x.nps || []).filter(n => !n.disabled).map(n => (n.effects || []).filter(e => e.id === 'initiative')
         .reduce((t, e) => t + e.mag * condW(e.params, T, ox), 0))) : 0;
-      p *= (1 + eff(x, 'crit', T, ox) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox) + npIni) * 0.08);
+      const EM = G.CONFIG.ENGINE, mgOf = (z, oz) => Math.max(-0.5, Math.min(1.5, softDef(eff(z, 'mental_guard', T, oz))));   // 精神耐性（engine.js の power と同じ）
+      p *= (1 + eff(x, 'crit', T, ox) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox) + npIni) * 0.08 * (1 - Math.max(0, Math.min(1, mgOf(y, oy) * EM.mentalSurprise))));
       // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運でクリティカル）を、打ち合いの強さにならして足す
       const F = G.CONFIG.STAT_FX;
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
-      p *= 1 - Math.min(0.5, eff(y, 'debuff', T, oy));
+      p *= 1 - Math.min(0.5, eff(y, 'debuff', T, oy) * (1 - Math.max(-0.5, Math.min(0.6, mgOf(x, ox) * EM.mentalDebuff))));
+      // 傷を負っても心が折れない：戦いのあいだの平均の霊基をおよそ7割とみて、その落ち込みの分
+      p *= (1 - 0.45 * 0.3 * (1 - Math.max(-0.5, Math.min(0.6, mgOf(x, ox) * EM.mentalWound)))) / (1 - 0.45 * 0.3);
       if (ox.home) p *= 1 + eff(x, 'territory', T, ox);
       // 固定値の傷の増減（1回の傷はおよそ40）と、回復・吸収（霊基100のうちどれだけ取り戻せるか）
       p *= (1 + Math.max(-0.5, eff(x, 'dmg_plus', T, ox)) / 40) * (1 + Math.max(-0.5, eff(x, 'dmg_cut', T, ox)) / 40);

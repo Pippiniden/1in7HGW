@@ -82,7 +82,8 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(me.effectSummary['stun#石化'] && me.effectSummary['poison'], '状態異常が集計に入っていない：' + Object.keys(me.effectSummary).join(','));
   const ros = roster.filter(s => s.id !== base.id).concat([me]);
   const seen = { stun: 0, poison: 0, confuse: 0, seal: 0, tick: 0 }; let errs = 0;
-  for (let i = 0; i < 60; i++) {
+  // 試す英霊が出る戦争は限られるので、すべての状態異常が一度は起きるまで回す（展開の調整で起きる種がずれても落ちないように）
+  for (let i = 0; i < 300 && !(seen.stun && seen.poison && seen.confuse && seen.seal && seen.tick); i++) {
     let r; try { r = H.engine.runWar({ roster: ros, seed: 'ail' + i }); } catch (e) { errs++; console.error(e); continue; }
     for (const e of r.entries) {
       if (/手足が石と化した/.test(e.text)) seen.stun++;

@@ -406,16 +406,18 @@
       const sd0 = B.softDef;
       const def = clamp(sd0(eff(c, 'guard', T)) * ENG.defPowerW + sd0(eff(c, 'evade', T)) * 0.5 * (1 - sure) + (magHeavy ? sd0(eff(c, 'magic_guard', T)) * 0.5 : 0), -0.5, ENG.defCap) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
       p *= 1 + def;
-      p *= 1 - Math.min(0.5, eff(o, 'debuff', T) * clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5) * (1 - (c.cleanse || 0)));
+      // 精神耐性：精神への干渉（弱体化・不意打ち）に動じず、傷を負っても心が折れない（ENGINE.mental*）。魅了・混乱は ailResist／魅了の判定で
+      const mgd = clamp(B.softDef(eff(c, 'mental_guard', T)), -0.5, 1.5);   // 重なると鈍る（守りの効果と同じ defSoft）
+      p *= 1 - Math.min(0.5, eff(o, 'debuff', T) * clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5) * (1 - (c.cleanse || 0)) * (1 - clamp(mgd * ENG.mentalDebuff, -0.5, 0.6)));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
       if (c.knowName.has(o.id)) p *= 1.08;
-      p *= 0.55 + 0.45 * Math.max(0, c.hp) / 100;
+      p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
       else p *= 1 + FX.mCraftPower * md(c, 'craft');
       if (c.mana < 10 && !wildOf(c)) p *= 0.85;   // 魔力切れで鈍る（狂った英霊は鈍らない。代わりにマスターが削られる）
       if (c.stance === 'all') p *= 1.05;
       if (c.boostUntil != null && c.boostUntil >= day) p *= 1 + 0.2 * (1 + FX.mMindCs * md(c, 'mind'));
-      if (c.surprise) p *= 1 + c.surprise;
+      if (c.surprise) p *= 1 + c.surprise * (1 - clamp(eff(o, 'mental_guard', T) * ENG.mentalSurprise, 0, 1));
       p += c.npBoost;
       return p * (0.9 + rnd() * 0.2);
     }

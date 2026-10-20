@@ -50,7 +50,7 @@
     // 被ダメージ・生存
     guard:        { name: '被ダメージ軽減', phase: 'damage',  unit: 'rate',   base: 0.10, desc: '受けるダメージを減らす（マイナスなら打たれ弱い）' },
     magic_guard:  { name: '魔術耐性',     phase: 'damage',    unit: 'rate',   base: 0.30, desc: '魔力の高い相手（キャスターなど）との戦いで守りになる' },
-    mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了に抵抗する確率' },
+    mental_guard: { name: '精神耐性',     phase: 'battle',    unit: 'chance', base: 0.40, desc: '魅了・混乱に抵抗する確率。相手の弱体化や不意打ちに動じず、傷を負っても戦闘力が落ちにくい' },
     guts:         { name: '致命傷耐性',   phase: 'lethal',    unit: 'chance', base: 0.35, desc: '倒れるはずの一撃で踏みとどまる確率' },
     dmg_cut:      { name: 'ダメージカット', phase: 'damage',  unit: 'pt',     base: 4,    desc: '押し負けたときに受ける傷を固定値で減らす' },
     taunt:        { name: 'かばう',       phase: 'battle',    unit: 'chance', base: 0.20, desc: '同盟相手に加勢したとき、味方の代わりに一撃を受ける確率を上げる（ターゲット集中）' },
@@ -224,7 +224,12 @@
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
     guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m * 0.5))}、守りとして戦闘力 ${sg(m * 0.5)}` },
     magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}` },
-    mental_guard: { who: 'self', fx: m => m < 0 ? `相手の魅了を防ぐ確率 −${pc(m)}（マスターの精神と合わせて0%未満にはならない）` : `相手の魅了を ${pc(Math.min(0.95, m))} の確率で防ぐ` },
+    mental_guard: { who: 'self', fx: m => {
+      if (m < 0) return `精神への干渉に弱い：相手の魅了・混乱を防ぐ確率 −${pc(-m)}（マスターの精神と合わせて0%未満にはならない）。相手の弱体化がよく効き、傷を負うと戦闘力がより落ちる`;
+      const K = ENG(), part = (k, cap, t) => K[k] ? `${t} −${pc(Math.min(cap, m * K[k]))}` : '';
+      const more = [part('mentalDebuff', 0.6, '相手の弱体化の効き'), part('mentalSurprise', 1, '相手の不意打ち（先手・強襲）の上乗せ'), part('mentalWound', 0.6, '傷による戦闘力の落ち込み')].filter(Boolean);
+      return `相手の魅了・混乱を ${pc(Math.min(0.95, m))} の確率で防ぐ` + (more.length ? `。${more.join('、')}（ほかの精神耐性と重なると鈍る）` : '');
+    } },
     guts:         { who: 'self', fx: m => m < 0 ? `倒れるはずの一撃で踏みとどまる確率 −${pc(m)}（絆・耐久・幸運と合わせて0%未満にはならない）` : `倒れるはずの一撃で ${pc(Math.min(0.85, m))} の確率で踏みとどまる（絆・耐久・幸運でも上がる）` },
     weakness:     { who: 'self', bad: true, fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${m < 0 ? '+' : '−'}${pc(m * 0.5)}` },
     master_guard: { who: 'master', fx: m => m < 0 ? `自分のマスターの守り −${pc(m)}（工房・幸運などの守りを打ち消す。守りが0%を下回ることはない）` : `自分のマスターが狙われたとき、刃が届く確率 −${pc(Math.min(0.8, m))}` },
