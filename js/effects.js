@@ -287,7 +287,14 @@
     const m = e.mag != null ? e.mag : def.base * (e.factor == null ? 1 : e.factor);
     const p = e.params || null;
     const bad = !!inf.bad === !(m < 0);
+    // 常時発動の宝具の効果はスキルと同じに、自動で発動する宝具の効果は「その場面で自動で発動したその戦いの間」として書く
+    if (ctx.np && ctx.npMode === 'always') ctx = Object.assign({}, ctx, { np: false, always: true });
     const tt = trigText(p, e.id, ctx.np), inst = INSTANT.includes(e.id);
+    if (ctx.np && ctx.npMode && NP_MODE_JA[ctx.npMode] && !(p && p.on)) {
+      const w = NP_MODE_JA[ctx.npMode] + (npOnUse(e) && !inst && def.phase !== 'np' ? '（その戦いの間）' : '');
+      return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad,
+        when: [!npOnUse(e) && !inst ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : w, condText(p, e.id)].filter(Boolean).join('・'), text: inf.fx(m, p) };
+    }
     const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めの先手の判定に足す（それで先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
       : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の朝まで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
       condText(p, e.id)].filter(Boolean).join('・');
@@ -721,7 +728,7 @@
   const SKILL_OVERRIDES = {};    // 'スキル名': [[部品ID, 係数, params], ...]
   const SERVANT_OVERRIDES = {};  // '真名/スキル名または宝具名': [[...]]
   const STAT_OVERRIDES = {};     // '真名': { str: 'B', end: 'C', ... }  書いた項目だけ置き換える
-  const NP_OVERRIDES = {};       // '真名/宝具名': { attack: true|false }  攻撃宝具かどうかの手直し
+  const NP_OVERRIDES = {};       // '真名/宝具名': { attack?: true|false, mode?: NP_MODES のキー }  攻撃宝具かどうか・発動のしかたの手直し
   const CONTENT_OVERRIDES = {};  // '真名': { skills, nps, voice, text, profile, relations, base }  内容の手直し（build.js の applyContent）
   const PAGE_OVERRIDES = {};     // '真名': 'kagemiya のページ名'  ページ名が真名と違うとき（build.js の pageOf・取り込みツール）
   // overrides.json の表の名前 → 表。読み込む・書き出す・公開中と見比べるときはこれを使う
@@ -899,6 +906,20 @@
     return mk(specs.slice(0, 6), source, { matched: d ? d.key : comp.map(c => c.key).join('・') || null });
   }
 
+  // 宝具の発動のしかた（np.mode）。'' は AI が状況を見て使う（いままでどおり）。
+  //   always：常時発動。宝具を「使う」ことはなく、効果は持っているだけでスキルと同じように働く。代わりに毎日の維持魔力が
+  //           宝具の魔力消費 × ENGINE.npAlwaysUpkeep だけ増える（攻撃宝具にはしない）
+  //   start / win / lose / pinch / lethal：その場面になった瞬間に自動で発動する（AI は選ばない。1回の戦いに一度）。
+  //           魔力消費は宝具の魔力消費 × ENGINE.npAutoCost（払えなければ発動しない）。lethal は致命傷を受けた瞬間（踏みとどまりの判定の前）
+  const NP_MODES = [['', 'AIが選んで使う'], ['always', '常時発動（持っているだけで働く・毎日の魔力が増える）'], ['start', '戦いの始めに自動で発動'],
+    ['win', '押し勝ったときに自動で発動'], ['lose', '押し負けたときに自動で発動'], ['pinch', '瀕死になったときに自動で発動'], ['lethal', '致命傷を受けた瞬間に自動で発動']];
+  const NP_MODE_JA = { always: '常時発動', start: '戦いの始めに自動で発動', win: '押し勝ったときに自動で発動', lose: '押し負けたときに自動で発動',
+    pinch: '瀕死になったときに自動で発動', lethal: '致命傷を受けた瞬間に自動で発動' };
+  // 見積もりでの重み（その場面がどのくらい起きるか）
+  const NP_MODE_W = { start: 1, win: 0.5, lose: 0.4, pinch: 0.3, lethal: 0.3 };
+  // 説明文からの読み取り：「常時発動型」「常時展開型」など（補助宝具だけ。攻撃宝具は真名解放で撃つものとして AI に任せる）
+  const ALWAYS_WORDS = /常時発動|常時展開|常時(?:効果|型)の宝具|常に(?:発動|展開)して|常時(?:発揮|機能)/;
+
   /**
    * 宝具に効果を割り当てる。攻撃宝具かどうか、威力・魔力消費・露見しやすさも計算する。
    * NP_OVERRIDES['真名/宝具名'].attack に true/false を入れておくと、その判定を優先する（手直し用）。
@@ -928,7 +949,10 @@
     const hasAtk = ATTACK_WORDS.test(desc) && !NON_ATTACK.test(desc);
     let attack, basis;
     const npo = ctx.trueName && NP_OVERRIDES[ctx.trueName + '/' + n];
+    // 発動のしかた：手直し（NP_OVERRIDES の mode）が優先。無ければ説明文の「常時発動型」などを読む（補助宝具だけ）
+    let mode = npo && npo.mode != null ? npo.mode : null, modeBasis = mode != null ? 'override' : null;
     if (npo && (npo.attack === true || npo.attack === false)) { attack = npo.attack; basis = 'override'; }
+    else if (mode === 'always') { attack = false; basis = 'always'; }
     else if (disabled) { attack = false; basis = 'disabled'; }
     else if (tk === 'self') { attack = false; basis = 'self'; }
     else if (NON_ATTACK.test(desc)) { attack = false; basis = 'non-attack-words'; }
@@ -936,6 +960,8 @@
     else if (tk === 'barrier') { attack = false; basis = 'barrier'; }
     else if (specs.length) { attack = false; basis = 'support-effects'; } // 補助的な効果しか読み取れず、攻撃の表現も無い
     else { attack = true; basis = 'guess'; }                              // 手がかりが無いので種別どおり攻撃宝具とみなす
+    if (mode == null) { mode = !attack && !disabled && ALWAYS_WORDS.test(desc) ? 'always' : ''; modeBasis = mode ? 'words' : null; }
+    if (mode === 'always' && attack) mode = '';                           // 攻撃宝具は常時発動にしない（撃つもの）
     // 攻撃宝具の「戦闘力上昇」は威力そのものなので効果からは外す
     // （手で指定した効果は外さない：宝具を使ったその戦いの間、戦闘力として上乗せされる）
     if (attack && !own && !SKILL_OVERRIDES[n]) specs = specs.filter(s => s.spec[0] !== 'power' || (s.spec[2] && s.spec[2].cond));
@@ -952,9 +978,10 @@
       exposure: T.exposure,                                             // 使うと真名がばれやすい度合い
       multi: (np.maxTargets || 1) > 1,
       effects, source, matched,
+      mode: mode || '', modeBasis,
     };
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -455,6 +455,11 @@
 
     // 致命傷：踏みとどまる / 令呪 / 消滅
     function* lethal(l, w, cause, round) {
+      // 致命傷を受けた瞬間に自動で発動する宝具（回復・踏みとどまりなど）。霊基が戻れば、そのまま踏みとどまる
+      if (l.bx && l.bx.ctx && autoNP(l, w, 'lethal', l.bx.ctx, round) && l.hp > 0) {
+        log('battle', `宝具の力が、消えかけた${sn(l)}の霊基をつなぎ止めた。`, [l.id, w.id]);
+        return 'guts';
+      }
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
       if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85))) {
         l.hp = 5 + rnd() * 10;
@@ -494,7 +499,7 @@
       if (c.ail && (c.ail.stun || c.ail.seal)) return;   // スタンした打ち合い・宝具を封じられた戦いでは使えない
       // 制御の利かない英霊は、魔力が足りなくても宝具を放つ（足りない分はマスターの生命力から）
       const wild = wildOf(c);
-      const nps = (c.sv.nps || []).filter(n => !n.disabled && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 魔力を顧みない宝具は1回の戦いに一度まで
+      const nps = (c.sv.nps || []).filter(n => !n.disabled && !n.mode && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 常時発動・自動で発動する宝具は AI が選ばない   // 魔力を顧みない宝具は1回の戦いに一度まで
       if (!nps.length) return;
       const losing = power(c, o, ctx) < power(o, c, ctx);
       let p = 0.1 + (c.hp < 50 ? 0.25 : 0) + (round >= 2 ? 0.1 : 0) + (isBerserk(c) ? 0.15 : 0) + (losing ? 0.2 : 0) + (day > ENG.maxDays - ENG.finaleDays ? 0.2 : 0);
@@ -534,10 +539,10 @@
     // 宝具の効果の強さ（その宝具が持つ id の効果の合計）
     const npFx = (n, id) => (n.effects || []).filter(e => e.id === id).reduce((t, e) => t + e.mag, 0);
     // 選んだ宝具を放つ（魔力の支払い・宝具の威力・使ったときの効果・真名の露見・記録・反動）
-    function fireNP(c, o, np, round, ctx) {
-      const fx = npFx;
-      const over = c.mana < npCostOf(c, np);
-      c.mana -= npCostOf(c, np); c.npUses++;
+    function fireNP(c, o, np, round, ctx, costMul) {
+      const fx = npFx, cost = npCostOf(c, np) * (costMul || 1);
+      const over = c.mana < cost;
+      c.mana -= cost; c.npUses++;
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
       if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
       else c.usedSup.add(np.name);
@@ -564,6 +569,26 @@
       if (sr && chance(sr.mag)) c.pendingRetire = np.name;
     }
 
+    // 自動で発動する宝具（effects.js の NP_MODES）：その場面になった瞬間に、AI の判断を待たずに発動する（1回の戦いに一度）。
+    //   魔力消費は宝具の魔力消費 × ENGINE.npAutoCost。払えなければ発動しない（制御の利かない英霊は、1回だけ生命力から払える）。
+    //   攻撃宝具は威力が次の打ち合いに乗るように、次の打ち合いの頭で放つ（c.autoQ）。補助宝具はその場で効果が働く。
+    //   自動で発動する宝具を持たない英霊では何もしない（乱数も使わない）
+    const AUTO_LINE = { start: '戦いの気配に応じて', win: '押し勝った勢いのまま', lose: '押し込まれた瞬間', pinch: '霊基が砕けかけたその時', lethal: '致命の一撃を受けたその瞬間' };
+    function autoNP(c, o, ev, ctx, round) {
+      if (!c.alive || !c.autoUsed) return false;
+      let fired = false;
+      for (const np of c.sv.nps || []) {
+        if (np.mode !== ev || np.disabled || c.autoUsed.has(np.name)) continue;
+        if (c.ail && c.ail.seal) continue;
+        if (!(c.mana >= npCostOf(c, np) * ENG.npAutoCost || (wildOf(c) && !c.overUsed))) continue;
+        c.autoUsed.add(np.name);
+        if (np.attackResolved && ev !== 'lethal') { c.autoQ.push({ np, ev }); continue; }   // 記録は放つときに
+        log('battle', `${AUTO_LINE[ev] || ''}、${sn(c)}の宝具『${np.name}』がひとりでに目を覚ました。`, [c.id].concat(o ? [o.id] : []));
+        fireNP(c, o, np, round || 1, ctx, ENG.npAutoCost); fired = true;
+      }
+      return fired;
+    }
+
     // 戦いの始めに切れる先手の宝具：{ np, ini（その宝具の先手の強さ） } または null
     //   使える宝具（封じられていない・魔力が足りる／魔力を顧みない英霊・自滅する宝具でない）のうち、先手のいちばん強いもの
     //   先手の付いた宝具を持たない英霊では何もしない（乱数も引かない）
@@ -572,7 +597,7 @@
       const wild = wildOf(c);
       let best = null;
       for (const n of c.sv.nps || []) {
-        if (n.disabled || npFx(n, 'self_retire') >= 0.5) continue;
+        if (n.disabled || n.mode || npFx(n, 'self_retire') >= 0.5) continue;
         let ini = 0;
         for (const e of n.effects || []) if (e.id === 'initiative' && condOk(c, e.params, terrain)) ini += e.mag * (e.params && e.params.chance != null ? clamp(e.params.chance, 0, 1) : 1);
         if (ini <= 0 || !(c.mana >= npCostOf(c, n) || wild)) continue;
@@ -591,12 +616,14 @@
       for (const c of all()) {
         c.fought = true; c.battles++; c.temp = (c.dayTemp || []).slice(); c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
         c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null;   // 発動する効果（fireTrig）の、この戦いの分
+        c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }
       const opp = x => (side(a).includes(x) ? b : a);
       // 瀕死になったときに発動する効果（1回の戦いに一度）
-      const pinch = () => { for (const x of all()) if (x.alive && !x.pinched && x.hp > 0 && x.hp < ENG.pinchAt) { x.pinched = true; fireTrig(x, opp(x), 'pinch', ctx.terrain); } };
+      const pinch = () => { for (const x of all()) if (x.alive && !x.pinched && x.hp > 0 && x.hp < ENG.pinchAt) { x.pinched = true; fireTrig(x, opp(x), 'pinch', ctx.terrain); autoNP(x, opp(x), 'pinch', ctx); } };
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
+      for (const x of all()) x.bx.ctx = ctx;   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
@@ -633,13 +660,14 @@
       }
       // 戦いの始めに発動する効果
       for (const x of all()) fireTrig(x, opp(x), 'start', ctx.terrain);
+      for (const x of all()) autoNP(x, opp(x), 'start', ctx);   // 戦いの始めに自動で発動する宝具
       // 加勢の力：味方の戦闘力（傷の具合）＋宝具の一部。統率が連携を強める
       const assist = (x, o) => {
         const y = help.get(x); if (!y || !y.alive) return 0;
         const T = ctx.terrain;
         return (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) { c.npBoost = 0; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ
         // バーサーカーは、打ち合いのたびに魔力を食う
@@ -667,9 +695,17 @@
           const np = c.openNP; c.openNP = null;
           if (c.alive && !(c.ail.stun || c.ail.seal) && (c.mana >= npCostOf(c, np) || (wildOf(c) && !c.overUsed))) { fireNP(c, o, np, round, ctx); opened.add(c); }
         }
+        // 自動で発動した攻撃宝具：この打ち合いの頭で放つ（その打ち合いでは、ほかの宝具は使わない）
+        for (const c of all()) if (c.autoQ && c.autoQ.length) {
+          const q = c.autoQ; c.autoQ = [];
+          for (const { np, ev } of q) if (c.alive && !c.ail.seal && (c.mana >= npCostOf(c, np) * ENG.npAutoCost || (wildOf(c) && !c.overUsed))) {
+            log('battle', `${AUTO_LINE[ev] || ''}、${sn(c)}の宝具『${np.name}』がひとりでに目を覚ました。`, [c.id, opp(c).id]);
+            fireNP(c, opp(c), np, round, ctx, ENG.npAutoCost); opened.add(c);
+          }
+        }
         if (!opened.has(a)) useNP(a, b, round, ctx);
         if (!opened.has(b)) useNP(b, a, round, ctx);
-        for (const [x, o] of [[a, b], [b, a]]) { const y = help.get(x); if (y && y.alive) useNP(y, o, round, ctx); }
+        for (const [x, o] of [[a, b], [b, a]]) { const y = help.get(x); if (y && y.alive && !opened.has(y)) useNP(y, o, round, ctx); }
         for (const c of all()) if (c.pendingRetire) {
           const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`);
           if (c === a || c === b) { cleanup(); return; } else leave(c);
@@ -724,7 +760,7 @@
           if (!tg.ail.seal) { const p = tryAil(w, tg, 'seal', ctx.terrain); if (p) { tg.ail.seal = true; log('battle', ailText('ailSeal', 'seal', p, w, tg), [tg.id, w.id]); } }
         }
         // 押し勝ったとき・押し負けたとき・相手を倒したときに発動する効果、瀕死になったときの効果
-        if (w.alive && tg.alive && o3 !== 'escaped') { fireTrig(w, tg, 'win', ctx.terrain); fireTrig(tg, w, 'lose', ctx.terrain); }
+        if (w.alive && tg.alive && o3 !== 'escaped') { fireTrig(w, tg, 'win', ctx.terrain); fireTrig(tg, w, 'lose', ctx.terrain); autoNP(w, tg, 'win', ctx, round); autoNP(tg, w, 'lose', ctx, round); }
         if (o3 === 'dead' && w.alive) fireTrig(w, tg, 'kill', ctx.terrain);
         if (w.alive && (tg.alive || w.alive)) pinch();
         if (cover) { if (o3 === 'dead' || o3 === 'escaped') leave(lh); else if (lh.alive && lh.hp < 25) leave(lh, `深手を負った${sn(lh)}は、戦いの場を離れた。`); }
@@ -764,7 +800,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; } }
+      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
     }
 
     function* ambushMaster(h, t) {
@@ -1092,7 +1128,9 @@
       for (const c of active()) {
         if (!c.masterAlive) continue;
         // 休んだ・潜んだ日は霊体化して魔力を節約する。足りない分はマスターの生命力から（drain）
-        const cost = ENG.upkeep * upk(c) * (c.spirit ? ENG.spiritSave : 1);
+        // 常時発動の宝具は、その宝具の魔力消費 × npAlwaysUpkeep を毎日払い続ける（霊体化しても止まらない）
+        const always = (c.sv.nps || []).reduce((t, n) => t + (n.mode === 'always' && !n.disabled ? npCostOf(c, n) * ENG.npAlwaysUpkeep : 0), 0);
+        const cost = ENG.upkeep * upk(c) * (c.spirit ? ENG.spiritSave : 1) + always;
         c.spirit = false;
         c.mhp = Math.min(c.mhpMax, c.mhp + 5);
         c.mana = Math.min(c.manaMax, c.mana + ENG.manaRegen + c.master.stats.mana * 0.15 + c.workshop * 2 + eff(c, 'resource') * 10) - cost;
@@ -1258,7 +1296,7 @@
       yield* checkFallen();
       if (active().length > 1) yield* nightPhase();
       yield* checkFallen();
-      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; }
+      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
       if (quiet) { entries.splice(entries.indexOf(head)); if (quietFrom == null) quietFrom = day; }
       else if (quietFrom != null) {

@@ -112,7 +112,9 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .estat label.msg { flex: 1 1 16em; }
 .erow .estat input[data-e=msg] { flex: 1; min-width: 0; }
 @media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .erow > input { grid-column: 1 / 3; } }
-.npkind { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; }
+.npkind { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; min-width: 0; }
+.npkind label { min-width: 0; max-width: 100%; }
+.npkind select { max-width: 100%; min-width: 0; }
 .edesc { font-size: 12px; color: var(--sub); }
 /* 出力 */
 .out textarea { min-height: 220px; }
@@ -441,13 +443,18 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     const src = SRC[curItem.effectSource] || [curItem.effectSource, 'guess'];
     const head = kind === 's' ? `<b>${esc(item.name)}</b><span class="hint">${esc(R.label(item.rank))}${item.group === 'class' ? '・クラス別' : ''}</span>`
       : `<b>『${esc(item.name)}』</b><span class="hint">${esc(R.label(item.rank))}・${esc(item.typeRaw || '種別不明')}</span>${curItem.disabled ? '<span class="chip neg">使用不可</span>' : curItem.attackResolved ? `<span class="chip">攻撃 威力${curItem.power}</span>` : '<span class="chip">補助</span>'}`;
-    const npKind = kind === 'n' ? (() => { const o = prop.np[k] || E.NP_OVERRIDES[k]; const v = o ? (o.attack ? 'yes' : 'no') : 'auto'; return `<div class="npkind"><span class="hint">宝具の扱い：</span>${[['auto', '読み取りのまま'], ['yes', '攻撃宝具'], ['no', '補助宝具']].map(([x, t]) => `<label><input type="radio" name="atk${j}" data-atk="${esc(k)}" value="${x}"${v === x ? ' checked' : ''}> ${t}</label>`).join('')}</div>`; })() : '';
+    const npKind = kind === 'n' ? (() => {
+      const o = prop.np[k] || E.NP_OVERRIDES[k]; const v = o && (o.attack === true || o.attack === false) ? (o.attack ? 'yes' : 'no') : 'auto';
+      const mv = o && o.mode != null ? o.mode : '__auto';
+      return `<div class="npkind"><span class="hint">宝具の扱い：</span>${[['auto', '読み取りのまま'], ['yes', '攻撃宝具'], ['no', '補助宝具']].map(([x, t]) => `<label><input type="radio" name="atk${j}" data-atk="${esc(k)}" value="${x}"${v === x ? ' checked' : ''}> ${t}</label>`).join('')}`
+        + `<label>発動のしかた <select data-npmode="${esc(k)}"><option value="__auto">読み取りのまま（${esc(E.NP_MODE_JA[item.mode] || 'AIが選んで使う')}）</option>${E.NP_MODES.map(([x, t]) => `<option value="${x}"${mv === x ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>`;
+    })() : '';
     const rows = prop.servant[k] || (curItem.effects || []).filter(e => e.id !== 'disabled').map(specOf);
     const what = kind === 's' ? 'スキル' : '宝具', dk = kind + ':' + j + ':' + item.name, dropped = drop.has(dk), nk = `${what}「${item.name}」`;
     return `<div class="item${changed ? ' chg' : ''}${dropped ? ' drop' : notes[nk] ? ' noted' : ''}" data-key="${esc(k)}" data-kind="${kind}">
       <div class="top">${head}<span class="src ${src[1]}" title="どう決まったか">${esc(src[0])}</span>${changed ? '<span class="chip">調整した</span>' : ''}${dropped ? '<span class="chip neg">消してほしい</span>' : ''}</div>
       ${item.desc ? `<div class="desc">${esc(item.desc.length > 140 ? item.desc.slice(0, 140) + '…' : item.desc)}</div>` : ''}
-      ${dropped ? '' : `<div>${(curItem.effects || []).filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: kind === 'n', attack: curItem.attackResolved })).join('') || '<span class="hint">効果なし</span>'}</div>
+      ${dropped ? '' : `<div>${(curItem.effects || []).filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: kind === 'n', attack: curItem.attackResolved, npMode: curItem.mode })).join('') || '<span class="hint">効果なし</span>'}</div>
       <div class="why">判断の理由：${esc(whyOf(kind, curItem))}</div>`}
       <div class="acts2"><button type="button" class="sm" data-notebtn>ここを直してほしい</button><label><input type="checkbox" data-drop="${esc(dk)}"${dropped ? ' checked' : ''}> ${what}ではない（読み取りの間違いなので消してほしい）</label></div>
       ${noteBox(nk, `${nk}をどう直してほしいか（例：「対軍の攻撃宝具です」「戦闘続行と同じ効果です」）`)}
@@ -567,7 +574,10 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   $('#edit').addEventListener('change', e => {
     const it = e.target.closest('.item');
     if (e.target.matches('[data-drop]')) { if (e.target.checked) drop.add(e.target.dataset.drop); else drop.delete(e.target.dataset.drop); return showEdit(); }
-    if (e.target.matches('[data-atk]')) { const k = e.target.dataset.atk; if (e.target.value === 'auto') delete prop.np[k]; else prop.np[k] = { attack: e.target.value === 'yes' }; return showEdit(); }
+    // 宝具の扱い（攻撃・補助）と発動のしかた（常時発動・自動で発動）。どちらも「読み取りのまま」なら手直ししない
+    const setNp = (k, f) => { const o = Object.assign({}, prop.np[k] || E.NP_OVERRIDES[k] || {}); f(o); if (Object.keys(o).length) prop.np[k] = o; else delete prop.np[k]; };
+    if (e.target.matches('[data-atk]')) { const k = e.target.dataset.atk; setNp(k, o => { if (e.target.value === 'auto') delete o.attack; else o.attack = e.target.value === 'yes'; }); return showEdit(); }
+    if (e.target.matches('[data-npmode]')) { const k = e.target.dataset.npmode; setNp(k, o => { if (e.target.value === '__auto') delete o.mode; else o.mode = e.target.value; }); return showEdit(); }
     if (e.target.matches('[data-stat]')) { readStats(); return showEdit(); }
     if (it && e.target.closest('.erow')) { readItem(it); showEdit(); }
   });
