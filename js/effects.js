@@ -197,7 +197,8 @@
     pierce:       { who: 'enemy', fx: m => m < 0 ? `相手の守り（被ダメージ軽減・回避・魔術耐性）が ${pc(m)} 強まる（打ち消しや踏みとどまりの封じは起きない）` : `相手の守り（被ダメージ軽減・回避・魔術耐性）を ${pc(Math.min(0.9, m))} 打ち消し、同じ確率で踏みとどまりも許さない` },
     instakill:    { who: 'enemy', fx: m => m < 0 ? less('押し勝ったときに相手を一撃で倒す確率', m) : `押し勝つたびに ${pc(Math.min(0.4, m))} の確率で相手を一撃で倒す（相手の幸運で減る）` },
     evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}` },
-    initiative:   { who: 'self', fx: m => m < 0 ? less('戦いの始めに先手を取る確率', m) : `戦いの始めに ${pc(Math.min(0.5, m))} の確率で先手を取り、その戦いの戦闘力 +8%` },
+    initiative:   { who: 'self', fx: (m, p) => (m < 0 ? less('戦いの始めに先手を取る確率', m) : `戦いの始めに ${pc(Math.min(0.5, m))} の確率で先手を取り、その戦いの戦闘力 +8%（ほかのスキル・宝具の先手と足し合わせて判定。上限50%）`)
+      + (p && p.on ? '。※先手は戦いの始めにしか判定しないので、「発動」を付けると働かない' : '') },
     charm:        { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'charm')}にする（戦闘力を4割下げる）確率`, m) : `打ち合いごとに ${pc(m)} の確率で相手を${ailName(p, 'charm')}にし、その打ち合いの戦闘力を4割下げる（精神耐性・状態異常耐性・マスターの精神で防がれる）` },
     poison:       { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'poison')}にする確率`, m) : `押し勝ったとき ${pc(Math.min(AIL_CAP.poison, m))} の確率で相手を${ailName(p, 'poison')}にする。その戦いの打ち合いのたびに霊基 −${ENG().poisonTick}、翌日にも −${ENG().poisonDay}（これでは倒れない。状態異常耐性・耐久で防がれる）` },
     stun:         { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'stun')}にする確率`, m) : `打ち合いごとに ${pc(Math.min(AIL_CAP.stun, m))} の確率で相手を${ailName(p, 'stun')}にする。その打ち合いは宝具を使えず、戦闘力 −${pc(1 - ENG().stunPower)}（状態異常耐性・耐久で防がれる）` },
@@ -287,7 +288,7 @@
     const p = e.params || null;
     const bad = !!inf.bad === !(m < 0);
     const tt = trigText(p, e.id, ctx.np), inst = INSTANT.includes(e.id);
-    const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めに（先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
+    const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めの先手の判定に足す（それで先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
       : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の朝まで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
       condText(p, e.id)].filter(Boolean).join('・');
     return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
