@@ -82,7 +82,7 @@
     regen:        { name: '自己回復',     phase: 'day',       unit: 'rate',   base: 0.10, desc: '1日ごとの自分の傷の回復量' },
     heal_other:   { name: '治療',         phase: 'day',       unit: 'rate',   base: 0.10, desc: 'マスターや味方の傷を回復' },
     territory:    { name: '陣地',         phase: 'day',       unit: 'rate',   base: 0.20, desc: '拠点で戦うときの有利と、工房強化の伸び' },
-    craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '1日ごとに道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
+    craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '工房を強化した日に道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
     resource:     { name: '資源獲得',     phase: 'day',       unit: 'rate',   base: 0.20, desc: '資金や物資から魔力を補う。工房の強化も成功しやすい' },
     upkeep_down:  { name: '魔力効率',     phase: 'upkeep',    unit: 'rate',   base: 0.15, desc: '維持に必要な魔力を減らす' },
     upkeep_up:    { name: '魔力消費増',   phase: 'upkeep',    unit: 'rate',   base: 0.30, desc: '維持に必要な魔力が増える（不利な効果）' },
@@ -131,7 +131,7 @@
   // 一緒に付けられるもの：cost＝発動ごとの魔力（払えなければ発動しない。「打ち合いのたびに」と組めば「魔力がある限り自動発動」）／
   //   uses＝1回の戦いで何回まで（戦いの始め・瀕死・相手を倒したときは、もともと一度）／chance＝発動のたびに判定する確率
   // 発動して得た強化（戦闘力・守りなど）は、その戦いの終わりまで続く（同じスキルからは重ねない）。打ち合いのたびに発動したものはその打ち合いの間だけ
-  //   （魔力を払い続ければ毎回掛かる）。毎朝・相手を倒したときに得た強化は、次の朝まで。
+  //   （魔力を払い続ければ毎回掛かる）。毎朝得た強化は、その日の終わりまで（夜の戦い・夜の索敵にも効く）。相手を倒したときの強化は、次の戦いの終わりまで。
   // 回復・吸収・解除・スキル封印は、発動したその場で働く（instant）。これらは params.on が無ければ EFFECTS の trig の場面で発動する。
   // 宝具の効果は、params.on が無ければ使ったときに働く（いままでどおり）。params.on があれば、使ったあとその場面のたびに発動する。
   const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['hit', '攻撃を受ける直前に'], ['lose', '押し負けたとき'],
@@ -206,13 +206,13 @@
     debuff:       { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（相手の精神耐性で少し減り、相手マスターの精神で増減する。弱体化は合わせて最大50%）` },
     debuff_mind:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（心への干渉。相手の精神耐性と相手マスターの精神で防がれる。弱体化は合わせて最大50%）` },
     debuff_body:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（体への干渉。相手の耐久と対魔力で防がれる。弱体化は合わせて最大50%）` },
-    wither:       { who: 'enemy', fx: m => m < 0 ? `相手の衰弱を ${pc(m)} 和らげる` : `発動するたびに相手の戦闘力を ${pc(m)} ずつ削る（重なって最大 ${pc(ENG().witherCap)}。戦いが終わっても残り、毎朝 ${pc(ENG().witherFade)} の確率で消える。相手の耐久と対魔力で防がれる）` },
+    wither:       { who: 'enemy', fx: m => m < 0 ? `相手の衰弱を ${pc(m)} 和らげる` : `発動するたびに相手の戦闘力を ${pc(m)} ずつ削る（重なって最大 ${pc(ENG().witherCap)}。戦いが終わっても残り、毎朝 ${pc(ENG().witherFade)} の確率で消える（休んだ翌朝は2倍）。相手の耐久と対魔力で防がれる）` },
     dodge:        { who: 'self', fx: m => m < 0 ? less('押し負けた一撃をかわす確率', m) : `押し負けたとき ${pc(Math.min(ENG().dodgeCap, m))} の確率でその一撃をかわし、傷を受けない（相手の必中で減る）` },
-    counter:      { who: 'enemy', fx: m => m < 0 ? `押し負けたとき、相手から受ける傷が ${pc(m)} 増える` : `押し負けて傷を受けたとき、その傷の ${pc(Math.min(1, m))} を相手に返す` },
+    counter:      { who: 'enemy', fx: m => m < 0 ? `押し負けたとき、相手から受ける傷が ${pc(m)} 増える` : `押し負けて傷を受けても倒れなければ、その傷の ${pc(Math.min(1, m))} を相手に返す` },
     crit:         { who: 'self', fx: m => m < 0 ? less(`クリティカルヒット（与える傷${ENG().critMult}倍）の確率`, m) : `押し勝ったとき ${pc(m)} の確率で与える傷が${ENG().critMult}倍。それが致命傷なら、相手が踏みとどまる確率がもとの ${pc(1 - ENG().critGuts)} になる` },
     pierce:       { who: 'enemy', fx: m => m < 0 ? `相手の守り（被ダメージ軽減・回避・魔術耐性）が ${pc(m)} 強まる（打ち消しや踏みとどまりの封じは起きない）` : `相手の守り（被ダメージ軽減・回避・魔術耐性）を ${pc(Math.min(0.9, m))} 打ち消し、同じ確率で踏みとどまりも許さない` },
     instakill:    { who: 'enemy', fx: m => m < 0 ? less('押し勝ったときに相手を一撃で倒す確率', m) : `押し勝つたびに ${pc(Math.min(0.4, m))} の確率で相手を一撃で倒す（相手の幸運で減る）` },
-    evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}` },
+    evade:        { who: 'self', fx: m => `守りとして戦闘力 ${sg(m * 0.5)}（相手の必中で減り、ほかの回避と重なると鈍る）` },
     initiative:   { who: 'self', fx: (m, p) => (m < 0 ? less('戦いの始めに先手を取る確率', m) : `戦いの始めに ${pc(Math.min(0.5, m))} の確率で先手を取り、その戦いの戦闘力 +8%（ほかのスキル・宝具の先手と足し合わせて判定。上限50%）`)
       + (p && p.on ? '。※先手は戦いの始めにしか判定しないので、「発動」を付けると働かない' : '') },
     charm:        { who: 'enemy', fx: (m, p) => m < 0 ? less(`相手を${ailName(p, 'charm')}にする（戦闘力を4割下げる）確率`, m) : `打ち合いごとに ${pc(m)} の確率で相手を${ailName(p, 'charm')}にし、その打ち合いの戦闘力を4割下げる（精神耐性・状態異常耐性・マスターの精神で防がれる）` },
@@ -236,10 +236,10 @@
       : p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : p && p.eff ? `自分の「${effName(p.eff)}」を（どのスキル・宝具のものも）、その戦いの間止める`
       : '自分がその戦いで得た強化（補助宝具・発動したスキル・道具）を消す' },
     np_charge:    { who: 'self', fx: m => `打ち合いごとに宝具を放つ確率 ${sg(m)}` },
-    rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）` },
+    rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）。同盟相手が加勢に来る確率と、同盟で共同作戦を決める確率も ${sg(m)}` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
     guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(ENG().guardDmgCap, m * ENG().guardDmgW))}、守りとして戦闘力 ${sg(m * ENG().defPowerW)}（ほかの被ダメージ軽減と重なると鈍る）` },
-    magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}` },
+    magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}。相手の肉体弱体・衰弱を防ぐ（耐久と合わせて）` },
     mental_guard: { who: 'self', fx: m => {
       if (m < 0) return `精神への干渉に弱い：相手の魅了・混乱を防ぐ確率 −${pc(-m)}（マスターの精神と合わせて0%未満にはならない）。相手の弱体化がよく効き、傷を負うと戦闘力がより落ちる`;
       const K = ENG(), part = (k, cap, t) => K[k] ? `${t} −${pc(Math.min(cap, m * K[k]))}` : '';
@@ -257,9 +257,9 @@
     escape:       { who: 'self', fx: m => `撤退の成功 ${sg(m)}` },
     pin:          { who: 'enemy', fx: m => `相手の撤退の成功 ${m < 0 ? '+' : '−'}${pc(m * 0.8)}` },
     regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * ENG().regenHeal)}` },
-    heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}` },
+    heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}。同盟を組んでいれば、毎朝、同盟相手の霊基 ${pm(m * ENG().allyHeal)}` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
-    craft:        { who: 'self', fx: m => m < 0 ? less('1日ごとに道具を作る確率', m) : `1日ごとに ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）` },
+    craft:        { who: 'self', fx: m => m < 0 ? less('工房を強化した日に道具を作る確率', m) : `工房を強化した日に ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）。工房の強化も選びやすい` },
     resource:     { who: 'master', fx: m => `毎日の魔力 ${pm(m * 10)}、工房の強化の成功 ${sg(m * 0.5)}` },
     upkeep_down:  { who: 'master', fx: m => `マスターが払う維持魔力 ${m < 0 ? '+' : '−'}${pc(m)}` },
     upkeep_up:    { who: 'master', bad: true, fx: m => m < 0 ? `マスターが払う維持魔力 ${sg(m)}` : `マスターが払う維持魔力 ${sg(m)}（足りないとマスターの生命力が削られる）` },
@@ -330,10 +330,17 @@
         when: [!npOnUse(e) && !inst ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : w, condText(p, e.id)].filter(Boolean).join('・'), text: inf.fx(m, p) };
     }
     const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めの先手の判定に足す（それで先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
-      : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の朝まで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
+      : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の戦いの終わりまで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
       condText(p, e.id)].filter(Boolean).join('・');
-    return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text: inf.fx(m, p) };
+    let text = inf.fx(m, p);
+    if (e.id === 'disabled' && !ctx.np) text = 'このスキルの効果は働かない';
+    // 戦いの外で働く効果に、戦いの中の発動（戦いの始め・押し勝ったとき…）を付けても効かない
+    if (p && p.on && BATTLE_ONS.includes(p.on) && OUTSIDE_IDS.includes(e.id)) text += '。※戦いの外（昼・夜の索敵）で働く効果なので、戦いの中で発動しても効かない（「常に」か「毎朝」に）';
+    return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text };
   }
+  // 戦いの中の発動と、戦いの外でだけ読まれる効果（engine.js で戦いの外で読む：索敵・偵察・休養・工房・交渉・維持など）
+  const BATTLE_ONS = ['start', 'round', 'win', 'hit', 'lose', 'pinch', 'np'];
+  const OUTSIDE_IDS = ['stealth', 'detect', 'intel', 'regen', 'heal_other', 'craft', 'resource', 'solo', 'uncontrolled', 'negotiate', 'master_buff', 'upkeep_down'];
 
   // ---------- 既知のスキル辞書 ----------
   // 書式: 'スキル名': [[部品ID, 係数, params], ...]  係数は省略すると1
@@ -755,7 +762,9 @@
     { re: /宝具(?:の)?(?:連続(?:使用|解放)|連発|再使用|チャージ|充填)/, id: 'np_charge', not: /できない|不可|出来ない/ },
   ];
   // 場所などの条件
-  const CONDS = [['水辺', /水場|水辺|海上|海で|海に|水中|川で/], ['森', /森の中|森で|樹木|木々/], ['山', /山中|山で/], ['夜', /夜間|夜に|暗闇/]];
+  // 文の場面の言葉 → 効果の条件。「山中や海で」のように複数あれば、それぞれの条件で足す（どちらの場面でも働く）
+  const CONDS = [['水辺', /水場|水辺|海上|水上|海で|海に|水中|川で/], ['森', /森の中|森で|樹木|木々/], ['山', /山中|山で|山間|山岳/], ['夜', /夜間|夜に|暗闇/],
+    ['瀕死', /瀕死の?(?:時|際|状態)|窮地(?:に陥|である|に立)[^。]{0,4}ほど|追い詰められ(?:た時|るほど)|劣勢(?:である|になる)ほど/], ['拠点', /陣地内|工房内|自陣で|拠点(?:内|で戦)/]];
   // マスターを強化する文（「マスターに幸運の加護を与える」など）
   const MASTER_STAT_WORDS = [['luck', /幸運/], ['mana', /魔力/], ['craft', /魔術/], ['body', /体力|肉体|身体/], ['mind', /精神/]];
 
@@ -824,17 +833,20 @@
         for (const [stat, re] of MASTER_STAT_WORDS) if (re.test(sen)) { push('master_buff', n ? Math.min(5, +n[1]) : 1, { stat }); hit = true; }
         if (!hit && /マスターを[^。]{0,10}(?:戦わせ|強化)/.test(sen)) push('master_buff', 1, { stat: 'body' }); // 「マスターを戦わせるための強化」
       }
-      const cond = (CONDS.find(([, re]) => re.test(sen)) || [])[0];
+      const conds = CONDS.filter(([, re]) => re.test(sen)).map(x => x[0]);
       for (const r of RULES) {
         if (r.only && r.only !== kind) continue;
         const m = sen.match(r.re);
         if (!m || (r.not && r.not.test(sen))) continue;
         let p = typeof r.p === 'function' ? r.p(sen, m) : r.p || null;
-        if (r.cond && cond) p = Object.assign({}, p || {}, { cond });
-        push(typeof r.id === 'function' ? r.id(sen, m) : r.id, typeof r.f === 'function' ? r.f(sen, m) : (r.f == null ? 1 : r.f), p);
+        const id = typeof r.id === 'function' ? r.id(sen, m) : r.id, f = typeof r.f === 'function' ? r.f(sen, m) : (r.f == null ? 1 : r.f);
+        if (r.cond && conds.length) for (const cond of conds) push(id, f, Object.assign({}, p || {}, { cond }));
+        else push(id, f, p);
       }
     }
-    return out.slice(0, limit || 4);
+    // 上限は効果の種類で数える（同じ効果の場面違い——山中や海で——は1つとして数える）
+    const keep = new Set(); for (const s of out) { if (keep.size >= (limit || 4) && !keep.has(s[0])) continue; keep.add(s[0]); }
+    return out.filter(s => keep.has(s[0]));
   }
 
   // 説明文で他のスキルが参照されていれば、その効果を借りる。拾うのは次のような書き方だけ：
@@ -979,7 +991,10 @@
       const comp = compoundSpecs(desc, np.name);
       specs = [];
       for (const c of comp) for (const s of SKILL_DICT[c.key]) specs.push({ spec: [s[0], (s[1] == null ? 1 : s[1]) * 0.6, s[2]], rank: c.rank });
-      for (const s of analyzeText(desc, 'np', 5)) if (!specs.some(x => x.spec[0] === s[0])) specs.push({ spec: s });
+      // 同じ部品は1つまで（ただし場面の違う条件付きのもの——山中や海で——は別に足す）
+      const condOf = s => (s[2] && s[2].cond) || '';
+      //   条件の無い同じ部品がもうあれば、場面つきのものは足さない（常に働くので）
+      for (const s of analyzeText(desc, 'np', 5)) if (!specs.some(x => x.spec[0] === s[0] && (condOf(x.spec) === condOf(s) || !condOf(x.spec)))) specs.push({ spec: s });
       if (tk === 'barrier' && !specs.some(s => s.spec[0] === 'territory')) specs.push({ spec: ['territory', 1.5] });
       if (tk === 'self' && !specs.length) specs = [{ spec: ['power', 2] }, { spec: ['guard', 1] }];
       source = specs.length ? (comp.length ? 'compound' : 'keyword') : 'type';
@@ -1009,7 +1024,8 @@
     const rk = np.rank && np.rank.base ? np.rank : R.parseRank('C');
     const effects = specs.map(s => instantiate(s.spec, s.rank || rk, np.name, source)).filter(Boolean);
     if (PERSIST_WORDS.test(desc)) effects.forEach(e => { e.persistent = true; });
-    const costMod = effects.filter(e => e.id === 'np_cost').reduce((t, e) => t + e.mag, 0);
+    // 宝具消費：条件の付いたもの（水辺でだけ重い、など）は使うときにエンジンが条件を見て足す（engine.js の npCostOf）
+    const costMod = effects.filter(e => e.id === 'np_cost' && !(e.params && e.params.cond)).reduce((t, e) => t + e.mag, 0);
     return {
       attack, basis,
       disabled,

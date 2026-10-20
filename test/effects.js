@@ -250,6 +250,26 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(JSON.stringify(r1.entries.map(e => e.text)) === JSON.stringify(r2.entries.map(e => e.text)), '新しい効果で展開が決まらない');
 }
 
+// 5g) 発動の場面のずれ：毎朝の効果は戦いの外（昼の偵察など）にも効く／相手を倒したときの強化は次の戦いに持ち越す／
+//     戦いの外の効果に戦いの中の発動を付けたら説明で知らせる／スキルの使用不可の説明
+{
+  ok(/次の戦いの終わりまで/.test(E.describe({ id: 'power', mag: 0.1, params: { on: 'kill' } }).when), '相手を倒したときの強化の説明が違う');
+  ok(/戦いの中で発動しても効かない/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'start' } }).text) && !/効かない/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'day' } }).text), '戦いの外の効果の注意が出ない');
+  ok(/スキルの効果は働かない/.test(E.describe({ id: 'disabled', mag: 1 }).text) && /宝具は使えない/.test(E.describe({ id: 'disabled', mag: 1 }, { np: true }).text), '使用不可の説明が違う');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster.find(s => s.allSkills.length >= 1 && !Object.values(s.effectSummary).some(x => ['stealth', 'detect'].includes(x.id)));
+  const k = base.trueName + '/' + E.normName(base.allSkills[0].name);
+  const mk = specs => { E.SERVANT_OVERRIDES[k] = specs; const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[k]; return me; };
+  const others = roster.filter(s => s.id !== base.id).slice(0, 7);
+  const tally = me => { let n = 0, battles = 0, wins = 0; for (let i = 0; i < 120; i++) { const r = H.engine.runWar({ roster: others.concat([me]), seed: 'when' + i, player: 'none', war: { pick: 'open' } }); const c = r.camps.find(x => x.servantId === me.id); if (!c) continue; n++; battles += c.battles; if (r.winner === c.id) wins++; } return { n, b: battles / n, w: wins / n }; };
+  const plain = tally(mk([['power', 0]])), killer = tally(mk([['power', 6, { on: 'kill' }]]));
+  // 毎朝の情報収集：自陣営で毎日「偵察」を続けたとき、拠点を突き止める回数が常時のものと同じだけ増える
+  const scouts = me => { let n = 0, f = 0; for (let i = 0; i < 80; i++) { const rs = [me].concat(others.slice(0, 6)); const r0 = H.engine.runWar({ roster: rs, seed: 'when' + i, player: 'none', war: { pick: 'open' } }); const c0 = r0.camps.find(x => x.servantId === me.id); if (!c0) continue; const r = H.engine.runWar({ roster: rs, seed: 'when' + i, player: c0.id, war: { pick: 'open' }, focus: () => 'scout' }); n++; f += r.entries.filter(e => e.kind === 'scout' && /見つけた|突き止め|だった/.test(e.text)).length; } return f / n; };
+  const s0 = scouts(mk([['power', 0]])), sDay = scouts(mk([['intel', 3, { on: 'day' }]])), sAll = scouts(mk([['intel', 3]]));
+  ok(sDay > s0 * 1.4 && Math.abs(sDay - sAll) < s0 * 0.3, `毎朝の情報収集が昼の偵察に効いていない（拠点を突き止めた回数 ${s0.toFixed(2)} → 毎朝 ${sDay.toFixed(2)}／常時 ${sAll.toFixed(2)}）`);
+  ok(killer.w > plain.w, `相手を倒したときの強化が次の戦いに効いていない（優勝 ${plain.w.toFixed(2)} → ${killer.w.toFixed(2)}）`);
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -267,5 +287,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;

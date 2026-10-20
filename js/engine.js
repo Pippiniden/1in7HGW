@@ -211,11 +211,14 @@
     // 条件付きの効果：水辺・森・山はその場所（雨の夜は水辺）、夜（夜間・暗闇）は夜の戦い（満月の夜を除く）か地下
     // 効果の条件（effects.js の params）：cond＝場面、vs＝相手の属性、chance＝戦いごとの発動確率
     //   c.bx は戦いの間だけある { opp: 相手の陣営, home: 自分の拠点で戦う, rolls: { 効果の集計キー: 当たったか } }
-    const condOk = (c, p, terrain) => {
+    // 場所の条件（水辺・森・山）：場所を渡されなければ、戦いの最中ならその戦いの場所（致命傷・撤退・マスター狙いなど）、
+    //   戦いの外なら自分の拠点の場所で判定する（「水辺で偵察に長ける」なら水辺に拠点があるとき）
+    const condOk = (c, p, terrain0) => {
       if (!p) return true;
       const k = p.cond;
+      const terrain = terrain0 != null ? terrain0 : c.bx && c.bx.ctx ? c.bx.ctx.terrain : c.base ? c.base.terrain : null;
       if (k) {
-        if (k === '拠点') { if (!(c.bx && c.bx.home)) return false; }
+        if (k === '拠点') { if (c.bx ? !c.bx.home : false) return false; }   // 戦いの外（昼の行動など）は拠点にいる
         else if (k === '瀕死') { if (!(c.hp < ENG.pinchAt)) return false; }
         else if (!(k === terrain || (k === '夜' && phase === 'night' && !tonight.moon))) return false;
       }
@@ -242,7 +245,8 @@
     }
     function eff(c, id, terrain, self) {
       let t = effS(c, id, terrain, self);
-      for (const e of c.temp) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) t += e.mag;
+      // 戦いの外では、毎朝発動した効果（c.dayTemp）も数える（戦いの中では戦いの始めに c.temp へ写してある）
+      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     }
     const effVs = (c, id, o, terrain) => {
@@ -380,7 +384,8 @@
       // 強化・弱体などの効果：発動の場面に応じた間だけ働く（同じ効果は重ねない）
       const q = Object.assign({}, p); delete q.on; delete q.cost; delete q.uses; delete q.chance;
       const e = { id, mag, params: Object.keys(q).length ? q : null, from, src: k, rnd: on === 'round' };
-      if (on === 'day' || on === 'kill') { c.dayTemp = (c.dayTemp || []).filter(x => x.src !== k); c.dayTemp.push(e); }
+      if (on === 'day') { c.dayTemp = (c.dayTemp || []).filter(x => x.src !== k); c.dayTemp.push(e); }
+      else if (on === 'kill') { c.carry = (c.carry || []).filter(x => x.src !== k); c.carry.push(e); }   // 相手を倒したときの強化：次の戦いの終わりまで
       else { if (!c.temp || c.temp.some(x => x.src === k)) return; c.temp.push(e); }
       say(`${sn(c)}の${src}が発動した。`);
     }
@@ -389,7 +394,14 @@
     const FX = G.CONFIG.STAT_FX, dev = B.statDev;
     const sd = (c, k) => dev(c.sv.score[k]);
     const md = (c, k) => c.masterAlive ? dev(c.master.stats[k]) : 0;
-    const npCostOf = (c, n) => n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag'));
+    // スキルの効果だけを足す（宝具の効果は宝具ごとに読む）。止めた効果・条件も見る
+    const skillFx = (c, id, T) => { let t = 0; for (const sk of c.sv.allSkills || []) for (const e of sk.effects || []) if (e.id === id && !(e.params && e.params.on) && condOk(c, e.params, T) && !offMatch(c, sk.name, id)) t += e.mag; return t; };
+    // 宝具の魔力：宝具の基本の消費 ×（スキルの宝具消費＋その宝具の条件付きの宝具消費）
+    const npCostOf = (c, n) => {
+      let mod = skillFx(c, 'np_cost');
+      for (const e of n.effects || []) if (e.id === 'np_cost' && e.params && e.params.cond && condOk(c, e.params)) mod += e.mag;
+      return n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag')) * (mod ? Math.max(0.3, 1 + mod) : 1);
+    };
     const active = () => camps.filter(c => c.alive);
     // ---------- 同盟（c.pact：同じ番号の陣営どうしが同盟。最大 ENG.allianceMax 騎）----------
     let pactSeq = 0, leader = null, leaderSeen = new Set();
@@ -630,8 +642,8 @@
       log('np', `${nm(c)}が宝具を解放した——『${np.name}』${np.reading ? '（' + np.reading + '）' : ''}！`, [c.id, o.id], { quote: sayNP(c, np), big: true });
       fireTrig(c, o, 'np', ctx.terrain);   // 宝具を使ったときに発動するスキル
       if (over) { c.overUsed = true; log('battle', `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
-      const bf = (np.effects || []).find(e => e.id === 'backfire');
-      if (bf) { c.hp -= bf.mag * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
+      const bf = (np.effects || []).filter(e => e.id === 'backfire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0) + skillFx(c, 'backfire', ctx.terrain);   // スキルの反動も
+      if (bf > 0) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');
       if (sr && chance(sr.mag)) c.pendingRetire = np.name;
     }
@@ -681,7 +693,7 @@
       const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
       const all = () => side(a).concat(side(b));
       for (const c of all()) {
-        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).slice(); c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
+        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || []); c.carry = null; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
         c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null;   // 発動する効果（fireTrig）の、この戦いの分
         c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }
