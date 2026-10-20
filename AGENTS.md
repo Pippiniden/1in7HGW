@@ -163,6 +163,7 @@ test/
   simlab.js         simlab core: same counts as survival.js runner, strided halves merge to the same tally, config patch/undo, groups/comments
   voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
   fgo.js            FGO-style blocks / chant lines are not read as skills or NPs; old data is cleaned at load
+  markup.js         Wiki markup cleanup (footnote numbers, folds, tables, decorations), ruby → reading only for NPs, relations reader
   effects.js        Every EFFECTS id is read by engine/build and described; NP effect timing; identity override
   focus.js          Win rate per constant focus by servant grade vs REC_FOCUS (reads the table from index.html)
   lucan.txt, variant1.txt, master1.txt   Sample wiki pages
@@ -227,6 +228,19 @@ serial with a 1.5 s gap.
 
 Pages deviate from the template often; the parser is deliberately tolerant (regex section/key matching,
 `SECTIONS`, `INFO_KEYS`, `PROFILE_KEYS` in `parser.js`). Struck-through text (`%%…%%`) is dropped by default.
+**Markup cleanup** (`stripMarkup` → `tidy`): ruby keeps the base text in descriptions (`&ruby(よみ){表記}` → 表記) but becomes the
+**reading** of NP/weapon headings (`nameAndReading`); `((…))` footnotes are dropped; `tidy` also removes leftover footnote numbers
+(`*1`, `＊2` attached to text or at a line end — not `5*3`), fold markers `[+]`/`[-]` (the title stays) and `[END]`, `&ref(…)` images,
+any other `&xxx(…){…}` decoration (nested too), numeric/`&amp;`/`&nbsp;` entities, unpaired `''`, and turns table rows into text
+(`|~対象|可否|` → 「対象：可否」, format rows such as `|center:|c` dropped, `~~` → ／). `tidy` is idempotent and also runs at every load
+(`finalize` → `tidyAll`: skill/NP/weapon names, readings, descriptions, range/max, text, profile, relations, voice), so already-imported
+data is cleaned without a re-import; relations whose name is a table row are dropped. On the current data this cleaned 78 fields with
+fold markers (54 servants), 43 with footnote numbers (17; also 8 NP/weapon names and readings — no override key used them), table rows and
+leftover bold; no skill effect changed. **Relations** (`collectRelations`): a name line (starts with `''`bold or `[[link]]`, or a short line
+ending in ：) followed by its text lines, or a one-line 「名前：本文」 (when it starts with bold/link or follows a blank line); table rows,
+fold titles and comments separate entries; lines whose name is a voice heading (`G.voiceSlotOf`, `G.VOICE_UNUSED`, その2…) are skipped
+with their text. On the 50 stored source pages: 10 pages gained relations (e.g. ユーグ 2 → 14), none lost any. Published relations are
+re-read only on a re-import (「kagemiya から取り直し」); `test/markup.js` covers all of this.
 
 **FGO-style blocks** (many pages add `*【FGO風性能】` with レア度, 霊基再臨, 基本ステータス, 所有カード, 所有スキル (`***Skill1：…`),
 クラススキル, アペンドスキル, 宝具, 攻撃モーション, 性能解説 …) are not game data. `parsePage` opens a section `'fgo'` at a level-1
@@ -1139,6 +1153,7 @@ node test/survival.js           # survival tally sanity; playerName does not cha
 node test/simlab.js             # 聖杯戦争で試す core (counts match survival.js, merge, config patch, config field list)
 node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
 node test/fgo.js                # FGO-style blocks and chant lines are not read as skills/NPs (parse + load-time cleanup)
+node test/markup.js             # wiki markup cleanup, ruby (description vs NP reading), relations reader, no markup left in published data
 node test/effects.js            # every effect primitive is read by the engine/build and has a description; identity override round trip
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (N=1000 seeds × 7 focuses, ~40 s)
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars, ~20 s); --check compares fingerprints
