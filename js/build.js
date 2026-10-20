@@ -238,6 +238,8 @@
   // ステータスの偏差：C相当（32）を0、A相当を約+1とする（−1〜+1.6）。STAT_FX の係数に掛けて使う
   const statDev = v => Math.max(-1, Math.min(1.6, ((v == null ? 32 : v) - 32) / 30));
   // 魔力による宝具の威力の倍率（「宝具」ステータスは宝具そのものの評価なので、戦闘には使わない）
+  // 守りの効果の合計を、重なるほど鈍らせる（config.js の ENGINE.defSoft。0 なら足したまま）。エンジンも同じ式を使う
+  const softDef = x => { const k = G.CONFIG.ENGINE.defSoft; return x > 0 && k > 0 ? x / (1 + x * k) : x; };
   const npStatMult = sv => Math.max(0.5, 1 + G.CONFIG.STAT_FX.magNp * statDev(sv.score.mag));
   // 最強の攻撃宝具の威力（宝具強化・魔力込み。使用不可・自滅する宝具は除く）
   function npPeak(sv) {
@@ -261,9 +263,10 @@
     const side = (x, y) => {
       const ox = ctxOf(x), oy = ctxOf(y);
       const pierce = Math.min(0.9, eff(y, 'pierce', T, oy));                       // 相手の防御無視で自分の守りが削られる
-      const mg = y.class.key === 'caster' || (y.score.mag || 0) > (y.score.str || 0) ? eff(x, 'magic_guard', T, ox) * 0.5 : 0;
+      const mg = y.class.key === 'caster' || (y.score.mag || 0) > (y.score.str || 0) ? softDef(eff(x, 'magic_guard', T, ox)) * 0.5 : 0;
       const sure = Math.min(1, Math.max(0, eff(y, 'sure_hit', T, oy)));                   // 相手の必中で回避が消える
-      const def = Math.max(-0.5, Math.min(0.6, (eff(x, 'guard', T, ox) * 0.5 + eff(x, 'evade', T, ox) * 0.5 * (1 - sure) + mg) * (1 - pierce)));
+      const EN0 = G.CONFIG.ENGINE;
+      const def = Math.max(-0.5, Math.min(EN0.defCap, (softDef(eff(x, 'guard', T, ox)) * EN0.defPowerW + softDef(eff(x, 'evade', T, ox)) * 0.5 * (1 - sure) + mg) * (1 - pierce)));
       let p = combatPower(x, T, () => eff(x, 'power', T, ox)) * (1 + sum(x, 'power_vs', y)) * (1 + def) * (1 - sum(x, 'weakness', y) * 0.5);
       // 先手：宝具ありの見積もりでは、先手の付いた宝具（戦いの始めに切る）の先手も足す（engine.js の openingNP）
       const npIni = opts.np ? Math.max(0, ...(x.nps || []).filter(n => !n.disabled).map(n => (n.effects || []).filter(e => e.id === 'initiative')
@@ -356,5 +359,5 @@
   }
 
   G.build = { reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId };
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId, softDef };
 })(globalThis.HGW = globalThis.HGW || {});

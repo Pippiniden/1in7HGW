@@ -1,0 +1,64 @@
+# アップロードの片付け：「データの反映」が作ったプルリクエスト（data/upload-N）を、マージせずに閉じたとき、
+# そのプルリクエストで反映したはずのファイルを main の data/incoming/ から外す。
+# 外さないと、次に何かを上げたときに「見送ったはずの古いファイル」がまた反映されてしまう。
+# - 外すのは、プルリクエストを作った時点と中身が同じファイルだけ（あとで同じ名前で上げ直したものは残す）
+# - 「データの反映」が新しいプルリクエストにまとめて閉じたもの（ボットが閉じたもの）は、ファイルが新しいほうに入っているので何もしない
+# - ブランチ data/upload-N も消す
+name: アップロードの片付け
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: data-update
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.event.pull_request.merged == false &&
+      startsWith(github.event.pull_request.head.ref, 'data/upload-') &&
+      github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+          fetch-depth: 0
+
+      - name: 見送ったアップロードのファイルを data/incoming/ から外す
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BR: ${{ github.event.pull_request.head.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/files" --paginate \
+            --jq '.[] | select(.status == "removed") | select(.filename | startswith("data/incoming/")) | .filename' > "$RUNNER_TEMP/files.txt"
+          removed=0
+          while IFS= read -r f; do
+            [ -n "$f" ] && [ -f "$f" ] || continue
+            # プルリクエストを作った時点の中身と同じときだけ外す
+            if [ "$(git rev-parse "${BASE_SHA}:${f}" 2>/dev/null)" = "$(git rev-parse "HEAD:${f}" 2>/dev/null)" ]; then
+              git rm -q -- "$f"; removed=$((removed + 1))
+              echo "- 外した：\`$f\`" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "- 残した（あとで上げ直されている）：\`$f\`" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done < "$RUNNER_TEMP/files.txt"
+          if [ "$removed" -gt 0 ]; then
+            git commit -q -m "見送ったアップロードを片付ける（#${PR} をマージせずに閉じたため）" -m "GitHub Actions「アップロードの片付け」で自動作成"
+            git push origin "HEAD:${BASE_REF}"
+            echo "#${PR} で反映するはずだったファイル ${removed} 件を data/incoming/ から外しました" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "外すファイルはありませんでした" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          git push origin --delete "$BR" 2>/dev/null || true

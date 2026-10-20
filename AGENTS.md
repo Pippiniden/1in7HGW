@@ -144,6 +144,9 @@ tools/
                     moves, override tables (added/changed/removed keys); GITHUB_OUTPUT diff_*
 .github/workflows/
   kagemiya.yml      workflow_dispatch "kagemiya から取り込み": runs tools/kagemiya.js, checks sim.js, rebuilds survival.json, opens a PR
+  data-cleanup.yml  "アップロードの片付け": when a data/upload-N PR is closed **without merging by a person**, removes from main's
+                    data/incoming/ the files that PR had applied (only if unchanged since the PR's base commit) and deletes the branch —
+                    otherwise a declined upload stayed in data/incoming/ and was re-applied by every later run
   data.yml          "データの反映": on push to main touching data/incoming/**, servants.json, overrides.json, manifest.json, packs/**
                     (or by hand) — applies uploads, checks, rebuilds survival.json, reports the diff (§4.4 Uploads). Needs the repo setting
                     「Allow GitHub Actions to create and approve pull requests」; without it the run now fails (data left on data/upload-N)
@@ -318,7 +321,12 @@ overrides harvested from a list uploaded at the same time survive), then lists (
 one-servant page uploaded with it), then `.txt` pages; `hgw-servants` / array / single servant → if it holds ≥ 80 % of the current ids it
 **replaces** the list (servants missing from it are named in the report), else upsert by id; lean packs are taken verbatim (small
 diffs), full exports go through `harvestOverrides` + `toLean(fromJSON())`; `.txt` wiki pages → `importServant` upsert (keeping the existing `page`);
-requests / records / survival files are left in place and reported. The list is re-sorted (`sortLean`). The workflow snapshots
+requests / records / survival files are left in place and reported. Within one kind, files are applied **in upload order** (`git log -1
+--format=%ct` of the file; fallback: the browser's 「(N)」 number, numerically — a plain name sort put 「(10)」 before 「(9)」, so an older file
+could overwrite a newer one), and only the **newest override table** is applied; older ones are deleted with a note
+(「より新しい手直し表…があるので使わず、片付けました」). When data.yml opens a new upload PR it closes older open `data/upload-*` PRs with a
+comment pointing to the new one (their files are still in main's data/incoming/, so the new PR contains them; bot closures do not trigger
+data-cleanup.yml). The list is re-sorted (`sortLean`). The workflow snapshots
 `data/` first, runs incoming.js, `test/sim.js 40` + `test/fgo.js`, rebuilds survival.json when `--check` fails, writes the
 `datadiff.js` report to the job summary and, if files were applied, opens a PR (`data/upload-N`) with that body; otherwise (data
 replaced directly on main) it commits only the rebuilt survival.json to main. Bot pushes use GITHUB_TOKEN, so they do not retrigger
@@ -615,11 +623,16 @@ Per round:
    `backfire`; NPs with `self_retire` ≥ 0.5 only when hp < 25 (and even then rarely). Attack NP → `npBoost = power × npPowerK (× burst)`; support NP → its effects
    go to `temp`. Using an NP may reveal the true name (else +2 clues for the opponent).
 3. `power(c, o, ctx)`: combatPower(terrain) × temp power × special-attack/weakness × defence
-   (guard/evade/magic_guard, reduced by opponent `pierce`) × opponent debuff × home territory/workshop ×
+   (`clamp(soft(guard)×defPowerW 0.5 + soft(evade)×0.5×(1−sure_hit) + soft(magic_guard)×0.5 [vs magic-heavy], −0.5, defCap 0.6)`, reduced by
+   opponent `pierce`; `soft(x) = B.softDef(x) = x / (1 + x × ENGINE.defSoft)` for x > 0 — **diminishing returns** for stacked sources, `defSoft`
+   1 since the fix for runaway guard stacking (0 = the old plain sum; same formula in `battleOdds`)) × opponent debuff × home territory/workshop ×
    knows-name 1.08 × hp factor × no-master 0.9 × low-mana 0.85 × stance × command-seal boost × surprise
    + npBoost, then ×(0.9–1.1) noise. Charm can cut the other side by 40%.
 4. Winner of the exchange: logistic `p = 1/(1+exp(-(ea-eb)/BATTLE_K))`, `BATTLE_K` = 15.
-5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction.
+5. `instakill` chance, else damage `(dmgBase 28 + rnd×dmgVar 20) × advantage`, crit ×1.5, guard reduction
+   (`× (1 − clamp(soft(guard) × guardDmgW 0.5, −0.5, guardDmgCap 0.5))` unless pierced), then `dmg_plus − dmg_cut` (flat). Note guard counts twice —
+   in the exchange odds (step 3) and in the damage — which is why stacking it was so strong before `defSoft`. Order of stacking: all sources of one
+   effect are summed first (skills, NP on-use, items +0.2, triggers), then softened, weighted and capped; different categories multiply.
    **Counter**: the exchange winner takes `rnd×8 + dmg × counterDmg (0.3) × el/(ew+1)` back (the closer the powers, the more), so the
    loser is not helpless and strong servants wear down while winning. No extra `rnd()` call.
    If the winner's own hp drops to ≤ 0 it goes through `lethal()` too — also when the loser has just died (cause `'mutual'`,
