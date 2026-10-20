@@ -925,7 +925,16 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
 - **Briefing settings**: 立場, 進む速さ (1/2/4/8 = ゆっくり/ふつう/はやい/とても速い; the HUD offers 1×–16×), 一言を残す (`words` radio,
   remembered in `hgw.settings.words`; see Words below), 戦争の長さ (`#days` range 10–100, default `CONFIG.ENGINE.maxDays` 30 → passed as
   `engine: { maxDays }`), 七騎の選び方 (`pick` radio `class`/`open` → `war: { pick: 'open' }`), エクストラクラス (`extra`
-  radio → `war: { extra: false }`; `warOpts()` builds the object), seed. Length/pick/extra are remembered in `localStorage`
+  radio → `war: { extra: false }`; `warOpts()` builds the object), seed. **参戦サーヴァントの設定** (`#castBox`, a collapsed `<details>` at the very bottom
+  of the intro, below the ranking link — it conflicts with the game's concept of not knowing who is coming, so it is deliberately unobtrusive):
+  per-servant checkboxes grouped by class (`castGroups`: standard classes in `CLASS_DEFS` order, each extra class by its own label) with 全選択/
+  全解除 for the whole list and per class. `excluded` (Set of servant ids; persisted in `localStorage` `hgw.exclude.v1`) is the form state;
+  `start()` freezes it into `castEx` (or takes `o.ex` for resume/replay) and the engine gets `castRosterOf(castEx)` = `roster` minus those ids
+  (the same array when nothing is excluded, so such wars are unchanged). Excluded servants are neither drawn nor used as substitutes; a war
+  needs `castMin()` = min(7, roster size) (≥ 2) servants or 開戦 is disabled. It changes the war, so it is stored like length/pick/extra: URL
+  `ex=<indices into the loaded roster in base 36, joined by '.'>` (a shared link — seed present — ignores the stored setting and uses its own
+  `ex`), `save.ex` / `record.ex` (arrays of ids; part of `recordSig` only when non-empty; list line 「参戦を絞った」). Rating grades, the survival
+  curve and `rosterFp()` still use the full roster. Length/pick/extra are remembered in `localStorage`
   `hgw.settings` (URL `d`/`p`/`x` win). They change the war, so they are stored in the URL, in `hgw.save.v1` and in history
   records (`days`, `extra`, `pick`; missing = 30 / true / class via `recDays`/`recExtra`/`recPick`; all are part of
   `recordSig`, `open` only appended when set so older signatures are unchanged).
@@ -1049,7 +1058,7 @@ Single page, two states: **briefing** (intro form) and **watching** (`body.watch
   chain (`G.sceneCandidates`); if no image exists a procedurally drawn SVG skyline is used. 404s for
   missing images are expected.
 - **URL state (replay/share)**: `?seed=<s>&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>
-  [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)][&n=<player's name>]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
+  [&data=local][&d=<war length, only if ≠30>][&p=open (draw from all servants)][&x=0 (no extra classes)][&ex=<excluded servants, see 参戦サーヴァントの設定>][&n=<player's name>]`. Focus codes: `o a d s r h l` (one char per day). Opening such a URL and pressing 開戦
   with the same seed replays the identical war (same data required).
 
 `submit.html` (player request form, Japanese): loads the published roster with `data.js` (published overrides become the
