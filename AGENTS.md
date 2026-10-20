@@ -408,7 +408,9 @@ exchange while mana lasts"), `params.uses` (max per battle; start/pinch/kill are
 battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal, wither) act on the spot; without
 `on` a skill's instant uses `EFFECTS[id].trig` (heal → pinch, drain_* → win, mana_gain/strip/cleanse/self_strip → start, skill_seal → win)
 (`E.trigOf`). Other effects with `on` go to `c.temp` when triggered: until the battle ends (`round`: that exchange only, `rnd` flag; the same
-source never stacks), or to `c.dayTemp` for `day`/`kill` (until next morning; copied into `c.temp` at the next battle start). **NP effects**:
+source never stacks), to `c.dayTemp` for `day` (until next morning; `eff()` also counts `dayTemp` outside battle — scouting, hiding, regen, night find rolls — and it is
+copied into `c.temp` at battle start), or to `c.carry` for `kill` (kept until the end of the **next** battle: copied into `c.temp` at that battle's start,
+then cleared; before, kill buffs went to `dayTemp`, which was reset the next morning before any battle, so they never applied). **NP effects**:
 without `on` they behave as before (instants fire at use); with `on` they are armed after the NP is used (`c.armed`) and fire on that event for
 the rest of the battle — i.e. 「発動した瞬間」 vs 「押し勝ってから」 is chosen with `on`. Summary (`build.js summarize`): triggered entries get
 `trig` (skills) or `npTrig` (NP, armed) and `on`, never `passive`; keys add `~eff` (strip/self_strip target), `!on`, `$cost`, `*uses`; passive skill entries also keep `by`
@@ -430,7 +432,12 @@ Self debuffs scale the holder's own power; self ailments are rolled for the hold
 - `params.chance` (0–1): rolled once per battle at battle start (`enterBattle`: one `rnd()` per such summary entry, so servants without
   chance effects consume no extra rolls); NP support effects with a chance roll when the NP is used. Outside battle the magnitude ×
   chance is used.
-Engine: `condOk(c, params, terrain)` + `chanceW` inside `eff`/`effS`/`effVs`; `c.bx = { opp, home, rolls }` exists only during a battle
+Engine: `condOk(c, params, terrain)` + `chanceW` inside `eff`/`effS`/`effVs`. When `terrain` is not passed (lethal/guts, NP firing, master strike,
+luck, retreat…), `condOk` falls back to the current battle's terrain (`c.bx.ctx.terrain`), else to the camp's base terrain — before, a terrain cond
+silently failed in those reads (e.g. guts@水辺 never worked). `拠点` matches outside battle (the camp is at home) and in battle only with `c.bx.home`.
+The keyword reader (`CONDS`) also reads 水上/海上→水辺, 山間/山岳→山, more 瀕死/拠点 wording, and when a sentence names several conditions it
+makes one effect per condition (before, only the first: 鶴姫's 「水辺・山で」 lost 山); `analyzeText`'s limit counts distinct ids, so cond variants
+of one id are not cut off. `c.bx = { opp, home, rolls }` exists only during a battle
 (cleared in `cleanup`, `leave` and at the end of each day). `effS` = summary only; `power()` passes it to `B.combatPower(sv, T, sumOf)`.
 Estimates (`build.js` `condW`): terrain must match, 拠点 only with `opts.home`, 瀕死 ×0.3, vs only when the opponent has the tag, chance
 × probability. `summarize` keys add `>vs` and `%chance`. The editor rows in roster.html / submit.html have 条件／相手／確率 fields;
@@ -480,7 +487,9 @@ Anything not from an override or exact dict hit is added to the servant's `revie
   (`ATTACK_WORDS`) → barrier → support effects → otherwise guessed attack.
 - On attack NPs, `power` effects from text are dropped (the NP's power is the attack), but hand-set ones (`servant-override`/`override`)
   are kept and apply while the NP's battle lasts.
-- `power = rank.score × type.power` (attack NPs only); `cost = type.cost × rank.mult × (1 + np_cost)`;
+- `power = rank.score × type.power` (attack NPs only); `cost = type.cost × rank.mult × (1 + np_cost)` (the NP's own unconditional np_cost);
+  in the engine `npCostOf` also applies the holder's **skill** `np_cost` (`skillFx`, cond-checked; skills with np_cost used to do nothing) and the
+  NP's cond-bound np_cost (×max(0.3, 1 + Σ)); `fireNP`'s backfire likewise adds skill `backfire`;
   `exposure` = how likely use reveals the true name (≥1 makes it public; ≥0.8 can trigger a "witnessed" event).
 - `self_retire` (servant drops out after use), `backfire`, `disabled` are detected from text.
 - **NP modes** (`np.mode`, `E.NP_MODES`/`NP_MODE_JA`; `NP_OVERRIDES[key].mode` wins, else `ALWAYS_WORDS` — 常時発動/常時展開/常時型の宝具/常に
