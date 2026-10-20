@@ -1813,7 +1813,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       sum: {
         city: result.city, days: result.days,
         winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending,
-        you: y ? { label: y.label, name: y.trueName, master: y.master, won: y.id === result.winner, fate: y.fate ? y.fate.text : '' } : null,
+        you: y ? { label: y.label, name: y.trueName, master: y.master, won: y.id === result.winner && !result.youTaken, fate: y.fate ? y.fate.text : '', taken: result.youTaken ? { master: result.youTaken.master, won: y.id === result.winner } : undefined } : null,
         decided: choices.filter(k => k !== 'auto').length,
       },
     };
@@ -1876,8 +1876,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#recExport').disabled = !list.length && !s; $('#recClear').disabled = !list.length && !s;
     $('#recList').innerHTML = list.map((r, i) => {
       const y = r.sum.you, w = r.sum.winner;
-      const title = y ? `${y.label}「${y.name}」のマスター、${y.master}` : 'すべてを知る観測者として';
-      const res = y ? (y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
+      const title = y ? `${y.label}「${y.name}」のマスター、${y.taken ? y.taken.master : y.master}` : 'すべてを知る観測者として';
+      const res = y ? (y.taken ? (y.taken.won ? `マスターは命を落としたが、再契約した${y.label}「${y.name}」が聖杯を手にした。` : `マスターは命を落とした。再契約した${y.label}「${y.name}」は、${y.fate || '最後まで生き残った'}。`) : y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won && !(y.taken && y.taken.won) ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
         : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
@@ -2145,7 +2145,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const w = result.winner != null ? result.camps[result.winner] : null;
     const you = result.you != null ? result.camps[result.you] : null;
     const head = endHead(result);
-    const yours = you ? (you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
+    const yours = you ? (result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
     const decided = choices.filter(k => k !== 'auto').length;
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">結末・${result.days}日間</span></div><div class="body">
       <h4>${esc(head)}</h4>
@@ -2180,7 +2180,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // 選び方は乱数ではなくシードで決まる（再生しても同じ一言）
   function finalQuote() {
     if (youId == null || !result) return null;
-    const me = lastSnap.find(c => c.you); if (!me) return null;
+    const me = lastSnap.find(c => c.you) || (result.youTaken ? lastSnap[result.you] : null); if (!me) return null;
     const sv = servantOf(me.id); if (!sv || !sv.voice) return null;
     // 場面の名前は config.js の VOICE_SLOTS（戦闘不能には消滅も含む）
     const keys = result.winner === me.id ? ['勝利', '聖杯について', '絆'] : me.alive ? ['絆', '聖杯について', '会話'] : ['戦闘不能', '敗北', '絆'];
@@ -2324,8 +2324,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const decided = choices.filter(k => k !== 'auto').length;
     // 呼んだサーヴァント（再契約や令呪を奪って陣営が移っていれば、最後に契約していたサーヴァントも）
     const first = youId != null ? result.camps[youId] : null, moved = you && first && first.id !== you.id;
-    const tail = you ? (you.id === result.winner ? '最後まで勝ち残った。' : `${moved ? `${you.label}「${you.trueName}」` : ''}は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
-    const yours = you ? `マスター${you.master}が${moved ? `呼んだ${first.label}「${first.trueName}」を失い、のちに${you.label}「${you.trueName}」と契約した。${tail}` : `呼んだ${you.label}「${you.trueName}」${you.id === result.winner ? 'が、' : ''}${tail}`}${decided ? `下した大きな決断は${decided}回。` : ''}`
+    const tail = you ? (result.youTaken ? (you.id === result.winner ? 'は勝ち残り、聖杯を手にした。' : `は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : you.id === result.winner ? '最後まで勝ち残った。' : `${moved ? `${you.label}「${you.trueName}」` : ''}は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
+    const yours = you && result.youTaken ? `マスター${result.youTaken.master}は命を落としたが、再契約した${you.label}「${you.trueName}」${tail}${decided ? `下した大きな決断は${decided}回。` : ''}`
+      : you ? `マスター${you.master}が${moved ? `呼んだ${first.label}「${first.trueName}」を失い、のちに${you.label}「${you.trueName}」と契約した。${tail}` : `呼んだ${you.label}「${you.trueName}」${you.id === result.winner ? 'が、' : ''}${tail}`}${decided ? `下した大きな決断は${decided}回。` : ''}`
       : 'すべてを知る観測者として、七騎の戦いを見届けた。';
     setFont(ctx, 500, 26, CF.mi); ctx.fillStyle = CC.ice;
     y = para(ctx, yours, P, y, W - P * 2, 42) + 14;
