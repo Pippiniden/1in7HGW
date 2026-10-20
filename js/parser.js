@@ -10,6 +10,32 @@
   const R = G.rank;
 
   // ---------- Wiki記法の除去 ----------
+  // 表（|a|b|）の1行を読める文に：書式だけの行（|center:|c など）は捨て、セルは「最初のセル：残りのセル／…」にする
+  const TABLE_FMT = /^(?:(?:center|left|right|top|middle|bottom)|(?:bg)?color\([^)]*\)|w\(\d+(?:px)?\)|h\(\d+(?:px)?\)|size\(\d+\))?:?$/i;
+  function tableLine(line) {
+    const cells = line.trim().replace(/^\|/, '').split('|');
+    if (/^[ch]$/i.test((cells[cells.length - 1] || '').trim())) return '';                  // 列の書式の行（末尾が |c・|h）
+    const vals = cells.map(c => c.trim().replace(/^(?:(?:center|left|right|top|middle|bottom|(?:bg)?color\([^)]*\)|w\(\d+(?:px)?\)|size\(\d+\)):)+/i, '').replace(/^[~!]/, '').replace(/~~/g, '／').trim())
+      .filter(c => c && c !== '>' && c !== '^' && !TABLE_FMT.test(c));
+    if (!vals.length) return '';
+    return vals.length === 1 ? vals[0] : vals[0] + '：' + vals.slice(1).join('／');
+  }
+  // 取り込んだあとに残りがちな記法の片付け（脚注の *1・折りたたみの [+] [END]・表・画像・飾り・実体参照）。
+  //   何度掛けても同じ結果になる（読み込み済みのデータにも finalize で掛ける）
+  function tidy(s) {
+    let t = String(s == null ? '' : s);
+    t = t.replace(/&ref\([^)]*\)/g, '');                                        // 画像
+    t = t.replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16)));
+    t = t.replace(/&(?:nbsp|amp);/g, m => (m === '&amp;' ? '&' : ' '));
+    for (let i = 0; i < 4 && /&\w+\([^)]*\)\{[^{}]*\}/.test(t); i++) t = t.replace(/&(?!ruby)\w+\([^)]*\)\{([^{}]*)\}/g, '$1');   // &align(center){…} などの飾り（入れ子も）
+    t = t.replace(/^[ \t　]*\[[+-]\][ \t　]*/gm, '').replace(/^[ \t　]*\[END\][ \t　]*$/gm, '');   // 折りたたみ（見出しの文字は残す）
+    t = t.replace(/^\s*\|.*\|[a-z]?\s*$/gim, l => tableLine(l));                  // 表
+    t = t.replace(/\[\[([^\]>|]*)(?:[>|][^\]]*)?\]\]/g, '$1');                    // リンク
+    // 脚注の番号（本文に残った *1・＊2。脚注の中身は取り込みのときに捨てている）
+    t = t.replace(/([^\d\s*＊×xX])[*＊]\d{1,2}(?![\d.])/g, '$1').replace(/[ \t　]+[*＊]\d{1,2}(?=$|[\s、。，．）)」』])/gm, '');
+    t = t.replace(/'{2,3}/g, '');                                                // 対になっていない太字の記号
+    return t.replace(/\n{3,}/g, '\n\n');
+  }
   function stripMarkup(s, keepStrike) {
     let t = String(s == null ? '' : s);
     t = t.replace(/&ruby\(([^)]*)\)\{([^}]*)\}/g, '$2');
@@ -22,7 +48,7 @@
     t = t.replace(/\(\(([\s\S]*?)\)\)/g, '');                         // 脚注
     t = t.replace(/^#\w+.*$/gm, '').replace(/^\/\/.*$/gm, '');         // #contents やコメント行
     t = t.replace(/~\s*$/gm, '');                                      // 行末改行記号
-    return t.replace(/[ \t　]+$/gm, '').trim();
+    return tidy(t).replace(/[ \t　]+$/gm, '').trim();
   }
 
   // &ruby(読み){表記} から 表記と読みを両方取り出す
@@ -277,6 +303,36 @@
       (voice[k] = voice[k] || []).push(m[2]);
     }
   }
+  // 因縁キャラ：名前の行（''太字''・[[リンク]]で始まる、または「：」で終わる短い行）と、続く行の本文。
+  //   「名前：本文」が1行にあるもの（太字・リンクで始まるか、前の因縁が空行で終わったあと）もそのまま読む。
+  //   表の行・折りたたみの見出し（[+]…）・コメント行は区切りとして飛ばす
+  const isVoiceHead = h => /^(?:その)?\d+$|セリフ|台詞|ボイス/.test(h) || !!(G.voiceSlotOf && G.voiceSlotOf(h)) || !!(G.VOICE_UNUSED && G.VOICE_UNUSED.some(([, hs]) => hs.some(u => h === u || h.replace(/\s*(?:その)?[0-9０-９]+$/, '') === u)));
+  function collectRelations(lines) {
+    const out = []; let cur = null, blank = true, skip = false;
+    const close = () => { if (cur) { cur.text = cur.text.join('\n').replace(/\n{3,}/g, '\n\n').trim(); out.push(cur); cur = null; } };
+    for (const raw of lines) {
+      const r = String(raw).trim();
+      if (!r) { blank = true; if (cur) cur.text.push(''); continue; }
+      if (/^\|/.test(r) || /^\/\//.test(r) || /^\[END\]$/.test(r) || /^\[[+-]\]/.test(r)) { close(); blank = true; continue; }
+      const t = stripMarkup(r).replace(/^[・●○■□◆◇]\s*/, '').trim();
+      const strong = /^(?:'{2,3})?\s*\[\[|^'{2,3}/.test(r);
+      const one = t.match(/^([^：:「」。]{1,30})\s*[:：]\s*(.+)$/);
+      // セリフの行（召喚：「…」・その2：「…」）は因縁ではない（セリフとして別に読む）
+      if (one && /^「/.test(one[2]) && isVoiceHead(one[1].trim())) { close(); skip = true; blank = false; continue; }
+      if (one && (strong || blank || !cur)) { close(); skip = false; out.push({ name: one[1].trim(), text: one[2].trim() }); blank = false; continue; }
+      const nameOnly = t.length <= 40 && !/[。！？]/.test(t) && !/^[「『(（]/.test(t) && (strong || /[:：]$/.test(t));
+      if (nameOnly) {
+        close(); const nm = t.replace(/\s*[:：]$/, '').trim();
+        skip = isVoiceHead(nm);   // セリフの見出し（レベルアップ：⏎「…」）は、続く行ごと読み飛ばす
+        if (!skip) cur = { name: nm, text: [] };
+        blank = false; continue;
+      }
+      if (cur && !skip) cur.text.push(t);
+      blank = false;
+    }
+    close();
+    return out.filter(x => x.name && (x.text || '').length);
+  }
   function collectPairs(lines) {
     const out = [];
     for (const l of lines) {
@@ -333,7 +389,7 @@
       if (['commentary', 'personality', 'comment', 'voice', 'other'].includes(s.key)) {
         const t = stripMarkup(body.join('\n')); if (t) sv.text[s.key] = sv.text[s.key] ? sv.text[s.key] + '\n\n' + t : t;
       }
-      if (s.key === 'relations') for (const p of collectPairs(body)) sv.relations.push({ name: p.key, text: p.value });
+      if (s.key === 'relations') sv.relations.push(...collectRelations(body));
       if (s.key === 'fgo') continue;
       collectVoice(body, sv.voice);
       if (s.key !== 'relations' && s.key !== 'np' && s.key !== 'skills' && s.key !== 'classSkills') {
@@ -419,7 +475,23 @@
     }
     if (skipped.length) sv.skippedItems = skipped;
   }
+  // 読み込み済みのデータに残った記法を片付ける（tidy。何度掛けても同じ）。表の行が名前になってしまった因縁は捨てる
+  function tidyAll(sv) {
+    const T = v => typeof v === 'string' ? tidy(v).replace(/[ \t　]+$/gm, '').trim() : v;
+    // 名前・読みの末尾の脚注の番号（『…』*1）も外す（手直し表の鍵には *1 付きの名前は無い）
+    const N = v => typeof v === 'string' ? v.replace(/[ \t　]*[*＊]\d{1,2}$/, '') : v;
+    for (const k of ['classSkills', 'skills', 'nps', 'weapons']) for (const it of sv[k] || []) {
+      it.name = N(it.name); if (it.reading) it.reading = N(it.reading);
+      if (it.desc != null) it.desc = T(it.desc);
+      for (const f of ['rangeRaw', 'maxRaw']) if (typeof it[f] === 'string') it[f] = T(it[f]);
+    }
+    if (sv.text) for (const k of Object.keys(sv.text)) sv.text[k] = T(sv.text[k]);
+    if (sv.profile) for (const k of Object.keys(sv.profile)) sv.profile[k] = T(sv.profile[k]);
+    if (Array.isArray(sv.relations)) sv.relations = sv.relations.filter(r => r && !/^\s*\|/.test(r.name || '')).map(r => Object.assign(r, { name: T(r.name), text: T(r.text) })).filter(r => r.name);
+    if (sv.voice) for (const h of Object.keys(sv.voice)) if (Array.isArray(sv.voice[h])) sv.voice[h] = sv.voice[h].map(T).filter(Boolean);
+  }
   function finalize(sv) {
+    tidyAll(sv);
     cleanItems(sv);
     for (const np of sv.nps || []) {
       if (np.reading) continue;
@@ -441,5 +513,5 @@
     return sv;
   }
 
-  G.parser = { stripMarkup, nameAndReading, parsePage, parseServant, parseClass, parseStatLine, splitNameRank, npTypeKey, parseNum, parseRange, collectPairs, collectVoice, itemsToSkills, finalize, PROFILE_KEYS };
+  G.parser = { stripMarkup, tidy, collectRelations, nameAndReading, parsePage, parseServant, parseClass, parseStatLine, splitNameRank, npTypeKey, parseNum, parseRange, collectPairs, collectVoice, itemsToSkills, finalize, PROFILE_KEYS };
 })(globalThis.HGW = globalThis.HGW || {});
