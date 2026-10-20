@@ -161,6 +161,7 @@ test/
   kagemiya.js       tools/kagemiya.js: EUC-JP URLs and HTML→wiki conversion against kagemiya-lucan.html
   survival.js       Survival tally sanity + playerName never changes the outcome
   simlab.js         simlab core: same counts as survival.js runner, strided halves merge to the same tally, config patch/undo, groups/comments
+  taken.js          result.youTaken: after a recontract with another Master the camp loses the `you` flag and its win is not the player's
   voice.js          Voice slots: every key the code uses is in VOICE_SLOTS; editing lines never changes the outcome
   fgo.js            FGO-style blocks / chant lines are not read as skills or NPs; old data is cleaned at load
   markup.js         Wiki markup cleanup (footnote numbers, folds, tables, decorations), ruby → reading only for NPs, relations reader
@@ -820,6 +821,12 @@ After battle: attacker learns the defender's base; persona reveal; chance to lea
   master_guard×0.1`; success → take over that camp; failure → 60% death, else wounded in church).
 - Player's Master dies (any cause): decision **`gameover`**: `watch` / `skip`. The camp is `retired`.
 - `contract()` and `moveYou()` move the player's identity to another camp, merging knowledge.
+- **The player's dead Master's Servant taken by another Master**: when the player's camp has lost its Master (`gameOver`) and its stray
+  Servant recontracts with a Master that is not the player (`contract(c, m)` with `c.you && !m.you`), `releaseYou(c, taken)` clears
+  `c.you` (and `retired`/`spectate`/`gameOver`; the camp's name/persona stay known) and sets `result.youTaken = { master, day }`
+  (the dead Master's name). The camp is no longer the player's: if it wins, the result screen, records and image card say "あなたは
+  命を落としたが、再契約した…は勝ち残り、聖杯を手にした" (`sum.you.taken = { master, won }`), and `sum.you.won` stays false. Before, `c.you`
+  stayed true and the player was told their camp had won. `test/taken.js` checks it.
 
 ### 7.7 Big decisions (all go through `ask`)
 
@@ -1160,6 +1167,7 @@ node test/content.js            # content overrides
 node test/kagemiya.js           # kagemiya HTML → wiki markup conversion
 node test/survival.js           # survival tally sanity; playerName does not change the war
 node test/simlab.js             # 聖杯戦争で試す core (counts match survival.js, merge, config patch, config field list)
+node test/taken.js [N]          # the player's dead Master's Servant recontracted elsewhere is no longer "you" (result.youTaken)
 node test/voice.js              # voice slots match the code; editing lines does not change the war; per-scene coverage
 node test/fgo.js                # FGO-style blocks and chant lines are not read as skills/NPs (parse + load-time cleanup)
 node test/markup.js             # wiki markup cleanup, ruby (description vs NP reading), relations reader, no markup left in published data

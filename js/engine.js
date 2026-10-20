@@ -105,6 +105,7 @@
     });
     const seenLabel = {};
     for (const c of camps) if (labelCount[c.labelBase] > 1) { seenLabel[c.labelBase] = (seenLabel[c.labelBase] || 0) + 1; c.label = c.labelBase + '（' + '一二三四五六七'[seenLabel[c.labelBase] - 1] + '）'; }
+    let youTaken = null;   // { master, day }：あなたのマスターが死んだあと、サーヴァントが他のマスターと契約した
     let you = opts.player === 'none' ? null : camps[opts.player != null ? opts.player : Math.floor(rnd() * camps.length)];
     if (you) you.you = true;
     // プレイヤーが付けた名前（乱数は使わない。名前は文面にしか出ないので、展開は変わらない）
@@ -1036,10 +1037,20 @@
 
     // はぐれサーヴァント（c）と、サーヴァントを失ったマスター（m）の再契約
     function contract(c, m, how) {
+      // あなたのマスターが死んだ陣営のサーヴァントが、あなた以外のマスターと契約する：もうあなたの陣営ではない
+      const taken = c.you && !m.you ? { master: c.master.name, day } : null;
       c.master = m.master; c.masterAlive = true; c.mhp = m.mhp || Math.round(m.mhpMax * 0.7); c.mhpMax = m.mhpMax; c.cs = m.cs; c.manaMax = m.manaMax; c.mana = Math.round(m.manaMax * 0.5); c.soloLeft = null; c.bond = 20;
       m.merged = true; m.inChurch = false; m.fate = { day, text: (m.fate ? m.fate.text + '。' : '') + `${day}日目、マスターは${c.label}と再契約した` };
       if (m.you) moveYou(m, c);
+      else if (taken) releaseYou(c, taken);
       log('ally', how || `主を失った${nm(c)}と、サーヴァントを失った${mn(c)}が手を結んだ。再契約だ。`, [c.id, m.id], { big: true });
+    }
+    // 死んだあなたのマスターのサーヴァントが他人のものになった：「あなた」の印を外す（これまでに知ったことは残す）
+    // あなたの陣営は失われた扱いで、のちにそのサーヴァントが勝っても、あなたの勝ちにはならない（result.youTaken）
+    function releaseYou(c, taken) {
+      c.you = false; c.retired = false; c.spectate = null; c.gameOver = false;
+      c.knowName.add(c.id); c.knowPersona.add(c.id);
+      youTaken = taken;
     }
     // プレイヤーの陣営を移す（知っていることも引き継ぐ）
     function moveYou(from, to) {
@@ -1496,6 +1507,7 @@
     const result = {
       seed, city, days: day,
       you: you ? you.id : null,
+      youTaken,   // あなたのマスターは死に、サーヴァントは他のマスターと再契約した（その陣営が勝っても、あなたの勝ちではない）
       winner: winner ? winner.id : null,
       ending,   // 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）
       camps: camps.map(c => ({
