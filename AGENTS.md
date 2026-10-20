@@ -1147,9 +1147,9 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (121 servants, 500 wars): errors 0, ~86–87% decided (draw ~10%, wipe ~3–4%), median 18 days (P10 10,
+Baseline with current data (126 servants, 500 wars): errors 0, ~86–87% decided (draw ~10%, wipe ~3–4%), median 18 days (P10 10,
 P90 30), ~15.6 battles, ~24 NP uses, ~4.5 command-seal events, ~1.8 alliances, ~2.6 battles with a helper, ~0.6 three-way pacts and
-~1 coalition per war; top win rate ~40 % (10000 wars); berserker camps lose their Master
+~1 coalition per war; top win rate ~42 % (ユーグ・ド・パイヤン, 10000 wars); berserker camps lose their Master
 ~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 
