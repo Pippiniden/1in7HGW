@@ -187,7 +187,7 @@
     const add = (e, kind) => {
       const p = e.params || {};
       const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
-      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '')
+      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '') + (p.self ? '^self' : '')
         + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }
@@ -223,9 +223,11 @@
   // 常時効果の合計。terrain を渡すと、その場所の条件付き効果も足す。o = { opp: 相手, home: 拠点で戦う }
   //   発動する効果（effects.js の TRIGGERS）は、その場面の起きやすさ（TRIG_W）を掛けて足す（回復・吸収などその場で働く効果は inst で別に数える）
   const trigW = x => (x.trig || 0) * (E.TRIG_W[x.on] || 0) + (x.npTrig || 0) * 0.4 * (E.TRIG_W[x.on] || 0) + (x.npAuto || 0);   // npAuto：自動で発動する宝具
-  const eff = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (x.passive + (E.INSTANT.includes(id) ? 0 : trigW(x))) * condW(x.params, terrain, o), 0);
+  //   self：自分に掛ける不利な効果（params.self）だけを数える。ふだんは数えない
+  const selfOf = (x, self) => !!(x.params && x.params.self) === !!self;
+  const eff = (sv, id, terrain, o, self) => Object.values(sv.effectSummary || {}).filter(x => x.id === id && selfOf(x, self)).reduce((t, x) => t + (x.passive + (E.INSTANT.includes(id) ? 0 : trigW(x))) * condW(x.params, terrain, o), 0);
   // その場で働く効果（回復・吸収など）の見積もり：発動の起きやすさ × 強さ（宝具を使ったときのものは半分）
-  const inst = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (trigW(x) + x.onNP * 0.5) * condW(x.params, terrain, o), 0);
+  const inst = (sv, id, terrain, o, self) => Object.values(sv.effectSummary || {}).filter(x => x.id === id && selfOf(x, self)).reduce((t, x) => t + (trigW(x) + x.onNP * 0.5) * condW(x.params, terrain, o), 0);
 
   // 基本戦闘力：重み付きのステータス平均 × (1 + 戦闘力上昇の合計)
   // sumOf を渡すと、戦闘力上昇の合計をそれで数える（エンジンが、その戦いで本当に働く効果だけを数えるため）
@@ -272,11 +274,22 @@
       const npIni = opts.np ? Math.max(0, ...(x.nps || []).filter(n => !n.disabled).map(n => (n.effects || []).filter(e => e.id === 'initiative')
         .reduce((t, e) => t + e.mag * condW(e.params, T, ox), 0))) : 0;
       const EM = G.CONFIG.ENGINE, mgOf = (z, oz) => Math.max(-0.5, Math.min(1.5, softDef(eff(z, 'mental_guard', T, oz))));   // 精神耐性（engine.js の power と同じ）
-      p *= (1 + eff(x, 'crit', T, ox) * 0.5) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox) + npIni) * 0.08 * (1 - Math.max(0, Math.min(1, mgOf(y, oy) * EM.mentalSurprise))));
+      p *= (1 + eff(x, 'crit', T, ox) * (EM.critMult - 1)) * (1 + Math.min(0.5, eff(x, 'initiative', T, ox) + npIni) * 0.08 * (1 - Math.max(0, Math.min(1, mgOf(y, oy) * EM.mentalSurprise))));
       // ステータスの役割（筋力で与える傷・耐久で受ける傷・幸運でクリティカル）を、打ち合いの強さにならして足す
       const F = G.CONFIG.STAT_FX;
       p *= 1 + (F.str * statDev(x.score.str) + F.end * statDev(x.score.end) + F.lukCrit * Math.max(0, statDev(x.score.luk))) * 0.5;
-      p *= 1 - Math.min(0.5, eff(y, 'debuff', T, oy) * (1 - Math.max(-0.5, Math.min(0.6, mgOf(x, ox) * EM.mentalDebuff))));
+      // 相手の弱体化（種類ごとの防ぎ方は engine.js の power と同じ）と衰弱（戦いのなかで重なっていく分を、押し勝つ回数からならして2倍）
+      const bodyX = Math.max(-0.5, Math.min(0.8, EM.bodyEndGuard * statDev(x.score.end) + softDef(Math.max(0, eff(x, 'magic_guard', T, ox))) * EM.bodyMagicGuard));
+      const deb = eff(y, 'debuff', T, oy) * (1 - Math.max(-0.5, Math.min(0.6, mgOf(x, ox) * EM.mentalDebuff)))
+        + eff(y, 'debuff_mind', T, oy) * (1 - Math.max(-0.5, Math.min(0.8, mgOf(x, ox) * EM.mindDebuffGuard)))
+        + (eff(y, 'debuff_body', T, oy) + inst(y, 'wither', T, oy) * 2) * (1 - bodyX);
+      p *= 1 - Math.min(0.5, deb);
+      // 自分に掛かる不利な効果：弱体化・衰弱（日ごとのものは戦いまでに3回ほど重なるとみる）
+      const selfDeb = eff(x, 'debuff', T, ox, true) + eff(x, 'debuff_mind', T, ox, true) + eff(x, 'debuff_body', T, ox, true) + inst(x, 'wither', T, ox, true) * 3;
+      if (selfDeb) p *= 1 - Math.max(-0.5, Math.min(0.5, selfDeb));
+      // 見切り・反撃：押し負けた一撃をかわす／傷を返す分を、打ち合いの強さにならして足す
+      const dg = Math.min(EM.dodgeCap, Math.max(0, eff(x, 'dodge', T, ox))) * (1 - Math.min(1, Math.max(0, eff(y, 'sure_hit', T, oy))));
+      p *= (1 + dg * 0.5) * (1 + Math.min(1, Math.max(0, eff(x, 'counter', T, ox))) * 0.3);
       // 傷を負っても心が折れない：戦いのあいだの平均の霊基をおよそ7割とみて、その落ち込みの分
       p *= (1 - 0.45 * 0.3 * (1 - Math.max(-0.5, Math.min(0.6, mgOf(x, ox) * EM.mentalWound)))) / (1 - 0.45 * 0.3);
       if (ox.home) p *= 1 + eff(x, 'territory', T, ox);
@@ -286,7 +299,8 @@
       // 相手から受ける状態異常（engine.js の tryAil）：スタン・混乱で戦闘力が下がり、毒で少し削られ、宝具封印・スタンで宝具を使いにくい
       const EN = G.CONFIG.ENGINE;
       const ail = id => Math.min(E.AIL_CAP[id], Math.max(0, eff(y, id, T, oy)))
-        * (1 - Math.min(0.95, Math.max(0, eff(x, 'ail_guard', T, ox) + (id === 'confuse' ? eff(x, 'mental_guard', T, ox) : 0))));
+        * (1 - Math.min(0.95, Math.max(0, eff(x, 'ail_guard', T, ox) + (id === 'confuse' ? eff(x, 'mental_guard', T, ox) : 0))))
+        + Math.min(E.AIL_CAP[id], Math.max(0, eff(x, id, T, ox, true)));   // 自分に掛かる状態異常（防げない）
       const st = ail('stun'), cf = ail('confuse'), ps = ail('poison'), sl = ail('seal');
       p *= (1 - (1 - EN.stunPower) * st) * (1 - (1 - EN.confusePower) * cf) * (1 - 0.08 * ps);
       if (opts.np) p += x.npPeak * 0.5 * (1 - 0.6 * sl) * (1 - 0.5 * st) * (1 + Math.min(0.5, Math.max(-0.5, eff(x, 'np_charge', T, ox))));

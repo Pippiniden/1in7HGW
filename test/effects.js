@@ -119,6 +119,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
     const es = r.entries;
     es.forEach((e, j) => {
       if (!e.text.includes(`宝具『${np.name}』で先手を取った`)) return;
+      if (es.slice(j + 1, j + 3).some(x => /刃を交えずに退いた/.test(x.text))) return;   // 相手が打ち合いの前に退いた戦いは数えない
       opened++;
       const next = es.slice(j + 1).find(x => x.kind === 'np' || x.kind === 'death' || x.head);
       if (next && next.kind === 'np' && next.ids[0] === e.ids[0] && next.text.includes(np.name)) fired++;
@@ -210,6 +211,45 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(aiUse === 0, '自動で発動する宝具を AI が選んで使った、または目を覚ましたあと放たれていない：' + aiUse);
 }
 
+// 5f) 弱体化の種類（精神・肉体）・衰弱・見切り・反撃・攻撃を受ける直前の発動・自分に掛ける不利な効果（params.self）
+{
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster.find(s => s.allSkills.length >= 2 && !Object.values(s.effectSummary).some(x => ['mental_guard', 'magic_guard'].includes(x.id)));
+  const sk = base.allSkills[0].name, sk2 = base.allSkills[1].name;
+  const mk = (specs, specs2) => {
+    const k = base.trueName + '/' + E.normName(sk), k2 = base.trueName + '/' + E.normName(sk2);
+    E.SERVANT_OVERRIDES[k] = specs; E.SERVANT_OVERRIDES[k2] = specs2 || [['power', 3]];
+    const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[k]; delete E.SERVANT_OVERRIDES[k2]; return me;
+  };
+  // 説明：自分に掛ける効果は「自分に・不利」、衰弱の既定は押し勝ったとき（自分に掛けるなら毎朝）
+  const ds = E.describe({ id: 'wither', mag: 0.05, params: { self: true } }), de = E.describe({ id: 'wither', mag: 0.05 });
+  ok(ds.who === 'self' && ds.bad && /毎朝/.test(ds.when) && de.who === 'enemy' && /押し勝った/.test(de.when), '衰弱（自分に・相手に）の説明が違う：' + ds.when + ' / ' + de.when);
+  ok(/攻撃を受ける直前/.test(E.describe({ id: 'guard', mag: 0.1, params: { on: 'hit' } }).when), '攻撃を受ける直前の発動の説明が違う');
+  // 集計：自分に掛ける分は別の鍵（相手に掛ける分に混ざらない）
+  const both = mk([['debuff', 1], ['debuff', 1, { self: true }]]);
+  ok(both.effectSummary['debuff'] && both.effectSummary['debuff^self'], '自分に掛ける効果が集計で分かれていない：' + Object.keys(both.effectSummary).join(','));
+  // 見積もり：精神弱体は精神耐性で、肉体弱体は耐久・対魔力で防がれる。自分に掛ける弱体化は自分を弱くする
+  const foeMind = mk([['debuff_mind', 3]]), foeBody = mk([['debuff_body', 3]]), calm = mk([['mental_guard', 3]]), warded = mk([['magic_guard', 4]]), plain = mk([['power', 0]]);
+  const pa = (x, y) => B.battleOdds(x, y, {}).pA;
+  ok(pa(calm, foeMind) - pa(plain, foeMind) > pa(calm, foeBody) - pa(plain, foeBody), '精神耐性が精神弱体を防いでいない');
+  ok(pa(warded, foeBody) - pa(plain, foeBody) > pa(warded, foeMind) - pa(plain, foeMind), '対魔力が肉体弱体を防いでいない');
+  ok(B.battleOdds(mk([['debuff', 2, { self: true }]]), roster[1], {}).a < B.battleOdds(plain, roster[1], {}).a, '自分に掛ける弱体化が見積もりで自分を弱くしていない');
+  // エンジン：記録に出る
+  const me = mk([['counter', 4], ['dodge', 3], ['wither', 4], ['stun', 2, { self: true }], ['wither', 2, { self: true, on: 'round' }]], [['guard', 2, { on: 'hit' }]]);
+  const ros = roster.filter(s => s.id !== base.id).slice(0, 7).concat([me]);
+  const keys = { counter: '反撃を返した', dodge: '見切った', wither: 'じわじわと蝕んでいく', selfWither: 'その身を少しずつ蝕んでいく', selfStun: '言うことを聞かなくなった', hit: `『${sk2}』が発動した` };
+  const seen = {}; let errs = 0;
+  for (let i = 0; i < 40; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'fx' + i, player: 'none', war: { pick: 'open' } }); } catch (e) { errs++; console.error(e); continue; }
+    for (const e of r.entries) for (const [k, w] of Object.entries(keys)) if (e.text.includes(w)) seen[k] = (seen[k] || 0) + 1;
+    ok(r.entries.every(e => !/undefined|NaN|\{[SON]\}/.test(e.text)), '記録に undefined / NaN / 差し込み残り：' + (r.entries.find(e => /undefined|NaN|\{[SON]\}/.test(e.text)) || {}).text);
+  }
+  ok(!errs, '新しい効果を持つ英霊で戦争がエラーになった');
+  ok(Object.keys(keys).every(k => seen[k] > 0), '働いていない効果がある：' + JSON.stringify(seen));
+  const r1 = H.engine.runWar({ roster: ros, seed: 'fx-det', player: 'none', war: { pick: 'open' } }), r2 = H.engine.runWar({ roster: ros, seed: 'fx-det', player: 'none', war: { pick: 'open' } });
+  ok(JSON.stringify(r1.entries.map(e => e.text)) === JSON.stringify(r2.entries.map(e => e.text)), '新しい効果で展開が決まらない');
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -227,5 +267,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;

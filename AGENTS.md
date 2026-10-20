@@ -369,8 +369,8 @@ The engine understands only a fixed set of **effect primitives**. Every skill an
 
 | Phase | IDs |
 |---|---|
-| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff`, `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard` (see 7.5 Mental resistance); ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
-| damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `weakness` (vs tag), `master_guard` |
+| battle | `power` (+combat power rate), `power_vs` (vs `params.tag`), `debuff` (unclassified), `debuff_mind`, `debuff_body`, `wither` (stacking, see 7.5 Debuff kinds), `crit`, `pierce` (ignore defence/guts), `sure_hit` (cancels the opponent's evade), `dmg_plus` (flat damage dealt), `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt` (helper takes the hit more often), `anti_master`, `mental_guard` (see 7.5 Mental resistance); ailments `poison`, `stun`, `confuse`, `seal`, `skill_seal` and their resistance `ail_guard` (see 7.5 Ailments); instant: `heal`, `drain_hp`, `mana_gain`, `drain_mana`, `strip`, `cleanse`, `self_strip` (see Triggers) |
+| damage | `guard`, `magic_guard`, `dmg_cut` (flat damage taken), `dodge` (avoid a lost exchange's hit), `counter` (return part of the damage taken), `weakness` (vs tag), `master_guard` |
 | lethal | `guts` |
 | encounter | `stealth`, `detect`, `reveal` (learn names), `conceal` (hide name) |
 | scout | `intel` |
@@ -387,10 +387,11 @@ Each has `base`, `unit` (rate/chance/days/pt/flag) and optional `fixed`/`byRank`
 陣営・魔力, 同盟・マスター, その他 (any id not listed falls into その他). The editors build their `<select>` with `E.effOptionsHtml` (one `<optgroup>`
 per genre) and roster.html's legend has one header row per genre.
 **Triggers** (`params.on`, `E.TRIGGERS`/`TRIG_JA`): `''` always (the old passive behaviour), `start` battle start, `round` every exchange, `win` /
-`lose` after winning / losing an exchange, `pinch` hp < `pinchAt` (once per battle), `np` when the servant fires an NP, `kill` after killing the
+`lose` after winning / losing an exchange (`lose` after the damage), `hit` just before taking the hit of a lost exchange (temp effects gained here — guard, dodge — already
+apply to that hit), `pinch` hp < `pinchAt` (once per battle), `np` when the servant fires an NP, `kill` after killing the
 opponent, `day` every morning (outside battle). With `params.cost` (mana paid per activation; skipped when short — `round` + cost = "fires every
 exchange while mana lasts"), `params.uses` (max per battle; start/pinch/kill are once anyway) and `params.chance` (rolled per activation, not per
-battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal) act on the spot; without
+battle). **Instant** ids (`E.INSTANT`: heal, drain_hp, mana_gain, drain_mana, strip, cleanse, self_strip, skill_seal, wither) act on the spot; without
 `on` a skill's instant uses `EFFECTS[id].trig` (heal → pinch, drain_* → win, mana_gain/strip/cleanse/self_strip → start, skill_seal → win)
 (`E.trigOf`). Other effects with `on` go to `c.temp` when triggered: until the battle ends (`round`: that exchange only, `rnd` flag; the same
 source never stacks), or to `c.dayTemp` for `day`/`kill` (until next morning; copied into `c.temp` at the next battle start). **NP effects**:
@@ -403,6 +404,12 @@ non-instant effects × `E.TRIG_W[on]` (start/round/always 1, day 0.8, win 0.5, l
 × up to 1.5). ranking.html's abilities count `trig`/`npTrig` the same way. Editors (roster/submit) have 発動/魔力/回数 fields (`E.trigFieldsHtml`,
 `E.readTrig`) and, for strip/self_strip only, 止める効果 (`E.stripFieldsHtml`/`E.readStrip`, grouped `<select>` → `params.eff`); `describe().when` uses `E.trigText` (e.g. 「押し勝ったとき発動・魔力10を払って（その戦いの終わりまで）」) and `condShort` adds
 〈trigger〉.
+**Self-inflicted** (`params.self`, only for `E.SELF_IDS` = debuff/debuff_mind/debuff_body/wither/poison/stun/confuse/seal; editor checkbox
+`E.selfFieldsHtml`/`E.readSelf`, 「自分に掛ける」): the effect hits its holder and cannot be resisted. Summary keys add `^self`; the engine's
+`eff/effS/ailInfo(c, id, T, self)` and build's `eff/inst(…, self)` count self entries only when `self` is true (never as outgoing effects).
+Self debuffs scale the holder's own power; self ailments are rolled for the holder every round (`SELF_AIL`, own log lines `SELF_AIL_LINE` or
+`params.msg`); self wither defaults to `on: 'day'` (`EFFECTS.wither.selfTrig`, `E.trigOf`) and goes to `c.witherSelf`, which never fades
+(cleanse clears it). `describe` uses `SELF_FX` (who 自分, bad). Use for drawbacks or servants meant to weaken over time.
 **Conditions** (any effect, combinable; `E.COND_OPTS`, `E.condText`, `E.condShort`, `E.hasCond`):
 - `params.cond`: `'水辺'|'森'|'山'|'夜'` (terrain / night battles), `'拠点'` (fighting at its own base), `'瀕死'` (own hp < `ENGINE.pinchAt` 40).
 - `params.vs`: an opponent trait tag — the effect works only against opponents with that tag (power_vs/weakness keep using `params.tag`).
@@ -558,7 +565,7 @@ prologue: compose war, create masters (+persona), assign policies, log summons
 for day = 1..maxDays (30):
   yield tick → player focus
   dayPhase:
-    alliances dissolve when alive ≤ allianceBreakAt (3); persona-based AI betrayal at ≤ 4
+    alliances dissolve when alive ≤ allianceBreakAt (3); persona-based AI betrayal at ≤ 4; coalition leader; pact support (mana/heal/items)
     world event (eventChance 0.25)
     council for the player every councilEvery (5) days
     for each alive camp (shuffled):
@@ -659,6 +666,25 @@ scale the target's power by the expected stun/confuse/poison and its NP add-on b
 wording only (毒を与える/猛毒/毒性, 相手を行動不能/麻痺させ/石化させ, 混乱させ/幻覚作用/幻惑の効果, 宝具を封じ, 毒・状態異常への耐性);
 `SKILL_DICT` has 耐毒/対毒/毒耐性 → ail_guard. On the current data 7 skills/NPs gained an ailment.
 
+**Debuff kinds, wither, dodge, counter.** Received debuff in `power()`: `debuff × rMind × (1 − clamp(mgd × mentalDebuff))` +
+`debuff_mind × rMind × (1 − clamp(mgd × mindDebuffGuard 1, −0.5, 0.8))` + `debuff_body × (1 − bodyRes)`, capped at 0.5, × (1 − cleanse);
+`rMind` = Master mind factor, `bodyRes(y)` = `clamp(bodyEndGuard 0.3 × end dev + softDef(magic_guard) × bodyMagicGuard 0.5, −0.5, 0.8)`.
+Keyword rule `debuffKind` picks the kind from the sentence (`MIND_WORDS` 恐怖/威圧/幻惑/精神…, `BODY_WORDS` 呪い/衰弱/重圧/毒/肉体…); dict:
+呪術/呪詛/対英雄/拷問技術 body, 幻術/傾国の寵姫/正気喪失/領域外の生命/獅子心/黄金の杯 mind. **Wither** (instant, default `win`): target
+`c.wither += mag × (1 − bodyRes) × (1 − cleanse)` (≤ `witherCap` 0.5 together with `witherSelf`), power × (1 − wither); it persists across
+battles and days; each morning it clears with `witherFade` 0.2 (×2 the morning after a rest day, `c.rested`); cleanse clears it. **Dodge**:
+after the `hit` trigger, `chance(min(dodgeCap 0.5, dodge) × (1 − sure_hit))` skips instakill and damage (and the poison/seal infliction) of
+that exchange. **Counter**: if the target survives the hit, the winner loses `dmg × min(1, counter)` (logged once per battle). Keyword
+rules: 反撃/カウンター/返り討ち → counter (not anecdotes 「逸話から」「反撃するよう」), 衰弱/徐々に弱… → wither. `battleOdds`: debuff kinds
+with the same resistances, wither ≈ 2 × its instant estimate as a debuff, self debuffs/wither (×3) and self ailments, dodge (× 1 + 0.5·p),
+counter (× 1 + 0.3·c). **Balance by standard amounts** (half the roster gets the base × 1 of an effect, the other half in a second run; win-rate gain of the
+holders, 6000–10000 wars; power +10 % ≈ +1.6 pt): guts base 0.35 → 0.20 (it was worth 2.6× a power skill), crit base 0.15, counter 0.15, dodge 0.10, wither
+0.12 (fade 0.2), regen heal `regenHeal` 30 (was ×60), guard's weight in power `defPowerW` 0.4. **Crit** multiplier `critMult` 2 (1.5 made a 10 % crit
+worth +5 % damage) and a lethal crit cuts the target's guts chance by `critGuts` 0.5 (`l.critHit`, read in `lethal`). `np_boost` base 0.25
+(was 0.15: an NP exchange is usually won anyway). **Detect** used to lower its holders' win rate (more fights found, scouting all day):
+day-action weight `detectScout` 1 (was 3), find bonus `detectFind` 0.5 (was 0.8), being found −detect × `detectWary` 0.4, and a hunter that
+finds its target gets `surprise += min(detectEdgeCap 0.1, (detect − target detect × 0.5) × detectEdge 0.3)`.
+
 **Mental resistance** (`mental_guard`). Besides resisting charm/confuse (chance = its magnitude, with ail_guard and the Master's mind),
 `power()` uses `mgd = clamp(softDef(mental_guard), −0.5, 1.5)` (stacked sources soften like the defences) for three more roles, each with
 an `ENGINE` knob (0 = off): received `debuff` × (1 − clamp(mgd × `mentalDebuff` 0.5, −0.5, 0.6)); the opponent's `surprise` (initiative /
@@ -668,7 +694,24 @@ assault bonus) × (1 − clamp(mental_guard × `mentalSurprise` 1, 0, 1)); and t
 win rate by −0.02 pt in 3000 wars. With the new roles: +0.44 pt (10000 wars; debuff+surprise alone +0.15, `mentalWound` 0.6 +0.89). The
 wound role favours durable servants that win while hurt: ユーグ・ド・パイヤン (mental_guard 0.86) 36.5 % → 42.9 % (0.6: 45 %, 0: 39 %).
 
-**Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`): x's ally joins with
+**Alliances (pacts).** `c.pact` = pact number; members are the alive camps with the same number (`allies(c)`, `isAlly(a, b)`,
+`pactOf(c)`). Up to `ENGINE.allianceMax` (3) camps: `canPact(a, b, alive)` needs both Masters alive, at most one side already in a pact,
+the joint size ≤ max, more than `allianceBreakAt + 1` alive and ≥ 2 camps left outside; `formPact` (the free side joins the other's pact;
+members learn each other's true names), `leavePact` (a pact of one dissolves; called on death and betrayal). The snapshot keeps `ally`
+(first ally id) and adds `allies` (all ids; the UI lists them). AI negotiation: day-action weight `allyActW` 0.6 (+negotiate, persona),
+acceptance `allyAccept` 0.2. Betrayal (≤ 4 alive, council `betray` and persona) targets `betrayTarget` (the ally easiest to kill); at ≤ 3
+alive all pacts dissolve. **Joint operations** (`pactOps`, night start): per pact of ≥ 2 members with a living Master, chance `jointOp` 0.3
+(+ rally, +0.15 when the coalition target is outside) to pick a target (the coalition leader, else the outsider with most kills×10 + power);
+members get `c.op` (cleared after the night): hunt chance + `jointHunt`, the op target is their fixed target, `joinP` + `jointJoin` when the
+fight is against it; the target's base is shared. **Support** (`pactSupport`, each morning, no rnd): mana from a member above 60 % to one
+below 35 % (`allyManaShare` 15), `heal_other × allyHeal` 40 hp from each healer to wounded members, one item from a member with ≥ 2 to one
+with 0; logged for the player at most once per 3 days per kind. **Coalition**: `leaderOf(alive)` = the unique camp with the most kills
+(+1 for a bounty) if ≥ `coalitionAt` 1; non-leader pairs get `coalitionAlly` 0.2 on acceptance and `coalitionAllyW` 0.6 on the
+negotiation weight, AI proposals avoid the leader, pact members add `coalitionTarget` 2 (outsiders × 0.25) to the leader as a hunt
+target; a world log announces it once per leader. In 500 wars: alliances 0.6 → 1.8, battles with a helper 0.75 → 2.6, three-way pacts
+0.55, coalitions ~1 per war (`test/sim.js` prints `joinPerWar`, `trioPerWar`, `coalitionPerWar`).
+
+**Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`) tries each ally in camp order (one helper at most):
 `clamp(allyJoin 0.3 + hunting 0.15 + defending its own base 0.2 + rally(x) + rally(ally) + persona ally×0.5 − wander 0.2, 0.05, 0.85)`
 (not if it already fought, hp < 40, retired, or the player's focus says `night === false`; player focus attack +0.3). Passed as
 `ctx.helpA/helpB`. The helper is logged (`kind 'ally'`, big), uses NPs, adds `(combatPower × hp factor + npBoost) × allyAssist 0.45 ×
@@ -759,7 +802,7 @@ After battle: attacker learns the defender's base; persona reveal; chance to lea
 
 | kind | when | option keys |
 |---|---|---|
-| `council` | every 5 days, player alive with master | `assault:<id>`, `boost`, `move`, `ally:<id>`, `betray`, `deduce:<id>`, `familiar`, `recover`, `pass` (max 3 + pass, weighted by situation) |
+| `council` | every 5 days, player alive with master | `assault:<id>`, `boost`, `move`, `ally:<id>` (propose, invite into or join a pact), `betray`, `deduce:<id>`, `familiar`, `recover`, `pass` (max 3 + pass, weighted by situation) |
 | `cs` | servant about to die, seals left | `escape`, `rally`, `none` |
 | `ally` | another camp proposes alliance | `yes`, `no` |
 | `recontract` | a stray seeks a master (player servant-less) | `yes`, `no` |
@@ -1104,8 +1147,9 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (119 servants, 500 wars): errors 0, ~88–89% decided (draw ~11–12%), median 18 days (P10 10,
-P90 30), ~15 battles, ~24 NP uses, ~4.3 command-seal events, ~0.6 joint (allied) battles per war; berserker camps lose their Master
+Baseline with current data (126 servants, 500 wars): errors 0, ~86–87% decided (draw ~10%, wipe ~3–4%), median 18 days (P10 10,
+P90 30), ~15.6 battles, ~24 NP uses, ~4.5 command-seal events, ~1.8 alliances, ~2.6 battles with a helper, ~0.6 three-way pacts and
+~1 coalition per war; top win rate ~42 % (ユーグ・ド・パイヤン, 10000 wars); berserker camps lose their Master
 ~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 

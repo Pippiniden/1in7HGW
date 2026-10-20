@@ -221,6 +221,7 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .erow .econd input[data-e=vs] { width: 9em; }
 .erow .econd input[data-e=chance] { width: 4.5em; }
 #edLegend tr.lg th { text-align: left; font-size: 12px; color: var(--accent); padding-top: 10px; border-bottom: 1px solid var(--rule); }
+.eself { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eself[hidden] { display: none; } .eself label { display: inline-flex; align-items: center; gap: 4px; } .erow .eself input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
 .estrip { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .estrip[hidden] { display: none; } .estrip label { display: inline-flex; align-items: center; gap: 4px; } .erow .estrip select { width: auto; max-width: 16em; }
 .etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
 .etrig label { display: inline-flex; align-items: center; gap: 4px; }
@@ -1073,7 +1074,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const c = q('cond').value || cond; if (c) p.cond = c;
     const vs = q('vs').value.trim(); if (vs) p.vs = vs;
     const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-    readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p);
+    readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p); E.readSelf(q, id, p);
     return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
   }
   // 条件欄の選択肢（効果の条件は effects.js の COND_OPTS。知らない値はそのまま残す）
@@ -1104,12 +1105,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const [id, f, p] = spec || ['power', 1, null];
     const pv = p ? p.tag || p.stat || '' : '';
     const div = document.createElement('div'); div.className = 'erow';
-    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="${esc(E.paramHint(id) || '竜 / luck')}"><button class="sm ghost" title="削除">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, edCtx && edCtx.kind === 'n')}${E.stripFieldsHtml(id, p, esc)}${statFields(id, p)}`;
+    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="${esc(E.paramHint(id) || '竜 / luck')}"><button class="sm ghost" title="削除">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, edCtx && edCtx.kind === 'n')}${E.stripFieldsHtml(id, p, esc)}${E.selfFieldsHtml(id, p, esc)}${statFields(id, p)}`;
     const fx = document.createElement('div'); fx.className = 'efx';
     div.querySelector('button').onclick = () => { div.remove(); fx.remove(); };
     div.addEventListener('input', () => edExplain(div));
     div.addEventListener('change', e => {
-      if (e.target.matches('[data-e=id]')) { const st = div.querySelector('.estat'), id2 = e.target.value; st.hidden = !E.AILMENTS[id2]; st.querySelector('[data-e=name]').placeholder = E.AILMENTS[id2] || ''; st.querySelector('[data-e=msg]').placeholder = E.AIL_MSG_HINT[id2] || ''; div.querySelector('[data-e=p]').placeholder = E.paramHint(id2) || '竜 / luck'; div.querySelector('.estrip').hidden = !E.STRIP_IDS.includes(id2); }
+      if (e.target.matches('[data-e=id]')) { const st = div.querySelector('.estat'), id2 = e.target.value; st.hidden = !E.AILMENTS[id2]; st.querySelector('[data-e=name]').placeholder = E.AILMENTS[id2] || ''; st.querySelector('[data-e=msg]').placeholder = E.AIL_MSG_HINT[id2] || ''; div.querySelector('[data-e=p]').placeholder = E.paramHint(id2) || '竜 / luck'; div.querySelector('.estrip').hidden = !E.STRIP_IDS.includes(id2); div.querySelector('.eself').hidden = !E.SELF_IDS.includes(id2); }
       edExplain(div);
     });
     $('#edRows').appendChild(div); $('#edRows').appendChild(fx);
