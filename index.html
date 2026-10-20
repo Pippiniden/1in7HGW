@@ -127,6 +127,24 @@ button { font: inherit; color: inherit; }
 .data label.file { color: var(--cyan); text-decoration: underline; cursor: pointer; }
 .data input[type=file] { display: none; }
 .foot { margin-top: 28px; font-size: 12px; color: var(--mute); line-height: 1.9; }
+/* 参戦サーヴァントの設定（ゲームのコンセプトに反するので、ランキングと同じく最下部に目立たせずに置く） */
+.cast { margin-top: 10px; }
+.cast > summary { cursor: pointer; color: var(--mute); display: inline-block; }
+.cast > summary:hover, .cast > summary:focus-visible { color: var(--cyan); }
+.cast-in { margin-top: 8px; padding: 10px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.cast-in p { margin: 0 0 6px; }
+.cast-sum { color: var(--ice); }
+.cast-sum.warn { color: var(--seal); }
+.cast-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.cast .btn { min-height: 30px; padding: 2px 12px; font-size: 12px; --cut: 7px; }
+.cast-cls { margin: 0 0 12px; }
+.cast-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.cast-hd b { color: var(--ice); }
+.cast-hd .n { color: var(--mute); font: 12px var(--en); margin-right: auto; }
+.cast-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 10px; }
+.cast-sv { display: flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; font-size: 13px; color: var(--ice); }
+.cast-sv input { accent-color: var(--cyan); width: 16px; height: 16px; flex: none; margin: 0; }
+.cast-sv.off { color: var(--mute); text-decoration: line-through; }
 .over { margin: -6px 0 0; font-size: 12px; color: var(--mute); }
 .field .hint { margin: 6px 0 0; font-size: 12px; color: var(--mute); }
 .daysel { display: flex; align-items: center; gap: 14px; max-width: 420px; }
@@ -664,6 +682,16 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   </div>
   <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。</p>
   <p class="foot spoil">すべての英霊の真名・強さ・優勝率を見比べる<a href="ranking.html" id="rankLink">強さランキング</a>もあります（真名が分かってしまうので、戦争の中で推し量りたい人は開かないでください）。</p>
+  <details class="foot cast" id="castBox" hidden>
+    <summary>参戦サーヴァントの設定</summary>
+    <div class="cast-in">
+      <p>戦争に呼ばれるサーヴァントを絞れます。真名がすべて見えてしまううえ、顔ぶれを選ぶと戦争の意外性が薄れるので、推し量る楽しみを残したい人は開かないでください。</p>
+      <p class="cast-sum" id="castSum" aria-live="polite"></p>
+      <div class="cast-acts"><button class="btn" id="castAllOn" type="button">全体を全選択</button><button class="btn" id="castAllOff" type="button">全体を全解除</button></div>
+      <div id="castList"></div>
+      <p>外したサーヴァントは、七騎の抽選にも、クラスの代役にも呼ばれません。クラスの全員を外すと、その席は別のクラスの英霊が代役で埋めます。設定はこのブラウザに残り、共有リンク（<code>ex=</code>）・中断中の戦争・これまでの記録にも、その戦争の分が一緒に保存されます。</p>
+    </div>
+  </details>
 </section>
 
 <section class="war">
@@ -840,6 +868,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const DEF_DAYS = H.CONFIG.ENGINE.maxDays, MIN_DAYS = 10, MAX_DAYS = 100;
   let maxDays = DEF_DAYS, extraOn = true, pickMode = 'class'; // この戦争の長さ、エクストラクラスを加えるか、七騎の選び方（class / open）
+  let castEx = [];                                            // この戦争で参戦から外したサーヴァントの id
+  let excluded = new Set(), exInited = false;                 // 最初の画面で参戦から外している id（設定）と、URL の ex を読んだか
   const FOCUS = H.engine.FOCUS, FOCUS_BY_CODE = Object.fromEntries(Object.entries(FOCUS).map(([k, v]) => [v.code, k]));
   const qs = new URLSearchParams(location.search);
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -848,16 +878,82 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // ---------- データ ----------
   function dataReady(res, label) {
     roster = res.servants; masters = res.masters || []; source = label;
+    initExcluded();
     const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
     const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
     const pub = label === 'local' ? ` ・ <a href="#" id="usePub">公開データに戻す</a>` : '';
-    $('#data').innerHTML = roster.length >= 2 ? `<b>${roster.length}</b> 騎のサーヴァントから七騎が選ばれる（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}`
+    $('#data').innerHTML = roster.length >= 2 ? `<span id="castTxt"></span>（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}`
       : `サーヴァントが足りません（${roster.length}騎）。${err}`;
-    $('#go').disabled = roster.length < 2;
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
     const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
+    buildCast(); syncCast();
   }
+
+  // ---------- 参戦サーヴァントの設定 ----------
+  // 戦争に呼ばれるサーヴァントを絞る。ゲームのコンセプトに反するので、最下部に目立たせずに置く。
+  // 外した騎の id は excluded（画面の設定）に入れ、戦争には roster から外した castRosterOf() を渡す。
+  // 何も外さなければ roster そのものを渡すので、今までと同じ戦争になる。
+  const EX_KEY = 'hgw.exclude.v1', MIN_CAST = 7;
+  const exLoad = () => { try { const a = JSON.parse(localStorage.getItem(EX_KEY) || '[]'); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; } catch (e) { return []; } };
+  const exSave = () => { try { if (excluded.size) localStorage.setItem(EX_KEY, JSON.stringify([...excluded])); else localStorage.removeItem(EX_KEY); } catch (e) { /* 保存できなくても動く */ } };
+  // URL の ex は、リスト（読み込んだ順）の番号を36進数にして . でつないだもの
+  const exParam = ids => ids.map(id => roster.findIndex(s => s.id === id)).filter(i => i >= 0).map(i => i.toString(36)).join('.');
+  const exFromParam = p => String(p || '').split('.').map(t => parseInt(t, 36)).filter(i => i >= 0 && i < roster.length).map(i => roster[i].id);
+  const exIds = ids => (Array.isArray(ids) ? ids : []).filter(id => typeof id === 'string' && roster.some(s => s.id === id));
+  // 共有リンク（seed あり）で開いたときは、リンクの ex だけを見る（保存した設定は使わない。長さ・クラスの選び方と同じ）
+  function initExcluded() {
+    const fromUrl = !exInited && qs.has('seed'); exInited = true;
+    const have = new Set(roster.map(s => s.id));
+    excluded = new Set((fromUrl ? exFromParam(qs.get('ex')) : exLoad()).filter(id => have.has(id)));
+  }
+  const castCount = () => roster.length - excluded.size;
+  const castMin = () => Math.max(2, Math.min(MIN_CAST, roster.length)); // 七騎そろえるのに要る数（リストが少ないときはそれに合わせる）
+  const castRosterOf = ids => { if (!ids.length) return roster; const x = new Set(ids); return roster.filter(s => !x.has(s.id)); };
+  // クラスごとのまとまり（標準クラスは config.js の並び、エクストラはクラス名ごと）
+  const castKey = s => s.class.key === 'extra' ? 'extra:' + (s.class.label || '') : s.class.key;
+  function castGroups() {
+    const defs = Object.keys(H.CONFIG.CLASS_DEFS), g = new Map();
+    roster.forEach((s, i) => {
+      const k = castKey(s);
+      if (!g.has(k)) g.set(k, { key: k, label: (k.indexOf('extra:') === 0 ? s.class.label : (H.CONFIG.CLASS_DEFS[k] || {}).label) || s.class.label || k, idx: [] });
+      g.get(k).idx.push(i);
+    });
+    const rank = k => { const j = defs.indexOf(k.indexOf('extra:') === 0 ? 'extra' : k); return j < 0 ? 999 : j; };
+    return [...g.values()].sort((a, b) => rank(a.key) - rank(b.key));
+  }
+  let castG = [];
+  function buildCast() {
+    $('#castBox').hidden = roster.length < 2;
+    castG = castGroups();
+    $('#castList').innerHTML = castG.map((g, gi) => `<div class="cast-cls" role="group" aria-label="${esc(g.label)}">
+      <div class="cast-hd"><b>${esc(g.label)}</b><span class="n" data-n="${gi}"></span><button class="btn" type="button" data-g="${gi}" data-on="1">全選択</button><button class="btn" type="button" data-g="${gi}" data-on="0">全解除</button></div>
+      <div class="cast-list">${g.idx.map(i => `<label class="cast-sv"><input type="checkbox" data-i="${i}"><span>${esc(roster[i].trueName)}</span></label>`).join('')}</div></div>`).join('');
+  }
+  // 画面を今の設定に合わせる（チェック・人数・開戦ボタン）
+  function syncCast() {
+    const n = castCount(), min = castMin();
+    $('#castBox').querySelectorAll('input[data-i]').forEach(cb => { const on = !excluded.has(roster[+cb.dataset.i].id); cb.checked = on; cb.parentNode.classList.toggle('off', !on); });
+    castG.forEach((g, gi) => { const el = $(`#castList [data-n="${gi}"]`); if (el) el.textContent = `${g.idx.filter(i => !excluded.has(roster[i].id)).length} / ${g.idx.length}`; });
+    const sum = $('#castSum');
+    sum.textContent = n < min ? `参戦するのは ${n} 騎です。開戦するには ${min} 騎以上が必要です。`
+      : excluded.size ? `参戦するのは ${n} 騎です（全 ${roster.length} 騎のうち ${excluded.size} 騎を外しています）。` : `全 ${roster.length} 騎が参戦します（既定）。`;
+    sum.classList.toggle('warn', n < min);
+    const tx = $('#castTxt');
+    if (tx) tx.innerHTML = excluded.size ? `参戦に設定した <b>${n}</b> 騎（全${roster.length}騎）から七騎が選ばれる` : `<b>${roster.length}</b> 騎のサーヴァントから七騎が選ばれる`;
+    $('#go').disabled = n < min;
+  }
+  function setCast(idxs, on) {
+    for (const i of idxs) { const id = roster[i].id; if (on) excluded.delete(id); else excluded.add(id); }
+    exSave(); syncCast();
+  }
+  $('#castBox').addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button'); if (!b) return;
+    if (b.id === 'castAllOn') setCast(roster.map((s, i) => i), true);
+    else if (b.id === 'castAllOff') setCast(roster.map((s, i) => i), false);
+    else if (b.dataset.g != null && castG[+b.dataset.g]) setCast(castG[+b.dataset.g].idx, b.dataset.on === '1');
+  });
+  $('#castBox').addEventListener('change', e => { const t = e.target; if (t.matches && t.matches('input[data-i]')) setCast([+t.dataset.i], t.checked); });
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
       + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
@@ -920,7 +1016,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // 戦争を組み立てる（名前を付け直すときも、同じシードで組み直す。名前は乱数を使わないので展開は変わらない）
   function makeGen() {
     out = {};
-    gen = H.engine.warGen({ roster, seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), playerName: playerName || undefined });
+    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), playerName: playerName || undefined });
     pump();
   }
   // o: { seed, view, speed, days: 戦争の長さ, extra: エクストラクラスを加えるか, c: 決断の列, f: 方針の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode,
@@ -928,6 +1024,10 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   //   mode … 'new'（開戦） / 'url'（共有リンクの再現） / 'resume'（続きから） / 'replay'（これまでの記録を再生）
   function start(o) {
     o = o || {};
+    // 参戦を絞った戦争（記録・中断・共有リンクの再現では o.ex、新しく始めるときは画面の設定）
+    const cx = Array.isArray(o.ex) ? exIds(o.ex) : [...excluded];
+    if (roster.length - cx.length < castMin()) { toast(`参戦するサーヴァントが足りません（${castMin()}騎以上が必要です）`); return; }
+    castEx = cx;
     mode = o.mode || 'new';
     seed = o.seed || $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
     view = o.view || document.querySelector('input[name=view]:checked').value;
@@ -996,6 +1096,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (maxDays !== DEF_DAYS) url.searchParams.set('d', maxDays); else url.searchParams.delete('d');
     if (!extraOn) url.searchParams.set('x', '0'); else url.searchParams.delete('x');
     if (pickMode === 'open') url.searchParams.set('p', 'open'); else url.searchParams.delete('p');
+    if (castEx.length) url.searchParams.set('ex', exParam(castEx)); else url.searchParams.delete('ex');
     if (playerName) url.searchParams.set('n', playerName); else url.searchParams.delete('n');
     history.replaceState(null, '', url);
   }
@@ -1780,7 +1881,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const validRecord = r => r && typeof r.seed === 'string' && (r.view === 'you' || r.view === 'all') && Array.isArray(r.c) && typeof r.f === 'string' && r.sum;
   // 長さ・エクストラの無い古い記録は、既定（30日・あり）として扱う
   const recDays = r => clampDays(r.days || DEF_DAYS), recExtra = r => r.extra !== false, recPick = r => r.pick === 'open' ? 'open' : 'class';
-  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : []).join('|');
+  // 参戦から外したサーヴァントの id（無い古い記録は、外していないものとして扱う）
+  const recEx = r => Array.isArray(r.ex) ? r.ex.filter(x => typeof x === 'string') : [];
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : []).join('|');
   const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
   // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
@@ -1789,7 +1892,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (op && !idx) return false; // 開戦の案内の途中は、まだ始まっていない
     const me = lastSnap.find(c => c.you);
     return store.set(SAVE_KEY, {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
       idx, focus, auto: autoAll, speed, name: playerName || undefined, w: words.length ? words : undefined,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
@@ -1808,7 +1911,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function addHistory() {
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
     const rec = {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, c: choices.slice(), f: focusLog,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
       name: playerName || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
@@ -1841,11 +1944,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, words: s.w });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, words: s.w });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), c: r.c, f: r.f, name: r.name, words: r.w });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, words: r.w });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
@@ -1858,6 +1961,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (recDays(r) !== DEF_DAYS) u.searchParams.set('d', recDays(r));
     if (!recExtra(r)) u.searchParams.set('x', '0');
     if (recPick(r) === 'open') u.searchParams.set('p', 'open');
+    if (recEx(r).length) u.searchParams.set('ex', exParam(recEx(r)));
     if (r.name) u.searchParams.set('n', r.name);
     return u.href;
   }
@@ -1881,7 +1985,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
-        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
+        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${recEx(r).length ? ' ・ 参戦を絞った' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
         <p class="rr">${esc(res)}</p>
         ${lastW ? `<p class="rw">「${esc(lastW.text)}」</p>` : ''}
         <div class="ra"><button class="btn" data-rec="${i}" data-how="full">最初から見る</button><button class="btn" data-rec="${i}" data-how="end">結末だけ見る</button><button class="btn" data-rec="${i}" data-how="link">リンクをコピー</button>
