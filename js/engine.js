@@ -1256,14 +1256,20 @@
       }
     }
 
+    // 他の陣営がプレイヤーの拠点を新たに突き止めたとき、一言ログを残す（rnd を使わないので結果は変わらない）
+    function learnLoc(x, t) {
+      if (t.you && !x.you && x !== t && !x.knowLoc.has(t.id) && x.alive) log('scout', `${nm(x)}に、こちらの拠点「${t.base.name}」を突き止められた。`, [t.id, x.id]);
+      x.knowLoc.add(t.id);
+    }
+
     function* doAct(c, act, alive) {
       if (act === 'scout') {
         const t = pick(alive.filter(x => x !== c && x.alive)); if (!t) return;
         if (chance(clamp(0.35 + eff(c, 'intel') + eff(c, 'detect') * 0.5 - eff(t, 'stealth') * 0.6 + FX.mCraftScout * md(c, 'craft'), 0.05, 0.9))) {
-          const newLoc = !c.knowLoc.has(t.id); c.knowLoc.add(t.id);
+          const newLoc = !c.knowLoc.has(t.id); learnLoc(c, t);
           const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + eff(c, 'reveal') + eff(c, 'intel') * 0.3 - eff(t, 'conceal') * 0.6, 0, 0.7));
           if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
-          for (const y of allies(c)) { y.knowLoc.add(t.id); if (nameHit) y.knowName.add(t.id); }
+          for (const y of allies(c)) { learnLoc(y, t); if (nameHit) y.knowName.add(t.id); }
           if (c.you && (newLoc || nameHit)) log('scout', `偵察の結果、${t.label}の拠点は「${t.base.name}」だと突き止めた。` + (nameHit ? `さらに真名が「${t.sv.trueName}」だと分かった。` : ''), [c.id, t.id]);
           else if (c.you) log('day', line('scoutNone', { S: sn(c) }), [c.id]);
         } else if (c.you) log('day', line('scoutFail', { S: sn(c) }), [c.id]);
@@ -1358,7 +1364,7 @@
         any = true;
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
-        if (!home) t.knowLoc.add(h.id);
+        if (!home) learnLoc(t, h);
         if (home && t.masterAlive && chance(Math.min(0.6, eff(h, 'anti_master') * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
           h.fought = t.fought = true;
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
