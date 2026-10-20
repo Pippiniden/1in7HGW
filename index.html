@@ -2112,7 +2112,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const can = canLore(c.id);
       return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
         <div class="row1"><b>${can ? fic(servantOf(c.id).trueName, keyOf(c.id)) : ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
-        <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${c.ally != null && e.snap[c.ally] ? ' ・ ' + esc(e.snap[c.ally].label) + 'と同盟' : ''} ${sealsInline(c.cs)}</div>
+        <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${(() => { const al = (c.allies && c.allies.length ? c.allies : c.ally != null ? [c.ally] : []).filter(i => e.snap[i]); return al.length ? ' ・ ' + al.map(i => esc(e.snap[i].label)).join('・') + 'と同盟' : ''; })()} ${sealsInline(c.cs)}</div>
         ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
       </li>`;
     }).join('');

@@ -119,6 +119,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
     const es = r.entries;
     es.forEach((e, j) => {
       if (!e.text.includes(`宝具『${np.name}』で先手を取った`)) return;
+      if (es.slice(j + 1, j + 3).some(x => /刃を交えずに退いた/.test(x.text))) return;   // 相手が打ち合いの前に退いた戦いは数えない
       opened++;
       const next = es.slice(j + 1).find(x => x.kind === 'np' || x.kind === 'death' || x.head);
       if (next && next.kind === 'np' && next.ids[0] === e.ids[0] && next.text.includes(np.name)) fired++;

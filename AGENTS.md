@@ -565,7 +565,7 @@ prologue: compose war, create masters (+persona), assign policies, log summons
 for day = 1..maxDays (30):
   yield tick → player focus
   dayPhase:
-    alliances dissolve when alive ≤ allianceBreakAt (3); persona-based AI betrayal at ≤ 4
+    alliances dissolve when alive ≤ allianceBreakAt (3); persona-based AI betrayal at ≤ 4; coalition leader; pact support (mana/heal/items)
     world event (eventChance 0.25)
     council for the player every councilEvery (5) days
     for each alive camp (shuffled):
@@ -672,15 +672,18 @@ wording only (毒を与える/猛毒/毒性, 相手を行動不能/麻痺させ/
 Keyword rule `debuffKind` picks the kind from the sentence (`MIND_WORDS` 恐怖/威圧/幻惑/精神…, `BODY_WORDS` 呪い/衰弱/重圧/毒/肉体…); dict:
 呪術/呪詛/対英雄/拷問技術 body, 幻術/傾国の寵姫/正気喪失/領域外の生命/獅子心/黄金の杯 mind. **Wither** (instant, default `win`): target
 `c.wither += mag × (1 − bodyRes) × (1 − cleanse)` (≤ `witherCap` 0.5 together with `witherSelf`), power × (1 − wither); it persists across
-battles and days; each morning it clears with `witherFade` 0.25 (×2 the morning after a rest day, `c.rested`); cleanse clears it. **Dodge**:
+battles and days; each morning it clears with `witherFade` 0.2 (×2 the morning after a rest day, `c.rested`); cleanse clears it. **Dodge**:
 after the `hit` trigger, `chance(min(dodgeCap 0.5, dodge) × (1 − sure_hit))` skips instakill and damage (and the poison/seal infliction) of
 that exchange. **Counter**: if the target survives the hit, the winner loses `dmg × min(1, counter)` (logged once per battle). Keyword
 rules: 反撃/カウンター/返り討ち → counter (not anecdotes 「逸話から」「反撃するよう」), 衰弱/徐々に弱… → wither. `battleOdds`: debuff kinds
 with the same resistances, wither ≈ 2 × its instant estimate as a debuff, self debuffs/wither (×3) and self ailments, dodge (× 1 + 0.5·p),
-counter (× 1 + 0.3·c). **Crit** multiplier is `ENGINE.critMult` (2; 1.5 made a 10 % crit worth +5 % damage), `np_boost` base 0.25 (was 0.15:
-an NP exchange is usually won anyway, so +15 % barely mattered), regen heal on rest days `regenHeal` (40, was 60), guard's weight in power
-`defPowerW` 0.4. **Detect** no longer pulls the day action to scouting ×3 (`detectScout` 1 — holders scouted instead of resting/fortifying
-and lost win rate); a hunter that finds its target gets `surprise += min(detectEdgeCap 0.1, (detect − target detect × 0.5) × detectEdge 0.3)`.
+counter (× 1 + 0.3·c). **Balance by standard amounts** (half the roster gets the base × 1 of an effect, the other half in a second run; win-rate gain of the
+holders, 6000–10000 wars; power +10 % ≈ +1.6 pt): guts base 0.35 → 0.20 (it was worth 2.6× a power skill), crit base 0.15, counter 0.15, dodge 0.10, wither
+0.12 (fade 0.2), regen heal `regenHeal` 30 (was ×60), guard's weight in power `defPowerW` 0.4. **Crit** multiplier `critMult` 2 (1.5 made a 10 % crit
+worth +5 % damage) and a lethal crit cuts the target's guts chance by `critGuts` 0.5 (`l.critHit`, read in `lethal`). `np_boost` base 0.25
+(was 0.15: an NP exchange is usually won anyway). **Detect** used to lower its holders' win rate (more fights found, scouting all day):
+day-action weight `detectScout` 1 (was 3), find bonus `detectFind` 0.5 (was 0.8), being found −detect × `detectWary` 0.4, and a hunter that
+finds its target gets `surprise += min(detectEdgeCap 0.1, (detect − target detect × 0.5) × detectEdge 0.3)`.
 
 **Mental resistance** (`mental_guard`). Besides resisting charm/confuse (chance = its magnitude, with ail_guard and the Master's mind),
 `power()` uses `mgd = clamp(softDef(mental_guard), −0.5, 1.5)` (stacked sources soften like the defences) for three more roles, each with
@@ -691,7 +694,24 @@ assault bonus) × (1 − clamp(mental_guard × `mentalSurprise` 1, 0, 1)); and t
 win rate by −0.02 pt in 3000 wars. With the new roles: +0.44 pt (10000 wars; debuff+surprise alone +0.15, `mentalWound` 0.6 +0.89). The
 wound role favours durable servants that win while hurt: ユーグ・ド・パイヤン (mental_guard 0.86) 36.5 % → 42.9 % (0.6: 45 %, 0: 39 %).
 
-**Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`): x's ally joins with
+**Alliances (pacts).** `c.pact` = pact number; members are the alive camps with the same number (`allies(c)`, `isAlly(a, b)`,
+`pactOf(c)`). Up to `ENGINE.allianceMax` (3) camps: `canPact(a, b, alive)` needs both Masters alive, at most one side already in a pact,
+the joint size ≤ max, more than `allianceBreakAt + 1` alive and ≥ 2 camps left outside; `formPact` (the free side joins the other's pact;
+members learn each other's true names), `leavePact` (a pact of one dissolves; called on death and betrayal). The snapshot keeps `ally`
+(first ally id) and adds `allies` (all ids; the UI lists them). AI negotiation: day-action weight `allyActW` 0.6 (+negotiate, persona),
+acceptance `allyAccept` 0.2. Betrayal (≤ 4 alive, council `betray` and persona) targets `betrayTarget` (the ally easiest to kill); at ≤ 3
+alive all pacts dissolve. **Joint operations** (`pactOps`, night start): per pact of ≥ 2 members with a living Master, chance `jointOp` 0.3
+(+ rally, +0.15 when the coalition target is outside) to pick a target (the coalition leader, else the outsider with most kills×10 + power);
+members get `c.op` (cleared after the night): hunt chance + `jointHunt`, the op target is their fixed target, `joinP` + `jointJoin` when the
+fight is against it; the target's base is shared. **Support** (`pactSupport`, each morning, no rnd): mana from a member above 60 % to one
+below 35 % (`allyManaShare` 15), `heal_other × allyHeal` 40 hp from each healer to wounded members, one item from a member with ≥ 2 to one
+with 0; logged for the player at most once per 3 days per kind. **Coalition**: `leaderOf(alive)` = the unique camp with the most kills
+(+1 for a bounty) if ≥ `coalitionAt` 1; non-leader pairs get `coalitionAlly` 0.2 on acceptance and `coalitionAllyW` 0.6 on the
+negotiation weight, AI proposals avoid the leader, pact members add `coalitionTarget` 2 (outsiders × 0.25) to the leader as a hunt
+target; a world log announces it once per leader. In 500 wars: alliances 0.6 → 1.8, battles with a helper 0.75 → 2.6, three-way pacts
+0.55, coalitions ~1 per war (`test/sim.js` prints `joinPerWar`, `trioPerWar`, `coalitionPerWar`).
+
+**Allies fight together.** `joinAlly(x, enemy, home)` (night phase, before `battle`) tries each ally in camp order (one helper at most):
 `clamp(allyJoin 0.3 + hunting 0.15 + defending its own base 0.2 + rally(x) + rally(ally) + persona ally×0.5 − wander 0.2, 0.05, 0.85)`
 (not if it already fought, hp < 40, retired, or the player's focus says `night === false`; player focus attack +0.3). Passed as
 `ctx.helpA/helpB`. The helper is logged (`kind 'ally'`, big), uses NPs, adds `(combatPower × hp factor + npBoost) × allyAssist 0.45 ×
@@ -782,7 +802,7 @@ After battle: attacker learns the defender's base; persona reveal; chance to lea
 
 | kind | when | option keys |
 |---|---|---|
-| `council` | every 5 days, player alive with master | `assault:<id>`, `boost`, `move`, `ally:<id>`, `betray`, `deduce:<id>`, `familiar`, `recover`, `pass` (max 3 + pass, weighted by situation) |
+| `council` | every 5 days, player alive with master | `assault:<id>`, `boost`, `move`, `ally:<id>` (propose, invite into or join a pact), `betray`, `deduce:<id>`, `familiar`, `recover`, `pass` (max 3 + pass, weighted by situation) |
 | `cs` | servant about to die, seals left | `escape`, `rally`, `none` |
 | `ally` | another camp proposes alliance | `yes`, `no` |
 | `recontract` | a stray seeks a master (player servant-less) | `yes`, `no` |
@@ -1127,8 +1147,9 @@ node test/rebuild.js <dir> [out.json]   # rebuild exported JSON, print per-serva
 python3 -m http.server          # then open http://localhost:8000/
 ```
 
-Baseline with current data (119 servants, 500 wars): errors 0, ~88–89% decided (draw ~11–12%), median 18 days (P10 10,
-P90 30), ~15 battles, ~24 NP uses, ~4.3 command-seal events, ~0.6 joint (allied) battles per war; berserker camps lose their Master
+Baseline with current data (121 servants, 500 wars): errors 0, ~86–87% decided (draw ~10%, wipe ~3–4%), median 18 days (P10 10,
+P90 30), ~15.6 battles, ~24 NP uses, ~4.5 command-seal events, ~1.8 alliances, ~2.6 battles with a helper, ~0.6 three-way pacts and
+~1 coalition per war; top win rate ~40 % (10000 wars); berserker camps lose their Master
 ~4% of the time (others ~2%). Interactive: errors 0, **mismatch 0**,
 ~7 decisions per war.
 

@@ -91,7 +91,7 @@
         id: i, slot: x.slot, substitute: x.substitute, extra: x.extra, sv, master: m, labelBase: base, label: base,
         hp: 100, mhp: 0, mhpMax: 0, mana: 0, manaMax: 0, cs: m.commandSpells,
         alive: true, masterAlive: true, out: false, fate: null, soloLeft: null, inChurch: false, merged: false,
-        base: places[i % places.length], workshop: m.resources.workshop || 0, items: 0, ally: null,
+        base: places[i % places.length], workshop: m.resources.workshop || 0, items: 0, pact: null, op: null,
         knowName: new Set([i]), knowLoc: new Set([i]), temp: [], npBoost: 0, kills: [], npUses: 0, battles: 0,
         hunting: false, hidden: false, wander: false, fought: false, stance: null, usedSup: new Set(),
         bond: 30 + (m.catalyst ? 10 : 0), policy: 'balanced', plan: null, warned: 0, bounty: false, dreams: 0, lifeSeen: new Set(),
@@ -151,7 +151,7 @@
     const snap = () => camps.map(c => ({
       id: c.id, label: c.label, name: known(c) ? c.sv.trueName : null, cls: c.sv.class.label,
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
-      alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.ally, workshop: c.workshop, you: !!c.you, out: c.out,
+      alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.pact == null ? null : (allies(c)[0] || { id: null }).id, allies: c.pact == null ? [] : allies(c).map(x => x.id), workshop: c.workshop, you: !!c.you, out: c.out,
       fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty,
       origin: c.master.originLabel, wish: c.master.wish, base: c.base.name, scene: c.base.scene,
       persona: !you || c.you || you.knowPersona.has(c.id) ? (PER(c).label || null) : null,
@@ -391,6 +391,39 @@
     const md = (c, k) => c.masterAlive ? dev(c.master.stats[k]) : 0;
     const npCostOf = (c, n) => n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag'));
     const active = () => camps.filter(c => c.alive);
+    // ---------- 同盟（c.pact：同じ番号の陣営どうしが同盟。最大 ENG.allianceMax 騎）----------
+    let pactSeq = 0, leader = null, leaderSeen = new Set();
+    const supLog = {};   // 支え合いの記録は、種類ごとに3日に一度まで
+    const allies = c => c.pact == null ? [] : camps.filter(x => x !== c && x.alive && x.pact === c.pact);
+    const isAlly = (a, b) => a !== b && a.pact != null && a.pact === b.pact;
+    const pactOf = c => c.pact == null ? [c] : camps.filter(x => x.alive && x.pact === c.pact);
+    const pactNames = list => list.map(x => nm(x)).join('と');
+    // 手を組めるか：どちらかが同盟の外で、合わせて上限以内、同盟の外に2騎以上残る（残りが少なくなったら組まない）
+    const canPact = (a, b, alive) => a !== b && a.alive && b.alive && a.masterAlive && b.masterAlive && !isAlly(a, b) && (a.pact == null || b.pact == null)
+      && alive.length > ENG.allianceBreakAt + 1 && pactOf(a).length + pactOf(b).length <= ENG.allianceMax && alive.length - pactOf(a).length - pactOf(b).length >= 2;
+    // 手を組む（一方が同盟にいれば、もう一方がそこに加わる）。同盟の中では互いの真名を知らせ合う
+    function formPact(a, b) {
+      const id = a.pact != null ? a.pact : b.pact != null ? b.pact : ++pactSeq;
+      a.pact = id; b.pact = id;
+      const m = pactOf(a);
+      for (const x of m) for (const y of m) if (x !== y) x.knowName.add(y.id);
+      return m;
+    }
+    function leavePact(c) {
+      const id = c.pact; if (id == null) return; c.pact = null;
+      const rest = camps.filter(x => x.pact === id && x.alive);
+      if (rest.length <= 1) for (const x of rest) x.pact = null;
+    }
+    // 裏切るなら、いちばん討ちやすい同盟相手を
+    const betrayTarget = c => allies(c).reduce((a, b) => (a.hp / Math.max(5, a.sv.power) <= b.hp / Math.max(5, b.sv.power) ? a : b));
+    // 包囲網の的：討った数（＋討伐令）がいちばん多く ENG.coalitionAt 以上の陣営（並んでいれば無し）
+    function leaderOf(alive) {
+      let best = null, bs = -1, tie = false;
+      for (const c of alive) { const s = c.kills.length + (c.bounty ? 1 : 0); if (s > bs) { best = c; bs = s; tie = false; } else if (s === bs) tie = true; }
+      return !tie && bs >= ENG.coalitionAt ? best : null;
+    }
+    // 包囲網に加わる2騎か（的がいて、どちらも的でも的の同盟でもない）
+    const coalition = (a, b) => !!leader && leader !== a && leader !== b && !isAlly(leader, a) && !isAlly(leader, b);
     let lastMutual = null;   // 最後に相討ちがあった日（結末の書き分けに使う）
     const isBerserk = c => c.sv.class.key === 'berserker';
     // 維持魔力の倍率：クラス（バーサーカーは重い）× 燃費のスキル
@@ -457,7 +490,7 @@
       c.alive = false; c.out = true; c.hp = 0;
       c.fate = { day, text };
       if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
-      if (c.ally != null) { camps[c.ally].ally = null; c.ally = null; }
+      leavePact(c);
       const head = !by || !fin ? `${nm(c)}が消滅した。${text}。`
         : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${nm(c)}は消滅した。`
         : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
@@ -493,7 +526,9 @@
         return 'guts';
       }
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
-      if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85))) {
+      // 会心の一撃（クリティカルヒット）で受けた致命傷は、踏みとどまりにくい（ENG.critGuts）
+      const gutsK = l.critHit ? 1 - ENG.critGuts : 1; l.critHit = false;
+      if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85) * gutsK)) {
         l.hp = 5 + rnd() * 10;
         log('battle', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]);
         return 'guts';
@@ -789,7 +824,7 @@
           // 筋力の高い側ほど深く斬り込み、耐久の高い側ほど持ちこたえる
           dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(tg, 'end'), 0.6, 1.5);
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
-          if (crit) dmg *= ENG.critMult;
+          if (crit) { dmg *= ENG.critMult; tg.critHit = true; }
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(B.softDef(eff(tg, 'guard', ctx.terrain)) * ENG.guardDmgW, -0.5, ENG.guardDmgCap);
           const flat = eff(w, 'dmg_plus', ctx.terrain) - eff(tg, 'dmg_cut', ctx.terrain);   // ダメージプラス・ダメージカット（固定値）
           if (flat) dmg = Math.max(1, dmg + flat);
@@ -800,6 +835,7 @@
           if (ctr > 0) { w.hp -= dmg * Math.min(1, ctr); if (tg.tLog && !tg.tLog.has('#counter')) { tg.tLog.add('#counter'); log('battle', `${sn(tg)}は退かず、すかさず反撃を返した。`, [tg.id, w.id]); } }
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
+          tg.critHit = false;
           // 押し勝った側も深手で倒れることがある（相手を討ち取った打ち合いなら相討ち）
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
@@ -964,14 +1000,14 @@
           title: '昼の街で',
           body: `人混みの中に、${t.label}のマスターらしき人物を見かけた。`,
           options: [
-            { k: 'talk', label: '声をかける', sub: you.ally == null && alive.length > ENG.allianceBreakAt + 1 ? '同盟の話を持ちかける' : '探りを入れる' },
+            { k: 'talk', label: '声をかける', sub: canPact(you, t, alive) ? (t.pact != null ? `${t.label}たちの同盟に加わる話を持ちかける` : '同盟の話を持ちかける') : '探りを入れる' },
             { k: 'follow', label: '尾行する', sub: '拠点を突き止めたい。気づかれる危険もある' },
             { k: 'ignore', label: '見逃す', sub: '関わらない' },
           ],
         }, () => wpick({ talk: 1, follow: 1, ignore: 1 }));
         if (a === 'talk') {
-          if (you.ally == null && t.ally == null && alive.length > ENG.allianceBreakAt + 1 && chance(clamp(0.2 + eff(you, 'negotiate') + eff(t, 'negotiate') * 0.5, 0, 0.85))) {
-            you.ally = t.id; t.ally = you.id; log('ally', `${mn(you)}と${mn(t)}は喫茶店で向かい合い、手を組むことにした。${nm(you)}と${nm(t)}の同盟だ。`, [you.id, t.id], { big: true });
+          if (canPact(you, t, alive) && chance(clamp(0.2 + eff(you, 'negotiate') + eff(t, 'negotiate') * 0.5 + (coalition(you, t) ? ENG.coalitionAlly : 0), 0, 0.85))) {
+            const m = formPact(you, t); log('ally', `${mn(you)}と${mn(t)}は喫茶店で向かい合い、手を組むことにした。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true });
           } else { if (chance(0.4)) you.knowName.add(t.id); log('event', `${mn(you)}は${mn(t)}と言葉を交わした。${you.knowName.has(t.id) ? `話の端々から、${t.label}の真名は「${t.sv.trueName}」だと察しがついた。` : '腹の探り合いに終わった。'}`, [you.id, t.id]); }
         } else if (a === 'follow') {
           if (chance(0.7 - eff(t, 'detect') * 0.5)) { you.knowLoc.add(t.id); log('scout', `尾行は成功した。${t.label}の拠点は「${t.base.name}」だ。`, [you.id, t.id]); }
@@ -1059,7 +1095,7 @@
     // 作戦会議：状況に合う選択肢を最大3つ出す
     function* council() {
       const c = you, alive = active();
-      const enemies = alive.filter(t => t !== c && t.ally !== c.id);
+      const enemies = alive.filter(t => t !== c && !isAlly(t, c));
       const cand = [];
       const knownT = enemies.filter(t => c.knowLoc.has(t.id));
       if (knownT.length) {
@@ -1068,11 +1104,13 @@
       }
       if (c.cs >= 2) cand.push({ w: 1.5, o: { k: 'boost', label: '令呪を一画使い、霊基を強化する', sub: `3日間、戦闘力+20%（令呪 残り${c.cs}画）` } });
       if (camps.some(t => t !== c && t.alive && t.knowLoc.has(c.id))) cand.push({ w: 2.5, o: { k: 'move', label: '拠点を移す', sub: '居場所を知られている。工房は一から作り直し' } });
-      if (c.ally == null && alive.length > ENG.allianceBreakAt + 1) {
-        const t = pick(enemies.filter(x => x.ally == null && x.masterAlive));
-        if (t) cand.push({ w: 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}に同盟を申し込む`, sub: '残り3騎になるまで互いを襲わない' } });
+      {
+        const ok = enemies.filter(x => canPact(c, x, alive)), pool = leader && leader !== c ? ok.filter(x => x !== leader) : ok;
+        const t = pool.length ? pick(pool) : null;
+        if (t) cand.push({ w: coalition(c, t) ? 3 : 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}${t.pact != null ? 'たちの同盟に加わる' : c.pact != null ? 'を同盟に誘う' : 'に同盟を申し込む'}`,
+          sub: (coalition(c, t) ? `勝ちすぎている${leader.label}への包囲網。` : '') + '残り3騎になるまで互いを襲わず、共に戦い、魔力や手当てを分け合う' } });
       }
-      if (c.ally != null && alive.length <= ENG.allianceBreakAt + 1) { const t = camps[c.ally]; cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
+      if (c.pact != null && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
       // 真名は手がかりから推理する。手がかりの多い相手ほど当たりやすい
       const unk = enemies.filter(t => !c.knowName.has(t.id));
       if (unk.length) {
@@ -1095,9 +1133,9 @@
       else if (k === 'move') { for (const t of camps) if (t !== c) t.knowLoc.delete(c.id); const np = pick(W.places.filter(p => p.name !== c.base.name)); c.base = np; c.workshop = 0; log('council', `${mn(c)}は拠点を「${np.name}」へ移した。`, [c.id]); }
       else if (k.startsWith('ally:')) {
         const t = camps[+k.split(':')[1]];
-        if (chance(clamp(0.25 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0), 0, 0.85))) { c.ally = t.id; t.ally = c.id; c.knowName.add(t.id); log('ally', `${mn(t)}は申し出を受けた。${nm(c)}と${nm(t)}の同盟だ。`, [c.id, t.id], { big: true }); }
+        if (canPact(c, t, active()) && chance(clamp(0.25 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.85))) { const m = formPact(c, t); log('ally', `${mn(t)}は申し出を受けた。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true }); }
         else log('council', `${mn(t)}は申し出を断った。`, [c.id, t.id]);
-      } else if (k === 'betray') { const t = camps[c.ally]; c.ally = null; t.ally = null; c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
+      } else if (k === 'betray') { const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
       else if (k.startsWith('deduce:')) {
         const t = camps[+k.split(':')[1]];
         if (chance(deduceP(c, t))) { c.knowName.add(t.id); log('scout', `これまでの手がかりを突き合わせ、${mn(c)}は${t.label}の真名にたどり着いた——「${t.sv.trueName}」。`, [c.id, t.id], { big: true }); }
@@ -1113,15 +1151,20 @@
       phase = 'day';
       tonight = {};
       const alive = active();
-      if (alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.ally != null) {
-        const o = camps[c.ally]; c.ally = null; o.ally = null;
-        log('ally', `残りが${alive.length}騎となり、${nm(c)}と${nm(o)}の同盟は解消された。`, [c.id, o.id]);
+      if (alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.pact != null) {
+        const m = pactOf(c); for (const x of m) x.pact = null;
+        log('ally', `残りが${alive.length}騎となり、${pactNames(m)}の同盟は解消された。`, m.map(x => x.id));
       }
       // 終盤、同盟を破る陣営（性格による）
-      if (alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.ally != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
-        const t = camps[c.ally]; c.ally = null; t.ally = null; c.assault = t.id; c.betray = true;
+      if (alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.pact != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
+        const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true;
         log('ally', `${mn(c)}が同盟を破った。今夜、${t.label}を討つつもりだ。`, [c.id, t.id], { big: true });
       }
+      // 包囲網：勝ちすぎている陣営が現れると、ほかの陣営は手を組んでそれを狙いやすくなる
+      leader = leaderOf(alive);
+      if (leader && !leaderSeen.has(leader.id) && alive.length > ENG.allianceBreakAt + 1) { leaderSeen.add(leader.id); log('world', `${nm(leader)}の勝ちすぎを警戒し、ほかの陣営が手を結ぼうと動き始めた。`, [leader.id]); }
+      // 同盟の支え合い：魔力を分け、治療の心得のある英霊が味方を手当てし、作った道具を回す（乱数は使わない）
+      pactSupport(alive);
       if (chance(ENG.eventChance)) yield* worldEvent();
 
       // 作戦会議（大きな決断）。数日ごと
@@ -1164,7 +1207,7 @@
           scout: 1 + eff(c, 'intel') * 3 + eff(c, 'detect') * ENG.detectScout,   // 索敵は偵察に向くが、偵察ばかりにならないように
           fortify: c.workshop >= 5 ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
           rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0) + (c.mhp < c.mhpMax * 0.5 && upk(c) > 1.2 ? 1.5 : 0),
-          ally: alive.length > ENG.allianceBreakAt + 1 && c.ally == null && c.masterAlive ? Math.max(0, 0.3 + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) : 0,
+          ally: alive.some(x => canPact(c, x, alive)) ? Math.max(0, ENG.allyActW + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) + (leader && leader !== c && !isAlly(c, leader) ? ENG.coalitionAllyW : 0) : 0,
           hide: eff(c, 'stealth') * 2 + (c.hp < 50 ? 0.5 : 0),
         };
         for (const k in P.day) w[k] *= P.day[k];
@@ -1197,7 +1240,7 @@
           const newLoc = !c.knowLoc.has(t.id); c.knowLoc.add(t.id);
           const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + eff(c, 'reveal') + eff(c, 'intel') * 0.3 - eff(t, 'conceal') * 0.6, 0, 0.7));
           if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
-          if (c.ally != null) { camps[c.ally].knowLoc.add(t.id); if (nameHit) camps[c.ally].knowName.add(t.id); }
+          for (const y of allies(c)) { y.knowLoc.add(t.id); if (nameHit) y.knowName.add(t.id); }
           if (c.you && (newLoc || nameHit)) log('scout', `偵察の結果、${t.label}の拠点は「${t.base.name}」だと突き止めた。` + (nameHit ? `さらに真名が「${t.sv.trueName}」だと分かった。` : ''), [c.id, t.id]);
           else if (c.you) log('day', line('scoutNone', { S: sn(c) }), [c.id]);
         } else if (c.you) log('day', line('scoutFail', { S: sn(c) }), [c.id]);
@@ -1214,17 +1257,19 @@
         c.mana = Math.min(c.manaMax, c.mana + 10); c.spirit = true;
         if (c.you) log('day', line('rest', { S: sn(c) }), [c.id]);
       } else if (act === 'ally') {
-        const cand = alive.filter(x => x !== c && x.alive && x.ally == null && x.masterAlive);
-        if (!cand.length) return;
+        const cand0 = alive.filter(x => canPact(c, x, alive));
+        if (!cand0.length) return;
+        // 包囲網：勝ちすぎている陣営には持ちかけない
+        const cand = leader && leader !== c && cand0.some(x => x !== leader) ? cand0.filter(x => x !== leader) : cand0;
         const t = pick(cand);
-        const p = clamp(0.12 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + perv(t, 'ally'), 0, 0.8);
+        const p = clamp(ENG.allyAccept + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + perv(t, 'ally') + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.8);
         // 申し込まれた側がプレイヤーなら、受けるかどうかを聞く
         const accept = t.you ? (yield* ask(t, 'ally', {
           title: '同盟の申し出',
-          body: `${c.label}${known(c) ? '「' + c.sv.trueName + '」' : ''}のマスター、${mn(c)}から同盟の申し出があった。`,
-          options: [{ k: 'yes', label: '受ける', sub: '互いに襲わず、情報を分け合う。残り3騎で解消' }, { k: 'no', label: '断る', sub: '一人で戦う' }],
+          body: `${c.label}${known(c) ? '「' + c.sv.trueName + '」' : ''}のマスター、${mn(c)}から同盟の申し出があった。` + (c.pact != null ? `（${allies(c).map(x => x.label).join('・')}とすでに手を組んでいる）` : '') + (coalition(c, t) ? `勝ちすぎている${leader.label}を共に討とうという。` : ''),
+          options: [{ k: 'yes', label: '受ける', sub: '互いに襲わず、情報を分け合い、共に戦い、魔力や手当てを分け合う。残り3騎で解消' }, { k: 'no', label: '断る', sub: '一人で戦う' }],
         }, () => chance(p) ? 'yes' : 'no')) === 'yes' : chance(p);
-        if (accept) { c.ally = t.id; t.ally = c.id; if (t.you) t.knowName.add(c.id); log('ally', `${mn(c)}と${mn(t)}が手を組んだ。${nm(c)}と${nm(t)}の同盟だ。`, [c.id, t.id], { big: c.you || t.you }); }
+        if (accept) { const m = formPact(c, t); log('ally', `${mn(c)}と${mn(t)}が手を組んだ。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: m.some(x => x.you) }); }
         else if (c.you) log('day', `${mn(c)}は${t.label}の陣営に同盟を持ちかけたが、断られた。`, [c.id, t.id]);
         else if (t.you) log('day', `${mn(t)}は${c.label}の陣営からの申し出を断った。`, [t.id, c.id]);
       } else if (act === 'hide') {
@@ -1234,14 +1279,19 @@
     }
 
     // ---------- 夜 ----------
+    // 加勢：同盟相手のうち、来られる者が一騎まで（共同作戦で同じ敵を狙っていれば来やすい）
     function joinAlly(x, enemy, home) {
-      if (x.ally == null) return null;
-      const y = camps[x.ally];
-      if (!y || !y.alive || y.fought || y.ally !== x.id || y === enemy || y.hp < 40 || y.retired) return null;
-      const F = focusOf(y);
-      if (F && F.night === false) return null;   // プレイヤーが守り・休み・潜伏の方針なら出ない
-      const p = clamp(ENG.allyJoin + (y.hunting ? 0.15 : 0) + (home === x ? 0.2 : 0) + eff(x, 'rally') + eff(y, 'rally') + perv(y, 'ally') * 0.5 - (y.wander ? 0.2 : 0) + (F && F.night === true ? 0.3 : 0), 0.05, 0.85);
-      return chance(p) ? y : null;
+      for (const y of allies(x)) {
+        if (y.fought || y === enemy || y.hp < 40 || y.retired || isAlly(y, enemy)) continue;
+        const F = focusOf(y);
+        if (F && F.night === false) continue;   // プレイヤーが守り・休み・潜伏の方針なら出ない
+        if (chance(joinP(x, y, enemy, home, F))) return y;
+      }
+      return null;
+    }
+    function joinP(x, y, enemy, home, F) {
+      return clamp(ENG.allyJoin + (y.op != null && y.op === enemy.id ? ENG.jointJoin : 0) + (y.hunting ? 0.15 : 0) + (home === x ? 0.2 : 0) + eff(x, 'rally') + eff(y, 'rally') + perv(y, 'ally') * 0.5 - (y.wander ? 0.2 : 0) + (F && F.night === true ? 0.3 : 0), 0.05, 0.85);
+      
     }
     function* nightPhase() {
       phase = 'night';
@@ -1250,9 +1300,11 @@
       if (tonight.calm) return;
       const avg = alive.reduce((t, c) => t + c.sv.power, 0) / alive.length;
       const finale = day > ENG.maxDays - ENG.finaleDays;
+      yield* pactOps(alive);
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
         let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
+        if (c.op != null) p += ENG.jointHunt;   // 共同作戦の夜
         p = clamp(p, 0.05, 0.95);
         const F = focusOf(c);
         if (c.restNight) { c.restNight = false; c.hunting = false; }
@@ -1264,20 +1316,20 @@
       let any = false;
       for (const h of shuffle(alive)) {
         if (!h.alive || !h.hunting || h.fought) continue;
-        const targets = active().filter(t => t !== h && !t.fought && t.ally !== h.id);
+        const targets = active().filter(t => t !== h && !t.fought && !isAlly(t, h));
         if (!targets.length) continue;
         let t = null;
-        const fixed = h.assault != null ? camps[h.assault] : h.targetPref != null ? camps[h.targetPref] : null;
+        const fixed = h.assault != null ? camps[h.assault] : h.op != null ? camps[h.op] : h.targetPref != null ? camps[h.targetPref] : null;
         if (fixed && targets.includes(fixed)) t = fixed;
         else {
           const tw = {};
-          for (const x of targets) tw[x.id] = 1 + (h.knowLoc.has(x.id) ? 2 : 0) + clamp(h.sv.power / Math.max(5, x.sv.power) - 1, -0.5, 1.5) + (x.hp < 50 ? 0.5 : 0) + (related(h, x) ? 2 : 0) + (x.bounty ? 1.5 : 0);
+          for (const x of targets) tw[x.id] = 1 + (h.knowLoc.has(x.id) ? 2 : 0) + clamp(h.sv.power / Math.max(5, x.sv.power) - 1, -0.5, 1.5) + (x.hp < 50 ? 0.5 : 0) + (related(h, x) ? 2 : 0) + (x.bounty ? 1.5 : 0) + (leader === x && !isAlly(h, x) ? (h.pact != null ? ENG.coalitionTarget : ENG.coalitionTarget * 0.25) : 0);
           t = camps[+wpick(tw)];
         }
         if (h.targetPref != null && !camps[h.targetPref].alive) h.targetPref = null;
         const assault = h.assault != null && t.id === h.assault;
         h.assault = null;
-        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * 0.8 + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - (t.hidden ? 0.2 : 0)
+        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * ENG.detectFind + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - Math.max(0, eff(t, 'detect')) * ENG.detectWary - (t.hidden ? 0.2 : 0)
           + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck') - (tonight.fog ? 0.15 : 0), 0.05, 0.95);
         if (!chance(pf)) { if (h.you) log('night', line('huntMiss', { S: sn(h) }), [h.id]); continue; }
         any = true;
@@ -1296,7 +1348,50 @@
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain, helpA, helpB });
         yield* checkFallen();
       }
+      for (const c of camps) c.op = null;
       if (!any && you && you.alive && !entries.some(e => e.day === day && e.phase === 'night')) log('night', line('quietNight'), []);
+    }
+    // 共同作戦：同盟ごとに、今夜そろって同じ敵を狙うか決める（的は包囲網の的、いなければ同盟の外でいちばん手強い陣営）。
+    //   決まれば、その夜は出撃しやすく、狙いがそろい、加勢にも来やすい。標的の拠点は同盟の中で知らせ合う
+    function* pactOps(alive) {
+      const seen = new Set();
+      for (const c of alive) {
+        if (c.pact == null || seen.has(c.pact)) continue;
+        seen.add(c.pact);
+        const m = pactOf(c).filter(x => x.masterAlive && !x.retired);
+        if (m.length < 2) continue;
+        const outs = alive.filter(x => !m.includes(x) && !isAlly(x, c));
+        if (!outs.length) continue;
+        if (!chance(clamp(ENG.jointOp + m.reduce((t, x) => t + Math.max(0, eff(x, 'rally')), 0) + (leader && outs.includes(leader) ? 0.15 : 0), 0, 0.9))) continue;
+        const t = leader && outs.includes(leader) ? leader : outs.reduce((a, b) => (a.kills.length * 10 + a.sv.power >= b.kills.length * 10 + b.sv.power ? a : b));
+        const knew = m.some(x => x.knowLoc.has(t.id));
+        for (const x of m) { x.op = t.id; if (knew) x.knowLoc.add(t.id); }
+        if (m.some(x => x.you)) log('ally', `${pactNames(m)}は、今夜そろって${nm(t)}を討つと決めた。`, m.map(x => x.id).concat([t.id]));
+      }
+    }
+    // 同盟の支え合い（毎朝）：魔力の乏しい味方に余裕のある味方が魔力を分け、治療の心得のある英霊が味方の傷を手当てし、
+    //   道具を2つ以上持つ味方が持たない味方に1つ回す。乱数は使わない
+    function pactSupport(alive) {
+      const seen = new Set();
+      for (const c of alive) {
+        if (c.pact == null || seen.has(c.pact)) continue;
+        seen.add(c.pact);
+        const m = pactOf(c).filter(x => x.masterAlive);
+        if (m.length < 2) continue;
+        const showYou = m.some(x => x.you), say = (k, txt, ids) => { if (!showYou || (supLog[k] != null && day - supLog[k] < 3)) return; supLog[k] = day; log('ally', txt, ids); };
+        for (const r of m) {
+          if (r.mana >= r.manaMax * 0.35) continue;
+          const g = m.filter(x => x !== r && x.mana > x.manaMax * 0.6).sort((a, b) => b.mana / b.manaMax - a.mana / a.manaMax)[0];
+          if (!g) continue;
+          const v = Math.min(ENG.allyManaShare, g.mana - g.manaMax * 0.5, r.manaMax - r.mana);
+          if (v > 0) { g.mana -= v; r.mana += v; if (g.you || r.you) say('mana', `${mn(g)}が、同盟を組む${mn(r)}に魔力を分けた。`, [g.id, r.id]); }
+        }
+        for (const hl of m) {
+          const k = eff(hl, 'heal_other'); if (!(k > 0)) continue;
+          for (const r of m) if (r !== hl && r.alive && r.hp < 80) { const v = Math.min(100 - r.hp, k * ENG.allyHeal); if (v > 0) { r.hp += v; if (hl.you || r.you) say('heal', `${sn(hl)}が、同盟を組む${sn(r)}の傷を手当てした。`, [hl.id, r.id]); } }
+        }
+        for (const r of m) if (r.items === 0) { const g = m.find(x => x !== r && x.items >= 2); if (g) { g.items--; r.items++; if (g.you || r.you) say('item', `${mn(g)}が、作っておいた道具を${mn(r)}に分けた。`, [g.id, r.id]); } }
+      }
     }
 
     // ---------- 開幕 ----------
