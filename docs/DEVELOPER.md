@@ -55,7 +55,7 @@
 
 - 設定は `localStorage` の `hgw.exclude.v1` に残ります（外した騎の id の配列）。何も外さなければ、今までと同じ戦争になります
 - 外した騎は戦争の展開を変えるので、共有リンクの `ex=`（リストの番号を36進数にして `.` でつないだもの）、中断中の戦争、これまでの記録（`ex`）にその戦争の分が保存され、再現するときはそれが使われます。共有リンクで開いたときは、保存した設定ではなくリンクの設定になります
-- 七騎の抽選にも代役にも使うリストから外した騎を除くだけで、評価（S〜E）・生存曲線・リストの指紋は全員のリストのままです。くわしくは AGENTS.md の「Briefing settings」
+- 七騎の抽選にも代役にも使うリストから外した騎を除くだけで、評価（S〜E）・生存曲線・リストの指紋は全員のリストのままです。
 
 ### 最初の方針のおすすめ（`REC_FOCUS`）
 
@@ -166,7 +166,19 @@ data/
 2. `data/manifest.json` の `servants` にファイル名を1行足す
 3. プッシュ
 
-どちらの方法でも、ゲーム側は読み込むたびに今の規則で組み直します。辞書や規則（`js/effects.js`）を直せば、過去に取り込んだデータにも反映されます。
+方法C：1騎ずつ、コマンドで見る・足す・直す（`servants.json` が大きいので、AIエージェントに任せるときもこれ）
+
+`data/servants.json` は丸ごと読むと非常に長い（約120万字）ので、`tools/servant.js` で1騎ずつ扱います。
+
+- `node tools/servant.js index [--grep 語] [--names]` … 1騎1行の一覧（ステータス・スキル数・宝具数・全部出したときの文字数）
+- `node tools/servant.js show ルーカン` … 強さを決める部分（名前・クラス・ステータス・スキル・宝具・武器）だけを出す（1騎あたり約1,700字）。`--part core,text,voice,profile,relations,meta,source` で解説・セリフ・Wikiの原文なども選べ、`--all` で保存されている形そのまま
+- `node tools/servant.js add 騎.json [別の騎.json …] [--dry-run]` … 個別のJSONを `servants.json` に足す（同じクラス・真名があれば更新）。`show` の出力を直して `add` で戻せる。書いた項目だけが入れ替わり、書かなかった項目（セリフ・解説・原文）は元のまま。新しい騎は 真名・クラス・ステータス（`str end agi mag luk np` をランクの文字列で）があれば足せて、ランクや宝具の種別は自動で読まれる。報告に戦闘力・宝具の威力・要確認が出る。並びと書き方は `incoming.js` と同じなので差分は小さい。`--dry-run` で書き込まずに確かめる
+- `node tools/servant.js check` … 元データの整合（id・ステータス・名前の重複・全員が組み立てられるか）を確かめる。エラーがあれば終了コード1
+- 共通の `--data フォルダ` で、`data/` 以外のフォルダを相手にできます（試し書き用）。確認は `node test/servant.js`
+
+足したあとは `node tools/survival.js` で集計を作り直します（GitHub に上げれば「データの反映」が自動で行う）。効果・ステータス・宝具の扱いの直しは `servants.json` ではなく手直し表（`overrides.json`）に入れるのが基本です。
+
+どの方法でも、ゲーム側は読み込むたびに今の規則で組み直します。辞書や規則（`js/effects.js`）を直せば、過去に取り込んだデータにも反映されます。
 
 リストツールで手元に作ったリストは、同じサイトの `index.html` で「リストツールで作ったリストを使う」を押せば、公開前にそのまま試せます。
 
@@ -353,6 +365,7 @@ FGO風ステータスの表を二重に読んでスキルが増えた、セリ�
 | `.github/workflows/kagemiya.yml` | Actions の「kagemiya から取り込み」 |
 | `.github/workflows/data.yml` | Actions の「データの反映」（`data/incoming/` に上げたファイルの反映と差分のプルリクエスト、データの更新に合わせた集計の作り直し） |
 | `.github/workflows/data-cleanup.yml` | Actions の「アップロードの片付け」（マージせずに閉じたアップロードのファイルを `data/incoming/` から消す） |
+| `tools/servant.js` | 英霊を1騎ずつ見る・足す・直す（一覧 `index`・切り出し `show`・追加 `add`・整合チェック `check`）。`data/servants.json` を丸ごと読まずに済ませる |
 | `tools/incoming.js` | `data/incoming/` のファイルを中身で見分けて `servants.json`・`overrides.json` に反映する |
 | `tools/datadiff.js` | 二つの data フォルダを見比べて、何が変わったかを書く（`tools/datalib.js` で読む） |
 | `ranking.html` | 英霊の強さランキング（評価・優勝率・生存日数・平均勝率・戦闘力・宝具・攻め／守り／粘り／隠密／索敵）。真名が分かるので、ゲームの最初の画面ではいちばん下にだけリンクがある |
