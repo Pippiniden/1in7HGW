@@ -143,10 +143,11 @@
     for (const np of sv.nps) {
       delete np.attack;
       const r = E.resolveNP(np, ctx);
-      Object.assign(np, { attackAuto: r.attack, attackBasis: r.basis, power: r.power, burst: r.burst, cost: r.cost, exposure: r.exposure, multi: r.multi, disabled: r.disabled, effects: r.effects, effectSource: r.source, matched: r.matched || null });
+      Object.assign(np, { mode: r.mode, modeBasis: r.modeBasis, attackAuto: r.attack, attackBasis: r.basis, power: r.power, burst: r.burst, cost: r.cost, exposure: r.exposure, multi: r.multi, disabled: r.disabled, effects: r.effects, effectSource: r.source, matched: r.matched || null });
       np.attackResolved = r.attack;
       if (r.disabled) review.push({ kind: 'np', target: np.name, why: '「今回の召喚では使えない」と読み取ったため使用不可' });
       else if (r.effects.some(e => e.id === 'self_retire')) { const p = r.effects.find(e => e.id === 'self_retire').mag; review.push({ kind: 'np', target: np.name, why: p >= 0.5 ? '使うと自分が脱落する宝具として扱い' : `使うと${Math.round(p * 100)}%の確率で自分が脱落する宝具として扱い` }); }
+      else if (r.modeBasis === 'words') review.push({ kind: 'np', target: np.name, why: `説明文から${E.NP_MODE_JA[r.mode]}の宝具として扱い（効果は持っているだけで働き、毎日の魔力が増える）` });
       else if (r.basis === 'guess') review.push({ kind: 'np', target: np.name, why: '説明文に手がかりが無いため、種別どおり攻撃宝具として扱い' });
       else if (r.basis === 'support-effects') review.push({ kind: 'np', target: np.name, why: '攻撃の表現が見つからないため補助宝具として扱い' });
       if (np.rank && np.rank.base == null) review.push({ kind: 'np', target: np.name, why: 'ランク不明のためC扱い' });
@@ -193,12 +194,19 @@
       else if (kind === 'use') o.onNP += e.mag;
       else { o.passive += e.mag; if (kind === 'skill') { o.by = o.by || {}; o.by[e.from] = (o.by[e.from] || 0) + e.mag; } }
       o.from.push(e.from + (e.persistent ? '(消滅後も持続)' : ''));
+      return o;
     };
     for (const s of sv.allSkills || []) for (const e of s.effects || []) add(e, 'skill');
     // 宝具の効果：戦いの効果は「宝具を使ったその戦いの間」だけ（onNP）。昼・偵察・維持魔力などの効果は持っているだけで働く（passive）
-    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) add(e, E.npOnUse(e) || (e.params && e.params.on) || E.INSTANT.includes(e.id) ? 'use' : 'hold');
+    // 常時発動の宝具はスキルと同じに数える。自動で発動する宝具は「使ったとき」に数え、見積もり用に場面の重みを npAuto に足す
+    for (const np of sv.nps || []) if (!np.disabled) for (const e of np.effects || []) {
+      if (np.mode === 'always') { const k = G.CONFIG.ENGINE.npAlwaysScale; add(k == null || k === 1 ? e : Object.assign({}, e, { mag: e.mag * k }), 'skill'); continue; }
+      const k = E.npOnUse(e) || (e.params && e.params.on) || E.INSTANT.includes(e.id) ? 'use' : 'hold';
+      const o = add(e, k);
+      if (k === 'use' && E.NP_MODE_W[np.mode] && !(e.params && e.params.on)) o.npAuto = (o.npAuto || 0) + e.mag * E.NP_MODE_W[np.mode];
+    }
     const r3 = v => Math.round(v * 1000) / 1000;
-    for (const k in out) { const o = out[k]; o.passive = r3(o.passive); o.onNP = r3(o.onNP); if (o.trig) o.trig = r3(o.trig); if (o.npTrig) o.npTrig = r3(o.npTrig); }
+    for (const k in out) { const o = out[k]; o.passive = r3(o.passive); o.onNP = r3(o.onNP); if (o.trig) o.trig = r3(o.trig); if (o.npTrig) o.npTrig = r3(o.npTrig); if (o.npAuto) o.npAuto = r3(o.npAuto); }
     return out;
   }
   // 見積もり（評価・戦闘力・試し戦い）での条件付き効果の重み（effects.js の効果の条件）。エンジンでは engine.js の condOk で本当に判定する
@@ -214,7 +222,7 @@
   }
   // 常時効果の合計。terrain を渡すと、その場所の条件付き効果も足す。o = { opp: 相手, home: 拠点で戦う }
   //   発動する効果（effects.js の TRIGGERS）は、その場面の起きやすさ（TRIG_W）を掛けて足す（回復・吸収などその場で働く効果は inst で別に数える）
-  const trigW = x => (x.trig || 0) * (E.TRIG_W[x.on] || 0) + (x.npTrig || 0) * 0.4 * (E.TRIG_W[x.on] || 0);
+  const trigW = x => (x.trig || 0) * (E.TRIG_W[x.on] || 0) + (x.npTrig || 0) * 0.4 * (E.TRIG_W[x.on] || 0) + (x.npAuto || 0);   // npAuto：自動で発動する宝具
   const eff = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (x.passive + (E.INSTANT.includes(id) ? 0 : trigW(x))) * condW(x.params, terrain, o), 0);
   // その場で働く効果（回復・吸収など）の見積もり：発動の起きやすさ × 強さ（宝具を使ったときのものは半分）
   const inst = (sv, id, terrain, o) => Object.values(sv.effectSummary || {}).filter(x => x.id === id).reduce((t, x) => t + (trigW(x) + x.onNP * 0.5) * condW(x.params, terrain, o), 0);

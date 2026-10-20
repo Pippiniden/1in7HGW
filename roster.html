@@ -461,6 +461,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <label class="hint"><input type="radio" name="atk" value="auto" checked> 自動</label>
     <label class="hint"><input type="radio" name="atk" value="yes"> 攻撃宝具</label>
     <label class="hint"><input type="radio" name="atk" value="no"> 補助宝具</label>
+    <label class="hint">発動のしかた <select id="edMode"></select></label>
   </div>
   <div class="row" style="margin-bottom:12px">
     <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
@@ -626,7 +627,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(R.label(rk))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / (H.CONFIG.STAT_SCORE || H.CONFIG.RANK_SCORE).EX * 100)}%"></i></div></div>`;
     }).join('');
     const skills = sv.allSkills.map((s, j) => `<tr><td><b>${esc(s.name)}</b> <span class="hint">${esc(R.label(s.rank))}</span>${s.group === 'class' ? '<div class="hint">クラス別</div>' : ''}${s.desc ? `<div class="desc">${esc(s.desc.length > 90 ? s.desc.slice(0, 90) + '…' : s.desc)}</div>` : ''}</td><td>${s.effects.map(e => fmtEff(e)).join('') || '<span class="hint">なし</span>'}</td><td>${srcBadge(s.effectSource)}${s.matched ? `<div class="hint">${esc(s.matched)}</div>` : ''}</td><td><button class="sm" data-ed="${i}:s:${j}">編集</button></td></tr>`).join('');
-    const nps = sv.nps.map((n, j) => `<tr><td><b>${esc(n.name)}</b>${n.reading ? `<div class="hint">${esc(n.reading)}</div>` : ''}<div class="hint">${esc(R.label(n.rank))} · ${esc(n.typeRaw || '種別不明')}${n.maxTargets ? ' · 最大' + n.maxTargets + '人' : ''}</div></td><td>${n.disabled ? '<span class="chip neg">使用不可</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}<span class="chip">消費×${n.cost}</span>${n.effects.filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: true, attack: n.attackResolved })).join('')}</td><td>${srcBadge(n.effectSource)}${n.attackBasis === 'override' ? '<div class="hint">扱いを手直し</div>' : ''}</td><td><button class="sm" data-ed="${i}:n:${j}">編集</button></td></tr>`).join('');
+    const nps = sv.nps.map((n, j) => `<tr><td><b>${esc(n.name)}</b>${n.reading ? `<div class="hint">${esc(n.reading)}</div>` : ''}<div class="hint">${esc(R.label(n.rank))} · ${esc(n.typeRaw || '種別不明')}${n.maxTargets ? ' · 最大' + n.maxTargets + '人' : ''}</div></td><td>${n.disabled ? '<span class="chip neg">使用不可</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}${n.mode ? `<span class="chip">${esc(E.NP_MODE_JA[n.mode])}</span>` : ''}<span class="chip">消費×${n.cost}</span>${n.effects.filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: true, attack: n.attackResolved, npMode: n.mode })).join('')}</td><td>${srcBadge(n.effectSource)}${n.attackBasis === 'override' || n.modeBasis === 'override' ? '<div class="hint">扱いを手直し</div>' : ''}</td><td><button class="sm" data-ed="${i}:n:${j}">編集</button></td></tr>`).join('');
     // 要確認：見て問題なければ「確認した」で消せる（手直し表 reviewed に残り、取り直しても同じ内容なら出てこない）
     const done = sv.reviewDone || [];
     const review = (sv.review.length ? `<div class="box warn rv"><div class="rvhead"><b>要確認（${sv.review.length}）</b>${sv.review.length > 1 ? `<button class="sm" data-rvall="${i}">すべて確認した</button>` : ''}</div><ul>${sv.review.map(r => `<li><span>${esc(r.target)}：${esc(r.why)}</span><button class="sm ghost" data-rvok="${i}|${esc(r.sig)}" title="見て問題なければ消す。取り直して内容が変わったら、また出ます">確認した</button></li>`).join('')}</ul></div>` : '')
@@ -1092,10 +1093,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const rk = np ? (it.rank && it.rank.base ? it.rank : R.parseRank('C')) : it.rank;
     const e = E.instantiate(specOf(div), rk, it.name, 'spec');
     if (!e) { out.textContent = ''; return; }
-    const d = E.describe(e, { np, attack: np && it.attackResolved });
+    const d = E.describe(e, { np, attack: np && it.attackResolved, npMode: np ? edMode() : '' });
     const extra = np && it.attackResolved && e.id === 'power' && !E.hasCond(e.params) ? '（攻撃宝具の威力そのものはランクと種別で決まります。これは使ったその戦いの間の上乗せです）' : '';
     out.innerHTML = `<span class="who">${esc(d.whoJa)}</span>に・${esc(d.when)}：${esc(d.text)}${esc(extra)}`;
   }
+  // 宝具の発動のしかた（effects.js の NP_MODES）。'__auto' は読み取りのまま
+  const edMode = () => { const v = $('#edMode').value; return v === '__auto' ? (edCtx && edCtx.item.mode) || '' : v; };
+  $('#edMode').addEventListener('change', () => { for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r); });
   function edRow(spec) {
     const [id, f, p] = spec || ['power', 1, null];
     const pv = p ? p.tag || p.stat || '' : '';
@@ -1121,9 +1125,16 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
     $('#edAtkRow').hidden = kind !== 'n';
     $('#edNote').textContent = kind === 'n'
-      ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。`
+      ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。「発動のしかた」で、AIが選んで使う代わりに、常時発動（効果はスキルと同じに常に働き、毎日の維持魔力が宝具の消費×${H.CONFIG.ENGINE.npAlwaysUpkeep}だけ増える）や、戦いの始め・瀕死・致命傷などの場面で自動で発動する（1回の戦いに一度、消費は×${H.CONFIG.ENGINE.npAutoCost}）宝具にできます。`
       : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。「発動」を選ぶと、その場面で発動します（魔力を払う・回数を限ることもできます）。回復・吸収・解除は、選ばなければ効果ごとの既定の場面で発動します。';
-    if (kind === 'n') { const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)]; document.querySelector(`input[name=atk][value=${o ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true; }
+    if (kind === 'n') {
+      const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)];
+      document.querySelector(`input[name=atk][value=${o && (o.attack === true || o.attack === false) ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true;
+      const auto = item.modeBasis === 'override' ? '' : E.NP_MODE_JA[item.mode] || 'AIが選んで使う';
+      $('#edMode').innerHTML = `<option value="__auto">読み取りのまま（${esc(item.modeBasis === 'override' ? '説明文からは読み取りなし' : auto)}）</option>` + E.NP_MODES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('');
+      $('#edMode').value = o && o.mode != null ? o.mode : '__auto';
+      for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r);
+    }
     document.querySelector(`input[name=scope][value=${item.effectSource === 'override' ? 'global' : 'servant'}]`).checked = true;
     $('#ed').showModal();
   });
@@ -1137,8 +1148,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global];
     if (scope === 'global') E.SKILL_OVERRIDES[k.global] = specs; else E.SERVANT_OVERRIDES[k.servant] = specs;
     if (edCtx.kind === 'n') {
-      const a = document.querySelector('input[name=atk]:checked').value;
-      if (a === 'auto') delete E.NP_OVERRIDES[k.servant]; else E.NP_OVERRIDES[k.servant] = { attack: a === 'yes' };
+      const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {};
+      if (a !== 'auto') o.attack = a === 'yes';
+      if (m !== '__auto') o.mode = m;
+      if (Object.keys(o).length) E.NP_OVERRIDES[k.servant] = o; else delete E.NP_OVERRIDES[k.servant];
     }
     $('#ed').close(); afterEdit();
   };

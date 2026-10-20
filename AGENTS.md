@@ -301,7 +301,7 @@ Identity: two entries with the same `class.key + trueName` are the same servant;
 - `global` → `SKILL_OVERRIDES`: `'skillName': [[effectId, factor, params?], …]` (all servants)
 - `servant` → `SERVANT_OVERRIDES`: `'trueName/skillOrNpName': [[…]]` (one servant; `[]` = no effects)
 - `stats` → `STAT_OVERRIDES`: `'trueName': { str:'B', … }` (only listed stats replaced)
-- `np` → `NP_OVERRIDES`: `'trueName/npName': { attack: true|false }`
+- `np` → `NP_OVERRIDES`: `'trueName/npName': { attack?: true|false, mode?: '' | 'always' | 'start' | 'win' | 'lose' | 'pinch' | 'lethal' }` (see §5.3 NP modes)
 - `content` → `CONTENT_OVERRIDES`: `'trueName': { skills?, nps?, voice?, text?, profile?, relations?, base }` (see 4.5)
 - `pages` → `PAGE_OVERRIDES`: `'trueName': 'kagemiya page name'` (when the page title differs from the true name, e.g. ハイヌヴェレ → ウンコ)
 - `reviewed` → `REVIEWED`: `'trueName': [review sig, …]` — review items the owner checked off in the roster (「確認した」). `buildServant`
@@ -454,6 +454,16 @@ Anything not from an override or exact dict hit is added to the servant's `revie
 - `power = rank.score × type.power` (attack NPs only); `cost = type.cost × rank.mult × (1 + np_cost)`;
   `exposure` = how likely use reveals the true name (≥1 makes it public; ≥0.8 can trigger a "witnessed" event).
 - `self_retire` (servant drops out after use), `backfire`, `disabled` are detected from text.
+- **NP modes** (`np.mode`, `E.NP_MODES`/`NP_MODE_JA`; `NP_OVERRIDES[key].mode` wins, else `ALWAYS_WORDS` — 常時発動/常時展開/常時型の宝具/常に
+  発動して/常時発揮 — on a non-attack, non-disabled NP gives `'always'`, `modeBasis: 'words'` + a review item; an attack NP is never `always`):
+  `''` the AI picks it (as before); `always` — never "used": its effects are summarised like a skill's (`add(e, 'skill')`, so battle effects are
+  passive and triggers/`by` work), scaled by `ENGINE.npAlwaysScale` (1), and the daily upkeep grows by `npCostOf × ENGINE.npAlwaysUpkeep` (0.15);
+  `start`/`win`/`lose`/`pinch`/`lethal` — fired automatically at that moment, once per battle, costing `npCostOf × ENGINE.npAutoCost` (0.6;
+  skipped when short, except one wild overdraw), never chosen by `useNP`/`openingNP`. Summary: auto NPs' on-use effects add `npAutoW =
+  mag × E.NP_MODE_W[mode]` (start 1, win 0.5, lose 0.4, pinch/lethal 0.3) to `npAuto`, counted by `trigW` in estimates. `describe(e, { np, npMode })`
+  words them 「常時発動」 (as a skill) or 「瀕死になったときに自動で発動（その戦いの間）」. On the current data 4 support NPs read as always:
+  ウェルキンゲトリクス『英雄は死なず』 (25% → ~48% win rate in 3000 wars — guts/power now permanent), ヘンドリック『喜望の岬は遠く』 (37 → 41%),
+  カルキ『英雄よ、末世に在れ』, ヘレネ『望まずとも災禍は降り注ぐ』 (within noise).
 
 ### 5.4 Summary and power (`build.js`)
 
@@ -649,6 +659,14 @@ one command seal is spent for `sealMana` (30) mana, else `masterDown` (「…に
 (berserker or `uncontrolled` ≥ `wildAt` 0.1): no low-mana power penalty, and may fire one NP per battle without enough mana
 (overdraw → drain). Berserkers also pay `wildMana` (3) × upk per round. AI rests more when the Master is drained (mhp < 50%, upk > 1.2)
 and hunts less with mana < 20% (non-berserkers).
+
+**Automatic NPs** (`autoNP(c, o, ev, ctx, round)`, see §5.3 NP modes): called after the `start` triggers, in `pinch()`, after `win`/`lose`
+triggers, and at the top of `lethal()` (via `c.bx.ctx`; if the NP brought hp above 0 → 「宝具の力が…つなぎ止めた」, returns `'guts'`; guts from
+the NP's own effects count in the normal guts roll that follows). `c.autoUsed` (once per battle) and `c.autoQ`: an automatic **attack** NP is
+queued and fired at the head of the next round (its power must land in an exchange), logged 「…の宝具『…』がひとりでに目を覚ました。」 when it
+fires; support NPs fire on the spot. Sealed NPs do not fire; stun does not stop them. `fireNP(c, o, np, round, ctx, costMul)` takes the cost
+multiplier. Always-on NPs add `npCostOf × npAlwaysUpkeep` to the daily upkeep (also while resting). No `rnd()` for servants without such NPs
+(verified identical to main over 150 seeds with the text detection switched off).
 
 **Triggered effects** (`fireTrig(c, o, on, T)` → `applyTrig`; see §5.1 Triggers). Hooks: battle start (after items/initiative, every
 participant), each round (`round`, after the poison tick) then `pinch()`, after each exchange (`win` for the winner, `lose` for the target, `kill`

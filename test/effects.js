@@ -177,6 +177,38 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(B.battleOdds(tough, roster[1], {}).a > B.battleOdds(plain, roster[1], {}).a, '回復・ダメージカットが見積もりに効いていない');
 }
 
+// 5e) 宝具の発動のしかた（NP_OVERRIDES の mode）：常時発動・自動で発動
+{
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const base = roster.find(s => s.nps.filter(n => !n.disabled).length >= 2 && s.nps.some(n => n.attackResolved && !n.disabled));
+  const atk = base.nps.find(n => n.attackResolved && !n.disabled), sup = base.nps.find(n => n !== atk && !n.disabled);
+  const ka = base.trueName + '/' + E.normName(atk.name), ks = base.trueName + '/' + E.normName(sup.name);
+  const mk = (ma, ms, effs) => {
+    E.NP_OVERRIDES[ka] = { mode: ma }; E.NP_OVERRIDES[ks] = { attack: false, mode: ms }; if (effs) E.SERVANT_OVERRIDES[ks] = effs;
+    const me = B.fromJSON(B.toLean(base)); delete E.NP_OVERRIDES[ka]; delete E.NP_OVERRIDES[ks]; delete E.SERVANT_OVERRIDES[ks]; return me;
+  };
+  // 常時発動：効果は常時に数え、攻撃宝具にはならない
+  const al = mk('', 'always', [['power', 2]]);
+  ok(al.nps.find(n => n.name === sup.name).mode === 'always' && al.effectSummary.power && al.effectSummary.power.passive >= 0.2, '常時発動の宝具の効果が常時に数えられていない');
+  ok(/常に/.test(E.describe({ id: 'power', mag: 0.2 }, { np: true, npMode: 'always' }).when) && /瀕死になったときに自動で発動/.test(E.describe({ id: 'heal', mag: 20 }, { np: true, npMode: 'pinch' }).when), '発動のしかたの説明が違う');
+  // 自動で発動：攻撃宝具は戦いの始めに、補助宝具（回復）は致命傷の瞬間に。AI は選ばない
+  const au = mk('start', 'lethal', [['heal', 3]]);
+  const ros = roster.filter(s => s.id !== base.id).slice(0, 7).concat([au]);
+  let woke = 0, saved = 0, aiUse = 0, errs = 0;
+  for (let i = 0; i < 30; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'npmode' + i, player: 'none', war: { pick: 'open' } }); } catch (e) { errs++; console.error(e); continue; }
+    const es = r.entries;
+    es.forEach((e, j) => {
+      if (e.text.includes(`宝具『${atk.name}』がひとりでに目を覚ました`)) { woke++; if (!es.slice(j + 1, j + 4).some(x => x.kind === 'np' && x.text.includes(atk.name))) aiUse += 100; }
+      if (e.text.includes('宝具の力が、消えかけた')) saved++;
+      if (e.kind === 'np' && e.text.includes(atk.name) && !(es[j - 1] && /ひとりでに/.test(es[j - 1].text)) && !es.slice(Math.max(0, j - 6), j).some(x => /ひとりでに/.test(x.text))) aiUse++;
+    });
+  }
+  ok(!errs, '自動で発動する宝具で戦争がエラーになった');
+  ok(woke > 0 && saved > 0, `自動で発動していない（戦いの始め ${woke}・致命傷 ${saved}）`);
+  ok(aiUse === 0, '自動で発動する宝具を AI が選んで使った、または目を覚ましたあと放たれていない：' + aiUse);
+}
+
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
 {
   const lean = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.find(s => B.fromJSON(s).review.some(r => r.kind === 'skill'));
@@ -194,5 +226,5 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／要確認の消し込み`);
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／要確認の消し込み`);
 process.exitCode = fail ? 1 : 0;
