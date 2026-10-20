@@ -1,6 +1,6 @@
 # kagemiya@ふたば からサーヴァントのページを名前で取り込み、data/servants.json を更新する
 # 使い方：GitHub の Actions →「kagemiya から取り込み」→「Run workflow」でページ名を入れて実行
-# 中身は tools/kagemiya.js（README の「kagemiya から名前で取り込む」も参照）
+# 中身は tools/kagemiya.js（docs/DEVELOPER.md の「kagemiya から名前で取り込む」も参照）
 name: kagemiya から取り込み
 
 on:

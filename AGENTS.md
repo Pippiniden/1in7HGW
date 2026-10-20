@@ -1,8 +1,8 @@
 # AGENTS.md — Holy Grail War Simulator (1in7HGW)
 
 Specification for AI coding agents. It explains what the project is, how the code is organised, how the
-simulation works, and the rules to follow when changing it. Human-facing docs are in Japanese (`README.md`,
-`img/scenes/README.md`); this file is the English reference for agents.
+simulation works, and the rules to follow when changing it. Human-facing docs are in Japanese (`README.md` = player
+manual, `docs/DEVELOPER.md` = maintainer/developer manual, `img/scenes/README.md`); this file is the English reference for agents.
 
 > Keep this file in sync when you change architecture, data formats, engine rules, decision keys or the
 > URL format. Numbers quoted here come from `js/config.js`; if they disagree, the code wins.
@@ -21,7 +21,7 @@ and their Masters fight in one city for up to **30 in-game days**; the last Serv
   **kagemiya@ふたば** (https://seesaawiki.jp/kagemiya/, a Seesaa wiki the repo owner administers).
   Wiki pages are parsed into data; contributors send additions, the owner merges and pushes them.
 - Hosted as a **static site on GitHub Pages**: https://github.com/Pippiniden/1in7HGW
-- All UI text, log text, comments and the human README are **Japanese**. Keep new user-facing strings in
+- All UI text, log text, comments and the human docs (README.md, docs/DEVELOPER.md) are **Japanese**. Keep new user-facing strings in
   Japanese and match the existing tone (literary, Fate-like narration). Code comments are Japanese too;
   English comments are acceptable but stay consistent within a file.
 
@@ -99,7 +99,8 @@ ranking.html        Strength ranking of all servants (spoilers: linked only at t
 img/classes/        Class icons, 128×128 WebP: saber archer lancer rider caster assassin berserker + extra (any extra class)
 img/faces/          (optional) face portraits `<displayed true name>.webp|png|jpg` (README.md); most servants have none
 .nojekyll
-README.md           Japanese user/maintainer guide
+README.md           Japanese player manual (what GitHub shows by default: how to play, screens, request form, installing as an app)
+docs/DEVELOPER.md   Japanese developer/maintainer manual (publishing, data import and upload workflow, roster tool, engine details, tuning, file map, storage keys)
 AGENTS.md           This file
 data/
   manifest.json     Which data files to load
@@ -1232,7 +1233,7 @@ Chromium + Playwright may be available in agent sandboxes.
 - The owner (GitHub `Pippiniden`) reviews and merges. **Do not push to `main`.** Work on a feature branch
   from the latest `origin/main` and open a PR.
 - Commit messages and PR descriptions are written in Japanese for the owner.
-- Keep changes focused; update `README.md` (Japanese, for humans) and this file when behaviour or formats change.
+- Keep changes focused; update the human docs and this file when behaviour or formats change: `README.md` is the **player manual** (keep it free of code identifiers, file paths and tuning numbers; put those in `docs/DEVELOPER.md`), `docs/DEVELOPER.md` is the **developer manual**.
 - Do not commit generated images, large temporary files, or local test output.
 
 ## 12. Gotchas
