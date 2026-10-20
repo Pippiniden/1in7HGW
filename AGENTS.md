@@ -850,7 +850,7 @@ Council details: `deduce:<id>` targets the unknown enemy with most clues;
 `p = clamp(0.08 + clues×0.12 + reveal + intel×0.5 + master.craft/500 − target conceal×0.5, 0.03, 0.9)`;
 failure adds a clue. The church **never** reveals true names (design decision by the owner) — names are
 learned by deduction, NPs, scouting, battle insight, relations, alliance, or conversation.
-`familiar` costs 20 mana and may reveal one unknown enemy base.
+`familiar` costs 20 mana and may reveal one unknown enemy base. `move` clears every other camp's `knowLoc` of the mover; later rediscoveries by AI camps (their scouting, a night meeting away from home, an ally's scouting) go through `learnLoc(x, t)`, which logs a `scout` line for the player (`…に、こちらの拠点「…」を突き止められた`) — no `rnd()`, outcomes unchanged.
 
 ### 7.8 Events
 
