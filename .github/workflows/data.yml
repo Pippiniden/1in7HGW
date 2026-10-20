@@ -103,6 +103,14 @@ jobs:
             git push -q origin "HEAD:refs/heads/$BR"
             if gh pr create --base "${GITHUB_REF_NAME}" --head "$BR" --title "$TITLE" --body-file "$RUNNER_TEMP/summary.md"; then
               echo "プルリクエストを作りました（ブランチ $BR）。中身を確かめてマージしてください" >> "$GITHUB_STEP_SUMMARY"
+              # 前のアップロードのプルリクエストは閉じる。data/incoming/ のファイルは main に残っているので、新しいほうにも入っている
+              #（GITHUB_TOKEN で閉じたものは「アップロードの片付け」を動かさないので、ファイルは消えない）
+              NEW=$(gh pr view "$BR" --json number --jq .number || true)
+              gh pr list --state open --limit 50 --json number,headRefName --jq '.[] | select(.headRefName | startswith("data/upload-")) | select(.headRefName != "'"$BR"'") | .number' | while read -r n; do
+                [ -n "$n" ] || continue
+                gh pr close "$n" --delete-branch --comment "新しいアップロードの反映 #${NEW} にまとめました（このプルリクエストのファイルも #${NEW} に入っています）。#${NEW} を確かめてマージしてください" || true
+                echo "前のプルリクエスト #$n は #${NEW} にまとめて閉じました" >> "$GITHUB_STEP_SUMMARY"
+              done
             else
               # 成功のまま終わると反映されたように見えるので、失敗にして知らせる
               echo "::error::プルリクエストを自動で作れませんでした（main には入っていません）。Settings → Actions → General の「Allow GitHub Actions to create and approve pull requests」を有効にしてから動かし直すか、ブランチ $BR からプルリクエストを手で作ってください"

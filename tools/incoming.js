@@ -19,6 +19,14 @@ const { B, H } = L;
 const DATA = path.join(L.ROOT, 'data'), IN = path.join(DATA, 'incoming');
 const SV = path.join(DATA, 'servants.json'), OV = path.join(DATA, 'overrides.json');
 const REPLACE_SHARE = 0.8;
+// 上げた順：git でそのファイルが入った時刻（Actions は履歴をすべて取ってくる）。分からなければ名前の数字の順（「(9)」<「(10)」）
+const { execFileSync } = require('child_process');
+function uploadedAt(f) {
+  try { const t = +execFileSync('git', ['log', '-1', '--format=%ct', '--', path.relative(L.ROOT, path.join(IN, f))], { cwd: L.ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); return t > 0 ? t : null; }
+  catch (e) { return null; }
+}
+const dlNum = f => +((f.match(/\((\d+)\)\.[^.]+$/) || [0, 0])[1]);   // ブラウザが付ける「(3)」。付いていない最初のファイルは 0
+const natural = (a, b) => dlNum(a) - dlNum(b) || a.localeCompare(b, 'ja', { numeric: true });
 
 function main() {
   const args = process.argv.slice(2), summary = args.includes('--summary') ? args[args.indexOf('--summary') + 1] : null;
@@ -54,8 +62,13 @@ function main() {
         const n = L.listOf(d).length; return n ? [1, -n] : [3, 0];
       } catch (e) { return [3, 0]; }
     };
-    const rk = new Map(files.map(f => [f, rankOf(f)]));
-    files.sort((a, b) => rk.get(a)[0] - rk.get(b)[0] || rk.get(a)[1] - rk.get(b)[1] || a.localeCompare(b));
+    // 同じ種類の中では、上げた順（古いもの → 新しいもの）。名前の順だと「(10)」が「(9)」より先になり、古いものがあとから上書きしていた
+    const rk = new Map(files.map(f => [f, rankOf(f)])), at = new Map(files.map(f => [f, uploadedAt(f)]));
+    const byTime = (a, b) => (at.get(a) != null && at.get(b) != null ? at.get(a) - at.get(b) : 0) || natural(a, b);
+    files.sort((a, b) => rk.get(a)[0] - rk.get(b)[0] || rk.get(a)[1] - rk.get(b)[1] || byTime(a, b));
+    // 手直し表はまるごと置き換えなので、いちばん新しいものだけを使う（古いものは片付ける。閉じたプルリクエストの取り残しなど）
+    const ovFiles = files.filter(f => rk.get(f)[0] === 0), newestOv = ovFiles[ovFiles.length - 1];
+    const fmtAt = f => at.get(f) ? new Date(at.get(f) * 1000).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }) : '';
     for (const f of files) {
       const p = path.join(IN, f), label = `「${f}」`;
       try {
@@ -68,8 +81,9 @@ function main() {
           const d = JSON.parse(fs.readFileSync(p, 'utf8'));
           const fmt = d && !Array.isArray(d) ? d.format : null;
           if (fmt === 'hgw-overrides' || (!fmt && d && (d.global || d.servant || d.content || d.stats || d.np || d.pages || d.reviewed) && !d.servants)) {
+            if (f !== newestOv) { notes.push(`- ${label}${fmtAt(f) ? `（${fmtAt(f)}）` : ''}：より新しい手直し表「${newestOv}」があるので使わず、片付けました`); fs.unlinkSync(p); applied++; continue; }
             L.clearOverrides(); L.applyOverrides(d);
-            notes.push(`- ${label}：手直し表（overrides.json）をまるごと置き換え`);
+            notes.push(`- ${label}${fmtAt(f) ? `（${fmtAt(f)}）` : ''}：手直し表（overrides.json）をまるごと置き換え`);
           } else if (fmt === 'hgw-servants' || Array.isArray(d) || (d && d.kind === 'servant')) {
             const raw = L.listOf(d);
             if (!raw.length) throw new Error('英霊が入っていません');

@@ -402,7 +402,9 @@
       p *= (1 + effVs(c, 'power_vs', o, T)) * (1 - effVs(c, 'weakness', o, T) * 0.5);
       const magHeavy = o.sv.class.key === 'caster' || (o.sv.score.mag || 0) > (o.sv.score.str || 0);
       const sure = clamp(eff(o, 'sure_hit', T), 0, 1);   // 相手の必中は回避を打ち消す
-      const def = clamp(eff(c, 'guard', T) * 0.5 + eff(c, 'evade', T) * 0.5 * (1 - sure) + (magHeavy ? eff(c, 'magic_guard', T) * 0.5 : 0), -0.5, 0.6) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
+      // 守り：被ダメージ軽減・回避・魔術耐性（重なると鈍る：ENGINE.defSoft）。被ダメージ軽減は受ける傷の軽減（下の打ち合い）とは別に、ここでも効く
+      const sd0 = B.softDef;
+      const def = clamp(sd0(eff(c, 'guard', T)) * ENG.defPowerW + sd0(eff(c, 'evade', T)) * 0.5 * (1 - sure) + (magHeavy ? sd0(eff(c, 'magic_guard', T)) * 0.5 : 0), -0.5, ENG.defCap) * (1 - Math.min(0.9, eff(o, 'pierce', T)));
       p *= 1 + def;
       p *= 1 - Math.min(0.5, eff(o, 'debuff', T) * clamp(1 - FX.mMindDebuff * md(c, 'mind'), 0.4, 1.5) * (1 - (c.cleanse || 0)));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
@@ -744,7 +746,7 @@
           dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(tg, 'end'), 0.6, 1.5);
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
           if (crit) dmg *= 1.5;
-          if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(eff(tg, 'guard', ctx.terrain) * 0.5, -0.5, 0.5);
+          if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(B.softDef(eff(tg, 'guard', ctx.terrain)) * ENG.guardDmgW, -0.5, ENG.guardDmgCap);
           const flat = eff(w, 'dmg_plus', ctx.terrain) - eff(tg, 'dmg_cut', ctx.terrain);   // ダメージプラス・ダメージカット（固定値）
           if (flat) dmg = Math.max(1, dmg + flat);
           // 負けた側も一矢報いる：戦闘力が拮抗しているほど返す傷は大きい（rnd は増やさない）
