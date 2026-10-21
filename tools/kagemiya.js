@@ -281,6 +281,12 @@ async function main() {
       let i = list.findIndex(s => s.id === lean.id);
       if (i < 0 && target && target.prevId) i = list.findIndex(s => s.id === target.prevId); // クラスの読みが変わった場合も同じ騎として置き換える
       if (i >= 0) {
+        // 別のページ（同じ真名の別の英霊など）から取り込んだときは、前の騎に付けた手直しがそのまま新しい騎に掛かる。報告して知らせる
+        const old = list[i], otherPage = old.page && lean.page && old.page !== lean.page, otherCls = old.id !== lean.id;
+        if (otherPage || otherCls) {
+          const left = leftovers(old);
+          if (left.length) r.leftovers = { from: old.page || old.trueName, cls: old.class && old.class.label, keys: left };
+        }
         const same = JSON.stringify(stripVolatile(list[i])) === JSON.stringify(stripVolatile(lean));
         r.change = r.change || (same ? '変更なし' : list[i].id !== lean.id ? `置き換え（${list[i].class.label}→${r.servant.class.label}）` : '更新');
         list[i] = lean;
@@ -306,6 +312,11 @@ async function main() {
     '',
     '<details><summary>読み取ったスキル・宝具</summary>', '', ...ok.map(details), '', '</details>',
     '',
+    ...(ok.some(r => r.leftovers) ? ['', '### ⚠ 前の騎の手直しが残っています', '',
+      '別のページ（同じ真名の別の英霊など）から取り込み直した騎です。前の騎に付けた手直しは、名前で引くので新しい騎にもそのまま掛かります（スキルの内容の手直しは、Wikiの内容の代わりに使われます）。'
+      + '取り違えを直したときは、マージしたあとリストツールでその騎を開き「この騎の手直しをすべて消す」を押して、「手直し表を保存」で公開してください（`node tools/servant.js wipe 真名` でも消せます）。', '',
+      ...ok.filter(r => r.leftovers).map(r => `- **${r.servant.trueName}**（前：${r.leftovers.from}${r.leftovers.cls && r.leftovers.cls !== r.servant.class.label ? `・${r.leftovers.cls}` : ''} → 今：${r.title}・${r.servant.class.label}）：${r.leftovers.keys.map(k => k.ja + '「' + k.key + '」').join('、')}`)] : []),
+    '',
     '内容がおかしい騎は、リストツールの「内容を編集」で直せます（直した内容は overrides.json に入り、次に取り直しても残ります）。',
   ].join('\n');
   if (o.summary) fs.writeFileSync(o.summary, md + '\n');
@@ -314,8 +325,18 @@ async function main() {
   if (!ok.length && !newFlags) process.exitCode = 1; // 見つからなかった印だけでも、反映（プルリクエスト）はする
 }
 
+/** その騎に付いた手直し（内容と真名の変更は Wikiでの真名、効果・宝具・ステータス・確認済みは表示の真名で引く）。ページ名は数えない */
+function leftovers(lean) {
+  const E = H.effects, out = [], wn = lean.trueName;
+  let dn = wn; try { dn = H.build.fromJSON(lean).trueName; } catch (e) { /* 組み立てられなければ Wiki の真名で */ }
+  if (E.CONTENT_OVERRIDES[wn]) out.push({ table: 'content', key: wn, ja: E.CONTENT_OVERRIDES[wn].identity ? '内容・真名の変更' : '内容' });
+  for (const [t, ja] of [['servant', '効果'], ['np', '宝具の扱い']]) for (const k of Object.keys(E.OVERRIDE_TABLES[t])) if (k.startsWith(dn + '/')) out.push({ table: t, key: k, ja });
+  for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済み']]) if (E.OVERRIDE_TABLES[t][dn]) out.push({ table: t, key: dn, ja });
+  return out;
+}
+
 // 比較のときは取り込み時刻などを無視する
 function stripVolatile(s) { const o = JSON.parse(JSON.stringify(s)); delete o.built; return o; }
 
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });
-module.exports = { eucEncode, pageUrl, nameFromInput, contentHtml, pageTitle, htmlToWiki, importOne };
+module.exports = { eucEncode, pageUrl, nameFromInput, contentHtml, pageTitle, htmlToWiki, importOne, leftovers };

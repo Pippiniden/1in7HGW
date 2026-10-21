@@ -107,6 +107,25 @@ try {
   ok(run('show', gone).status !== 0, '消したあとは show でも見つからない');
   ok(run('remove', goneName).status !== 0, 'もう無い騎の削除は断られる');
   ok(!/エラー saber:アルトリア/.test(run('check').stdout), '消したあとの check に、その騎のエラーは出ない');
+  // 7) wipe：その騎の手直しだけを消す（ページ名・全員に効く手直し・ほかの騎の手直しは残す）。真名を変えた騎も表示の真名で探す
+  const ov7 = JSON.parse(fs.readFileSync(ovPath, 'utf8'));
+  const renamed = Object.entries(ov7.content || {}).find(([k, v]) => v.identity && v.identity.trueName && k && read().some(x => x.trueName === k)
+    && Object.keys(ov7.servant || {}).some(x => x.startsWith(v.identity.trueName + '/')));
+  ok(!!renamed, `前提：真名を変えていて、変えたあとの名前で効果の手直しがある騎がいる（${renamed && renamed[0] + '→' + renamed[1].identity.trueName}）`);
+  if (renamed) {
+    const [wn, { identity: { trueName: dn } }] = renamed;
+    const hadPage = ov7.pages && ov7.pages[dn] !== undefined;
+    const rw = run('wipe', wn);
+    const ov8 = JSON.parse(fs.readFileSync(ovPath, 'utf8'));
+    ok(rw.status === 0 && !ov8.content[wn], 'wipe で内容（と真名の変更）の手直しが消える');
+    ok(!Object.keys(ov8.servant).some(k => k.startsWith(dn + '/')) && !Object.keys(ov8.np).some(k => k.startsWith(dn + '/')), '変えたあとの真名で引く効果・宝具の手直しも消える');
+    ok(!hadPage || ov8.pages[dn] === ov7.pages[dn], 'ページ名の手直しは残る');
+    ok(S(ov8.global) === S(ov7.global), '全員に効く手直しは残る');
+    const others = t => Object.keys(t || {}).filter(k => !k.startsWith(dn + '/') && k !== dn && k !== wn);
+    ok(['servant', 'np', 'stats', 'content', 'reviewed'].every(t => S(others(ov8[t])) === S(others(ov7[t]))), 'ほかの騎の手直しは1件も変わらない');
+    ok(read().length === list3.length - 1, 'wipe は servants.json の騎を消さない');
+    ok(/手直しはありません/.test(run('wipe', wn).stdout), 'もう一度 wipe しても何もしない');
+  }
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

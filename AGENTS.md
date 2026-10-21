@@ -156,7 +156,8 @@ Overrides embedded in an exported servant JSON (`effectSource: 'override'|'serva
 
 **Uploads.** The owner drops files into `data/incoming/` (any name); `data.yml` runs `tools/incoming.js`, which classifies each file **by content** and opens a PR
 (`data/upload-N`) whose body is the `datadiff.js` report. Order: `hgw-overrides` (replaces overrides.json; only the newest is used) → servant lists (largest first) → `.txt` wiki
-pages (`=====` separates pages). A list holding ≥ 80 % of the current ids **replaces** the list (missing servants are named in the report), otherwise it upserts by id; lean packs are taken
+pages (`=====` separates pages). A list exported by roster's 「公開用に保存」 carries `patch: { base, add, upd, del }` (the browser's own changes since its last sync, by wiki id): only those servants are
+added/replaced/removed and everything else stays as published, so servants imported by Actions after the browser synced are neither dropped nor reverted. Without `patch`, a list holding ≥ 80 % of the current ids **replaces** the list (missing servants are named in the report), otherwise it upserts by id; lean packs are taken
 verbatim, full exports go through `harvestOverrides` + `toLean(fromJSON())`. Within one kind files apply **in upload order** (`git log` time, fallback the browser's 「(N)」 number, numerically).
 Requests/records/survival files are left in place. The workflow then runs `test/sim.js 40` + `test/fgo.js`, rebuilds `survival.json` when `tools/survival.js --check` fails, and commits only the
 rebuilt survival to main when data was replaced directly. `data-cleanup.yml` removes the files of an upload PR closed without merging. Details: `docs/DEVELOPER.md`.
@@ -166,6 +167,10 @@ rebuilt survival to main when data was replaced directly. `data-cleanup.yml` rem
 `relations`, `identity {trueName?, cls?}`); keyed by the **wiki** true name (`B.wikiName(sv)`) while all other tables use the displayed name. `base[section]` = hash of the wiki value at edit time (a later wiki
 change raises a `content` review item). `buildServant` stashes replaced wiki values in `sv._wiki`; **`toLean` restores them, so the published `servants.json` always holds wiki values and edits live only in `overrides.json`.**
 Effect overrides stay keyed by skill name, so renaming a skill detaches its effect override.
+**Overrides are keyed by name only**, so they follow the *name*, not the character: re-importing a different page with the same true name (a same-named servant on the wiki) inherits every
+override of the old one — a `content` entry even replaces the new page's skills/NPs. `kagemiya.js` lists such leftovers in the PR body when a re-import changes the page or class; clear them with
+roster's 「この騎の手直しをすべて消す」 or `tools/servant.js wipe`. Keep derived, override-dependent fields (e.g. NP `mode`/`modeBasis`) in `ITEM_DERIVED`: anything override-dependent in lean data makes the
+roster count phantom local changes, which then overwrite the published side on export.
 
 ### 4.6 Working with `servants.json` (do not read it whole)
 
@@ -177,6 +182,7 @@ node tools/servant.js index [--grep 語] [--names]            # one line per ser
 node tools/servant.js show ルーカン                          # core view (default); also: --part core,text,voice,profile,relations,meta,source | --all
 node tools/servant.js add one.json [more.json …] [--dry-run] # add/update individual servant JSON in servants.json
 node tools/servant.js remove 名前 [--dry-run] [--keep-overrides]  # delete from servants.json AND every pack, plus leftover override entries
+node tools/servant.js wipe 名前 [--dry-run]                   # clear only that servant's overrides (content/identity, servant, np, stats, reviewed; keeps pages and global)
 node tools/servant.js check                                  # structure + every servant rebuilds; exit 1 on errors
 ```
 `--data <dir>` points all commands at another data folder (tests, scratch copies).
@@ -354,7 +360,8 @@ Format `{ format:'hgw-survival', version:1, fp, wars, days, seedBase, servants:{
 - **localStorage keys**: `hgw.save.v1` (one suspended war), `hgw.history.v1` (finished wars; `HIST_MAX`, protected `KEEP_MAX`), `hgw.settings`, `hgw.exclude.v1`, `hgw.survival.v1`, `hgw.roster.v2` (**lean** servants), `hgw.overrides.v1`, `hgw.roster.base/view/sel`, `hgw.lab.*`.
   Only seeds, decisions and focus codes are stored for wars; they are rebuilt on resume/replay (a roster fingerprint mismatch asks first). Export file: `{ format:'hgw-records', version:1, history, save }`.
 - **Spoilers**: servant lore (`canLore`), face portraits and class icons only show servants the player may know; `ranking.html` reveals everything and is linked only from the intro's last paragraph.
-- **roster.html**: list/detail browser with review flags, effect/stat/content editors (all write override tables), 「聖杯戦争で試す」 (`simlab.js`: N auto wars over the browser roster + a config patch; the roster is first put in the published file order so
+- **roster.html**: list/detail browser with review flags, effect/stat/content editors (all write override tables; the effect editor always opens on 「このサーヴァントだけ」, saving per-servant never touches
+  `SKILL_OVERRIDES`, saving 「同じ名前のスキルすべて」 asks for confirmation with the holder count, and the global entry has its own delete button), 「全員に効く手直し」 list in 公開・保存, 「この騎の手直しをすべて消す」 per servant, 「聖杯戦争で試す」 (`simlab.js`: N auto wars over the browser roster + a config patch; the roster is first put in the published file order so
   seeds match `survival.json`), 試し戦い, name import (opens the GitHub workflow page). Published-roster sync is a three-way merge (`merge3`) between last-synced, current published and local state.
 - **submit.html**: player request form; output `{ format:'hgw-request', version:1, kind:'add'|'adjust', … }` as a GitHub issue URL, a .json file or copied text; roster's 取り込み applies it (`findRequest`/`applyRequest`).
 - **ranking.html**: per-servant grade, win rate, survival and five abilities from stats + `effectSummary`, using `survival.json` when its fingerprint matches.
@@ -370,6 +377,7 @@ No framework; plain Node scripts (Node ≥ 18).
 node test/sim.js 500            # 500 auto wars: errors, decided/draw ratio, medians, per-war counts, win rates;  `sim.js 1 <seed>` prints one war's log
 node test/interactive.js 200    # random focus/answers through the generator; replays and checks mismatch
 node test/servant.js            # tools/servant.js: core view, add round trip, new servant, refusal (works on a temp copy of data/)
+node test/incoming.js           # tools/incoming.js: a roster export with `patch` changes only the browser's servants; old exports still replace (temp copy)
 node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON

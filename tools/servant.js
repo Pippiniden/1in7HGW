@@ -8,6 +8,8 @@
  *                                                           個別のサーヴァントのJSONを元データ（servants.json）に足す・更新する
  *   node tools/servant.js remove <真名|id> [別の騎 …] [--keep-overrides] [--dry-run]
  *                                                           元データから削除する（manifest に並ぶ全ファイルから。手直し表の取り残しも片付ける）
+ *   node tools/servant.js wipe <真名|id> [別の騎 …] [--dry-run]
+ *                                                           その騎に付いた手直しだけを消す（取り違えて取り込んだとき。ページ名は残す）
  *   node tools/servant.js check                             元データの整合を確かめる（問題があれば終了コード1）
  *
  *   共通：--data <dir>（既定 data。テストや試し書き用）
@@ -281,6 +283,39 @@ function cmdAdd(args, P) {
   console.log(`${path.relative(process.cwd(), P.sv) || P.sv} に書き込みました（${changed.length}騎）。続けて：node tools/survival.js（優勝率の集計を作り直す）`);
 }
 
+/* ---------- その騎の手直し ---------- */
+/** 内容（と真名・クラスの変更）は Wikiでの真名、効果・宝具・ステータス・確認済み・ページ名は表示の真名（真名の変更のあと）で引く */
+function displayName(s, o) { const idn = o && o.content && o.content[s.trueName] && o.content[s.trueName].identity; return (idn && idn.trueName) || s.trueName; }
+function ownKeys(s, o, withPages) {
+  const wn = s.trueName, dn = displayName(s, o), out = [];
+  if (o.content && o.content[wn]) out.push(['content', wn]);
+  for (const t of ['servant', 'np']) for (const k of Object.keys(o[t] || {})) if (k.startsWith(dn + '/')) out.push([t, k]);
+  for (const t of ['stats', 'reviewed'].concat(withPages ? ['pages'] : [])) if (o[t] && o[t][dn] !== undefined) out.push([t, dn]);
+  return out;
+}
+
+/* ---------- wipe ---------- */
+function cmdWipe(args, P) {
+  const qs = args._.slice(1); if (!qs.length) fail('使い方：node tools/servant.js wipe <真名|id> [別の騎 …] [--dry-run]');
+  const { byId } = loadAll(P), targets = [...new Set(qs.map(q => find(byId, q)))], dry = args.flags.has('dry-run');
+  if (!fs.existsSync(P.ov)) fail(`${P.ov} がありません`);
+  const o = L.readJSON(P.ov), all = [...byId.values()];
+  let n = 0;
+  for (const t of targets) {
+    const twins = all.filter(x => x !== t && x.trueName === t.trueName);
+    if (twins.length) { console.log(`注意  ${idOf(t)}：同じ真名の別の騎（${twins.map(idOf).join('、')}）と手直しを共有しているので消しません`); continue; }
+    const keys = ownKeys(t, o, false);
+    console.log(`${keys.length ? '－' : '＝'} ${idOf(t)}  ${keys.length ? keys.map(([tb, k]) => `${tb}:${k}`).join('、') : '手直しはありません'}`);
+    for (const [tb, k] of keys) { delete o[tb][k]; n++; }
+  }
+  const g = Object.keys(o.global || {}).filter(k => targets.some(t => [...(t.classSkills || []), ...(t.skills || []), ...(t.nps || [])].some(x => H.effects.normName(x.name) === k)));
+  if (g.length) console.log(`（全員に効く手直し ${g.join('、')} はほかの騎にも掛かるので残しています。リストツールの「全員に効く手直し」で消せます）`);
+  if (!n) return;
+  if (dry) { console.log(`（--dry-run：${n}件、書き込んでいません）`); return; }
+  fs.writeFileSync(P.ov, j(o, 1) + '\n');
+  console.log(`${path.relative(process.cwd(), P.ov) || P.ov} から ${n}件消しました（ページ名の手直しは残しています）。続けて：node tools/survival.js`);
+}
+
 /* ---------- remove ---------- */
 function cmdRemove(args, P) {
   const qs = args._.slice(1); if (!qs.length) fail('使い方：node tools/servant.js remove <真名|id> [別の騎 …] [--keep-overrides] [--dry-run]');
@@ -309,10 +344,8 @@ function cmdRemove(args, P) {
       const o = L.readJSON(p); let n = 0; const gone = [];
       for (const t of targets) {
         if (rest.some(x => x.trueName === t.trueName)) { out.push(`${f}：同じ真名「${t.trueName}」の別の騎がいるので、手直しには触りません`); continue; }
-        for (const table of ['servant', 'np', 'stats', 'content', 'pages', 'reviewed']) {
-          const tb = o[table]; if (!tb || typeof tb !== 'object') continue;
-          for (const k of Object.keys(tb)) if (k === t.trueName || k.startsWith(t.trueName + '/')) { delete tb[k]; n++; gone.push(`${table}:${k}`); }
-        }
+        if (rest.some(x => displayName(x, o) === displayName(t, o))) { out.push(`${f}：真名を変えたあとの名前「${displayName(t, o)}」の別の騎がいるので、手直しには触りません`); continue; }
+        for (const [table, k] of ownKeys(t, o, true)) { delete o[table][k]; n++; gone.push(`${table}:${k}`); }
       }
       if (n) { out.push(`${f}：手直し ${n}件を消す（${gone.join('、')}）`); if (!dry) fs.writeFileSync(p, j(o, 1) + '\n'); }
     }
@@ -374,6 +407,6 @@ function cmdCheck(args, P) {
 
 /* ---------- main ---------- */
 const args = parseArgs(process.argv.slice(2)), cmd = args._[0], P = dirs(args);
-const CMDS = { index: cmdIndex, show: cmdShow, add: cmdAdd, remove: cmdRemove, check: cmdCheck };
-if (!CMDS[cmd]) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 34).map(l => l.replace(/^\/?\*\s?/, '')).join('\n')); process.exit(cmd ? 1 : 0); }
+const CMDS = { index: cmdIndex, show: cmdShow, add: cmdAdd, remove: cmdRemove, wipe: cmdWipe, check: cmdCheck };
+if (!CMDS[cmd]) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 36).map(l => l.replace(/^\/?\*\s?/, '')).join('\n')); process.exit(cmd ? 1 : 0); }
 CMDS[cmd](args, P);

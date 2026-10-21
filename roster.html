@@ -407,6 +407,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button class="ghost danger sm" id="syncReplace">公開中のリストで置き換える</button>
       </div>
     </section>
+    <section class="panel" id="globalPanel" hidden>
+      <h2>全員に効く手直し</h2>
+      <p class="hint">同じ名前のスキル・宝具を持つ騎すべてに掛かる手直しです（効果の編集で「同じ名前のスキルすべて」を選んだもの）。1騎のつもりで入れたものは消して、その騎で「このサーヴァントだけ」として入れ直してください。消すと、辞書・説明文の読み取りに戻ります。</p>
+      <ul id="globals" style="margin:0;padding-left:18px;font-size:13px"></ul>
+    </section>
     <section class="panel" id="orphanPanel" hidden>
       <h2>どの英霊にも当たらない手直し</h2>
       <p class="hint">真名やスキル名が変わった（Wikiで改名された・取り込み直した）ため、ゲームに反映されていない手直しです。直したい英霊で手直しし直すか、要らなければ消してください。英霊の真名を元に戻したいときは「真名・クラスを変える」を使えます。</p>
@@ -468,11 +473,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
     <label class="hint"><input type="radio" name="scope" value="global"> 同じ名前のスキルすべて</label>
   </div>
+  <div class="box warn hint" id="edScopeNote" style="margin:-4px 0 12px" hidden></div>
   <div class="hint" style="margin-bottom:8px">係数1でBランク標準の強さ。ランクの倍率は自動で掛かります（自滅・使用不可・属性付与は倍率なし）。マイナスにすると逆向き（不利な効果）になります。各行の下に、ゲームでの実際の働きを出しています。</div>
   <details class="legend"><summary>効果の一覧（誰に掛かるか・何が起きるか）</summary><table id="edLegend"></table></details>
   <div class="row">
     <button class="primary" id="edSave">保存して反映</button>
-    <button id="edReset">手直しを消す</button>
+    <button id="edReset">この騎の手直しを消す</button>
+    <button class="ghost danger" id="edResetGlobal" hidden>全員分の手直しを消す</button>
     <button class="ghost" id="edCancel">閉じる</button>
   </div>
 </dialog>
@@ -649,7 +656,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span></div>
       <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
-        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
+        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
@@ -1037,7 +1044,15 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   $('#saveJson').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, at: new Date().toISOString(), servants: roster }); };
-  $('#saveLean').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, lean: true, at: new Date().toISOString(), servants: roster.map(B.toLean) }); };
+  // 公開用の書き出しには、このブラウザでした変更（最後にそろえたときから）の一覧 patch を付ける。データの反映（incoming.js）は
+  // patch があればその騎だけを変えるので、そのあいだに公開側で取り込んだ騎（Actions の取り込みなど）を消したり古い版に戻したりしない
+  $('#saveLean').onclick = () => {
+    if (!roster.length) return;
+    const pl = plan(), out = { format: 'hgw-servants', version: 2, lean: true, at: new Date().toISOString(), servants: roster.map(B.toLean) };
+    if (pl && base) out.patch = { base: base.at || null, add: pl.sv.local.add, upd: pl.sv.local.upd, del: pl.sv.local.del };
+    download('servants.json', out);
+    if (out.patch && pl.sv.fromPub.add.length + pl.sv.fromPub.upd.length + pl.sv.fromPub.del.length) status('公開側に、このリストにまだ入っていない更新があります。書き出したファイルには、このブラウザでした変更だけが反映されます');
+  };
   $('#saveOv').onclick = () => download('overrides.json', Object.assign({ format: 'hgw-overrides', version: 2 }, ovGet()));
   $('#ovFile').onchange = async e => {
     const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -1049,6 +1064,23 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const d = e.target.closest('[data-del]'); if (!d) return;
     const s = roster[+d.dataset.del]; if (!confirm(`${s.trueName} をリストから外します`)) return;
     roster.splice(+d.dataset.del, 1); save(); render();
+  });
+
+  // この騎に付いた手直し（Wikiでの真名で引く内容・真名とクラス、表示の真名で引く効果・宝具・ステータス・確認済み）。ページ名は残す
+  function ownOverrides(sv) {
+    const wn = B.wikiName(sv), dn = sv.trueName, out = [];
+    if (E.CONTENT_OVERRIDES[wn]) out.push(['content', wn, '内容' + (E.CONTENT_OVERRIDES[wn].identity ? '・真名とクラスの変更' : '')]);
+    for (const [t, ja] of [['servant', '効果'], ['np', '宝具の扱い']]) for (const k of Object.keys(TABLES[t])) if (k.startsWith(dn + '/')) out.push([t, k, ja]);
+    for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済みの要確認']]) if (TABLES[t][dn]) out.push([t, dn, ja]);
+    return out;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-wipe]'); if (!b) return;
+    const sv = roster[+b.dataset.wipe], list = ownOverrides(sv);
+    if (!list.length) { status(`${sv.trueName}に付いた手直しはありません`); return; }
+    if (!confirm(`${sv.trueName}に付いた手直しを ${list.length}件消します（Wikiのページ名の手直しは残します）：\n` + list.map(([, k, ja]) => `・${ja}：${k}`).join('\n') + '\n\n全員に効く手直しは「公開・保存」の「全員に効く手直し」で消せます。')) return;
+    for (const [t, k] of list) delete TABLES[t][k];
+    afterEdit(); select(B.wikiId(sv), { force: true }); status(`${sv.trueName}の手直しを ${list.length}件消しました。公開するには「手直し表を保存」`);
   });
 
   // ---------- 試し引き ----------
@@ -1136,18 +1168,36 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       $('#edMode').value = o && o.mode != null ? o.mode : '__auto';
       for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r);
     }
-    document.querySelector(`input[name=scope][value=${item.effectSource === 'override' ? 'global' : 'servant'}]`).checked = true;
+    // 適用範囲は、いつも「このサーヴァントだけ」から始める（以前は、全員に効く手直し由来の効果を開くと「すべて」が選ばれていて、
+    // 1騎のつもりの変更が全員に掛かっていた）
+    document.querySelector('input[name=scope][value=servant]').checked = true;
+    edScopeInfo();
     $('#ed').showModal();
   });
   $('#edAdd').onclick = () => edRow();
   $('#edCancel').onclick = () => $('#ed').close();
   const keysFor = ctx => { const n = E.normName(ctx.item.name); return { servant: ctx.sv.trueName + '/' + n, global: n }; };
   function afterEdit() { ovStore(); ovVer++; rebuildAll(); save(); render(); }
+  /** 同じ名前のスキル・宝具を持つ騎（全員に効く手直しが掛かる範囲） */
+  const holdersOf = n => roster.filter(s => s.allSkills.concat(s.nps).some(x => E.normName(x.name) === n));
+  const specsText = specs => specs.length ? specs.map(x => (E.EFFECTS[x[0]] && E.EFFECTS[x[0]].name || x[0]) + (x[1] != null && x[1] !== 1 ? '×' + x[1] : '')).join('・') : '効果なし';
+  function edScopeInfo() {
+    const k = keysFor(edCtx), g = E.SKILL_OVERRIDES[k.global], own = E.SERVANT_OVERRIDES[k.servant], n = holdersOf(k.global).length;
+    const msg = [];
+    if (own) msg.push(`この騎だけの手直しがあります（${esc(specsText(own))}）。`);
+    if (g) msg.push(`「${esc(k.global)}」には<b>全員に効く手直し</b>があり、同じ名前を持つ <b>${n}騎</b> に掛かっています（${esc(specsText(g))}）${own ? '。この騎はこの騎だけの手直しが優先です' : '。いま表示している効果はそこから来ています'}。`);
+    $('#edScopeNote').innerHTML = msg.join('<br>'); $('#edScopeNote').hidden = !msg.length;
+    $('#edReset').disabled = !own && !(edCtx.kind === 'n' && E.NP_OVERRIDES[k.servant]);
+    $('#edResetGlobal').hidden = !g; $('#edResetGlobal').textContent = `全員分の手直しを消す（${n}騎）`;
+  }
   $('#edSave').onclick = () => {
     const specs = Array.from($('#edRows').querySelectorAll('.erow')).map(specOf);
     const k = keysFor(edCtx), scope = document.querySelector('input[name=scope]:checked').value;
-    delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global];
-    if (scope === 'global') E.SKILL_OVERRIDES[k.global] = specs; else E.SERVANT_OVERRIDES[k.servant] = specs;
+    if (scope === 'global') {
+      const n = holdersOf(k.global).length;
+      if (!confirm(`「${k.global}」を持つ ${n}騎すべての効果を「${specsText(specs)}」にします。\n1騎だけ変えたいときは「このサーヴァントだけ」を選んでください。`)) return;
+      E.SKILL_OVERRIDES[k.global] = specs; delete E.SERVANT_OVERRIDES[k.servant];   // この騎も全員分に従う
+    } else E.SERVANT_OVERRIDES[k.servant] = specs;   // 全員に効く手直しには触らない（以前はここで消していた）
     if (edCtx.kind === 'n') {
       const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {};
       if (a !== 'auto') o.attack = a === 'yes';
@@ -1156,7 +1206,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     }
     $('#ed').close(); afterEdit();
   };
-  $('#edReset').onclick = () => { const k = keysFor(edCtx); delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global]; delete E.NP_OVERRIDES[k.servant]; $('#ed').close(); afterEdit(); };
+  // 「この騎の手直しを消す」はこの騎の分だけ（以前は全員に効く手直しまで消していた）
+  $('#edReset').onclick = () => { const k = keysFor(edCtx); delete E.SERVANT_OVERRIDES[k.servant]; delete E.NP_OVERRIDES[k.servant]; $('#ed').close(); afterEdit(); };
+  $('#edResetGlobal').onclick = () => {
+    const k = keysFor(edCtx), n = holdersOf(k.global).length;
+    if (!confirm(`全員に効く「${k.global}」の手直しを消します（${n}騎が辞書・説明文の読み取りに戻ります）`)) return;
+    delete E.SKILL_OVERRIDES[k.global]; $('#ed').close(); afterEdit(); status(`全員に効く「${k.global}」の手直しを消しました`);
+  };
 
   // ---------- 真名・クラスの手直し ----------
   // CONTENT_OVERRIDES['Wikiの真名'].identity に入る（取り直しても残る）。効果・ステータス・宝具の扱い・ページ名の手直しは新しい真名へ移す
@@ -1205,7 +1261,20 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     for (const [t, ja] of [['stats', 'ステータスの手直し'], ['pages', 'Wikiのページ名'], ['reviewed', '確認済みの要確認']]) for (const k of Object.keys(TABLES[t])) if (!byName.has(k)) out.push([t, k, ja]);
     return out;
   }
+  function renderGlobals() {
+    const keys = Object.keys(E.SKILL_OVERRIDES).sort((a, b) => a.localeCompare(b, 'ja'));
+    $('#globalPanel').hidden = !keys.length;
+    $('#globals').innerHTML = keys.map(k => { const h = holdersOf(k);
+      return `<li><b>${esc(k)}</b>：${esc(specsText(E.SKILL_OVERRIDES[k]))}（${h.length}騎${h.length ? '：' + esc(h.slice(0, 8).map(s => s.trueName).join('・')) + (h.length > 8 ? ' ほか' : '') : '・持つ騎なし'}） <button class="sm ghost danger" data-glob="${esc(k)}">消す</button></li>`; }).join('');
+  }
+  $('#globals').addEventListener('click', e => {
+    const b = e.target.closest('[data-glob]'); if (!b) return;
+    const k = b.dataset.glob, n = holdersOf(k).length;
+    if (!confirm(`全員に効く「${k}」の手直しを消します（${n}騎が辞書・説明文の読み取りに戻ります）`)) return;
+    delete E.SKILL_OVERRIDES[k]; afterEdit(); status(`全員に効く「${k}」の手直しを消しました`);
+  });
   function renderOrphans() {
+    renderGlobals();
     const list = roster.length ? orphanList() : [];
     $('#orphanPanel').hidden = !list.length;
     $('#orphans').innerHTML = list.map(([t, k, ja]) => `<li>${esc(ja)}：<b>${esc(k)}</b> <button class="sm ghost danger" data-orph="${esc(t)}" data-k="${esc(k)}">消す</button></li>`).join('');
