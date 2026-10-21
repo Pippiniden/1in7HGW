@@ -176,6 +176,7 @@ Use `tools/servant.js` instead of reading the file; its **core** view (identity,
 node tools/servant.js index [--grep 語] [--names]            # one line per servant: id, stats, counts, chars (cost of printing it fully)
 node tools/servant.js show ルーカン                          # core view (default); also: --part core,text,voice,profile,relations,meta,source | --all
 node tools/servant.js add one.json [more.json …] [--dry-run] # add/update individual servant JSON in servants.json
+node tools/servant.js remove 名前 [--dry-run] [--keep-overrides]  # delete from servants.json AND every pack, plus leftover override entries
 node tools/servant.js check                                  # structure + every servant rebuilds; exit 1 on errors
 ```
 `--data <dir>` points all commands at another data folder (tests, scratch copies).
@@ -183,6 +184,8 @@ node tools/servant.js check                                  # structure + every
 - **Edit loop:** `show` → edit the JSON → `add`. Only the keys you provide are replaced; everything else (voice, text, sourceText, …) stays byte-for-byte, and an unchanged input reports 「変更なし」 without touching the file.
 - **New servant:** `trueName`, `class` (string or object) and `stats` (`{ str, end, agi, mag, luk, np }` as rank strings) are required; skills/NPs take raw fields (`name, rankRaw, desc`; NPs also `reading, typeRaw, rangeRaw, maxRaw`).
   Ranks, `typeKey`, `range` and the id are derived. The report prints power / NP peak and the review items (要確認) the game will show.
+- **Deleting** goes through `remove`, not through uploads: `incoming.js` only *replaces* the list when the upload holds ≥ 80 % of the current ids, otherwise it upserts and never deletes. `remove` also clears the servant's entries in the override tables
+  (`servant`, `np`, `stats`, `content`, `pages`, `reviewed`) and warns when a file left in `data/incoming/` would bring it back.
 - `add` applies `overrides.json` while rebuilding (like the game) but never edits it, keeps the list sorted (class order → name) and the file format identical to `incoming.js`, so diffs stay small.
 - Prefer **overrides over editing `servants.json`** for effect/stat/NP-mode fixes (§10). After a data change run `node tools/survival.js` (or let `data.yml` do it on push).
 - Known data defects `check` reports: one record has an empty `trueName` (a page without 【真名】), several lack the `np` stat (loaded as `MISSING_STAT`).

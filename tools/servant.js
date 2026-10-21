@@ -6,6 +6,8 @@
  *                                                           1騎を出す。既定は core（ゲームの強さを決める部分だけ）
  *   node tools/servant.js add <ファイル.json …|-> [--dry-run]
  *                                                           個別のサーヴァントのJSONを元データ（servants.json）に足す・更新する
+ *   node tools/servant.js remove <真名|id> [別の騎 …] [--keep-overrides] [--dry-run]
+ *                                                           元データから削除する（manifest に並ぶ全ファイルから。手直し表の取り残しも片付ける）
  *   node tools/servant.js check                             元データの整合を確かめる（問題があれば終了コード1）
  *
  *   共通：--data <dir>（既定 data。テストや試し書き用）
@@ -19,6 +21,11 @@
  *   - 新しい騎は、trueName・class・stats があれば足せる。ランクは文字列でよい（stats: { str: 'A', … }、rankRaw: 'B+'）
  *   - 同じ id（クラス＋真名）があれば更新、なければ追加。並び（クラス順→真名）と書き方は incoming.js と同じ
  *   - 手直し表（overrides.json）に載っている手直しは、ゲームと同じく掛けて組み直す（ここでは書き換えない）
+ *
+ * remove：同じ id がどのファイル（servants.json・packs/…）にあっても消す。packs に残っていると、servants.json から消しても
+ *   ゲームには出続けるため。手直し表（servant・np・stats・content・pages・reviewed）にその騎の名前で残った手直しも消す
+ *   （--keep-overrides で残す。同じ真名の別クラスの騎がいるときは触らない）。data/incoming/ に同じ騎を含むファイルが残っていれば、
+ *   次の反映で復活するので知らせる。
  */
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -274,6 +281,56 @@ function cmdAdd(args, P) {
   console.log(`${path.relative(process.cwd(), P.sv) || P.sv} に書き込みました（${changed.length}騎）。続けて：node tools/survival.js（優勝率の集計を作り直す）`);
 }
 
+/* ---------- remove ---------- */
+function cmdRemove(args, P) {
+  const qs = args._.slice(1); if (!qs.length) fail('使い方：node tools/servant.js remove <真名|id> [別の騎 …] [--keep-overrides] [--dry-run]');
+  const { files, byId } = loadAll(P);
+  const targets = [...new Set(qs.map(q => find(byId, q)))];
+  const ids = new Set(targets.map(idOf));
+  const dry = args.flags.has('dry-run');
+  const out = [];
+  // 1) 読み込まれる全ファイルから消す（同じ id が packs にもあると、servants.json から消しても出続ける）
+  for (const f of files) {
+    const p = path.join(P.dir, f); if (!fs.existsSync(p)) continue;
+    const d = L.readJSON(p), list = L.listOf(d), kept = list.filter(x => !ids.has(idOf(x)));
+    if (kept.length === list.length) continue;
+    out.push(`${f}：${list.length - kept.length}件を外す（${list.length} → ${kept.length}騎）`);
+    if (dry) continue;
+    if (Array.isArray(d)) fs.writeFileSync(p, j(kept, 1) + '\n');
+    else if (d.servants) { d.servants = kept; if (d.at) d.at = new Date().toISOString(); fs.writeFileSync(p, j(d, 1) + '\n'); }
+    else fail(`${f} は英霊1騎だけのファイルです。手で消してください（manifest からも外す）`);
+  }
+  // 2) 手直し表に取り残される、その騎の手直し
+  if (!args.flags.has('keep-overrides')) {
+    const rest = [...byId.values()].filter(x => !ids.has(idOf(x)));
+    const man = L.readJSON(P.man);
+    for (const f of man.overrides || []) {
+      const p = path.join(P.dir, f); if (!fs.existsSync(p)) continue;
+      const o = L.readJSON(p); let n = 0; const gone = [];
+      for (const t of targets) {
+        if (rest.some(x => x.trueName === t.trueName)) { out.push(`${f}：同じ真名「${t.trueName}」の別の騎がいるので、手直しには触りません`); continue; }
+        for (const table of ['servant', 'np', 'stats', 'content', 'pages', 'reviewed']) {
+          const tb = o[table]; if (!tb || typeof tb !== 'object') continue;
+          for (const k of Object.keys(tb)) if (k === t.trueName || k.startsWith(t.trueName + '/')) { delete tb[k]; n++; gone.push(`${table}:${k}`); }
+        }
+      }
+      if (n) { out.push(`${f}：手直し ${n}件を消す（${gone.join('、')}）`); if (!dry) fs.writeFileSync(p, j(o, 1) + '\n'); }
+    }
+  }
+  // 3) 次の反映で復活しないか
+  const inc = path.join(P.dir, 'incoming'), warn = [];
+  if (fs.existsSync(inc)) for (const f of fs.readdirSync(inc)) {
+    if (!/\.json$/i.test(f)) continue;
+    try { if (L.listOf(L.readJSON(path.join(inc, f))).some(x => ids.has(idOf(x)))) warn.push(f); } catch (e) { /* 読めないファイルは無視 */ }
+  }
+  for (const t of targets) console.log(`－ ${idOf(t)}`);
+  if (!out.length) console.log('消すものはありませんでした（どのファイルにも入っていません）');
+  for (const l of out) console.log('  ' + l);
+  if (warn.length) console.log(`注意  data/incoming/ の ${warn.join('、')} にも入っています。次の「データの反映」で復活するので、そのファイルを外してください`);
+  if (dry) { console.log('（--dry-run：何も書き込んでいません）'); return; }
+  console.log('続けて：node tools/survival.js（優勝率の集計を作り直す）。リストツールを開いたままなら「公開中のリストにそろえる」。');
+}
+
 /* ---------- check ---------- */
 function cmdCheck(args, P) {
   const errors = [], warns = [];
@@ -317,6 +374,6 @@ function cmdCheck(args, P) {
 
 /* ---------- main ---------- */
 const args = parseArgs(process.argv.slice(2)), cmd = args._[0], P = dirs(args);
-const CMDS = { index: cmdIndex, show: cmdShow, add: cmdAdd, check: cmdCheck };
-if (!CMDS[cmd]) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 25).map(l => l.replace(/^\/?\*\s?/, '')).join('\n')); process.exit(cmd ? 1 : 0); }
+const CMDS = { index: cmdIndex, show: cmdShow, add: cmdAdd, remove: cmdRemove, check: cmdCheck };
+if (!CMDS[cmd]) { console.error(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 34).map(l => l.replace(/^\/?\*\s?/, '')).join('\n')); process.exit(cmd ? 1 : 0); }
 CMDS[cmd](args, P);
