@@ -48,7 +48,7 @@
     sure_hit:     { name: '必中',         phase: 'battle',    unit: 'chance', base: 0.50, desc: '相手の回避を打ち消す（回避の効果を割合で消す）' },
     dmg_plus:     { name: 'ダメージプラス', phase: 'battle',  unit: 'pt',     base: 4,    desc: '押し勝ったときに与える傷を固定値で増やす' },
     skill_seal:   { name: 'スキル封印',   phase: 'battle',    unit: 'chance', base: 0.30, trig: 'win', desc: '相手の「発動するスキル」（発動のしかたが「常に」以外の効果）を、その戦いの間止める確率。状態異常耐性で防がれる' },
-    rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟相手と並んで戦うときの連携（加勢の力）を強める' },
+    rally:        { name: '統率',         phase: 'battle',    unit: 'rate',   base: 0.05, desc: '同盟相手と並んで戦うときの連携（加勢の力）を強め、並んで戦う味方の戦闘力も上げる' },
     anti_master:  { name: 'マスター狙い', phase: 'battle',    unit: 'chance', base: 0.15, desc: '敵マスターを直接狙える確率' },
     // 被ダメージ・生存
     guard:        { name: '被ダメージ軽減', phase: 'damage',  unit: 'rate',   base: 0.10, desc: '受けるダメージを減らす（マイナスなら打たれ弱い）' },
@@ -176,6 +176,11 @@
   // 自分に掛ける欄（SELF_IDS の不利な効果だけ）
   const selfFieldsHtml = (id, p, esc) => `<div class="eself"${SELF_IDS.includes(id) ? '' : ' hidden'}><label><input type="checkbox" data-e="self"${p && p.self ? ' checked' : ''}>${esc('自分に掛ける（不利な効果・デメリット）')}</label></div>`;
   const readSelf = (q, id, p) => { if (SELF_IDS.includes(id) && q('self') && q('self').checked) p.self = true; };
+  // 味方にも効く欄（params.team：0〜1）。並んで戦う味方（同盟の加勢・特異点の前衛）にも、その戦いの間 強さ×この割合 が働く。
+  // 常時の強化だけ（発動のしかたのある効果・自分に掛ける効果は分けない）。エンジンは engine.js の battle で分ける
+  const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative'];
+  const teamFieldsHtml = (id, p, esc) => `<div class="eteam"${TEAM_IDS.includes(id) ? '' : ' hidden'}><label>${esc('味方にも効く')}<input type="number" data-e="team" min="0" max="100" step="10" value="${p && p.team > 0 ? Math.round(p.team * 100) : ''}" placeholder="0">%</label></div>`;
+  const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
   const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
 
@@ -236,7 +241,7 @@
       : p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : p && p.eff ? `自分の「${effName(p.eff)}」を（どのスキル・宝具のものも）、その戦いの間止める`
       : '自分がその戦いで得た強化（補助宝具・発動したスキル・道具）を消す' },
     np_charge:    { who: 'self', fx: m => `打ち合いごとに宝具を放つ確率 ${sg(m)}` },
-    rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）。同盟相手が加勢に来る確率と、同盟で共同作戦を決める確率も ${sg(m)}` },
+    rally:        { who: 'ally', fx: m => `同盟相手と並んで戦うとき、加勢の力 ${sg(m)}（自分が加勢する側でもされる側でも）、並んで戦う味方の戦闘力 ${sg(m * ENG().rallyPower)}。同盟相手が加勢に来る確率と、同盟で共同作戦を決める確率も ${sg(m)}` },
     anti_master:  { who: 'enemyMaster', fx: m => `打ち合いで勝つたび相手マスターに刃が届く確率 ${sg(m * 0.3)}、拠点への夜襲でマスターを直接狙う確率 ${sg(Math.min(0.6, m * 1.5))}` },
     guard:        { who: 'self', fx: m => `受ける傷 ${m < 0 ? '+' : '−'}${pc(Math.min(ENG().guardDmgCap, m * ENG().guardDmgW))}、守りとして戦闘力 ${sg(m * ENG().defPowerW)}（ほかの被ダメージ軽減と重なると鈍る）` },
     magic_guard:  { who: 'self', fx: m => `魔力の高い相手（キャスターなど）と戦うとき、守りとして戦闘力 ${sg(m * 0.5)}。相手の肉体弱体・衰弱を防ぐ（耐久と合わせて）` },
@@ -257,7 +262,7 @@
     escape:       { who: 'self', fx: m => `撤退の成功 ${sg(m)}` },
     pin:          { who: 'enemy', fx: m => `相手の撤退の成功 ${m < 0 ? '+' : '−'}${pc(m * 0.8)}` },
     regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * ENG().regenHeal)}` },
-    heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}。同盟を組んでいれば、毎朝、同盟相手の霊基 ${pm(m * ENG().allyHeal)}` },
+    heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}。同盟を組んでいれば、毎朝、同盟相手の霊基 ${pm(m * ENG().allyHeal)}（特異点では、毎朝ほかの味方全員の霊基 ${pm(m * ((G.CONFIG.SING || {}).healOther || 0))}）` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
     craft:        { who: 'self', fx: m => m < 0 ? less('工房を強化した日に道具を作る確率', m) : `工房を強化した日に ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）。工房の強化も選びやすい` },
     resource:     { who: 'master', fx: m => `毎日の魔力 ${pm(m * 10)}、工房の強化の成功 ${sg(m * 0.5)}` },
@@ -334,6 +339,7 @@
       condText(p, e.id)].filter(Boolean).join('・');
     let text = inf.fx(m, p);
     if (e.id === 'disabled' && !ctx.np) text = 'このスキルの効果は働かない';
+    if (p && p.team > 0 && TEAM_IDS.includes(e.id)) text += `。並んで戦う味方にも、その戦いの間 ${Math.round(p.team * 100)}% の強さで働く`;
     // 戦いの外で働く効果に、戦いの中の発動（戦いの始め・押し勝ったとき…）を付けても効かない
     if (p && p.on && BATTLE_ONS.includes(p.on) && OUTSIDE_IDS.includes(e.id)) text += '。※戦いの外（昼・夜の索敵）で働く効果なので、戦いの中で発動しても効かない（「常に」か「毎朝」に）';
     return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text };
@@ -370,7 +376,7 @@
     '怪力':         [['power', 0.8], ['upkeep_up', 0.2]],
     '勇猛':         [['mental_guard', 1], ['power', 0.3]],
     'カリスマ':     [['negotiate', 0.8], ['rally', 1]],
-    '軍略':         [['intel', 0.5], ['guard', 0.4]],
+    '軍略':         [['intel', 0.5], ['guard', 0.4, { team: 0.5 }]],
     '黄金律':       [['resource', 1]],
     '黄金率':       [['resource', 1]],   // Wikiでよく見る表記
     '仕切り直し':   [['escape', 1.5]],
@@ -532,7 +538,7 @@
     '戦術':         [['intel', 0.4], ['power', 0.3]],
     '指揮':         [['rally', 1]],
     '統率':         [['rally', 1]],
-    '鼓舞':         [['rally', 0.8], ['power', 0.2]],
+    '鼓舞':         [['rally', 0.8], ['power', 0.2, { team: 1 }]],
     '激励':         [['rally', 0.6]],
     '演説':         [['negotiate', 0.6], ['rally', 0.4]],
     '弁舌':         [['negotiate', 1]],
@@ -1040,5 +1046,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, TEAM_IDS, teamFieldsHtml, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

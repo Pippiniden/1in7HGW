@@ -91,7 +91,7 @@
   /**
    * 特異点の名前と顔ぶれを決める（シードから。エンジンの戦いの乱数とは別の流れなので、顔ぶれを指定しても名前は変わらない）。
    * picks: { party: [サーヴァントの id か null ×6], foes: [id か null ×7], boss: ボスの id | 'empower'（超強化）| null（くじ） }
-   * 戻り値: { name, words, city, region, party: [id], foes: [id], boss: { id, kind: 'boss'|'empower' }, stray: id|null, front: [前衛の番号] }
+   * 戻り値: { name, words, tag（敵の呼び名に付ける言葉）, city, region, party: [id], foes: [id], boss: { id, kind: 'boss'|'empower' }, stray: id|null, front: [前衛の番号] }
    */
   function compose(o) {
     const S = Object.assign({}, G.CONFIG.SING, o.sing || {});
@@ -107,6 +107,8 @@
     const all = []; for (const g of D.CITIES) for (const c of g.cities) all.push({ city: c, region: g.region });
     const at = all.length ? pickN(nameRnd, all) : { city: '冬木', region: '' };
     const name = words.join('') + ' ' + at.city;
+    // 敵の呼び名に付ける言葉：都市名か、名前の熟語（『冬木のセイバー』『炎上のセイバー』）。特異点ごとに一つ
+    const tag = nameRnd() < 0.5 ? at.city : nameRnd() < 0.6 ? words[0] : words[1];
     // 指定された英霊を先に押さえる
     const used = new Set();
     const fixedP = (picks.party || []).slice(0, S.party).map(id => byId.get(id) || null);
@@ -145,7 +147,7 @@
     const stray = rest.length ? pickN(rnd, rest).id : null;
     // 前衛：戦闘力の高い順に三騎（画面で選び直せる）
     const front = party.map((s, i) => [i, s.power + s.npPeak * 0.3]).sort((a, b) => b[1] - a[1]).slice(0, S.front).map(x => x[0]).sort((a, b) => a - b);
-    return { name, words, city: at.city, region: at.region, party: party.map(s => s.id), foes: foes.map(s => s.id), boss: bossPick, stray, front };
+    return { name, words, tag, city: at.city, region: at.region, party: party.map(s => s.id), foes: foes.map(s => s.id), boss: bossPick, stray, front };
   }
 
   // ---------- 進行 ----------
@@ -219,7 +221,8 @@
           const c = mkCamp(sv, camps.length, 'party', start, rnd);
           c.knowName = shared.knowName; c.knowLoc = shared.knowLoc; c.clues = shared.clues;
           for (const k of ['master', 'mana', 'manaMax', 'cs', 'mhp', 'mhpMax', 'masterAlive', 'items']) Object.defineProperty(c, k, { get: () => P[k], set: v => { P[k] = v; }, enumerable: true });
-          Object.defineProperty(c, 'workshop', { get: () => P.camp, set: v => { P.camp = v; }, enumerable: true });
+          // 陣地：エンジンは「拠点で戦うとき 工房×5%」を足すので、陣地1段が campEdge になるように換算して見せる
+          Object.defineProperty(c, 'workshop', { get: () => P.camp * S.campEdge / 0.05, set: () => {}, enumerable: true });
           c.you = true; c.assistK = S.frontAssist;
           camps.push(c); party.push(c);
         });
@@ -235,7 +238,7 @@
           Object.assign(c, { master: GRAIL, masterAlive: true, noMaster: true, cs: 0, mhp: 1, mhpMax: 1, mana: S.foeMana, manaMax: S.foeMana, workshop: 0, assistK: S.frontAssist });
           camps.push(c); foes.push(c);
         });
-        labelAll(foes, '敵の');
+        labelAll(foes, (L.tag || L.city || '敵') + 'の');
         // ボス
         if (L.boss) {
           const sv = find(L.boss.id);
@@ -364,6 +367,16 @@
       if (day > 1 && (day - 1) % S.csEvery === 0 && P.cs < S.csMax && P.masterAlive) { P.cs++; A.log('cs', `${A.mn(party[0])}の手の甲に、令呪が一画よみがえった。（残り${P.cs}画）`, alive(party).map(c => c.id).slice(0, 1)); }
       // 一時停止中に選んだ令呪・推理
       for (const cmd of cmds || []) applyCmd(cmd);
+      // 治療（heal_other）：治療の心得のある英霊が、毎朝ほかの味方全員（はぐれも）の霊基とマスターの傷を少し癒やす
+      const team = alive(party).concat(strayReady() ? [stray] : []);
+      let healed = 0, healer = null;
+      for (const h of alive(party)) {
+        const k = Math.max(0, A.eff(h, 'heal_other')); if (!(k > 0)) continue;
+        for (const x of team) if (x !== h && x.hp < 100) { const v = Math.min(100 - x.hp, k * S.healOther); x.hp += v; healed += v; }
+        P.mhp = Math.min(P.mhpMax, P.mhp + k * S.healOther * 0.5);
+        if (!healer || k > A.eff(healer, 'heal_other')) healer = h;
+      }
+      if (healer && healed >= 8 && !(P.healSaid > day - 3)) { P.healSaid = day; A.log('day', `${A.sn(healer)}が、仲間たちの傷を手当てした。`, [healer.id]); }
       // 毎朝の効果・毒・衰弱・ボスの力
       for (const c of camps) {
         if (!c.alive || (c === stray && !P.strayJoined) || (c.boss && P.stage !== 'boss')) continue;
@@ -511,7 +524,7 @@
         // 先手：痕跡をつかんで踏み込んだ戦いはこちら、夜襲・待ち伏せは敵（索敵が高ければ打ち消す）
         if (bout === 1) {
           if (raid) { const v = clamp(0.12 - Math.max(0, partyDetect()) * 0.15, 0, 0.12); if (v > 0) foe.surprise = (foe.surprise || 0) + v; }
-          else if (P.leadHit) me.surprise = (me.surprise || 0) + 0.1;
+          else if (P.leadHit) me.surprise = (me.surprise || 0) + S.leadEdge;
         }
         const place = P.place;
         const home = how === 'raid' && (P.camp > 0 || F === 'defend') ? me : null;
@@ -575,18 +588,20 @@
       if (F === 'defend') {
         P.camp = Math.min(5, P.camp + 1);
         A.log('day', A.line('sgCamp', { M: A.mn(party[0]) }) + `（陣地 ${P.camp}）`, alive(party).map(c => c.id).slice(0, 1));
-        if (A.chance(0.35)) yield* eventRoll(F);
+        if (A.chance(0.4)) yield* eventRoll(F, true);   // 陣地の日も、ときどき出来事が起きる
         return;
       }
-      // 進む：場所が変わり、陣地はたたむ
+      // 進む：場所が変わり、陣地はたたむ。道中の出来事は、敵と出会うかどうかとは別に毎日起こりうる
       const prev = P.place;
       P.place = A.pick(G.SING_DATA.PLACES.filter(p => p !== prev));
       P.camp = 0;
       A.log('day', `一行は「${P.place.name}」へ進んだ。`, alive(party).map(c => c.id).slice(0, 1), { place: P.place.name, scene: P.place.scene });
+      const ev = yield* eventRoll(F, true);
+      if (over() || P.fought) return;
       // ボスとの戦い：特異点の主のもとへ
       if (P.stage === 'boss') {
-        if (A.chance(clamp((boss.bs.find || S.boss.find) + (S.focusEnc[F] || 0), 0.05, 0.98))) { P.leadHit = true; yield* engage([boss], 'boss'); }
-        else { A.log('day', '特異点の主の気配は濃い。だが、その居城へ至る道はまだ見えない。', alive(party).map(c => c.id).slice(0, 1)); yield* eventRoll(F); }
+        if (A.chance(clamp((boss.bs.find || S.boss.find) + (S.focusEnc[F] || 0), 0.05, 0.98))) yield* engage([boss], 'boss');
+        else A.log('day', '特異点の主の気配は濃い。だが、その居城へ至る道はまだ見えない。', alive(party).map(c => c.id).slice(0, 1));
         return;
       }
       // 索敵：痕跡をつかめば、その敵と出会いやすい
@@ -609,17 +624,18 @@
         yield* engage(groupWith(t), 'meet');
         return;
       }
-      yield* eventRoll(F);
+      if (!ev) A.log('day', A.line('sgQuiet'), []);
     }
 
     // ---------- 出来事 ----------
-    function* eventRoll(F) {
-      if (!A.chance(S.eventChance)) { A.log('day', A.line('sgQuiet'), []); return; }
+    // 道中の出来事。silent なら、何も起きなかった日の文を書かない。起きたら true
+    function* eventRoll(F, silent) {
+      if (!A.chance(S.eventChance)) { if (!silent) A.log('day', A.line('sgQuiet'), []); return false; }
       const mit = mitigation(F);
       const W = S.eventW;
-      const good = { leyline: 1.2, locals: 1, supplies: 0.9, relic: 0.8, spring: 1 };
+      const good = { leyline: 1.2, locals: 1, supplies: 0.9, relic: 0.8, spring: 1, omen: 0.7, talk: 0.9 };
       if (stray && !P.strayJoined && !P.strayAsked && A.day > S.strayAfter && P.stage === 'hunt') good.stray = 1.2;
-      const bad = { trap: 1, miasma: 1, disturb: 0.8, curse: 0.8, masterHurt: 0.45, lost: 0.5 };
+      const bad = { trap: 1, miasma: 1, disturb: 0.8, curse: 0.8, masterHurt: 0.45, lost: 0.5, storm: 0.6, hunted: 0.7, refugee: 0.7 };
       if (foesAlive().length && P.stage === 'hunt') bad.ambush = 0.9;
       const w = {};
       const gt = Object.values(good).reduce((t, x) => t + x, 0), bt = Object.values(bad).reduce((t, x) => t + x, 0);
@@ -666,7 +682,20 @@
         P.mana = Math.max(0, P.mana - S.mobMana);
         const lead = fr.length ? fr.reduce((a, b) => (b.sv.power > a.sv.power ? b : a)) : any();
         A.log('event', A.line('sgMob', { mob, S: A.sn(lead) }), fr.map(c => c.id));
+      } else if (k === 'g:omen') {
+        const live = foesAlive();
+        if (live.length) { const t = A.pick(live); P.lead = t.id; A.clue(party[0], t, 1); A.log('scout', A.line('sgOmen', Object.assign({ T: t.label }, V)), ids.slice(0, 1).concat([t.id])); }
+        else A.log('event', A.line('sgScene', Object.assign({ S: A.sn(any()) }, V)), ids.slice(0, 1));
+      } else if (k === 'g:talk') {
+        const c = any(); for (const x of alive(party)) { A.bondUp(x, 3); x.hp = Math.min(100, x.hp + 5); }
+        A.log('life', A.line('sgTalk', Object.assign({ S: A.sn(c) }, V)), [c.id], { quote: A.say(c, ['会話', '絆']) });
+      } else if (k === 'b:storm') { A.tonight.rain = true; P.mana = Math.max(0, P.mana - Math.round(P.manaMax * 0.05)); A.log('event', A.line('sgStorm', V), ids.slice(0, 1)); }
+      else if (k === 'b:hunted') { P.hunted = A.day; A.log('event', A.line('sgHunted', V), ids.slice(0, 1)); }
+      else if (k === 'b:refugee') {
+        const fr = frontAlive(); for (const c of fr) { c.hp = Math.max(1, c.hp - 8); A.bondUp(c, 3); }
+        A.log('event', A.line('sgRefugee', Object.assign({ S: A.sn(fr[0] || any()) }, V)), fr.map(c => c.id));
       } else { const c = any(); A.log('life', A.line('sgScene', Object.assign({ S: A.sn(c) }, V)), [c.id]); }
+      return true;
     }
     // はぐれサーヴァント：一度だけ。共に戦うか（パーティーとは別に、魔力を使わない控えめな加勢）
     function* strayEvent() {
@@ -689,7 +718,7 @@
       if (P.stage !== 'hunt') return;
       const live = foesAlive(); if (!live.length) return;
       const mit = mitigation(F);
-      let p = S.raidBase + S.raidPerFoe * live.length - mit * S.raidStealth + (F === 'advance' ? 0.05 : 0) + (F === 'stealth' ? -0.08 : 0);
+      let p = S.raidBase + S.raidPerFoe * live.length - mit * S.raidStealth + (F === 'advance' ? 0.05 : 0) + (F === 'stealth' ? -0.08 : 0) + (P.hunted === A.day ? 0.25 : 0) - (F === 'rest' || P.restDay === A.day ? S.restRaid : 0) - (F === 'defend' ? S.restRaid * (1 + P.camp * 0.5) : 0);
       if (P.fought) p *= 0.5;
       if (!A.chance(clamp(p, 0.02, 0.6))) return;
       const h = A.pick(live);
@@ -738,7 +767,7 @@
       for (const c of party) A.log('summon', `${A.nm(c)}が召喚に応えた。`, [c.id], { quote: A.say(c, ['召喚']) });
       A.log('summon', `前衛は${frontAlive().map(A.sn).join('・')}。控えに${reserveAlive().map(A.sn).join('・')}。期限は${maxDays}日。`, P.front.slice());
       Object.assign(A.out, { sing: { name: L.name, words: L.words, city: L.city, region: L.region, days: maxDays } });
-      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, master: c.party ? { name: P.master.name, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
+      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, master: c.party ? { name: P.master.name, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
 
       let day = 0;
       for (day = 1; day <= maxDays; day++) {
@@ -786,11 +815,11 @@
         ending = 'wipe';
         A.log('end', `パーティーは全滅した。人理修復は失敗に終わった。`, party.map(c => c.id), { big: true, head: true });
       } else {
-        ending = 'timeout';
+        ending = 'timeout';   // 画面では「人理定礎崩壊」
         A.log('end', A.line('sgTimeout') + `（倒した敵 ${P.slain}/${foes.length}騎${P.stage === 'boss' ? '・ボスに至った' : ''}）`, [], { big: true, head: true });
       }
       for (const c of camps) A.pubName.add(c.id);
-      A.log('end', '——特異点、' + (ending === 'clear' ? '修復完了。' : '観測終了。'), [], { head: true });
+      A.log('end', ending === 'clear' ? '——人理修復、完了。' : ending === 'timeout' ? '——人理定礎、崩壊。' : '——特異点、観測終了。', [], { head: true });
       const sideOf = c => ({ id: c.id, side: c.side, label: c.label, trueName: c.sv.trueName, cls: c.sv.class.label, servantId: c.sv.id, alive: c.alive, hp: Math.round(Math.max(0, c.hp)),
         fate: c.fate, kills: c.kills.map(i => camps[i].sv.trueName), npUses: c.npUses, battles: c.battles, power: r1(c.sv.power), bond: Math.round(c.bond), front: P.front0.includes(c.id) });
       const result = {
@@ -811,7 +840,8 @@
     opts.seed = opts.seed || Math.random().toString(36).slice(2, 8);
     const lineup = opts.lineup || compose(opts);
     const plugin = makePlugin(opts, lineup);
-    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, playerName: opts.playerName });
+    const S = Object.assign({}, G.CONFIG.SING, opts.sing || {});
+    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, playerName: opts.playerName, engine: { knowNameMult: S.knowNameMult } });
   }
   /** 全自動で最後まで（方針は focus(day) か「おまかせ」、問いはすべておまかせ） */
   function run(opts) {

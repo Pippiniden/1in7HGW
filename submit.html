@@ -96,6 +96,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .erows { display: grid; gap: 6px; margin-top: 4px; }
 .erow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
 .erow select, .erow input { width: 100%; min-width: 0; font-size: 13px; padding: 5px 6px; }
+.eteam { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eteam[hidden] { display: none; } .eteam label { display: inline-flex; align-items: center; gap: 4px; } .erow .eteam input { width: 4.5em; }
 .eself { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eself[hidden] { display: none; } .eself label { display: inline-flex; align-items: center; gap: 4px; } .erow .eself input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
 .estrip { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .estrip[hidden] { display: none; } .estrip label { display: inline-flex; align-items: center; gap: 4px; } .erow .estrip select { width: auto; max-width: 16em; }
 .etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
@@ -436,7 +437,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   function effRow(spec, np) {
     const [id, f, p] = spec || ['power', 1, null], rowNp = !!np;
     const pv = p ? p.tag || p.stat || '' : '';
-    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, rowNp)}${E.stripFieldsHtml(id, p, esc)}${E.selfFieldsHtml(id, p, esc)}${statFields(id, p)}</div>`;
+    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, rowNp)}${E.stripFieldsHtml(id, p, esc)}${E.selfFieldsHtml(id, p, esc)}${E.teamFieldsHtml(id, p, esc)}${statFields(id, p)}</div>`;
   }
   function itemHtml(kind, item, j) {
     const k = keyOf(base, item), changed = k in prop.servant || (kind === 'n' && k in prop.np);
@@ -562,7 +563,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       const c = q('cond').value || cond; if (c) p.cond = c;
       const vs = q('vs').value.trim(); if (vs) p.vs = vs;
       const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-      readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p); E.readSelf(q, id, p);
+      readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p); E.readSelf(q, id, p); E.readTeam(q, id, p);
       return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
     });
     const item = el.dataset.kind === 's' ? base.allSkills.find(x => keyOf(base, x) === k) : base.nps.find(x => keyOf(base, x) === k);
