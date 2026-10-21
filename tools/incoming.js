@@ -5,6 +5,8 @@
  *
  * ファイル名は何でもよい（ダウンロードを繰り返して付いた「servants (3).json」のままでよい）。種類は中身で見分ける：
  *   - リスト（format: 'hgw-servants'・英霊の配列）……リストツールの「公開用に保存」「リストをJSONで保存」。
+ *       patch（このブラウザで変えた騎の id の一覧。「公開用に保存」が付ける）があれば、その騎だけを足す・置き換える・消す。
+ *       patch が無い古い書き出しは、次のとおり：
  *       今のリストの8割以上の騎を含むなら「まるごと置き換え」、それより少なければ「足す・置き換える」（同じクラス・真名）
  *       書き出しに残っていた手直し（効果・内容）は手直し表に引き継ぐ
  *   - 手直し表（format: 'hgw-overrides'）……リストツールの「手直し表を保存」。overrides.json をまるごと置き換える
@@ -90,7 +92,20 @@ function main() {
             // 公開用の軽い形（lean）はそのまま使う（並びや書き方を変えず、差分を小さく）。中身を組み立てた書き出しは軽い形に直す
             const { lean, harvested } = d.lean === true ? { lean: raw, harvested: 0 } : toLean(raw);
             const cur = new Set(list.map(s => s.id || idOf(s))), hit = lean.filter(s => cur.has(s.id || idOf(s))).length;
-            if (list.length && hit >= list.length * REPLACE_SHARE) {
+            const patch = d && d.patch && ['add', 'upd', 'del'].every(k => Array.isArray(d.patch[k])) ? d.patch : null;
+            if (patch) {
+              // リストツールの「公開用に保存」：このブラウザで変えた騎だけを反映する。そのあいだに公開側で取り込んだ・直した騎は
+              // そのまま（以前はまるごと置き換えで、ブラウザが知らない騎が消えたり、古い版に戻ったりしていた）
+              const byId = new Map(lean.map(s => [s.id || idOf(s), s]));
+              const put = patch.add.concat(patch.upd).map(id => byId.get(id)).filter(Boolean);
+              const del = new Set(patch.del), gone = list.filter(s => del.has(s.id || idOf(s))).map(s => s.trueName);
+              list = list.filter(s => !del.has(s.id || idOf(s)));
+              let add = 0, rep = 0;
+              for (const s of put) { const i = list.findIndex(x => (x.id || idOf(x)) === s.id); if (i >= 0) { list[i] = s; rep++; } else { list.push(s); add++; } }
+              const missing = patch.add.concat(patch.upd).filter(id => !byId.has(id));
+              notes.push(`- ${label}：このブラウザで変えた騎だけを反映（追加 ${add}・更新 ${rep}・削除 ${gone.length}${gone.length ? `：${gone.join('、')}` : ''}）。ほかの騎は公開中のまま`
+                + (missing.length ? `\n  - ⚠ 変えたことになっているのにファイルに入っていない騎：${missing.join('、')}` : ''));
+            } else if (list.length && hit >= list.length * REPLACE_SHARE) {
               const gone = list.filter(s => !lean.some(x => (x.id || idOf(x)) === (s.id || idOf(s)))).map(s => s.trueName);
               list = lean;
               notes.push(`- ${label}：リストをまるごと置き換え（${lean.length}騎${gone.length ? `。入っていなかったので外れる騎：${gone.join('、')}` : ''}）`);

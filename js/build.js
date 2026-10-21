@@ -366,7 +366,9 @@
   /**
    * 公開用の軽いデータにする（計算で出せる項目を落とす）。fromJSON で元に戻せる。
    */
-  const ITEM_DERIVED = ['effects', 'effectSource', 'matched', 'group', 'attack', 'attackAuto', 'attackBasis', 'attackResolved', 'power', 'burst', 'cost', 'exposure', 'multi', 'disabled'];
+  // mode・modeBasis（宝具の発動のしかた）も手直し表と説明文から毎回決まるので落とす。残すと、公開用のデータが手直し表しだいで変わり、
+  // リストツールが変えていない騎を「未公開の変更」と数えて、書き出しで公開側の更新を上書きしていた
+  const ITEM_DERIVED = ['effects', 'effectSource', 'matched', 'group', 'attack', 'attackAuto', 'attackBasis', 'attackResolved', 'power', 'burst', 'cost', 'exposure', 'multi', 'disabled', 'mode', 'modeBasis'];
   function toLean(sv) {
     const o = restoreWiki(JSON.parse(JSON.stringify(sv)));
     for (const k of DERIVED) delete o[k];
