@@ -4,6 +4,7 @@
 //   - 1項目だけ直して add すると、その騎のその項目だけが変わる（セリフ・解説・原文・ほかの騎は元のまま）
 //   - 新しい騎（最小のJSON）が足せて、ランクが読まれ、並びが整い、check が通る
 //   - 足りない入力は何も書き込まずに断る
+//   - 削除は packs からも消え、手直し表の取り残しも片付ける（--dry-run は何も書かない）
 // data/ は書き換えず、一時フォルダに写して試す。
 'use strict';
 const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync, spawnSync } = require('child_process');
@@ -79,6 +80,33 @@ try {
   const noClass = path.join(tmp, 'noclass.json'); fs.writeFileSync(noClass, S({ trueName: 'だめな英霊2', stats: fresh.stats }));
   ok(run('add', noClass).status !== 0, 'class の無い新しい騎は断られる');
   ok(fs.readFileSync(path.join(tmp, 'servants.json'), 'utf8') === bytes1, '断ったときは何も書き込まない');
+  // 6) 削除：servants.json だけでなく packs からも消え、手直し表の取り残しも消える
+  const gone = 'saber:アルトリア・ペンドラゴン', goneName = 'アルトリア・ペンドラゴン';
+  const cur6 = read(), victim = cur6.find(x => x.id === gone);
+  const ovPath = path.join(tmp, 'overrides.json'), ov0 = JSON.parse(fs.readFileSync(ovPath, 'utf8'));
+  const hasKey = (o, n) => ['servant', 'np', 'stats', 'content', 'pages', 'reviewed'].some(t => Object.keys(o[t] || {}).some(k => k === n || k.startsWith(n + '/')));
+  ok(victim && hasKey(ov0, goneName), '前提：その騎は手直し表にも載っている');
+  fs.mkdirSync(path.join(tmp, 'packs')); fs.mkdirSync(path.join(tmp, 'incoming'));
+  fs.writeFileSync(path.join(tmp, 'packs', 'extra.json'), S({ format: 'hgw-servants', version: 2, lean: true, servants: [victim] }));
+  fs.writeFileSync(path.join(tmp, 'incoming', 'pending.json'), S({ format: 'hgw-servants', version: 2, lean: true, servants: [victim] }));
+  const man = JSON.parse(fs.readFileSync(path.join(tmp, 'manifest.json'), 'utf8')); man.servants.push('packs/extra.json');
+  fs.writeFileSync(path.join(tmp, 'manifest.json'), S(man));
+  const snap = () => ['servants.json', 'overrides.json', 'packs/extra.json'].map(f => fs.readFileSync(path.join(tmp, f), 'utf8')).join('\0');
+  const s0 = snap();
+  const rd = run('remove', goneName, '--dry-run');
+  ok(rd.status === 0 && snap() === s0, '--dry-run は何も書き込まない');
+  const rr = run('remove', goneName);
+  ok(rr.status === 0, '削除が成功する');
+  ok(!read().some(x => x.id === gone) && read().length === cur6.length - 1, 'servants.json から消え、ほかの騎は減らない');
+  ok(!JSON.parse(fs.readFileSync(path.join(tmp, 'packs', 'extra.json'), 'utf8')).servants.some(x => x.id === gone), 'packs/extra.json からも消える');
+  const ov1 = JSON.parse(fs.readFileSync(ovPath, 'utf8'));
+  ok(!hasKey(ov1, goneName), '手直し表（servant・np・content・pages・reviewed）の取り残しが消える');
+  ok(S(ov1.global) === S(ov0.global) && Object.keys(ov1.reviewed).includes('ルーカン'), '全員に効く手直しやほかの騎の手直しは残る');
+  ok(/incoming\/?\s*の pending\.json|pending\.json/.test(rr.stdout), 'data/incoming/ に残ったファイルで復活することを知らせる');
+  ok(read().filter(x => x.id !== id && x.id !== 'saber:テスト英霊').every(x => S(x) === S(b0.get(x.id))), '消した騎以外は1騎も変わらない');
+  ok(run('show', gone).status !== 0, '消したあとは show でも見つからない');
+  ok(run('remove', goneName).status !== 0, 'もう無い騎の削除は断られる');
+  ok(!/エラー saber:アルトリア/.test(run('check').stdout), '消したあとの check に、その騎のエラーは出ない');
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

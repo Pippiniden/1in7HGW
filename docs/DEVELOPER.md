@@ -173,6 +173,7 @@ data/
 - `node tools/servant.js index [--grep 語] [--names]` … 1騎1行の一覧（ステータス・スキル数・宝具数・全部出したときの文字数）
 - `node tools/servant.js show ルーカン` … 強さを決める部分（名前・クラス・ステータス・スキル・宝具・武器）だけを出す（1騎あたり約1,700字）。`--part core,text,voice,profile,relations,meta,source` で解説・セリフ・Wikiの原文なども選べ、`--all` で保存されている形そのまま
 - `node tools/servant.js add 騎.json [別の騎.json …] [--dry-run]` … 個別のJSONを `servants.json` に足す（同じクラス・真名があれば更新）。`show` の出力を直して `add` で戻せる。書いた項目だけが入れ替わり、書かなかった項目（セリフ・解説・原文）は元のまま。新しい騎は 真名・クラス・ステータス（`str end agi mag luk np` をランクの文字列で）があれば足せて、ランクや宝具の種別は自動で読まれる。報告に戦闘力・宝具の威力・要確認が出る。並びと書き方は `incoming.js` と同じなので差分は小さい。`--dry-run` で書き込まずに確かめる
+- `node tools/servant.js remove 真名 [別の騎 …] [--dry-run] [--keep-overrides]` … 削除。`servants.json` だけでなく manifest に並ぶ全ファイル（`packs/` など）から消し、手直し表（`servant`・`np`・`stats`・`content`・`pages`・`reviewed`）にその騎の名前で残った手直しも消す。`data/incoming/` に同じ騎を含むファイルが残っていると次の「データの反映」で復活するので、そのときは知らせる。アップロードで消そうとしても、今のリストの8割以上の騎が入っていない限り「足す・置き換える」だけで削除にはならない点に注意
 - `node tools/servant.js check` … 元データの整合（id・ステータス・名前の重複・全員が組み立てられるか）を確かめる。エラーがあれば終了コード1
 - 共通の `--data フォルダ` で、`data/` 以外のフォルダを相手にできます（試し書き用）。確認は `node test/servant.js`
 
