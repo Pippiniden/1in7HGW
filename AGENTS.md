@@ -308,6 +308,7 @@ Battle start: participants pay `battleMana`; a stored item may be used; `initiat
 
 Rules worth knowing before changing anything here:
 - Defence-type sources (guard, evade, magic_guard, mental_guard) are summed per effect first, then softened by `B.softDef(x) = x/(1 + x·defSoft)`, weighted and capped; different categories multiply. `battleOdds` uses the same formulas.
+- **Shared buffs**: when a side has 2+ fighters (ally helpers, singularity front), `shareTeam` copies each member's passive effects with `params.team` (0–1, ids in `E.TEAM_IDS`, editor field 「味方にも効く」) into the others' `c.temp` at magnitude × team, and `rally` gives the others `power` = rally × `ENGINE.rallyPower`. Lone fighters are unaffected. `knowNameMult` is the true-name edge.
 - **Ailments** (`E.AILMENTS`, caps `E.AIL_CAP`): `tryAil` rolls min(cap, Σmag) (no `rnd()` for holders without one) then the target's `ailResist`; ailments never kill (hp floors at 1). Debuffs come in kinds (`debuff_mind` resisted by mind, `debuff_body` by end/magic_guard, plain `debuff`), capped at 0.5 total; `wither` stacks, persists, fades by `witherFade`.
 - **Triggers** (`fireTrig(c, o, on, T)` → `applyTrig`) hook into battle start, each round, after each exchange, `fireNP`, and each morning; battle-scoped state (`tUsed, tLog, armed, pinched, cleanse, off, ail`) is reset in `cleanup`/`leave`/day end.
 - **Stat roles** (`CONFIG.STAT_FX`, `d = B.statDev(score)`, C≈0, A≈+1): 筋力 damage dealt, 耐久 damage taken/guts, 敏捷 retreat and night finding, 魔力 NP cost and NP power, 幸運 crit/instakill/guts; Master 魔術/精神/幸運 smaller effects. None of these add `rnd()` calls.
@@ -367,6 +368,7 @@ Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are register
 - **Tick answers**: a focus key (`FOCUS`: auto advance search stealth rest defend) or `{ f, cmds }` with `cmds` `{k:'heal',t}` / `{k:'mana'}` / `{k:'guess',t,sv}` (applied next morning; guess once a day, only foes met).
   **Decisions**: `cs` (`heal`/`none`), `wipe` (`revive`/`give`), `council` (`deduce:<id>`, `recover`, `familiar`, `swap`, `pass`), `stray` (`yes`/`no`). Never rename these keys (URLs).
 - **URL**: `?seed=&fr=<front idx .>&d=<days>&pt=&en=<roster idx base36 . per slot>&bs=<boss idx|e>&f=<focus codes>&c=<answers .>&k=<cmds _: {day}h{camp} | {day}m | {day}g{camp}-{rosterIdx36}>`.
+- Enemy labels are `<lineup.tag>の<class>` (tag = the city or one of the name words, chosen in `compose`). `heal_other` heals every other ally each morning (`SING.healOther`). Singularity passes `engine: { knowNameMult: SING.knowNameMult }`; `leadEdge`/`campEdge`/`restRaid` reward 索敵→進軍, 陣地 and 休息.
 - Test: `node test/singularity.js [N] [seed] [--focus=k] [--set=key:v,boss.power:v] [--smart]` (errors, ending ratios incl. clear rate, interactive replay check, bosses never in wars).
 
 ---

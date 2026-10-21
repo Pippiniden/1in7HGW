@@ -161,6 +161,11 @@ body.watching .war { display: block; }
 @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(2, 6, 16, .78); }
 .dlg.on { display: flex; }
+/* いったん下ろす：記録を見返せるように、問いを画面の下に小さくたたむ（index.html と同じ） */
+.dlg.min { background: transparent; pointer-events: none; align-items: flex-end; }
+.dlg.min .dlg-in { pointer-events: auto; width: min(440px, 100%); margin-bottom: var(--safe-b); }
+.dlg.min .dlg-in > :not(.hd) { display: none; }
+.dlg .hd .btn { flex: none; padding: 4px 10px; min-height: 28px; font-size: 12px; }
 .dlg-in { width: min(600px, 100%); max-height: calc(100dvh - 32px); overflow: auto; }
 .dlg h4 { font: 700 21px/1.35 var(--gothic); margin: 2px 16px 4px; }
 .dlg .lead2 { margin: 0 16px 12px; font-size: 14px; color: var(--mute); }
@@ -203,7 +208,7 @@ body.watching .war { display: block; }
         </div>
       </div>
       <div class="field"><span class="lbl" id="daysLbl">修復の期限</span>
-        <div class="daysel"><input type="range" id="days" min="20" max="60" step="1" value="30" aria-labelledby="daysLbl"><output id="daysOut">30日</output></div>
+        <div class="daysel"><input type="range" id="days" min="20" max="80" step="1" value="50" aria-labelledby="daysLbl"><output id="daysOut">50日</output></div>
         <p class="hint">短いほど急がされる。長くすれば、休みながら確実に進められる。</p>
       </div>
       <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ編成・同じ選択なら、同じ特異点になる。空欄なら毎回ちがう）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
@@ -222,11 +227,11 @@ body.watching .war { display: block; }
       <div class="acts"><button class="btn primary" id="go">レイシフトする</button><button class="btn" id="reroll">別の特異点を観測する</button></div>
       <details class="pick" id="pickBox">
         <summary>編成を自分で決める（真名が見えてしまいます）</summary>
-        <p>空欄（くじ）のままの席は、ふだんどおりクラスごとに選ばれます。決めたら「この顔ぶれで観測し直す」を押してください。特異点の名前は変わりません。</p>
+        <p>「ランダム」のままの席は、ふだんどおりクラスごとに選ばれます。決めたら「この顔ぶれで観測し直す」を押してください。特異点の名前は変わりません。</p>
         <div class="pickgrid" id="pickParty" aria-label="味方"></div>
         <div class="pickgrid" id="pickFoes" aria-label="敵"></div>
         <div class="pickgrid" id="pickBoss" aria-label="ボス"></div>
-        <div class="acts"><button class="btn" id="pickApply" type="button">この顔ぶれで観測し直す</button><button class="btn" id="pickClear" type="button">すべてくじに戻す</button></div>
+        <div class="acts"><button class="btn" id="pickApply" type="button">この顔ぶれで観測し直す</button><button class="btn" id="pickClear" type="button">すべてランダムに戻す</button></div>
       </details>
     </div>
   </section>
@@ -297,7 +302,7 @@ body.watching .war { display: block; }
 
 <div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
   <section class="dlg-in panel">
-    <div class="hd"><i class="chev"></i><span class="en">Decision</span><span class="ja" id="dlgWhen"></span></div>
+    <div class="hd"><i class="chev"></i><span class="en">Decision</span><button class="btn" id="dlgMin" type="button">いったん下ろす ▾</button><span class="ja" id="dlgWhen"></span></div>
     <h4 id="dlgTitle"></h4>
     <p class="lead2" id="dlgBody"></p>
     <div class="rowsel" id="dlgOpts"></div>
@@ -353,7 +358,7 @@ body.watching .war { display: block; }
   const dec36 = p => String(p || '').split('.').map(t => { const i = parseInt(t, 36); return t !== '' && i >= 0 && i < roster.length ? roster[i].id : null; });
 
   // ---------- 期限・速さ ----------
-  const setDays = v => { const d = Math.max(20, Math.min(60, Math.round(+v) || CFG.maxDays)); $('#days').value = d; $('#daysOut').textContent = d + '日'; };
+  const setDays = v => { const d = Math.max(20, Math.min(80, Math.round(+v) || CFG.maxDays)); $('#days').value = d; $('#daysOut').textContent = d + '日'; };
   $('#days').addEventListener('input', () => setDays($('#days').value));
   setDays(CFG.maxDays);
   const formSpeed = () => +document.querySelector('input[name=speed]:checked').value;
@@ -384,7 +389,7 @@ body.watching .war { display: block; }
     }).join('');
     $('#frontNote').textContent = front.length === CFG.front ? `前衛：${front.map(i => svOf(lineup.party[i]).trueName).join('・')}` : `前衛をあと${CFG.front - front.length}騎選んでください`;
     $('#go').disabled = front.length !== CFG.front;
-    $('#foeLine').innerHTML = '<span style="box-shadow:none;color:var(--mute);padding-left:0">観測された敵の霊基：</span>' + lineup.foes.map(id => `<span>${esc(svOf(id).class.label)}</span>`).join('') + '<span>？？？</span>';
+    $('#foeLine').innerHTML = '<span style="box-shadow:none;color:var(--mute);padding-left:0">観測された敵の霊基：</span>' + lineup.foes.map(id => `<span>${esc((lineup.tag ? lineup.tag + 'の' : '') + svOf(id).class.label)}</span>`).join('') + '<span>？？？</span>';
   }
   $('#partyCards').addEventListener('click', e => {
     const b = e.target.closest('[data-i]'); if (!b) return;
@@ -404,12 +409,12 @@ body.watching .war { display: block; }
       if (!groups.has(s.class.label)) groups.set(s.class.label, []);
       groups.get(s.class.label).push(s);
     }
-    return '<option value="">（くじ）</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('')}</optgroup>`).join('');
+    return '<option value="">（ランダム）</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('')}</optgroup>`).join('');
   }
   function buildPickers() {
     $('#pickParty').innerHTML = Array.from({ length: CFG.party }, (_, i) => `<label><span>味方 ${i + 1}</span><select data-p="${i}">${svOptions(picks.party[i])}</select></label>`).join('');
     $('#pickFoes').innerHTML = Array.from({ length: CFG.foes }, (_, i) => `<label><span>敵 ${i + 1}</span><select data-e="${i}">${svOptions(picks.foes[i])}</select></label>`).join('');
-    $('#pickBoss').innerHTML = `<label><span>ボス</span><select id="pickBossSel"><option value="">（くじ）</option><option value="empower"${picks.boss === 'empower' ? ' selected' : ''}>超強化されたサーヴァント（くじ）</option>${bosses.map(b => `<option value="${esc(b.id)}"${picks.boss === b.id ? ' selected' : ''}>${esc(b.trueName)}</option>`).join('')}</select></label>`;
+    $('#pickBoss').innerHTML = `<label><span>ボス</span><select id="pickBossSel"><option value="">（ランダム）</option><option value="empower"${picks.boss === 'empower' ? ' selected' : ''}>超強化されたサーヴァント（ランダム）</option>${bosses.map(b => `<option value="${esc(b.id)}"${picks.boss === b.id ? ' selected' : ''}>${esc(b.trueName)}</option>`).join('')}</select></label>`;
   }
   $('#pickApply').onclick = () => {
     picks = { party: [...document.querySelectorAll('[data-p]')].map(s => s.value || null), foes: [...document.querySelectorAll('[data-e]')].map(s => s.value || null), boss: $('#pickBossSel').value || null };
@@ -502,9 +507,9 @@ body.watching .war { display: block; }
   $('#pause').onclick = () => { if (done && idx >= out.entries.length) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
-  $('#quitBtn').onclick = () => { clearTimeout(timer); gen = null; $('#dlg').classList.remove('on'); document.body.classList.remove('watching'); };
+  $('#quitBtn').onclick = () => { clearTimeout(timer); gen = null; $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); };
   $('#skip').onclick = () => {
-    if ($('#dlg').classList.contains('on')) return;
+    if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); $('#dlgMin').textContent = 'いったん下ろす ▾'; return; }
     clearTimeout(timer);
     let guard = 0;
     while (guard++ < 5000) {
@@ -524,15 +529,16 @@ body.watching .war { display: block; }
     $('#dlgWhen').textContent = q.day ? `DAY ${q.day}` : '';
     $('#dlgTitle').textContent = q.title; $('#dlgBody').textContent = q.body || '';
     $('#dlgOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}"><span class="n">${i + 1}</span><b>${esc(o.label)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
-    $('#dlg').classList.add('on');
+    $('#dlg').classList.remove('min'); $('#dlg').classList.add('on'); $('#dlgMin').textContent = 'いったん下ろす ▾';
     const f = $('#dlgOpts button'); if (f) f.focus({ preventScroll: true });
   }
-  function answer(k, silent) { $('#dlg').classList.remove('on'); choices.push(k); pump(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
+  $('#dlgMin').onclick = () => { const m = $('#dlg').classList.toggle('min'); $('#dlgMin').textContent = m ? '決断に戻る ▴' : 'いったん下ろす ▾'; };
+  function answer(k, silent) { $('#dlg').classList.remove('on', 'min'); choices.push(k); pump(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
   $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
   $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, select, textarea')) return;
-    if ($('#dlg').classList.contains('on')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }
+    if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }
     if (e.key === ' ' && document.body.classList.contains('watching')) { e.preventDefault(); $('#pause').click(); }
   });
 
@@ -600,7 +606,7 @@ body.watching .war { display: block; }
     $('#mItems').textContent = p.items; $('#mCamp').textContent = p.camp; $('#mSlain').textContent = `${p.slain}/${CFG.foes}`; $('#mPlace').textContent = p.place || '';
     const unit = c => {
       const cls = c.side === 'party' ? '' : ' foe';
-      const name = c.side === 'party' || c.name ? `<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `<small>${esc(c.cls)}</small>${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
+      const name = c.side === 'party' || c.name ? `<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `${c.label.includes(c.cls) ? '' : `<small>${esc(c.cls)}</small>`}${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
       const g = c.gaugeMax > 1 ? `<span class="gauges">${Array.from({ length: c.gaugeMax }, (_, i) => `<i class="${i < c.gauges ? '' : 'off'}"></i>`).join('')}</span>` : '';
       const showHp = c.side === 'party' || c.seen;
       return `<div class="unit${cls}${c.front ? ' front' : ''}${c.alive ? '' : ' dead'}${c.seen || c.side === 'party' ? '' : ' unseen'}"><span class="u-nm">${name}${g}</span><span class="u-hp">${showHp ? (c.alive ? c.hp : '✝') : ''}</span>${showHp ? `<div class="bar"><i style="width:${c.alive ? c.hp : 0}%;background:${c.side === 'party' ? 'var(--hp)' : 'var(--foe)'}"></i></div>` : ''}</div>`;
@@ -614,7 +620,7 @@ body.watching .war { display: block; }
   }
 
   // ---------- 結末 ----------
-  const END = { clear: ['人理修復 成功', 'ok'], wipe: ['全滅', 'ng'], master: ['マスター死亡', 'ng'], timeout: ['期限切れ', 'ng'] };
+  const END = { clear: ['人理修復 成功', 'ok'], wipe: ['全滅', 'ng'], master: ['マスター死亡', 'ng'], timeout: ['人理定礎崩壊', 'ng'] };
   function finish() {
     clearTimeout(timer); paused = false; syncCtl();
     const r = result, [t, cls] = END[r.ending] || ['終了', 'ng'];
@@ -622,7 +628,7 @@ body.watching .war { display: block; }
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">${esc(r.name)}</span></div><div class="body">
       <p class="big ${cls}">${t}</p><p class="sub">${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${esc(r.boss.trueName)}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}</p>
       <table><tbody>${r.party.map(row).join('')}</tbody></table>
-      <p class="hint">敵：${r.enemies.map(c => `${esc(c.label.replace(/^敵の/, ''))}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
+      <p class="hint">敵：${r.enemies.map(c => `${esc(c.label)}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
       <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button></div></div></section>`;
     $('#again').onclick = () => start({});
     $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(false); };

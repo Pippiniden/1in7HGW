@@ -489,7 +489,7 @@
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
       if (c.wither || c.witherSelf) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
-      if (c.knowName.has(o.id)) p *= 1.08;
+      if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
       else p *= 1 + FX.mCraftPower * md(c, 'craft');
@@ -716,6 +716,9 @@
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       for (const x of all()) x.bx.ctx = ctx;   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように
+      // 並んで戦う味方どうしの効果：味方にも効く効果（params.team）と統率（rally）を、その戦いの間だけ分け合う（乱数は使わない）。
+      //   加勢がいない一騎どうしの戦いでは何も起きない
+      for (const s of [side(a), side(b)]) if (s.length > 1) for (const x of s) for (const y of s) if (x !== y) shareTeam(y, x);
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', line(LK('clash'), { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
@@ -929,6 +932,18 @@
       }
       cleanup();
       function cleanup() { for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
+    }
+
+    // y の常時の効果のうち、味方にも効くもの（params.team）を x の c.temp へ（強さ×割合）。統率は x の戦闘力を 統率×rallyPower 上げる
+    function shareTeam(y, x) {
+      for (const [k, e] of Object.entries(y.sv.effectSummary || {})) {
+        const p = e.params;
+        if (!p || !(p.team > 0) || e.on || !e.passive || isSelf(p) || !E.TEAM_IDS.includes(e.id)) continue;
+        const q = Object.assign({}, p); delete q.team;
+        x.temp.push({ id: e.id, mag: e.passive * Math.min(1, p.team), params: Object.keys(q).length ? q : null, from: (e.from[0] || '').replace(/\(消滅後も持続\)$/, ''), src: '#team:' + y.id + ':' + k });
+      }
+      const r = eff(y, 'rally');
+      if (r > 0 && ENG.rallyPower) x.temp.push({ id: 'power', mag: r * ENG.rallyPower, params: null, from: '統率', src: '#rally:' + y.id });
     }
 
     function* ambushMaster(h, t) {
