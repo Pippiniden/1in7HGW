@@ -5,5 +5,8 @@
   "overrides": [
     "overrides.json"
   ],
-  "masters": []
+  "masters": [],
+  "bosses": [
+    "bosses.json"
+  ]
 }

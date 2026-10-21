@@ -4,7 +4,8 @@
  *   {
  *     "servants":  ["servants.json", "packs/2026-10-xxさん.json"],   // サーヴァントの束（リストツールの書き出し）
  *     "overrides": ["overrides.json"],                               // 手直し表（後ろのファイルほど優先）
- *     "masters":   ["masters.json"]                                  // 固定マスター（任意）
+ *     "masters":   ["masters.json"],                                 // 固定マスター（任意）
+ *     "bosses":    ["bosses.json"]                                   // 特異点攻略のボス専用の英霊（任意。聖杯戦争には呼ばれない）
  *   }
  * 同じクラス・真名のサーヴァントが複数の束にあれば、後ろの束を使う。
  */
@@ -22,7 +23,8 @@
   }
   function listOf(d) { return Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : []); }
 
-  /** 公開データを読む。戻り値: { servants, masters, files, errors } */
+  /** 公開データを読む。戻り値: { servants, masters, bosses, files, errors }
+   *  bosses はボスのデータ（書いたままの形）。組み立ては singularity.js の prepareBosses */
   async function loadPublished(base) {
     base = base || 'data/';
     const man = await getJSON(base + 'manifest.json');
@@ -35,7 +37,9 @@
     for (const s of raw) { try { const b = G.build.fromJSON(s); byId.set(b.id, b); } catch (e) { errors.push((s.trueName || '?') + '：' + e.message); } }
     let masters = [];
     for (const f of man.masters || []) { try { const d = await getJSON(base + f); masters.push(...(Array.isArray(d) ? d : d.masters || [])); files.push(f); } catch (e) { errors.push(e.message); } }
-    return { servants: Array.from(byId.values()), masters, files, errors };
+    const bosses = [];
+    for (const f of man.bosses || []) { try { const d = await getJSON(base + f); bosses.push(...(Array.isArray(d) ? d : d.bosses || [])); files.push(f); } catch (e) { errors.push(e.message); } }
+    return { servants: Array.from(byId.values()), masters, bosses, files, errors };
   }
 
   /** リストツール（roster.html）がこのブラウザに保存したリストと手直しを読む */
@@ -50,18 +54,19 @@
 
   /** 手元のJSONファイル（File オブジェクト）から読む。file:// で開いたとき用 */
   async function loadFiles(fileList) {
-    const raw = [], errors = [];
+    const raw = [], errors = [], bosses = [];
     for (const f of fileList) {
       try {
         const d = JSON.parse(await f.text());
         if (d.format === 'hgw-overrides' || d.global || d.servant || d.content) applyOverrides(d);
+        else if (d.format === 'hgw-bosses') bosses.push(...(d.bosses || []));
         else raw.push(...listOf(d));
       } catch (e) { errors.push(f.name + '：' + e.message); }
     }
     G.build.harvestOverrides(raw);
     const byId = new Map();
     for (const s of raw) { try { const b = G.build.fromJSON(s); byId.set(b.id, b); } catch (e) { errors.push((s.trueName || '?') + '：' + e.message); } }
-    return { servants: Array.from(byId.values()), masters: [], files: Array.from(fileList).map(f => f.name), errors };
+    return { servants: Array.from(byId.values()), masters: [], bosses, files: Array.from(fileList).map(f => f.name), errors };
   }
 
   G.data = { loadPublished, loadLocal, hasLocal, loadFiles, applyOverrides };

@@ -62,17 +62,20 @@
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
     const askLevel = opts.ask || 'never'; // 'never' 以外なら、プレイヤーの陣営で大きな決断のたびに止まる
 
-    const roster = (opts.roster || []).filter(s => s && s.score);
+    const roster = (opts.roster || []).filter(s => s && s.score && !s.bossOnly);   // ボス専用の英霊（特異点のボス）は聖杯戦争に呼ばない
     if (roster.length < 2) throw new Error('サーヴァントが2騎以上必要です');
+    // 特異点（singularity.js）：舞台・陣営・進行を差し替える。聖杯戦争では null で、ここから下の動きは何も変わらない
+    const SG = opts.sing || null;
+    const sInit = SG ? SG.init({ rnd, chance, pick, wpick, shuffle, ENG, seed, roster }) : null;
 
     // ---------- 舞台と陣営 ----------
     const W = G.WORLD, N = G.NAMES;
-    const city = opts.city || pick(W.cities);
-    const places = shuffle(W.places);
-    const comp = G.war.composeWar(roster, rnd, opts.war).filter(x => x.servant);
+    const city = SG ? sInit.city : opts.city || pick(W.cities);
+    const places = SG ? sInit.places : shuffle(W.places);
+    const comp = SG ? [] : G.war.composeWar(roster, rnd, opts.war).filter(x => x.servant);
     const labelCount = {};
     const masterPool = (opts.masters || []).slice();
-    const camps = comp.map((x, i) => {
+    const camps = SG ? sInit.camps : comp.map((x, i) => {
       const sv = JSON.parse(JSON.stringify(x.servant));
       for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd, G.CONFIG.STAT_SCORE); sv.score[k] = sv.ranks[k].score; }
       sv.power = B.combatPower(sv);
@@ -106,7 +109,7 @@
     const seenLabel = {};
     for (const c of camps) if (labelCount[c.labelBase] > 1) { seenLabel[c.labelBase] = (seenLabel[c.labelBase] || 0) + 1; c.label = c.labelBase + '（' + '一二三四五六七'[seenLabel[c.labelBase] - 1] + '）'; }
     let youTaken = null;   // { master, day }：あなたのマスターが死んだあと、サーヴァントが他のマスターと契約した
-    let you = opts.player === 'none' ? null : camps[opts.player != null ? opts.player : Math.floor(rnd() * camps.length)];
+    let you = SG ? sInit.you : opts.player === 'none' ? null : camps[opts.player != null ? opts.player : Math.floor(rnd() * camps.length)];
     if (you) you.you = true;
     // プレイヤーが付けた名前（乱数は使わない。名前は文面にしか出ないので、展開は変わらない）
     const pName = opts.playerName ? String(opts.playerName).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20) : '';
@@ -149,7 +152,8 @@
     const nm = c => known(c) ? `${c.label}「${c.sv.trueName}」` : c.label;
     const sn = c => known(c) ? c.sv.trueName : c.label;           // 文中で短く呼ぶとき
     const mn = c => c.master.name;
-    const snap = () => camps.map(c => ({
+    // 記録ごとの各陣営の様子（特異点では singularity.js が自分の形で作る）
+    const snap = () => SG ? SG.snap() : camps.map(c => ({
       id: c.id, label: c.label, name: known(c) ? c.sv.trueName : null, cls: c.sv.class.label,
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.pact == null ? null : (allies(c)[0] || { id: null }).id, allies: c.pact == null ? [] : allies(c).map(x => x.id), workshop: c.workshop, you: !!c.you, out: c.out,
@@ -160,7 +164,7 @@
     }));
     function log(kind, text, ids, extra) {
       ids = ids || [];
-      const e = Object.assign({ day, phase, kind, text, ids, you: !!you && ids.includes(you.id) }, extra || {});
+      const e = Object.assign({ day, phase, kind, text, ids, you: SG ? ids.some(i => camps[i] && camps[i].you) : !!you && ids.includes(you.id) }, extra || {});
       if (phase === 'night' && tonight.rain) e.weather = 'rain';
       else if (phase === 'night' && tonight.moon) e.weather = 'moon';
       else if (phase === 'night' && tonight.fog) e.weather = 'fog';
@@ -447,6 +451,7 @@
     // マスターが倒れそうなら令呪一画を魔力に換えてしのぐ。令呪も無ければマスターが力尽きる
     function drain(c) {
       if (c.mana >= 0) return;
+      if (SG) return SG.hooks.drain(c);   // 特異点：魔力の蓄えは六騎で共有。足りない分はマスターではなく英霊の霊基が削れる
       const short = -c.mana; c.mana = 0;
       if (!c.masterAlive) return;
       c.mhp -= short * ENG.drainLife;
@@ -512,6 +517,7 @@
         : line('blow', { by: nm(by), c: nm(c) });
       log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
+      if (SG) return SG.hooks.down(c, by);   // 特異点：倒れた英霊はその場で消える（マスターは巻き込まれない）
       if (c.you && c.masterAlive) {
         // プレイヤーのマスターは、運が悪ければその場で巻き込まれる
         if (chance(ENG.fallenDeath)) { c.masterAlive = false; c.mhp = 0; c.gameOver = true; log('death', `崩れ落ちる${sn(c)}のすぐそばで、マスターの${mn(c)}もまた命を落とした。`, [c.id].concat(by ? [by.id] : []), { big: true }); }
@@ -525,6 +531,7 @@
     }
     function masterDown(c, text, by) {
       c.masterAlive = false; c.mhp = 0;
+      if (SG) { log('death', `マスターの${mn(c)}が倒れた。${text}。`, [c.id].concat(by ? [by.id] : []), { big: true }); return SG.hooks.masterDown(c, by); }   // 特異点：マスターの死は即座に失敗
       c.soloLeft = Math.floor(eff(c, 'solo'));
       log('death', `マスターの${mn(c)}が倒れた。${text}。`, [c.id].concat(by ? [by.id] : []), { big: true });
       if (c.you) c.gameOver = true;
@@ -533,6 +540,8 @@
 
     // 致命傷：踏みとどまる / 令呪 / 消滅
     function* lethal(l, w, cause, round) {
+      // 特異点のボス：ブレイクゲージが残っていれば、霊基を組み直して立ち上がる
+      if (SG) { const g = SG.hooks.gauge(l, w); if (g) return g; }
       // 致命傷を受けた瞬間に自動で発動する宝具（回復・踏みとどまりなど）。霊基が戻れば、そのまま踏みとどまる
       if (l.bx && l.bx.ctx && autoNP(l, w, 'lethal', l.bx.ctx, round) && l.hp > 0) {
         log('battle', `宝具の力が、消えかけた${sn(l)}の霊基をつなぎ止めた。`, [l.id, w.id]);
@@ -546,7 +555,8 @@
         log('battle', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]);
         return 'guts';
       }
-      if (l.masterAlive && l.cs > 0) {
+      if (SG) { const r = yield* SG.hooks.seal(l, w); if (r) return r; }   // 特異点：消滅寸前に令呪で霊基を癒やすか
+      else if (l.masterAlive && l.cs > 0) {
         const use = yield* ask(l, 'cs', {
           title: `${sn(l)}が倒れかけている`,
           body: `このままでは${sn(l)}は消滅する。令呪は残り${l.cs}画。`,
@@ -569,7 +579,7 @@
       const ln = w.lastNP;
       const fin = cause === 'mutual' ? { how: 'mutual' } : ln && ln.round === round ? { how: 'np', np: ln.name } : ln ? { how: 'np-earlier', np: ln.name } : { how: cause === 'instakill' ? 'instakill' : 'blow' };
       if (cause === 'mutual') lastMutual = day;
-      servantDown(l, `${day}日目の夜、${nm(w)}${cause === 'mutual' ? 'と相討ちになった' : fin.how === 'np' ? 'の宝具『' + ln.name + '』に倒れた' : cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w, fin);
+      servantDown(l, `${day}日目の${phase === 'day' ? '昼' : '夜'}、${nm(w)}${cause === 'mutual' ? 'と相討ちになった' : fin.how === 'np' ? 'の宝具『' + ln.name + '』に倒れた' : cause === 'instakill' ? 'の即死の一撃に倒れた' : 'との戦いに敗れた'}`, w, fin);
       return 'dead';
     }
 
@@ -624,7 +634,7 @@
       const over = c.mana < cost;
       c.mana -= cost; c.npUses++;
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
-      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; }
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; if (SG) c.lastNP.aoe = SG.aoeOf(c, np); }
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
@@ -688,10 +698,11 @@
 
     // ---------- 戦闘 ----------
     let witnessed = [];
-    // ctx.helpA / ctx.helpB：同盟相手の加勢（a・b の味方として並んで戦う）
+    // ctx.helpA / ctx.helpB：同盟相手の加勢（a・b の味方として並んで戦う）。聖杯戦争では一騎まで、特異点では前衛の仲間など数騎の配列
     function* battle(a, b, ctx) {
-      const help = new Map([[a, ctx.helpA || null], [b, ctx.helpB || null]]);
-      const side = x => [x].concat(help.get(x) ? [help.get(x)] : []);
+      const helpers0 = [].concat(ctx.helpA || [], ctx.helpB || []);
+      const help = new Map([[a, [].concat(ctx.helpA || [])], [b, [].concat(ctx.helpB || [])]]);
+      const side = x => [x].concat(help.get(x));
       const all = () => side(a).concat(side(b));
       for (const c of all()) {
         c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || []); c.carry = null; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
@@ -699,19 +710,20 @@
         c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }
       const opp = x => (side(a).includes(x) ? b : a);
+      const LK = k => (ctx.lines && ctx.lines[k]) || k;   // 文面の差し替え（特異点の昼の戦いなど。聖杯戦争では使わない）
       // 瀕死になったときに発動する効果（1回の戦いに一度）
       const pinch = () => { for (const x of all()) if (x.alive && !x.pinched && x.hp > 0 && x.hp < ENG.pinchAt) { x.pinched = true; fireTrig(x, opp(x), 'pinch', ctx.terrain); autoNP(x, opp(x), 'pinch', ctx); } };
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       for (const x of all()) x.bx.ctx = ctx;   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
-      log('battle', line('clash', { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
+      log('battle', line(LK('clash'), { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
-      for (const [x, o] of [[a, b], [b, a]]) {
-        const y = help.get(x); if (!y) continue;
+      for (const [x, o] of [[a, b], [b, a]]) for (const y of help.get(x)) {
         y.stance = 'careful'; clue(y, o, 1); clue(o, y, 1); y.knowName.add(x.id);
-        log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、二騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
+        if (!SG) log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、二騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
       }
+      if (SG) SG.hooks.lineup(a, b, help.get(a), help.get(b));
       const rt = related(a, b);
       if (rt) {
         a.knowName.add(b.id); b.knowName.add(a.id);
@@ -743,11 +755,15 @@
       for (const x of all()) autoNP(x, opp(x), 'start', ctx);   // 戦いの始めに自動で発動する宝具
       // 加勢の力：味方の戦闘力（傷の具合）＋宝具の一部。統率が連携を強める
       const assist = (x, o) => {
-        const y = help.get(x); if (!y || !y.alive) return 0;
-        const T = ctx.terrain;
-        return (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
+        let t = 0;
+        for (const y of help.get(x)) {
+          if (!y.alive) continue;
+          const T = ctx.terrain;
+          t += (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (y.assistK != null ? y.assistK : 1) * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
+        }
+        return t;
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h === y) help.set(x, null); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) { c.npBoost = 0; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ
         // バーサーカーは、打ち合いのたびに魔力を食う
@@ -794,7 +810,7 @@
         }
         if (!opened.has(a)) useNP(a, b, round, ctx);
         if (!opened.has(b)) useNP(b, a, round, ctx);
-        for (const [x, o] of [[a, b], [b, a]]) { const y = help.get(x); if (y && y.alive && !opened.has(y)) useNP(y, o, round, ctx); }
+        for (const [x, o] of [[a, b], [b, a]]) for (const y of help.get(x)) if (y.alive && !opened.has(y)) useNP(y, o, round, ctx);
         for (const c of all()) if (c.pendingRetire) {
           const n = c.pendingRetire; c.pendingRetire = null; servantDown(c, `宝具『${n}』の代償で脱落した`);
           if (c === a || c === b) { cleanup(); return; } else leave(c);
@@ -820,7 +836,10 @@
         const p = 1 / (1 + Math.exp(-(ea - eb) / G.CONFIG.BATTLE_K));
         const [w, l, ew, el] = chance(p) ? [a, b, ea, eb] : [b, a, eb, ea];
         // 負けた側に加勢がいれば、その一撃を味方が受けることもある
-        const lh = help.get(l), cover = lh && lh.alive && chance(clamp(ENG.allyCover + eff(lh, 'taunt', ctx.terrain), 0, 0.9));   // かばう（taunt）
+        // かばうのは、加勢のうちいちばん前に出たがる者（かばうスキル→霊基の残り。乱数は使わない）
+        const lhs = help.get(l).filter(y => y.alive);
+        const lh = lhs.length > 1 ? lhs.reduce((p, q) => (eff(q, 'taunt', ctx.terrain) + q.hp / 1000 > eff(p, 'taunt', ctx.terrain) + p.hp / 1000 ? q : p)) : lhs[0] || null;
+        const cover = lh && chance(clamp(ENG.allyCover + eff(lh, 'taunt', ctx.terrain), 0, 0.9));   // かばう（taunt）
         const tg = cover ? lh : l;
         if (cover) log('battle', `${sn(lh)}が${sn(l)}をかばって前に出た。`, [lh.id, l.id, w.id]);
         let outcome = null, o3 = null;
@@ -849,6 +868,17 @@
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           tg.critHit = false;
+          // 特異点：全体攻撃の宝具で押し勝った打ち合いでは、傷が相手の側の全員に広がる（聖杯戦争では起きない）
+          if (SG && w.alive && w.lastNP && w.lastNP.round === round && w.lastNP.aoe > 0) {
+            const hit = side(l).filter(y => y !== tg && y.alive);
+            if (hit.length) log('battle', `宝具の奔流は${sn(tg)}だけでは止まらず、${hit.map(sn).join('・')}をも呑み込んだ。`, [w.id].concat(hit.map(y => y.id)));
+            for (const y of hit) {
+              y.hp -= dmg * w.lastNP.aoe;
+              if (y.hp > 0) continue;
+              const r = yield* lethal(y, w, 'battle', round);
+              if (y !== l && (r === 'dead' || r === 'escaped')) leave(y);
+            }
+          }
           // 押し勝った側も深手で倒れることがある（相手を討ち取った打ち合いなら相討ち）
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
@@ -865,13 +895,13 @@
         else outcome = outcome || o3;
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
-        if (l.masterAlive && w.alive) {
+        if (l.masterAlive && w.alive && !l.noMaster) {   // noMaster：特異点の敵（聖杯が呼んだ英霊）には狙えるマスターがいない
           const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0) + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
           if (chance(Math.min(0.15, pm))) {
             l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
             if (l.mhp <= 0) {
-              if (l.cs > 0 && chance(clamp(ENG.csSaveMaster + FX.mMindSeal * md(l, 'mind'), 0, 0.95))) { l.cs--; l.mhp = 6; log('cs', `${sn(w)}の刃がマスターの${mn(l)}に迫る——令呪の光が、すんでのところで${mn(l)}を守った。（残り${l.cs}画）`, [l.id, w.id], { big: true }); }
-              else { log('battle', `乱戦の中、${sn(w)}の刃がマスターの${mn(l)}に届いた。`, [w.id, l.id], { big: true }); masterDown(l, `${day}日目の夜、${nm(w)}との戦いの最中だった`, w); break; }
+              if (!SG && l.cs > 0 && chance(clamp(ENG.csSaveMaster + FX.mMindSeal * md(l, 'mind'), 0, 0.95))) { l.cs--; l.mhp = 6; log('cs', `${sn(w)}の刃がマスターの${mn(l)}に迫る——令呪の光が、すんでのところで${mn(l)}を守った。（残り${l.cs}画）`, [l.id, w.id], { big: true }); }
+              else { log('battle', `乱戦の中、${sn(w)}の刃がマスターの${mn(l)}に届いた。`, [w.id, l.id], { big: true }); masterDown(l, `${day}日目の${phase === 'day' ? '昼' : '夜'}、${nm(w)}との戦いの最中だった`, w); break; }
             } else log('battle', `${sn(w)}の一撃がマスターの${mn(l)}をかすめた。${mn(l)}は深手を負った。`, [w.id, l.id]);
           }
         }
@@ -882,11 +912,11 @@
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
           const agi = sd(weaker, 'agi') - sd(other, 'agi');
           if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) + eff(weaker, 'luck') * 0.3 - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
-            log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : line('retreat', { W: sn(weaker), O: sn(other) }), [weaker.id, other.id]); break;
+            log('battle', agi >= 0.6 ? `${sn(weaker)}は持ち前の速さで${sn(other)}を振り切った。` : line(LK('retreat'), { W: sn(weaker), O: sn(other) }), [weaker.id, other.id]); break;
           } else if (eff(other, 'pin', ctx.terrain) > 0.1) log('battle', `退こうとした${sn(weaker)}の行く手を、${sn(other)}が阻んだ。`, [weaker.id, other.id]);
           else if (agi <= -0.6) log('battle', `退こうとした${sn(weaker)}に、${sn(other)}の速さが追いすがった。`, [weaker.id, other.id]);
         }
-        if (round === ENG.rounds) log('battle', line('dawn'), [a.id, b.id]);
+        if (round === ENG.rounds) log('battle', line(LK('dawn')), [a.id, b.id]);
       }
       if (ctx.home) a.knowLoc.add(ctx.home.id);
       // 戦いぶりから、相手のマスターの性格が見えてくる
@@ -898,7 +928,7 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b, ctx.helpA, ctx.helpB]) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
+      function cleanup() { for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
     }
 
     function* ambushMaster(h, t) {
@@ -1031,7 +1061,7 @@
 
     // ---------- 昼 ----------
     let lastCouncil = 0;
-    const focusOf = c => c.you && c.focus && c.focus !== 'auto' && FOCUS[c.focus] ? FOCUS[c.focus] : null;
+    const focusOf = c => SG ? SG.hooks.focus(c) : c.you && c.focus && c.focus !== 'auto' && FOCUS[c.focus] ? FOCUS[c.focus] : null;
 
     const deduceP = (c, t) => clamp(0.08 + (c.clues[t.id] || 0) * 0.12 + eff(c, 'reveal') + eff(c, 'intel') * 0.5 + c.master.stats.craft / 500 - eff(t, 'conceal') * 0.5, 0.03, 0.9);
 
@@ -1422,6 +1452,21 @@
         for (const r of m) if (r.items === 0) { const g = m.find(x => x !== r && x.items >= 2); if (g) { g.items--; r.items++; if (g.you || r.you) say('item', `${mn(g)}が、作っておいた道具を${mn(r)}に分けた。`, [g.id, r.id]); } }
       }
     }
+
+    // ---------- 特異点：ここから先の進行は singularity.js に任せる ----------
+    // 戦闘・宝具・効果・記録・判断の仕組みはそのまま使い、日々の進め方と結末だけを差し替える
+    if (SG) return yield* SG.run({
+      camps, out, entries, seed, city, ENG, FX, W,
+      rnd, chance, pick, wpick, shuffle, clamp,
+      get day() { return day; }, set day(v) { day = v; },
+      get phase() { return phase; }, set phase(v) { phase = v; },
+      get tonight() { return tonight; }, set tonight(v) { tonight = v; },
+      get you() { return you; },
+      log, line, say, voice, ask, bondUp,
+      known, nm, sn, mn, pubName, clue, deduceP, related,
+      eff, effS, sd, md, condOk, fireTrig, ailText, upk, npCostOf, wildOf,
+      battle, lethal, servantDown, masterDown, lifeEvent,
+    });
 
     // ---------- 開幕 ----------
     log('prologue', `${city}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });

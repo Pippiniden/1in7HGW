@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>特異点攻略（テスト）</title>
+<meta name="description" content="六騎の英霊を率いて特異点の敵サーヴァント七騎とボスを倒し、人理を修復する。聖杯戦争観戦記のテスト機能。">
+<meta name="theme-color" content="#050d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と文字は index.html と同じ */
+:root {
+  --void: #050d22; --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85); --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4;
+  --gold: #ffd84a; --seal: #ff4f72; --hp: #4fd2ff; --mana: #4ef0c0; --bond: #ff8fc8; --foe: #ff9a6b; --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif; --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --cut: 10px; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ice); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere;
+  background: repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #3a1a5c 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%), var(--void);
+  background-attachment: fixed; }
+a { color: var(--cyan); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.en { font-family: var(--en); letter-spacing: .14em; text-transform: uppercase; }
+[hidden] { display: none !important; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); box-shadow: inset 0 0 28px rgba(62, 230, 255, .06), 0 6px 24px rgba(0, 0, 0, .35); min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; }
+.chev { flex: none; width: 22px; height: 16px; background: var(--gold); clip-path: polygon(0 0, 30% 0, 62% 50%, 30% 100%, 0 100%, 32% 50%, 38% 0, 68% 0, 100% 50%, 68% 100%, 38% 100%, 70% 50%); }
+.hd .en { font-size: 18px; font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(62, 230, 255, .55); line-height: 1; white-space: nowrap; }
+.hd .ja { margin-left: auto; font-size: 12px; background: linear-gradient(90deg, rgba(62, 230, 255, .02), rgba(62, 230, 255, .18)); padding: 3px 12px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.body { padding: 0 16px 14px; }
+.btn { position: relative; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; white-space: nowrap;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn[aria-pressed="true"], .btn.primary { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.btn.seal { box-shadow: inset 0 0 0 1px var(--seal); }
+.btn:disabled { opacity: .45; cursor: default; }
+.bar { height: 7px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; transition: width .4s; }
+.seals { display: inline-flex; gap: 3px; vertical-align: -1px; }
+.seals i { width: 5px; height: 14px; background: var(--seal); transform: skewX(-20deg); box-shadow: 0 0 6px rgba(255, 79, 114, .7); }
+.seals i.used { background: rgba(255, 255, 255, .12); box-shadow: none; }
+.hint { font-size: 12px; color: var(--mute); margin: 6px 0 0; }
+select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 6px 8px; max-width: 100%; min-height: 34px; }
+.rowsel { display: grid; gap: 4px; }
+.rowsel label, .rowsel button { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 0 10px; text-align: left; cursor: pointer;
+  padding: 7px 14px 7px 10px; min-height: 40px; background: linear-gradient(90deg, rgba(20, 70, 150, .55), rgba(10, 36, 86, .55)); border: 0; box-shadow: inset 0 0 0 1px var(--line); font-size: 14px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); }
+.rowsel .ico { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid var(--line-hi); transform: rotate(45deg); }
+.rowsel .ico::after { content: ""; width: 6px; height: 6px; background: var(--cyan); }
+.rowsel [aria-pressed="true"], .rowsel label:has(input:checked) { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.rowsel [aria-pressed="true"] .ico::after, .rowsel label:has(input:checked) .ico::after { background: var(--sel-ink); }
+.rowsel input { position: absolute; opacity: 0; pointer-events: none; }
+.choices4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 560px) { .choices4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- 開始前 ---------- */
+.intro { max-width: 760px; margin: 0 auto; padding: calc(6vh + var(--safe-t)) 16px 64px; display: grid; gap: 18px; }
+.title { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; }
+.title h1 { font: 700 clamp(36px, 10vw, 64px)/1.15 var(--gothic); margin: 6px 0 0; letter-spacing: .08em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
+.title h1 small { font-size: .32em; letter-spacing: .2em; color: var(--mute); margin-left: 10px; font-weight: 500; }
+.lead { font: 500 15px/2 var(--mincho); margin: 0; }
+.field { display: grid; gap: 6px; margin-bottom: 14px; }
+.field .lbl { font-size: 12px; color: var(--mute); }
+.field input[type=text] { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 9px 12px; width: 100%; max-width: 280px; }
+.daysel { display: flex; align-items: center; gap: 12px; } .daysel input { flex: 1; max-width: 320px; accent-color: var(--cyan); }
+.err { color: var(--seal); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.sname { text-align: center; padding: 6px 0 12px; }
+.sname small { display: block; font: 600 12px var(--en); color: var(--mute); letter-spacing: .3em; }
+.sname b { display: block; font: 700 clamp(26px, 7vw, 40px)/1.3 var(--mincho); letter-spacing: .12em; color: #fff; text-shadow: 0 0 18px rgba(255, 216, 74, .4); }
+.sname span { font-size: 13px; color: var(--mute); }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 620px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { position: relative; text-align: left; padding: 8px 10px 9px; background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; min-width: 0; }
+.card .cls { font-size: 11px; color: var(--mute); }
+.card .nm { font: 700 15px/1.35 var(--gothic); display: block; }
+.card .st { font: 600 12px/1.4 var(--en); color: var(--mute); letter-spacing: .04em; }
+.card .tag { position: absolute; top: 6px; right: 8px; font: 700 11px var(--gothic); color: var(--mute); }
+.card[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--cyan), 0 0 14px rgba(62, 230, 255, .35); background: linear-gradient(180deg, rgba(62, 230, 255, .16), var(--inset)); }
+.card[aria-pressed="true"] .tag { color: var(--cyan); }
+.foeline { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.foeline span { font-size: 12px; padding: 2px 8px; box-shadow: inset 0 0 0 1px rgba(255, 154, 107, .5); color: var(--foe); }
+details.pick { font-size: 13px; color: var(--mute); }
+details.pick summary { cursor: pointer; padding: 6px 0; }
+.pickgrid { display: grid; gap: 6px; margin: 8px 0; }
+.pickgrid label { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
+.foot { font-size: 12px; color: var(--mute); text-align: center; }
+
+/* ---------- 観戦 ---------- */
+.war { display: none; }
+body.watching .intro { display: none; }
+body.watching .war { display: block; }
+.hud { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, rgba(5, 13, 34, .97), rgba(8, 22, 56, .94)); border-bottom: 1px solid var(--line-hi); }
+.hud-in { max-width: 1360px; margin: 0 auto; padding: calc(8px + var(--safe-t)) 16px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
+.hud .nm { font: 700 17px/1.3 var(--mincho); letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud .dayx { font: 700 15px var(--en); color: var(--cyan); letter-spacing: .08em; }
+.prog { height: 4px; background: var(--inset); margin-top: 4px; } .prog i { display: block; height: 100%; background: var(--gold); transition: width .4s; }
+.ctl { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.ctl .btn { padding: 4px 9px; min-height: 30px; font-size: 12px; }
+.layout { max-width: 1360px; margin: 0 auto; padding: 14px 16px calc(24px + var(--safe-b)); display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 14px; align-items: start; }
+.col { display: grid; gap: 14px; min-width: 0; }
+.full { grid-column: 1 / -1; } .full:empty { display: none; }
+@media (max-width: 820px) { .layout { grid-template-columns: minmax(0, 1fr); } .hud-in { grid-template-columns: minmax(0, 1fr); } .ctl { justify-content: flex-start; } }
+.mstat { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 3.2em; gap: 4px 8px; align-items: center; font-size: 12px; color: var(--mute); }
+.mstat b { font: 700 12px var(--en); color: var(--ice); text-align: right; }
+.mrow { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; }
+.mrow b { color: var(--ice); }
+.unit { display: grid; grid-template-columns: minmax(0, 1fr) 3em; gap: 2px 8px; align-items: center; padding: 6px 8px; border-top: 1px solid rgba(80, 196, 255, .14); }
+.unit:first-child { border-top: 0; }
+.unit .u-nm { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit .u-nm small { font-weight: 400; font-size: 11px; color: var(--mute); margin-right: 5px; }
+.unit .u-hp { font: 700 12px var(--en); text-align: right; }
+.unit .bar { grid-column: 1 / -1; }
+.unit.front { background: linear-gradient(90deg, rgba(62, 230, 255, .10), transparent 70%); }
+.unit.front .u-nm::before { content: "前衛 "; font-size: 10px; color: var(--cyan); font-weight: 700; }
+.unit.dead { opacity: .4; } .unit.dead .u-nm { text-decoration: line-through; }
+.unit.foe .bar i { background: var(--foe); }
+.unit.unseen .u-nm { color: var(--mute); font-weight: 400; }
+.gauges { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: 1px; } .gauges i { width: 10px; height: 6px; background: var(--seal); } .gauges i.off { background: rgba(255, 255, 255, .15); }
+.focus .rowsel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.focus .rowsel button { font-size: 13px; padding: 7px 14px 7px 8px; gap: 0 7px; white-space: nowrap; }
+.order .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.order .row select { flex: 1 1 10em; min-width: 0; }
+.order .row .btn { flex: 1 1 auto; }
+.queue { font-size: 12px; color: #ff9db1; margin-top: 6px; }
+.logp .body { padding: 0; }
+.log { list-style: none; margin: 0; padding: 0 10px 8px; }
+.log li { position: relative; display: grid; grid-template-columns: 3.6em minmax(0, 1fr); gap: 10px; padding: 9px 8px; border-top: 1px solid rgba(80, 196, 255, .12); }
+.log .when { font: 700 13px/1.2 var(--en); color: var(--cyan); padding-top: 3px; }
+.log .when span { display: block; font: 11px var(--gothic); color: var(--mute); }
+.log .txt { font: 500 15px/1.8 var(--mincho); }
+.log .q { display: block; font-size: 14px; color: var(--cyan-2); opacity: .85; margin-top: 3px; padding-left: 10px; border-left: 2px solid rgba(62, 230, 255, .4); }
+.log .q::before { content: "「"; } .log .q::after { content: "」"; }
+.log .is-you::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--cyan); }
+.log .k-death .txt { color: var(--seal); font-weight: 700; }
+.log .k-death::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--seal); }
+.log .k-np .txt { font-weight: 700; color: #fff3c4; text-shadow: 0 0 12px rgba(255, 216, 74, .45); }
+.log .k-cs .txt { color: #ff9db1; }
+.log .k-end .txt { color: var(--gold); font-weight: 700; }
+.log .k-scout .txt { color: var(--cyan-2); }
+.log .k-choice .txt, .log .k-council .txt { font-family: var(--gothic); font-size: 14px; color: var(--gold); }
+.log .k-choice .txt::before { content: "▶ "; }
+.log .k-dayhead { display: block; padding: 6px 8px 2px; border-top: 1px solid var(--line-hi); }
+.log .k-dayhead .txt { font: 700 13px var(--en); color: var(--gold); letter-spacing: .1em; }
+.log .new { animation: rise .45s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(2, 6, 16, .78); }
+.dlg.on { display: flex; }
+.dlg-in { width: min(600px, 100%); max-height: calc(100dvh - 32px); overflow: auto; }
+.dlg h4 { font: 700 21px/1.35 var(--gothic); margin: 2px 16px 4px; }
+.dlg .lead2 { margin: 0 16px 12px; font-size: 14px; color: var(--mute); }
+.dlg .rowsel { padding: 0 16px; gap: 6px; }
+.dlg .rowsel button { grid-template-columns: 28px minmax(0, 1fr); min-height: 52px; }
+.dlg .rowsel .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--en); box-shadow: inset 0 0 0 2px var(--line-hi); grid-row: span 2; }
+.dlg .rowsel small { grid-column: 2; font-size: 12px; opacity: .85; }
+.dlg .rowsel button:hover, .dlg .rowsel button:focus-visible { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); outline: none; }
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px 16px; }
+.result .big { font: 700 clamp(26px, 6vw, 36px)/1.3 var(--mincho); text-align: center; margin: 4px 0 2px; }
+.result .big.ok { color: var(--gold); text-shadow: 0 0 18px rgba(255, 216, 74, .45); } .result .big.ng { color: var(--seal); }
+.result .sub { text-align: center; color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+.result table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.result td, .result th { padding: 4px 6px; border-top: 1px solid rgba(80, 196, 255, .14); text-align: left; vertical-align: top; }
+.result th { color: var(--mute); font-weight: 500; white-space: nowrap; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + var(--safe-b)); transform: translateX(-50%); z-index: 30; background: rgba(8, 30, 74, .96); box-shadow: inset 0 0 0 1px var(--line-hi); padding: 8px 16px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s; max-width: calc(100vw - 32px); }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .log .new { animation: none; } .bar i, .prog i { transition: none; } }
+</style>
+</head>
+<body>
+
+<section class="intro" aria-labelledby="title">
+  <div class="title">
+    <span class="en">Singularity ／ Test</span>
+    <h1 id="title">特異点攻略<small>テスト版</small></h1>
+  </div>
+  <p class="lead">人理を歪める特異点が観測された。あなたは六騎の英霊を率いてその地へ降り立ち、聖杯に呼ばれた七騎の敵サーヴァントを討ち、最後に現れる特異点の主を倒さなければならない。期限までに修復できなければ、人類史はそこで途絶える。あなたにできるのは、前衛の三騎を選び、日々の方針を決め、令呪を切ることだけだ。</p>
+
+  <section class="panel" aria-label="観測の準備">
+    <div class="hd"><i class="chev"></i><span class="en">Observation</span><span class="ja">観測の準備</span></div>
+    <div class="body">
+      <p id="data">サーヴァントのデータを読み込んでいます…</p>
+      <div class="field"><span class="lbl">進む速さ</span>
+        <div class="rowsel choices4" role="radiogroup">
+          <label><input type="radio" name="speed" value="1"><span class="ico"></span>ゆっくり</label>
+          <label><input type="radio" name="speed" value="2" checked><span class="ico"></span>ふつう</label>
+          <label><input type="radio" name="speed" value="4"><span class="ico"></span>はやい</label>
+          <label><input type="radio" name="speed" value="8"><span class="ico"></span>とても速い</label>
+        </div>
+      </div>
+      <div class="field"><span class="lbl" id="daysLbl">修復の期限</span>
+        <div class="daysel"><input type="range" id="days" min="20" max="60" step="1" value="30" aria-labelledby="daysLbl"><output id="daysOut">30日</output></div>
+        <p class="hint">短いほど急がされる。長くすれば、休みながら確実に進められる。</p>
+      </div>
+      <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ編成・同じ選択なら、同じ特異点になる。空欄なら毎回ちがう）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+      <div class="acts"><button class="btn primary" id="observe" disabled>特異点を観測する</button></div>
+    </div>
+  </section>
+
+  <section class="panel" id="formation" aria-label="編成" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Formation</span><span class="ja">編成</span></div>
+    <div class="body">
+      <div class="sname"><small>SINGULARITY</small><b id="sName"></b><span id="sRegion"></span></div>
+      <p class="hint" style="margin:0 0 8px">前衛に立てる三騎を選ぶ（押して切り替え）。前衛が倒れると、控えが順に前に出る。</p>
+      <div class="cards" id="partyCards"></div>
+      <p class="hint" id="frontNote"></p>
+      <div class="foeline" id="foeLine" aria-label="観測された敵の霊基"></div>
+      <div class="acts"><button class="btn primary" id="go">レイシフトする</button><button class="btn" id="reroll">別の特異点を観測する</button></div>
+      <details class="pick" id="pickBox">
+        <summary>編成を自分で決める（真名が見えてしまいます）</summary>
+        <p>空欄（くじ）のままの席は、ふだんどおりクラスごとに選ばれます。決めたら「この顔ぶれで観測し直す」を押してください。特異点の名前は変わりません。</p>
+        <div class="pickgrid" id="pickParty" aria-label="味方"></div>
+        <div class="pickgrid" id="pickFoes" aria-label="敵"></div>
+        <div class="pickgrid" id="pickBoss" aria-label="ボス"></div>
+        <div class="acts"><button class="btn" id="pickApply" type="button">この顔ぶれで観測し直す</button><button class="btn" id="pickClear" type="button">すべてくじに戻す</button></div>
+      </details>
+    </div>
+  </section>
+  <p class="foot"><a href="index.html">聖杯戦争 観戦記へ戻る</a> ・ 特異点攻略はテスト中の機能です。サーヴァントのデータは聖杯戦争と共有しています。</p>
+</section>
+
+<section class="war">
+  <header class="hud">
+    <div class="hud-in">
+      <div style="min-width:0">
+        <div class="nm" id="hudName"></div>
+        <div><span class="dayx" id="hudDay">DAY 0</span> <span class="hint" id="hudInfo" style="margin-left:8px"></span></div>
+        <div class="prog"><i id="hudProg" style="width:0"></i></div>
+      </div>
+      <div class="ctl">
+        <button class="btn" id="pause">❚❚ 一時停止</button>
+        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="16">16×</button>
+        <button class="btn" id="skip" title="次の決断（なければ最後）まで進める">▸▸ 先へ</button>
+        <button class="btn" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
+        <button class="btn" id="quitBtn">やめる</button>
+      </div>
+    </div>
+  </header>
+  <div class="layout">
+    <div id="result" class="full"></div>
+    <div class="col">
+      <section class="panel" aria-label="マスター">
+        <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja" id="mName"></span></div>
+        <div class="body">
+          <div class="mstat"><span>体力</span><div class="bar"><i id="mHp" style="background:var(--hp)"></i></div><b id="mHpT"></b>
+            <span>魔力の蓄え</span><div class="bar"><i id="mMana" style="background:var(--mana)"></i></div><b id="mManaT"></b></div>
+          <div class="mrow"><span>令呪 <span class="seals" id="mSeals"></span></span><span>道具 <b id="mItems">0</b></span><span>陣地 <b id="mCamp">0</b></span><span>討伐 <b id="mSlain">0</b></span></div>
+          <div class="mrow"><span>いま <b id="mPlace"></b></span></div>
+        </div>
+      </section>
+      <section class="panel" aria-label="味方">
+        <div class="hd"><i class="chev"></i><span class="en">Party</span><span class="ja">率いる英霊</span></div>
+        <div class="body" id="partyList" style="padding:0 8px 10px"></div>
+      </section>
+      <section class="panel focus" aria-label="方針">
+        <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span></div>
+        <div class="body"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p class="hint" id="focusDesc"></p></div>
+      </section>
+      <section class="panel order" aria-label="令呪と推理">
+        <div class="hd"><i class="chev"></i><span class="en">Orders</span><span class="ja">令呪・真名の推測</span></div>
+        <div class="body">
+          <p class="hint" id="orderHint" style="margin-top:0">一時停止中に選べる。選んだものは次の朝に働く。</p>
+          <div class="row"><select id="healT" aria-label="癒やす英霊"></select><button class="btn seal" id="healBtn">令呪一画で霊基を癒やす</button></div>
+          <div class="row"><button class="btn seal" id="manaBtn">令呪一画で魔力を満たす</button></div>
+          <div class="row"><select id="guessT" aria-label="推測する敵"></select><select id="guessSv" aria-label="真名の候補"></select><button class="btn" id="guessBtn">この真名だと推測する</button></div>
+          <p class="hint">真名の推測は、一度でも出会った敵に、1日に一度まで。当たれば、その敵との戦いで有利になる。</p>
+          <div class="queue" id="queue"></div>
+        </div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel" aria-label="敵">
+        <div class="hd"><i class="chev"></i><span class="en">Enemies</span><span class="ja" id="foeHead">特異点の敵</span></div>
+        <div class="body" id="foeList" style="padding:0 8px 10px"></div>
+      </section>
+      <section class="panel logp" aria-label="記録">
+        <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">攻略の記録</span></div>
+        <div class="body"><ol class="log" id="log"></ol></div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en">Decision</span><span class="ja" id="dlgWhen"></span></div>
+    <h4 id="dlgTitle"></h4>
+    <p class="lead2" id="dlgBody"></p>
+    <div class="rowsel" id="dlgOpts"></div>
+    <div class="dlg-foot"><button class="btn" id="dlgAuto">これからはおまかせ</button></div>
+  </section>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script src="js/names.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/data.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/singularity.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, SG = H.singularity, CFG = H.CONFIG.SING;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const qs = new URLSearchParams(location.search);
+  const FOCUS = SG.FOCUS, BY_CODE = SG.FOCUS_BY_CODE;
+  let roster = [], bosses = [], source = 'pub';
+
+  // ---------- データ ----------
+  async function load() {
+    try {
+      const res = qs.get('data') === 'local' && H.data.hasLocal() ? Object.assign(H.data.loadLocal(), { bosses: [] }) : await H.data.loadPublished('data/');
+      if (qs.get('data') === 'local') { source = 'local'; try { const pub = await H.data.loadPublished('data/'); res.bosses = pub.bosses; } catch (e) { /* ボスなしでも動く（超強化で代わる） */ } }
+      roster = res.servants.filter(s => !s.bossOnly);
+      const b = SG.prepareBosses(res.bosses || []);
+      bosses = b.bosses;
+      const errs = (res.errors || []).concat(b.errors);
+      $('#data').innerHTML = `<b>${roster.length}</b> 騎のサーヴァントと、<b>${bosses.length}</b> 騎のボス（${source === 'local' ? 'このブラウザのリスト' : '公開データ'}）。` + (errs.length ? `<br><span class="err">読めなかったもの：${esc(errs.join('、'))}</span>` : '');
+      $('#observe').disabled = roster.length < CFG.party + CFG.foes;
+      buildPickers();
+      if (qs.get('seed')) { $('#seed').value = qs.get('seed'); if (qs.get('d')) setDays(qs.get('d')); observe(true); }
+    } catch (e) {
+      $('#data').innerHTML = `<span class="err">データを読めませんでした（${esc(e.message)}）。${location.protocol === 'file:' ? 'このページはサーバー経由で開いてください（python3 -m http.server など）。' : ''}</span>`;
+    }
+  }
+  const idxOf = id => roster.findIndex(s => s.id === id);
+  const enc36 = ids => ids.map(id => id ? (idxOf(id) >= 0 ? idxOf(id).toString(36) : '') : '').join('.');
+  const dec36 = p => String(p || '').split('.').map(t => { const i = parseInt(t, 36); return t !== '' && i >= 0 && i < roster.length ? roster[i].id : null; });
+
+  // ---------- 期限・速さ ----------
+  const setDays = v => { const d = Math.max(20, Math.min(60, Math.round(+v) || CFG.maxDays)); $('#days').value = d; $('#daysOut').textContent = d + '日'; };
+  $('#days').addEventListener('input', () => setDays($('#days').value));
+  setDays(CFG.maxDays);
+  const formSpeed = () => +document.querySelector('input[name=speed]:checked').value;
+
+  // ---------- 編成 ----------
+  let seed = '', lineup = null, front = [], picks = { party: [], foes: [], boss: null };
+  function observe(fromUrl) {
+    seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
+    $('#seed').value = seed;
+    if (fromUrl) picks = { party: dec36(qs.get('pt')), foes: dec36(qs.get('en')), boss: qs.get('bs') ? (qs.get('bs') === 'e' ? 'empower' : (bosses[+qs.get('bs')] || {}).id || null) : null };
+    try { lineup = SG.compose({ roster, bosses, seed, picks }); }
+    catch (e) { toast('観測できませんでした：' + e.message); return; }
+    front = fromUrl && qs.get('fr') ? qs.get('fr').split('.').map(Number).filter(i => i >= 0 && i < lineup.party.length).slice(0, CFG.front) : lineup.front.slice();
+    renderFormation();
+    $('#formation').hidden = false;
+    if (!fromUrl) $('#formation').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (fromUrl && (qs.get('f') || qs.get('c') || qs.get('k'))) start({ replay: true });
+  }
+  const svOf = id => roster.find(s => s.id === id) || bosses.find(s => s.id === id);
+  const rk = (sv, k) => H.rank.label(sv.ranks[k]);
+  function renderFormation() {
+    $('#sName').textContent = lineup.name;
+    $('#sRegion').textContent = lineup.region && lineup.region !== lineup.city ? lineup.region + '・' + lineup.city : lineup.city;
+    $('#partyCards').innerHTML = lineup.party.map((id, i) => {
+      const s = svOf(id), on = front.includes(i);
+      return `<button class="card" type="button" data-i="${i}" aria-pressed="${on}"><span class="tag">${on ? '前衛' : '控え'}</span><span class="cls">${esc(s.class.label)}</span><span class="nm">${esc(s.trueName)}</span>
+        <span class="st">筋${rk(s, 'str')} 耐${rk(s, 'end')} 敏${rk(s, 'agi')} 魔${rk(s, 'mag')} 運${rk(s, 'luk')} 宝${rk(s, 'np')}</span></button>`;
+    }).join('');
+    $('#frontNote').textContent = front.length === CFG.front ? `前衛：${front.map(i => svOf(lineup.party[i]).trueName).join('・')}` : `前衛をあと${CFG.front - front.length}騎選んでください`;
+    $('#go').disabled = front.length !== CFG.front;
+    $('#foeLine').innerHTML = '<span style="box-shadow:none;color:var(--mute);padding-left:0">観測された敵の霊基：</span>' + lineup.foes.map(id => `<span>${esc(svOf(id).class.label)}</span>`).join('') + '<span>？？？</span>';
+  }
+  $('#partyCards').addEventListener('click', e => {
+    const b = e.target.closest('[data-i]'); if (!b) return;
+    const i = +b.dataset.i;
+    if (front.includes(i)) front = front.filter(x => x !== i);
+    else if (front.length < CFG.front) front.push(i);
+    else { front.shift(); front.push(i); }
+    front.sort((a, b2) => a - b2);
+    renderFormation();
+  });
+  $('#observe').onclick = () => observe(false);   // 書いたシードがあればそれで、空欄なら新しく
+  $('#reroll').onclick = () => { $('#seed').value = ''; observe(false); };
+  // 編成を自分で決める（下に格納）
+  function svOptions(sel) {
+    const groups = new Map();
+    for (const s of roster.slice().sort((a, b) => (Object.keys(H.CONFIG.CLASS_DEFS).indexOf(a.class.key) - Object.keys(H.CONFIG.CLASS_DEFS).indexOf(b.class.key)) || a.trueName.localeCompare(b.trueName, 'ja'))) {
+      if (!groups.has(s.class.label)) groups.set(s.class.label, []);
+      groups.get(s.class.label).push(s);
+    }
+    return '<option value="">（くじ）</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('')}</optgroup>`).join('');
+  }
+  function buildPickers() {
+    $('#pickParty').innerHTML = Array.from({ length: CFG.party }, (_, i) => `<label><span>味方 ${i + 1}</span><select data-p="${i}">${svOptions(picks.party[i])}</select></label>`).join('');
+    $('#pickFoes').innerHTML = Array.from({ length: CFG.foes }, (_, i) => `<label><span>敵 ${i + 1}</span><select data-e="${i}">${svOptions(picks.foes[i])}</select></label>`).join('');
+    $('#pickBoss').innerHTML = `<label><span>ボス</span><select id="pickBossSel"><option value="">（くじ）</option><option value="empower"${picks.boss === 'empower' ? ' selected' : ''}>超強化されたサーヴァント（くじ）</option>${bosses.map(b => `<option value="${esc(b.id)}"${picks.boss === b.id ? ' selected' : ''}>${esc(b.trueName)}</option>`).join('')}</select></label>`;
+  }
+  $('#pickApply').onclick = () => {
+    picks = { party: [...document.querySelectorAll('[data-p]')].map(s => s.value || null), foes: [...document.querySelectorAll('[data-e]')].map(s => s.value || null), boss: $('#pickBossSel').value || null };
+    const all = picks.party.concat(picks.foes).filter(Boolean);
+    if (new Set(all).size !== all.length) { toast('同じ英霊が二つの席に入っています'); return; }
+    if (!$('#seed').value.trim()) $('#seed').value = seed;
+    observe(false); toast('この顔ぶれで観測し直しました');
+  };
+  $('#pickClear').onclick = () => { picks = { party: [], foes: [], boss: null }; buildPickers(); };
+
+  // ---------- 進行 ----------
+  let gen = null, out = null, pending = null, done = false, result = null, idx = 0, timer = null, speed = 2, paused = false, autoAll = false;
+  let focus = 'auto', focusLog = '', replayFocus = '', choices = [], replay = [], queue = [], cmdLog = [], replayCmds = [], maxDays = 30, lastSnap = null;
+  const DELAY = { death: 2200, np: 1700, end: 1900, cs: 1500, summon: 900, prologue: 1300, choice: 500, council: 900, life: 1300, event: 1100, scout: 1100 };
+  function pump(a) { const r = gen.next(a); if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value; }
+  function start(o) {
+    o = o || {};
+    maxDays = +$('#days').value;
+    speed = formSpeed(); paused = false; autoAll = false;
+    out = {}; done = false; result = null; pending = null; idx = 0; queue = []; cmdLog = []; choices = []; focusLog = ''; focus = 'auto'; lastSnap = null;
+    replay = o.replay && qs.get('c') ? qs.get('c').split('.') : [];
+    replayFocus = o.replay ? qs.get('f') || '' : '';
+    replayCmds = o.replay ? parseCmds(qs.get('k')) : [];
+    try { gen = SG.gen({ roster, bosses, seed, lineup, front, ask: 'big', out, days: maxDays }); pump(); }
+    catch (e) { toast('始められませんでした：' + e.message); console.error(e); return; }
+    document.body.classList.add('watching');
+    $('#log').innerHTML = ''; $('#result').innerHTML = '';
+    $('#hudName').textContent = lineup.name; $('#mName').textContent = '';
+    renderFocus(); syncCtl(); updateURL(); window.scrollTo(0, 0);
+    step();
+  }
+  $('#go').onclick = () => start({});
+  // 令呪・推測の記録（URL の k）：日＋種類（h 癒やす / m 魔力 / g 推測）＋相手
+  function cmdStr(d, c) { return c.k === 'heal' ? `${d}h${c.t}` : c.k === 'mana' ? `${d}m` : `${d}g${c.t}-${idxOf(c.sv).toString(36)}`; }
+  function parseCmds(p) {
+    const outc = [];
+    for (const t of String(p || '').split('_').filter(Boolean)) {
+      const m = /^(\d+)([hmg])(.*)$/.exec(t); if (!m) continue;
+      const d = +m[1];
+      if (m[2] === 'h') outc.push({ d, c: { k: 'heal', t: +m[3] } });
+      else if (m[2] === 'm') outc.push({ d, c: { k: 'mana' } });
+      else { const [t2, sv] = m[3].split('-'); const s = roster[parseInt(sv, 36)]; if (s) outc.push({ d, c: { k: 'guess', t: +t2, sv: s.id } }); }
+    }
+    return outc;
+  }
+  function advanceTick() {
+    const d = pending.day;
+    const code = replayFocus && replayFocus[d - 1] ? replayFocus[d - 1] : FOCUS[focus].code;
+    const f = BY_CODE[code] || 'auto';
+    focusLog = (focusLog + 'o'.repeat(Math.max(0, d - 1 - focusLog.length))).slice(0, d - 1) + FOCUS[f].code;
+    const cmds = replayCmds.length ? replayCmds.filter(x => x.d === d).map(x => x.c) : queue.splice(0);
+    for (const c of cmds) cmdLog.push(cmdStr(d, c));
+    renderQueue();
+    pump({ f, cmds });
+  }
+  function step() {
+    if (!gen || paused) return;
+    clearTimeout(timer);
+    if (idx < out.entries.length) {
+      const e = out.entries[idx++];
+      show(e);
+      timer = setTimeout(step, (DELAY[e.kind] || (e.big ? 1400 : e.kind === 'dayhead' ? 350 : 800)) / speed + (e.quote ? 600 / speed : 0));
+      return;
+    }
+    if (pending && pending.type === 'tick') { advanceTick(); updateURL(); return step(); }
+    if (pending && pending.type === 'decision') return present(pending);
+    if (done) return finish();
+  }
+  function updateURL() {
+    const u = new URL(location.href);
+    u.searchParams.set('seed', seed);
+    if (maxDays !== CFG.maxDays) u.searchParams.set('d', maxDays); else u.searchParams.delete('d');
+    u.searchParams.set('fr', front.join('.'));
+    const pt = enc36(picks.party || []), en = enc36(picks.foes || []);
+    if (pt.replace(/\./g, '')) u.searchParams.set('pt', pt); else u.searchParams.delete('pt');
+    if (en.replace(/\./g, '')) u.searchParams.set('en', en); else u.searchParams.delete('en');
+    if (picks.boss) u.searchParams.set('bs', picks.boss === 'empower' ? 'e' : String(bosses.findIndex(b => b.id === picks.boss))); else u.searchParams.delete('bs');
+    if (focusLog.replace(/o/g, '')) u.searchParams.set('f', focusLog); else u.searchParams.delete('f');
+    if (choices.length) u.searchParams.set('c', choices.join('.')); else u.searchParams.delete('c');
+    if (cmdLog.length) u.searchParams.set('k', cmdLog.join('_')); else u.searchParams.delete('k');
+    if (source === 'local') u.searchParams.set('data', 'local');
+    history.replaceState(null, '', u);
+  }
+  function syncCtl() {
+    $('#pause').textContent = paused ? '▸ 再開' : '❚❚ 一時停止';
+    document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
+    $('#autoBtn').setAttribute('aria-pressed', String(autoAll));
+    renderOrders();
+  }
+  $('#pause').onclick = () => { if (done && idx >= out.entries.length) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
+  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
+  $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
+  $('#quitBtn').onclick = () => { clearTimeout(timer); gen = null; $('#dlg').classList.remove('on'); document.body.classList.remove('watching'); };
+  $('#skip').onclick = () => {
+    if ($('#dlg').classList.contains('on')) return;
+    clearTimeout(timer);
+    let guard = 0;
+    while (guard++ < 5000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick') { advanceTick(); continue; }
+      break;
+    }
+    updateURL();
+    if (pending && pending.type === 'decision') present(pending); else if (done) finish();
+  };
+
+  // ---------- 判断 ----------
+  function present(q) {
+    clearTimeout(timer);
+    if (replay.length) return answer(replay.shift(), true);
+    if (autoAll) return answer('auto', true);
+    $('#dlgWhen').textContent = q.day ? `DAY ${q.day}` : '';
+    $('#dlgTitle').textContent = q.title; $('#dlgBody').textContent = q.body || '';
+    $('#dlgOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}"><span class="n">${i + 1}</span><b>${esc(o.label)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+    $('#dlg').classList.add('on');
+    const f = $('#dlgOpts button'); if (f) f.focus({ preventScroll: true });
+  }
+  function answer(k, silent) { $('#dlg').classList.remove('on'); choices.push(k); pump(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
+  $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
+  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); };
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, select, textarea')) return;
+    if ($('#dlg').classList.contains('on')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }
+    if (e.key === ' ' && document.body.classList.contains('watching')) { e.preventDefault(); $('#pause').click(); }
+  });
+
+  // ---------- 方針 ----------
+  function renderFocus() {
+    $('#focusSeg').innerHTML = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
+    $('#focusDesc').textContent = FOCUS[focus].desc;
+  }
+  $('#focusSeg').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } });
+
+  // ---------- 令呪と推測（一時停止中だけ。次の朝に働く） ----------
+  function renderOrders() {
+    const sn = lastSnap, can = paused && !done && !!sn && sn.p.alive;
+    const party = sn ? sn.c.filter(c => c.side === 'party' && c.alive && c.hp < 100 && !queue.some(q => q.k === 'heal' && q.t === c.id)) : [];   // 傷ついている英霊だけ
+    const planned = queue.filter(c => c.k === 'heal' || c.k === 'mana').length;
+    const cs = sn ? sn.p.cs - planned : 0;
+    $('#healT').innerHTML = party.length ? party.map(c => `<option value="${c.id}">${esc(c.name || c.label)}（霊基 ${c.hp}）</option>`).join('') : '<option value="">傷ついた英霊はいない</option>';
+    $('#healBtn').disabled = !can || cs < 1 || !party.length;
+    $('#manaBtn').disabled = !can || cs < 1 || queue.some(c => c.k === 'mana');
+    const foes = sn ? sn.c.filter(c => (c.side === 'foe' || c.side === 'boss') && c.alive && c.seen && !c.name) : [];
+    const cur = $('#guessT').value;
+    $('#guessT').innerHTML = foes.length ? foes.map(c => `<option value="${c.id}"${String(c.id) === cur ? ' selected' : ''}>${esc(c.label)}（手がかり${c.clues}）</option>`).join('') : '<option value="">推測できる敵はいない</option>';
+    renderGuessSv();
+    $('#guessBtn').disabled = !can || !foes.length || queue.some(c => c.k === 'guess');
+    $('#orderHint').textContent = paused ? `いまの令呪 ${cs}画。選んだものは次の朝に働く。` : '一時停止中に選べる。選んだものは次の朝に働く。';
+  }
+  function renderGuessSv() {
+    const id = $('#guessT').value; if (id === '') { $('#guessSv').innerHTML = ''; return; }
+    const meta = out.meta[+id] || {}, cls = meta.cls, partyIds = new Set(lineup.party);
+    const cand = roster.filter(s => s.class.label === cls && !partyIds.has(s.id)).sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja'));
+    $('#guessSv').innerHTML = cand.map(s => `<option value="${esc(s.id)}">${esc(s.trueName)}</option>`).join('');
+  }
+  $('#guessT').addEventListener('change', renderGuessSv);
+  $('#healBtn').onclick = () => { const t = +$('#healT').value; queue.push({ k: 'heal', t }); renderQueue(); renderOrders(); };
+  $('#manaBtn').onclick = () => { queue.push({ k: 'mana' }); renderQueue(); renderOrders(); };
+  $('#guessBtn').onclick = () => { const t = +$('#guessT').value, sv = $('#guessSv').value; if (!sv) return; queue.push({ k: 'guess', t, sv }); renderQueue(); renderOrders(); };
+  function renderQueue() {
+    const nameOf = id => { const c = lastSnap && lastSnap.c.find(x => x.id === id); return c ? (c.name || c.label) : '?'; };
+    $('#queue').innerHTML = queue.length ? '次の朝：' + queue.map((c, i) => `${c.k === 'heal' ? `令呪で${esc(nameOf(c.t))}を癒やす` : c.k === 'mana' ? '令呪で魔力を満たす' : `${esc(nameOf(c.t))}は「${esc((svOf(c.sv) || {}).trueName)}」と推測`} <a href="#" data-q="${i}">取り消す</a>`).join(' ／ ') : '';
+  }
+  $('#queue').addEventListener('click', e => { const a = e.target.closest('[data-q]'); if (!a) return; e.preventDefault(); queue.splice(+a.dataset.q, 1); renderQueue(); renderOrders(); });
+
+  // ---------- 表示 ----------
+  const PH = { day: '昼', night: '夜', prologue: '', end: '' };
+  function show(e, fast) {
+    const li = document.createElement('li');
+    li.className = `k-${e.kind}${e.you ? ' is-you' : ''}${fast ? '' : ' new'}`;
+    if (e.kind === 'dayhead') li.innerHTML = `<span class="txt">${esc(e.text)}</span>`;
+    else li.innerHTML = `<span class="when">${e.day ? 'D' + e.day : ''}<span>${PH[e.phase] || ''}</span></span><span class="txt">${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</span>`;
+    $('#log').prepend(li);
+    while ($('#log').children.length > 400) $('#log').lastChild.remove();
+    if (e.snap) board(e);
+  }
+  function board(e) {
+    const sn = e.snap; lastSnap = sn;
+    const p = sn.p;
+    $('#hudDay').textContent = `DAY ${e.day || 0} / ${maxDays}`;
+    $('#hudProg').style.width = Math.min(100, (e.day || 0) / maxDays * 100) + '%';
+    $('#hudInfo').textContent = `${p.stage === 'boss' ? '特異点の主と対峙' : `討伐 ${p.slain}/${CFG.foes}`}・方針 ${FOCUS[focus].label}`;
+    const meta = out.meta[0] || {};
+    $('#mName').textContent = meta.master ? meta.master.name : '';
+    $('#mHp').style.width = p.mhp + '%'; $('#mHpT').textContent = p.mhp + '%';
+    $('#mMana').style.width = p.mana + '%'; $('#mManaT').textContent = p.mana + '%';
+    $('#mSeals').innerHTML = Array.from({ length: CFG.csMax }, (_, i) => `<i class="${i < p.cs ? '' : 'used'}"></i>`).join('') + (p.cs > CFG.csMax ? `+${p.cs - CFG.csMax}` : '');
+    $('#mItems').textContent = p.items; $('#mCamp').textContent = p.camp; $('#mSlain').textContent = `${p.slain}/${CFG.foes}`; $('#mPlace').textContent = p.place || '';
+    const unit = c => {
+      const cls = c.side === 'party' ? '' : ' foe';
+      const name = c.side === 'party' || c.name ? `<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `<small>${esc(c.cls)}</small>${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
+      const g = c.gaugeMax > 1 ? `<span class="gauges">${Array.from({ length: c.gaugeMax }, (_, i) => `<i class="${i < c.gauges ? '' : 'off'}"></i>`).join('')}</span>` : '';
+      const showHp = c.side === 'party' || c.seen;
+      return `<div class="unit${cls}${c.front ? ' front' : ''}${c.alive ? '' : ' dead'}${c.seen || c.side === 'party' ? '' : ' unseen'}"><span class="u-nm">${name}${g}</span><span class="u-hp">${showHp ? (c.alive ? c.hp : '✝') : ''}</span>${showHp ? `<div class="bar"><i style="width:${c.alive ? c.hp : 0}%;background:${c.side === 'party' ? 'var(--hp)' : 'var(--foe)'}"></i></div>` : ''}</div>`;
+    };
+    const party = sn.c.filter(c => c.side === 'party'), stray = sn.c.find(c => c.side === 'stray' && c.joined);
+    $('#partyList').innerHTML = party.filter(c => c.front).concat(party.filter(c => !c.front)).map(unit).join('') + (stray ? unit(stray).replace('class="unit foe', 'class="unit') : '');
+    const foes = sn.c.filter(c => c.side === 'foe'), boss = sn.c.find(c => c.side === 'boss');
+    $('#foeList').innerHTML = foes.map(unit).join('') + (boss ? (p.stage === 'boss' || !boss.alive ? unit(boss) : `<div class="unit unseen"><span class="u-nm"><small>ボス</small>？？？（七騎を倒すと現れる）</span><span></span></div>`) : '');
+    $('#foeHead').textContent = p.stage === 'boss' ? '特異点の主' : `特異点の敵（残り${foes.filter(c => c.alive).length}騎）`;
+    renderOrders();
+  }
+
+  // ---------- 結末 ----------
+  const END = { clear: ['人理修復 成功', 'ok'], wipe: ['全滅', 'ng'], master: ['マスター死亡', 'ng'], timeout: ['期限切れ', 'ng'] };
+  function finish() {
+    clearTimeout(timer); paused = false; syncCtl();
+    const r = result, [t, cls] = END[r.ending] || ['終了', 'ng'];
+    const row = c => `<tr><th>${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
+    $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">${esc(r.name)}</span></div><div class="body">
+      <p class="big ${cls}">${t}</p><p class="sub">${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${esc(r.boss.trueName)}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}</p>
+      <table><tbody>${r.party.map(row).join('')}</tbody></table>
+      <p class="hint">敵：${r.enemies.map(c => `${esc(c.label.replace(/^敵の/, ''))}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
+      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button></div></div></section>`;
+    $('#again').onclick = () => start({});
+    $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(false); };
+    $('#copyUrl').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました'); } catch (e) { toast('コピーできませんでした'); } };
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
+  load();
+})();
+</script>
+</body>
+</html>

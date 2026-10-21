@@ -50,7 +50,8 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 2. **Classic scripts, not ES modules.** Every `js/*.js` is an IIFE attaching to the global `HGW`
    (`(function (G) { 'use strict'; … })(globalThis.HGW = globalThis.HGW || {});`) so the game runs from `file://` and Node tests `require()` the same files.
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
-   `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`).
+   `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
+   `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`.
    When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
@@ -66,12 +67,14 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 ```
 index.html          Game (inline CSS + UI script)          ranking.html   Strength ranking (spoiler page)
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
+singularity.html    Singularity mode (test feature, §7.11)
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/
   manifest.json     Which data files to load
   servants.json     Servant pack (hgw-servants, lean). ~1.2M chars — NEVER read it whole; use tools/servant.js (§4.6)
   overrides.json    Hand-fix tables (hgw-overrides)
   survival.json     Survival tally (§7.10); regenerate with tools/survival.js after any data change
+  bosses.json       Singularity bosses (hgw-bosses, hand-written raw ranks; never in Holy Grail Wars) (§7.11)
   incoming/         Upload drop folder consumed by data.yml (§4.5)
 js/
   config.js         CLASS_DEFS, ENGINE tuning, WAR, rank tables, NP_TYPE, BATTLE_K, STAT_FX, VOICE_SLOTS, GRADES
@@ -84,6 +87,8 @@ js/
   engine.js         The simulation (generator)
   data.js           Loading published data, browser-local roster, user-picked files
   survival.js       Survival curves: many auto wars → per-servant elimination days; roster fingerprint
+  singdata.js       Singularity text: name words (3 lists), CITY_TEXT (one region per line), places, mobs, sg* LINES
+  singularity.js    Singularity mode: compose (name + lineup), engine plugin, prepareBoss (§7.11)
   simlab.js, simworker.js, voiceedit.js   roster.html "聖杯戦争で試す" core + worker; per-scene voice editor
 tools/              servant.js (per-servant CLI), kagemiya.js (fetch pages), incoming.js (apply uploads), datadiff.js, survival.js, datalib.js, chaldea.js
 .github/workflows/  kagemiya.yml (import by name → PR), data.yml (apply uploads, check, rebuild survival, diff PR), data-cleanup.yml
@@ -134,8 +139,8 @@ Identity = `class.key + trueName`; later files win. The browser roster may also 
 
 ### 4.4 Data files
 
-`manifest.json`: `{ "servants": ["servants.json", "packs/x.json"], "overrides": ["overrides.json"], "masters": [] }` — all listed packs load (duplicates by id: last wins);
-overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each camp has a 50% chance to draw from this pool, §7.4).
+`manifest.json`: `{ "servants": ["servants.json", "packs/x.json"], "overrides": ["overrides.json"], "masters": [], "bosses": ["bosses.json"] }` — all listed packs load (duplicates by id: last wins);
+overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each camp has a 50% chance to draw from this pool, §7.4); `bosses` are returned raw by `loadPublished` (built by `singularity.prepareBosses`).
 
 `hgw-servants`: `{ format, version:2, lean:true, at, servants:[…] }`. `hgw-overrides`: `{ format, version:2, global, servant, stats, np, content, pages, reviewed }`;
 `E.OVERRIDE_TABLES` maps these names to tables (data.js, kagemiya.js and roster.html all use it — add new tables there):
@@ -348,6 +353,22 @@ Entry: `{ day, phase, kind, text, ids, you, quote?, big?, head?, place?, scene?,
 `HGW.survival = { fingerprint, empty, tally, runner, curveOf, overall, median }`. `runner` runs auto wars (`player:'none'`, default settings, seeds `sv0, sv1, …`) and counts each camp's elimination day (first snapshot with `alive:false`).
 Format `{ format:'hgw-survival', version:1, fp, wars, days, seedBase, servants:{ '<class>:<trueName>': { n, w, d:[…] } } }`. `fingerprint(roster)` (hash of ids, power, npPeak in roster order) must equal the UI's `rosterFp()`.
 
+### 7.11 Singularity mode (test feature: `singularity.js`, `singularity.html`)
+
+Party of 6 (3 front + 3 reserve, one Master, **shared** mana pool / seals / items) vs 7 grail-summoned foes, then a boss; clear = boss down; fail = wipe, Master death, or `SING.maxDays`.
+Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are registered into `G.LINES` with `sg*` keys).
+- **Engine plugin.** `warGen({ sing: plugin })` hands setup and the main loop to the plugin: `init(tools)` → `{ city, places, camps, you }`, `snap()`, `aoeOf(c, np)`, `hooks` (`drain, down, masterDown, gauge, seal*, focus, lineup`) and `run*(api)` (getters/setters for `day/phase/tonight` plus `battle, lethal, ask, log, line, eff, …`).
+  Every hook sits behind `if (SG)`; with `opts.sing` absent the engine is byte-for-byte the old one (verify by hashing many `runWar`/`warGen` logs against `origin/main`).
+- **Battles** reuse `battle()`: `ctx.helpA/helpB` may be arrays (front-line mates, extra foes, the stray); `c.assistK` scales a helper's assist (`SING.frontAssist`, stray × `strayAssist`); `c.noMaster` blocks master strikes on foes;
+  `ctx.lines` swaps the clash/retreat/dawn line keys for day fights; AoE NPs (`SING.aoe` by NP type, or the boss data's `aoe`) splash damage to the losing side. Party camps share `knowName/knowLoc/clues` and expose Master fields through accessors to the pool `P`.
+- **Bosses**: `prepareBoss(spec)` registers inline `effects` in `SERVANT_OVERRIDES['name/skill']`, `attack`/`mode` in `NP_OVERRIDES`, sets `sv.bossOnly` (+ trait ボス専用). `warGen` drops `bossOnly` from the roster, so bosses never enter Holy Grail Wars.
+  `boss.gauges` = break gauges (`hooks.gauge` refills HP in `lethal`). Without boss data (or by chance `SING.empower.chance`) a roster servant is empowered instead.
+- **compose** (`{ roster, bosses, seed, picks }`) uses its own RNG streams (`seed+':名'`, `seed+':顔ぶれ'`), so picking servants does not change the name. `picks = { party: [id|null ×6], foes: [id|null ×7], boss: id|'empower'|null }`.
+- **Tick answers**: a focus key (`FOCUS`: auto advance search stealth rest defend) or `{ f, cmds }` with `cmds` `{k:'heal',t}` / `{k:'mana'}` / `{k:'guess',t,sv}` (applied next morning; guess once a day, only foes met).
+  **Decisions**: `cs` (`heal`/`none`), `wipe` (`revive`/`give`), `council` (`deduce:<id>`, `recover`, `familiar`, `swap`, `pass`), `stray` (`yes`/`no`). Never rename these keys (URLs).
+- **URL**: `?seed=&fr=<front idx .>&d=<days>&pt=&en=<roster idx base36 . per slot>&bs=<boss idx|e>&f=<focus codes>&c=<answers .>&k=<cmds _: {day}h{camp} | {day}m | {day}g{camp}-{rosterIdx36}>`.
+- Test: `node test/singularity.js [N] [seed] [--focus=k] [--set=key:v,boss.power:v] [--smart]` (errors, ending ratios incl. clear rate, interactive replay check, bosses never in wars).
+
 ---
 
 ## 8. UI (implementation notes live in `docs/DEVELOPER.md` and the code; this lists the invariants)
@@ -380,6 +401,7 @@ node test/servant.js            # tools/servant.js: core view, add round trip, n
 node test/incoming.js           # tools/incoming.js: a roster export with `patch` changes only the browser's servants; old exports still replace (temp copy)
 node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
+node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars); --check compares fingerprints
 python3 -m http.server          # then open http://localhost:8000/
@@ -397,6 +419,7 @@ For UI changes check at desktop width and **390px** (no horizontal overflow).
 | New servant data from the wiki | Owner runs the Actions workflow 「kagemiya から取り込み」 (page names → PR), or imports in `roster.html` → 「公開用に保存」 → upload to `data/incoming/`, or `tools/servant.js add`. |
 | Improve wiki reading for old data | Fix `parser.js`, then run the workflow in 取り直し mode (lean JSON has no source text for most entries). |
 | Add a class | One entry in `CLASS_DEFS`. |
+| Singularity balance / names / bosses | `CONFIG.SING` (re-run `test/singularity.js`); words, cities, places, lines in `js/singdata.js`; bosses in `data/bosses.json`. |
 | Tune balance | `CONFIG.ENGINE`, `BATTLE_K`, `STAT_W`, `STAT_SCORE`, `RANK_SCORE`, `NP_TYPE`; re-run `sim.js`, `test/focus.js`, rebuild `survival.json`. Stat roles: `STAT_FX` (keep Master coefficients smaller; update `TIPS`). |
 | Teach a skill name | `SKILL_DICT` in `effects.js` (`'名前': [['effect', factor, params?]]`); ordinary-word names also go in `GENERIC`; add canonical names to `test/skills.js`. |
 | Teach a description pattern | Add a rule to `RULES` (`{ re, id, f?, not?, only? }`); check with `test/rebuild.js` that existing servants did not change unexpectedly. |
