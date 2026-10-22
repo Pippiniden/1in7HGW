@@ -98,6 +98,7 @@ select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--
 details.pick { font-size: 13px; color: var(--mute); }
 details.pick summary { cursor: pointer; padding: 6px 0; }
 .pickgrid { display: grid; gap: 6px; margin: 8px 0; }
+.pickgrid .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px; }
 .pickgrid label { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
 .foot { font-size: 12px; color: var(--mute); text-align: center; }
 
@@ -403,19 +404,36 @@ body.watching .war { display: block; }
   $('#observe').onclick = () => observe(false);   // 書いたシードがあればそれで、空欄なら新しく
   $('#reroll').onclick = () => { $('#seed').value = ''; observe(false); };
   // 編成を自分で決める（下に格納）
-  function svOptions(sel) {
+  // クラス → サーヴァントの二段選択（サーヴァント側の select が値を持つ）
+  function svGroups() {
+    const order = Object.keys(H.CONFIG.CLASS_DEFS);
     const groups = new Map();
-    for (const s of roster.slice().sort((a, b) => (Object.keys(H.CONFIG.CLASS_DEFS).indexOf(a.class.key) - Object.keys(H.CONFIG.CLASS_DEFS).indexOf(b.class.key)) || a.trueName.localeCompare(b.trueName, 'ja'))) {
+    for (const s of roster.slice().sort((a, b) => (order.indexOf(a.class.key) - order.indexOf(b.class.key)) || a.trueName.localeCompare(b.trueName, 'ja'))) {
       if (!groups.has(s.class.label)) groups.set(s.class.label, []);
       groups.get(s.class.label).push(s);
     }
-    return '<option value="">（ランダム）</option>' + [...groups].map(([g, list]) => `<optgroup label="${esc(g)}">${list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('')}</optgroup>`).join('');
+    return groups;
+  }
+  function svOptions(cls, sel) {
+    const list = svGroups().get(cls) || [];
+    return '<option value="">（ランダム）</option>' + list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('');
+  }
+  function pickCell(attr, i, label, selId) {
+    const sv = roster.find(s => s.id === selId), cls = sv ? sv.class.label : '';
+    const clsOpts = '<option value="">（クラス：ランダム）</option>' + [...svGroups().keys()].map(g => `<option value="${esc(g)}"${g === cls ? ' selected' : ''}>${esc(g)}</option>`).join('');
+    return `<label><span>${label} ${i + 1}</span><span class="pair"><select class="pcls" aria-label="${label} ${i + 1} のクラス">${clsOpts}</select><select ${attr}="${i}" aria-label="${label} ${i + 1} の英霊"${cls ? '' : ' disabled'}>${svOptions(cls, selId)}</select></span></label>`;
   }
   function buildPickers() {
-    $('#pickParty').innerHTML = Array.from({ length: CFG.party }, (_, i) => `<label><span>味方 ${i + 1}</span><select data-p="${i}">${svOptions(picks.party[i])}</select></label>`).join('');
-    $('#pickFoes').innerHTML = Array.from({ length: CFG.foes }, (_, i) => `<label><span>敵 ${i + 1}</span><select data-e="${i}">${svOptions(picks.foes[i])}</select></label>`).join('');
+    $('#pickParty').innerHTML = Array.from({ length: CFG.party }, (_, i) => pickCell('data-p', i, '味方', picks.party[i])).join('');
+    $('#pickFoes').innerHTML = Array.from({ length: CFG.foes }, (_, i) => pickCell('data-e', i, '敵', picks.foes[i])).join('');
     $('#pickBoss').innerHTML = `<label><span>ボス</span><select id="pickBossSel"><option value="">（ランダム）</option><option value="empower"${picks.boss === 'empower' ? ' selected' : ''}>超強化されたサーヴァント（ランダム）</option>${bosses.map(b => `<option value="${esc(b.id)}"${picks.boss === b.id ? ' selected' : ''}>${esc(b.trueName)}</option>`).join('')}</select></label>`;
   }
+  $('#pickBox').addEventListener('change', e => {
+    if (!e.target.classList.contains('pcls')) return;
+    const sv = e.target.nextElementSibling;
+    sv.innerHTML = svOptions(e.target.value, '');
+    sv.disabled = !e.target.value;
+  });
   $('#pickApply').onclick = () => {
     picks = { party: [...document.querySelectorAll('[data-p]')].map(s => s.value || null), foes: [...document.querySelectorAll('[data-e]')].map(s => s.value || null), boss: $('#pickBossSel').value || null };
     const all = picks.party.concat(picks.foes).filter(Boolean);
