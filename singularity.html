@@ -185,6 +185,62 @@ body.watching .war { display: block; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + var(--safe-b)); transform: translateX(-50%); z-index: 30; background: rgba(8, 30, 74, .96); box-shadow: inset 0 0 0 1px var(--line-hi); padding: 8px 16px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s; max-width: calc(100vw - 32px); }
 .toast.on { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .log .new { animation: none; } .bar i, .prog i { transition: none; } }
+/* ---------- 追加（聖杯戦争側 index.html と同じ機能） ---------- */
+body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
+.ci { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; display: inline-block; }
+.face { object-fit: cover; border: 1px solid rgba(240, 201, 120, .6); background: #061533; }
+.fic .face { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; border-radius: 3px; }
+.fic.has .ci { display: none; }
+.field input[type=text].wide { max-width: 420px; }
+.field .opt2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cast { margin-top: 6px; font-size: 13px; }
+.cast summary { cursor: pointer; padding: 6px 0; color: var(--mute); }
+.cast-cls { margin: 8px 0; } .cast-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .cast-hd .n { color: var(--mute); font-size: 12px; margin-right: auto; }
+.cast-hd .btn { min-height: 26px; padding: 2px 10px; font-size: 11px; --cut: 6px; }
+.cast-list { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
+.cast-sv { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; font-size: 13px; } .cast-sv.off { opacity: .45; text-decoration: line-through; }
+#castSum.warn { color: var(--seal); }
+.card .gr { display: inline-block; min-width: 1.4em; text-align: center; margin-right: 6px; font: 700 12px var(--en); color: var(--sel-ink); background: var(--mute); }
+.gr.g-S { background: var(--gold); } .gr.g-A { background: var(--cyan); } .gr.g-B { background: #7ec8ff; }
+.recs { display: grid; gap: 6px; }
+.rec { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 7px 10px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); align-items: center; font-size: 13px; }
+.rec b { font-family: var(--mincho); } .rec small { color: var(--mute); display: block; }
+.rec .acts { margin: 0; } .rec .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; --cut: 6px; }
+.rec.keep { box-shadow: inset 0 0 0 1px var(--gold); }
+.recbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .recbar input { display: none; }
+.file { cursor: pointer; color: var(--cyan); text-decoration: underline; }
+.scene { padding: 0; overflow: hidden; }
+.view { position: relative; aspect-ratio: 3 / 1; background: #081530; overflow: hidden; }
+.view svg, .view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.view img { opacity: 0; transition: opacity .6s; } .view img.on { opacity: 1; }
+.view .scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px), linear-gradient(180deg, rgba(5, 13, 34, .15), transparent 30%, transparent 62%, rgba(5, 13, 34, .85)); }
+.view .rain { position: absolute; inset: -20% 0 0; pointer-events: none; opacity: 0; background: repeating-linear-gradient(105deg, transparent 0 9px, rgba(180, 225, 255, .28) 9px 10px); animation: rain .5s linear infinite; }
+.view.rainy .rain { opacity: 1; }
+@keyframes rain { from { transform: translateY(-12%); } to { transform: translateY(0); } }
+.view .fx { position: absolute; inset: 0; pointer-events: none; opacity: 0; } .view .fx.flash { animation: flash 1.1s ease-out; }
+@keyframes flash { 0% { opacity: .5; } 100% { opacity: 0; } }
+.view .cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; min-width: 0; align-items: center; gap: 10px; padding: 8px 14px; font-size: 14px; }
+.view .cap .en { flex: none; font-size: 12px; font-weight: 700; color: var(--cyan); }
+.view .cap .tag { margin-left: auto; font: 700 13px var(--en); letter-spacing: .14em; flex: none; color: var(--sel-ink); background: var(--cyan); padding: 1px 10px; }
+.view .cap .tag.day { background: var(--gold); }
+.view .cap .capt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 16px 8px; }
+.logbar .btn { min-height: 30px; padding: 3px 12px; font-size: 12px; --cut: 7px; } .logbar .csv { margin-left: auto; }
+#log[data-f="hl"] li:not(.hl):not(.k-dayhead), #log[data-f="battle"] li:not(.fb):not(.k-dayhead) { display: none; }
+.log li.hl .txt { text-shadow: 0 0 10px rgba(255, 216, 74, .25); }
+.unit[data-id] { cursor: pointer; } .unit[data-id]:hover { background: rgba(62, 230, 255, .08); }
+#mName.clk { cursor: pointer; text-decoration: underline dotted; }
+.det .kv { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: 4px 10px; margin: 0 16px 12px; font-size: 13px; } .det .kv dt { color: var(--mute); } .det .kv dd { margin: 0; }
+.det .txt { margin: 0 16px 12px; font: 500 14px/1.9 var(--mincho); white-space: pre-wrap; }
+.det h4 .ci { width: 28px; height: 28px; }
+.result .rsec { margin-top: 16px; } .result .rsec > summary { cursor: pointer; } .result .rsec h5 { display: inline; margin: 0; font: 700 14px var(--gothic); color: var(--cyan); }
+.result .rsec ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; max-height: 46vh; overflow: auto; }
+.result .rsec li { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(80, 196, 255, .12); font: 500 14px/1.75 var(--mincho); }
+.result .rsec li b { font: 700 13px var(--en); color: var(--cyan); }
+.result .rsec li.k-death span { color: var(--seal); } .result .rsec li.k-end span { color: var(--gold); }
+.lastword { margin: 10px 0 4px; padding: 8px 14px; border-left: 3px solid var(--cyan); background: linear-gradient(90deg, rgba(62, 230, 255, .10), transparent 80%); }
+.lastword .who { font-size: 12px; color: var(--mute); } .lastword p { margin: 2px 0 0; font: 500 16px/1.9 var(--mincho); color: var(--cyan-2); }
+.totop { position: fixed; right: 14px; bottom: calc(14px + var(--safe-b)); z-index: 15; }
 </style>
 </head>
 <body>
@@ -195,6 +251,13 @@ body.watching .war { display: block; }
     <h1 id="title">特異点攻略<small>テスト版</small></h1>
   </div>
   <p class="lead">人理を歪める特異点が観測された。あなたは六騎の英霊を率いてその地へ降り立ち、聖杯に呼ばれた七騎の敵サーヴァントを討ち、最後に現れる特異点の主を倒さなければならない。期限までに修復できなければ、人類史はそこで途絶える。あなたにできるのは、前衛の三騎を選び、日々の方針を決め、令呪を切ることだけだ。</p>
+
+  <section class="panel" id="recPanel" aria-label="中断・これまでの記録" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Records</span><span class="ja">続きから・これまでの記録</span></div>
+    <div class="body"><div id="recBox" class="recs"></div>
+      <div class="recbar"><button class="btn" id="recExport" type="button">記録を書き出す</button><label class="btn" for="recImport">記録を読み込む</label><input type="file" id="recImport" accept=".json,application/json"></div>
+      <p class="hint">記録には、シード・方針・決断だけを保存しています（本文は持たず、開くとその場で再現します）。「残す」にした記録は、古いものから消えません。</p></div>
+  </section>
 
   <section class="panel" aria-label="観測の準備">
     <div class="hd"><i class="chev"></i><span class="en">Observation</span><span class="ja">観測の準備</span></div>
@@ -208,6 +271,20 @@ body.watching .war { display: block; }
           <label><input type="radio" name="speed" value="8"><span class="ico"></span>とても速い</label>
         </div>
       </div>
+      <label class="field"><span class="lbl">あなた（マスター）の名前（空欄なら、ランダム）</span><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+      <label class="field"><span class="lbl">結末に残す、あなたの一言（空欄でよい。リンクには入らず、このブラウザにだけ残る）</span><input type="text" id="pword" class="wide" maxlength="60" autocomplete="off" placeholder="空欄でよい"></label>
+      <div class="field"><span class="lbl">エクストラクラス</span>
+        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="extra" value="1" checked><span class="ico"></span>あり（ときどき混じる）</label><label><input type="radio" name="extra" value="0"><span class="ico"></span>なし</label></div></div>
+      <div class="field"><span class="lbl">七騎の選び方</span>
+        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎ずつ</label><label><input type="radio" name="pick" value="open"><span class="ico"></span>クラスを問わず選ぶ</label></div></div>
+      <div class="field"><span class="lbl">一言を結末に出す</span>
+        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="words" value="1" checked><span class="ico"></span>出す</label><label><input type="radio" name="words" value="0"><span class="ico"></span>出さない</label></div></div>
+      <details class="cast" id="castBox" hidden>
+        <summary>参戦するサーヴァントを選ぶ（外した英霊は、味方にも敵にも呼ばれません）</summary>
+        <p class="hint" id="castSum"></p>
+        <div class="acts" style="margin:0 0 6px"><button class="btn" id="castAllOn" type="button">全員参戦</button><button class="btn" id="castAllOff" type="button">全員外す</button></div>
+        <div id="castList"></div>
+      </details>
       <div class="field"><span class="lbl" id="daysLbl">修復の期限</span>
         <div class="daysel"><input type="range" id="days" min="20" max="80" step="1" value="50" aria-labelledby="daysLbl"><output id="daysOut">50日</output></div>
         <p class="hint">短いほど急がされる。長くすれば、休みながら確実に進められる。</p>
@@ -236,6 +313,7 @@ body.watching .war { display: block; }
       </details>
     </div>
   </section>
+  <p class="foot" id="installBox" hidden><button class="btn" id="installBtn" type="button" hidden>アプリとして追加</button></p>
   <p class="foot"><a href="index.html">聖杯戦争 観戦記へ戻る</a> ・ 特異点攻略はテスト中の機能です。サーヴァントのデータは聖杯戦争と共有しています。</p>
 </section>
 
@@ -249,10 +327,10 @@ body.watching .war { display: block; }
       </div>
       <div class="ctl">
         <button class="btn" id="pause">❚❚ 一時停止</button>
-        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="16">16×</button>
+        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button>
         <button class="btn" id="skip" title="次の決断（なければ最後）まで進める">▸▸ 先へ</button>
         <button class="btn" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
-        <button class="btn" id="quitBtn">やめる</button>
+        <button class="btn" id="csvBtn" title="ここまでの記録をCSVで保存">CSV</button><button class="btn" id="quitBtn">やめる</button>
       </div>
     </div>
   </header>
@@ -260,7 +338,7 @@ body.watching .war { display: block; }
     <div id="result" class="full"></div>
     <div class="col">
       <section class="panel" aria-label="マスター">
-        <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja" id="mName"></span></div>
+        <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja clk" id="mName" role="button" tabindex="0" title="マスターの詳細"></span></div>
         <div class="body">
           <div class="mstat"><span>体力</span><div class="bar"><i id="mHp" style="background:var(--hp)"></i></div><b id="mHpT"></b>
             <span>魔力の蓄え</span><div class="bar"><i id="mMana" style="background:var(--mana)"></i></div><b id="mManaT"></b></div>
@@ -289,13 +367,17 @@ body.watching .war { display: block; }
       </section>
     </div>
     <div class="col">
+      <section class="panel scene" aria-label="情景">
+        <div class="view" id="view"><svg id="sceneSvg" viewBox="0 0 300 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg><img id="sceneImg" alt=""><div class="rain"></div><div class="scan"></div><div class="fx" id="fx"></div>
+          <div class="cap"><span class="en">Location</span><span id="sceneCap" class="capt"></span><span class="tag" id="sceneTag">NIGHT</span></div></div>
+      </section>
       <section class="panel" aria-label="敵">
         <div class="hd"><i class="chev"></i><span class="en">Enemies</span><span class="ja" id="foeHead">特異点の敵</span></div>
         <div class="body" id="foeList" style="padding:0 8px 10px"></div>
       </section>
       <section class="panel logp" aria-label="記録">
         <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">攻略の記録</span></div>
-        <div class="body"><ol class="log" id="log"></ol></div>
+        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol></div>
       </section>
     </div>
   </div>
@@ -310,6 +392,15 @@ body.watching .war { display: block; }
     <div class="dlg-foot"><button class="btn" id="dlgAuto">これからはおまかせ</button></div>
   </section>
 </div>
+<div class="dlg" id="det" role="dialog" aria-modal="true" aria-labelledby="detTitle">
+  <section class="dlg-in panel det">
+    <div class="hd"><i class="chev"></i><span class="en">Detail</span><span class="ja" id="detSub"></span></div>
+    <h4 id="detTitle"></h4>
+    <div id="detBody"></div>
+    <div class="dlg-foot"><button class="btn" id="detClose" type="button">閉じる</button></div>
+  </section>
+</div>
+<button class="btn totop" id="toTopBtn" type="button" hidden aria-label="いちばん上へ">▲ 上へ</button>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
@@ -334,65 +425,235 @@ body.watching .war { display: block; }
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const qs = new URLSearchParams(location.search);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const FOCUS = SG.FOCUS, BY_CODE = SG.FOCUS_BY_CODE;
-  let roster = [], bosses = [], source = 'pub';
+  const MIN_DAYS = 20, MAX_DAYS = 80, DEF_DAYS = CFG.maxDays;
+  const clampDays = v => Math.max(MIN_DAYS, Math.min(MAX_DAYS, Math.round(+v) || DEF_DAYS));
+  const pad2 = n => String(n).padStart(2, '0');
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  };
 
   // ---------- データ ----------
+  // rosterAll … 読み込んだ全員（URL の番号・生存曲線の指紋・解説の検索はこちら）
+  // roster … 参戦から外した英霊を除いた、この特異点に使うリスト
+  let rosterAll = [], roster = [], bosses = [], source = '', dataLoaded = false;
+  let excluded = new Set(), exInited = false, castEx = [];
+  const minCast = () => CFG.party + CFG.foes;
+
+  async function withBosses(res) {
+    // リストツールのリスト・選んだファイルにボスが無ければ、公開中のボスを借りる（無くても超強化で代わる）
+    if (!(res.bosses && res.bosses.length)) { res.bosses = []; try { res.bosses = (await H.data.loadPublished('data/')).bosses || []; } catch (e) { /* ボスなしでも動く */ } }
+    return res;
+  }
   async function load() {
     try {
-      const res = qs.get('data') === 'local' && H.data.hasLocal() ? Object.assign(H.data.loadLocal(), { bosses: [] }) : await H.data.loadPublished('data/');
-      if (qs.get('data') === 'local') { source = 'local'; try { const pub = await H.data.loadPublished('data/'); res.bosses = pub.bosses; } catch (e) { /* ボスなしでも動く（超強化で代わる） */ } }
-      roster = res.servants.filter(s => !s.bossOnly);
-      const b = SG.prepareBosses(res.bosses || []);
-      bosses = b.bosses;
-      const errs = (res.errors || []).concat(b.errors);
-      $('#data').innerHTML = `<b>${roster.length}</b> 騎のサーヴァントと、<b>${bosses.length}</b> 騎のボス（${source === 'local' ? 'このブラウザのリスト' : '公開データ'}）。` + (errs.length ? `<br><span class="err">読めなかったもの：${esc(errs.join('、'))}</span>` : '');
-      $('#observe').disabled = roster.length < CFG.party + CFG.foes;
-      buildPickers();
-      if (qs.get('seed')) { $('#seed').value = qs.get('seed'); if (qs.get('d')) setDays(qs.get('d')); observe(true); }
+      if (qs.get('data') === 'local' && H.data.hasLocal()) return dataReady(await withBosses(H.data.loadLocal()), 'local');
+      dataReady(await H.data.loadPublished('data/'), 'pub');
     } catch (e) {
-      $('#data').innerHTML = `<span class="err">データを読めませんでした（${esc(e.message)}）。${location.protocol === 'file:' ? 'このページはサーバー経由で開いてください（python3 -m http.server など）。' : ''}</span>`;
+      askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : 'データを読めませんでした（' + e.message + '）。');
     }
   }
-  const idxOf = id => roster.findIndex(s => s.id === id);
-  const enc36 = ids => ids.map(id => id ? (idxOf(id) >= 0 ? idxOf(id).toString(36) : '') : '').join('.');
-  const dec36 = p => String(p || '').split('.').map(t => { const i = parseInt(t, 36); return t !== '' && i >= 0 && i < roster.length ? roster[i].id : null; });
+  function dataLinks(label) {
+    const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
+    const pub = label === 'local' ? ' ・ <a href="#" id="usePub">公開データに戻す</a>' : '';
+    return local + pub;
+  }
+  function bindDataLinks() {
+    const ul = $('#useLocal'); if (ul) ul.onclick = async e => { e.preventDefault(); dataReady(await withBosses(H.data.loadLocal()), 'local'); };
+    const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
+  }
+  function dataReady(res, label) {
+    source = label;
+    rosterAll = res.servants.filter(s => !s.bossOnly);
+    const b = SG.prepareBosses(res.bosses || []);
+    bosses = b.bosses;
+    const errs = (res.errors || []).concat(b.errors);
+    dataLoaded = true;
+    initExcluded();
+    const err = errs.length ? `<div class="err">読めなかったもの：${esc(errs.join('、'))}</div>` : '';
+    $('#data').innerHTML = rosterAll.length >= minCast()
+      ? `<span id="castTxt"></span>（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）。<b>${bosses.length}</b> 騎のボス。${dataLinks(label)}${err}`
+      : `サーヴァントが足りません（${rosterAll.length}騎。${minCast()}騎以上が必要です）。${dataLinks(label)}${err}`;
+    bindDataLinks();
+    buildCast(); syncCast(); buildPickers();
+    // 共有リンクで開いたときは、その特異点を観測する（決断・方針の記録があれば、そのまま再現する）
+    if (!urlTried && qs.get('seed')) { urlTried = true; $('#seed').value = qs.get('seed'); fromUrl(); }
+    renderIntroRecords();
+  }
+  let urlTried = false;
+  function askFiles(msg) {
+    $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
+      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
+    $('#pick').onchange = async e => dataReady(await withBosses(await H.data.loadFiles(e.target.files)), 'files');
+    bindDataLinks();
+  }
 
-  // ---------- 期限・速さ ----------
-  const setDays = v => { const d = Math.max(20, Math.min(80, Math.round(+v) || CFG.maxDays)); $('#days').value = d; $('#daysOut').textContent = d + '日'; };
-  $('#days').addEventListener('input', () => setDays($('#days').value));
-  setDays(CFG.maxDays);
+  // ---------- 参戦サーヴァントの設定 ----------
+  // 特異点に呼ばれる英霊を絞る（聖杯戦争の同名の設定とは別に、このページ用の設定として覚える）。
+  // 何も外さなければ全員を渡すので、今までと同じ特異点になる
+  const EX_KEY = 'hgw.sing.exclude.v1';
+  const exLoad = () => { const a = store.get(EX_KEY); return Array.isArray(a) ? a.filter(x => typeof x === 'string') : []; };
+  const exSave = () => store.set(EX_KEY, excluded.size ? [...excluded] : null);
+  // URL の ex は、リスト（読み込んだ順）の番号を36進数にして . でつないだもの
+  const exParam = ids => ids.map(id => rosterAll.findIndex(s => s.id === id)).filter(i => i >= 0).map(i => i.toString(36)).join('.');
+  const exFromParam = p => String(p || '').split('.').map(t => parseInt(t, 36)).filter(i => i >= 0 && i < rosterAll.length).map(i => rosterAll[i].id);
+  const exIds = ids => (Array.isArray(ids) ? ids : []).filter(id => typeof id === 'string' && rosterAll.some(s => s.id === id));
+  // 共有リンク（seed あり）で開いたときは、リンクの ex だけを見る（保存した設定は使わない）
+  function initExcluded() {
+    const fromUrl = !exInited && qs.has('seed'); exInited = true;
+    const have = new Set(rosterAll.map(s => s.id));
+    excluded = new Set((fromUrl ? exFromParam(qs.get('ex')) : exLoad()).filter(id => have.has(id)));
+  }
+  const castCount = () => rosterAll.length - excluded.size;
+  const castRosterOf = ids => { if (!ids.length) return rosterAll; const x = new Set(ids); return rosterAll.filter(s => !x.has(s.id)); };
+  const castKey = s => s.class.key === 'extra' ? 'extra:' + (s.class.label || '') : s.class.key;
+  function castGroups() {
+    const defs = Object.keys(H.CONFIG.CLASS_DEFS), g = new Map();
+    rosterAll.forEach((s, i) => {
+      const k = castKey(s);
+      if (!g.has(k)) g.set(k, { key: k, label: (k.indexOf('extra:') === 0 ? s.class.label : (H.CONFIG.CLASS_DEFS[k] || {}).label) || s.class.label || k, idx: [] });
+      g.get(k).idx.push(i);
+    });
+    const rank = k => { const j = defs.indexOf(k.indexOf('extra:') === 0 ? 'extra' : k); return j < 0 ? 999 : j; };
+    return [...g.values()].sort((a, b) => rank(a.key) - rank(b.key));
+  }
+  let castG = [];
+  function buildCast() {
+    $('#castBox').hidden = rosterAll.length < 2;
+    castG = castGroups();
+    $('#castList').innerHTML = castG.map((g, gi) => `<div class="cast-cls" role="group" aria-label="${esc(g.label)}">
+      <div class="cast-hd"><b>${esc(g.label)}</b><span class="n" data-n="${gi}"></span><button class="btn" type="button" data-g="${gi}" data-on="1">全選択</button><button class="btn" type="button" data-g="${gi}" data-on="0">全解除</button></div>
+      <div class="cast-list">${g.idx.map(i => `<label class="cast-sv"><input type="checkbox" data-i="${i}"><span>${esc(rosterAll[i].trueName)}</span></label>`).join('')}</div></div>`).join('');
+  }
+  function syncCast() {
+    const n = castCount(), min = minCast();
+    $('#castBox').querySelectorAll('input[data-i]').forEach(cb => { const on = !excluded.has(rosterAll[+cb.dataset.i].id); cb.checked = on; cb.parentNode.classList.toggle('off', !on); });
+    castG.forEach((g, gi) => { const el = $(`#castList [data-n="${gi}"]`); if (el) el.textContent = `${g.idx.filter(i => !excluded.has(rosterAll[i].id)).length} / ${g.idx.length}`; });
+    const sum = $('#castSum');
+    sum.textContent = n < min ? `参戦するのは ${n} 騎です。観測するには ${min} 騎以上が必要です。`
+      : excluded.size ? `参戦するのは ${n} 騎です（全 ${rosterAll.length} 騎のうち ${excluded.size} 騎を外しています）。` : `全 ${rosterAll.length} 騎が参戦します（既定）。`;
+    sum.classList.toggle('warn', n < min);
+    const tx = $('#castTxt');
+    if (tx) tx.innerHTML = excluded.size ? `参戦に設定した <b>${n}</b> 騎（全${rosterAll.length}騎）から選ばれる` : `<b>${rosterAll.length}</b> 騎のサーヴァントから選ばれる`;
+    $('#observe').disabled = n < min;
+  }
+  function setCast(idxs, on) {
+    for (const i of idxs) { const id = rosterAll[i].id; if (on) excluded.delete(id); else excluded.add(id); }
+    exSave(); syncCast(); buildPickers(); formationStale();
+  }
+  $('#castBox').addEventListener('click', e => {
+    const b = e.target.closest && e.target.closest('button'); if (!b) return;
+    if (b.id === 'castAllOn') setCast(rosterAll.map((s, i) => i), true);
+    else if (b.id === 'castAllOff') setCast(rosterAll.map((s, i) => i), false);
+    else if (b.dataset.g != null && castG[+b.dataset.g]) setCast(castG[+b.dataset.g].idx, b.dataset.on === '1');
+  });
+  $('#castBox').addEventListener('change', e => { const t = e.target; if (t.matches && t.matches('input[data-i]')) setCast([+t.dataset.i], t.checked); });
+
+    // ---------- 評価（S〜E）：リストの全騎と1対1で戦った平均勝率の順位（聖杯戦争の開戦の評価と同じ） ----------
+    let gradeCache = null;
+    function gradeMap() {
+      if (gradeCache && gradeCache.src === rosterAll) return gradeCache.m;
+      const B = H.build, rates = new Map(), ids = rosterAll.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+      const refs = ids.length <= 60 ? ids : Array.from({ length: 60 }, (_, i) => ids[Math.floor(i * ids.length / 60)]);
+      for (const a of rosterAll) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } rates.set(a.id, n ? t / n : 0.5); }
+      const sorted = [...rates.values()].sort((x, y) => y - x), m = new Map();
+      for (const [id, r] of rates) m.set(id, H.gradeOfPct((sorted.filter(x => x > r + 1e-9).length) / Math.max(1, rosterAll.length - 1)));
+      gradeCache = { src: rosterAll, m }; return m;
+    }
+    const evaluate = sv => ({ grade: gradeMap().get(sv.id) || '' });
+    const ci = (key, big) => key ? `<img class="ci" src="${H.classIcon(key)}" alt="" width="20" height="20" loading="lazy" decoding="async">` : '';
+    const fic = (name, key) => name ? `<span class="fic">${ci(key)}<img class="face" data-face="${esc(name)}" alt="" hidden></span>` : ci(key);
+    function fillFaces(root) {
+      for (const im of (root || document).querySelectorAll('img[data-face]')) {
+        const u = H.faceUrl(im.dataset.face, () => fillFaces());
+        if (!u) continue;
+        if (im.getAttribute('src') !== u) im.src = u;
+        im.hidden = false; if (im.parentNode && im.parentNode.classList) im.parentNode.classList.add('has');
+      }
+    }
+
+  // ---------- 開始前の設定（前回選んだものを覚えておく。共有リンクに書いてあればそちらが優先） ----------
+  const SET_KEY = 'hgw.sing.settings';
+  const formExtra = () => document.querySelector('input[name=extra]:checked').value !== '0';
+  const formPick = () => document.querySelector('input[name=pick]:checked').value === 'open' ? 'open' : 'class';
+  const formWords = () => document.querySelector('input[name=words]:checked').value !== '0';
   const formSpeed = () => +document.querySelector('input[name=speed]:checked').value;
+  const formDays = () => clampDays($('#days').value);
+  function setForm(days, extra, pick) {
+    $('#days').value = clampDays(days); $('#daysOut').textContent = clampDays(days) + '日';
+    const el = document.querySelector(`input[name=extra][value="${extra === false ? 0 : 1}"]`); if (el) el.checked = true;
+    const pe = document.querySelector(`input[name=pick][value="${pick === 'open' ? 'open' : 'class'}"]`); if (pe) pe.checked = true;
+  }
+  let settings0 = {};
+  (() => {
+    settings0 = store.get(SET_KEY) || {};
+    const st = settings0;
+    if (st.words === false) document.querySelector('input[name=words][value="0"]').checked = true;
+    const d = qs.get('d') || st.days || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : st.extra !== false;
+    const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : st.pick || 'class';
+    setForm(d, x, pk);
+    $('#pname').value = qs.has('seed') ? (qs.get('n') || '') : (st.name || '');
+    $('#pword').value = st.word || '';
+  })();
+  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined });
+  $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
+  $('#days').addEventListener('change', saveSettings);
+  $('#pname').addEventListener('change', saveSettings); $('#pword').addEventListener('change', saveSettings);
+  document.querySelectorAll('input[name=extra], input[name=pick], input[name=words]').forEach(r => r.addEventListener('change', () => { saveSettings(); if (r.name !== 'words') formationStale(); }));
+  // 七騎の組み方（エクストラクラスの有無と、選び方）
+  let pickMode = 'class', extraOn = true;
+  const warOpts = () => { const w = {}; if (!extraOn) w.extra = false; if (pickMode === 'open') w.pick = 'open'; return Object.keys(w).length ? w : undefined; };
 
   // ---------- 編成 ----------
   let seed = '', lineup = null, front = [], picks = { party: [], foes: [], boss: null };
-  function observe(fromUrl) {
-    seed = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
-    $('#seed').value = seed;
-    if (fromUrl) picks = { party: dec36(qs.get('pt')), foes: dec36(qs.get('en')), boss: qs.get('bs') ? (qs.get('bs') === 'e' ? 'empower' : (bosses[+qs.get('bs')] || {}).id || null) : null };
-    try { lineup = SG.compose({ roster, bosses, seed, picks }); }
-    catch (e) { toast('観測できませんでした：' + e.message); return; }
-    front = fromUrl && qs.get('fr') ? qs.get('fr').split('.').map(Number).filter(i => i >= 0 && i < lineup.party.length).slice(0, CFG.front) : lineup.front.slice();
+  const idxOf = id => rosterAll.findIndex(s => s.id === id);
+  const enc36 = ids => ids.map(id => id ? (idxOf(id) >= 0 ? idxOf(id).toString(36) : '') : '').join('.');
+  const dec36 = p => String(p || '').split('.').map(t => { const i = parseInt(t, 36); return t !== '' && i >= 0 && i < rosterAll.length ? rosterAll[i].id : null; });
+  // 特異点の名前と顔ぶれを決める（保存・記録から組み直すときも、同じ引数なら同じ顔ぶれになる）
+  function setup(o) {
+    castEx = exIds(o.ex); pickMode = o.pick === 'open' ? 'open' : 'class'; extraOn = o.extra !== false;
+    seed = o.seed; picks = o.picks || { party: [], foes: [], boss: null };
+    roster = castRosterOf(castEx);
+    lineup = SG.compose({ roster: roster, bosses, seed, picks, war: warOpts() });
+    const fr = Array.isArray(o.front) ? [...new Set(o.front.map(Number))].filter(i => i >= 0 && i < lineup.party.length).slice(0, CFG.front) : [];
+    front = fr.length === CFG.front ? fr.sort((a, b) => a - b) : lineup.front.slice();
+  }
+  const picksFromUrl = () => ({ party: dec36(qs.get('pt')), foes: dec36(qs.get('en')), boss: qs.get('bs') ? (qs.get('bs') === 'e' ? 'empower' : (bosses[+qs.get('bs')] || {}).id || null) : null });
+  function observe(o) {
+    o = o || {};
+    const sd = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
+    $('#seed').value = sd;
+    try { setup({ seed: sd, picks: o.fromUrl ? picksFromUrl() : picks, front: o.fromUrl && qs.get('fr') ? qs.get('fr').split('.') : null, ex: [...excluded], pick: formPick(), extra: formExtra() }); }
+    catch (e) { toast('観測できませんでした：' + e.message); return false; }
     renderFormation();
     $('#formation').hidden = false;
-    if (!fromUrl) $('#formation').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    if (fromUrl && (qs.get('f') || qs.get('c') || qs.get('k'))) start({ replay: true });
+    if (!o.fromUrl) $('#formation').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    return true;
   }
-  const svOf = id => roster.find(s => s.id === id) || bosses.find(s => s.id === id);
+  // 七騎の選び方や参戦の設定を変えたら、顔ぶれが変わるので、観測し直してもらう
+  function formationStale() { if (!$('#formation').hidden) { $('#formation').hidden = true; toast('設定を変えたので、もう一度「特異点を観測する」を押してください'); } }
+  function fromUrl() {
+    if (!observe({ fromUrl: true })) return;
+    if (qs.get('f') || qs.get('c') || qs.get('k') || qs.get('dy')) start({ replay: true });
+  }
+  const svOf = id => rosterAll.find(s => s.id === id) || bosses.find(s => s.id === id);
   const rk = (sv, k) => H.rank.label(sv.ranks[k]);
   function renderFormation() {
     $('#sName').textContent = lineup.name;
     $('#sRegion').textContent = lineup.region && lineup.region !== lineup.city ? lineup.region + '・' + lineup.city : lineup.city;
     $('#partyCards').innerHTML = lineup.party.map((id, i) => {
-      const s = svOf(id), on = front.includes(i);
-      return `<button class="card" type="button" data-i="${i}" aria-pressed="${on}"><span class="tag">${on ? '前衛' : '控え'}</span><span class="cls">${esc(s.class.label)}</span><span class="nm">${esc(s.trueName)}</span>
+      const s = svOf(id), on = front.includes(i), ev = evaluate(s);
+      return `<button class="card" type="button" data-i="${i}" aria-pressed="${on}"><span class="tag">${on ? '前衛' : '控え'}</span><span class="cls">${ev.grade ? `<b class="gr g-${ev.grade}" title="リストの全騎と戦った平均勝率の順位による評価">${ev.grade}</b>` : ''}${ci(s.class.key)}${esc(s.class.label)}</span><span class="nm">${esc(s.trueName)}</span>
         <span class="st">筋${rk(s, 'str')} 耐${rk(s, 'end')} 敏${rk(s, 'agi')} 魔${rk(s, 'mag')} 運${rk(s, 'luk')} 宝${rk(s, 'np')}</span></button>`;
     }).join('');
     $('#frontNote').textContent = front.length === CFG.front ? `前衛：${front.map(i => svOf(lineup.party[i]).trueName).join('・')}` : `前衛をあと${CFG.front - front.length}騎選んでください`;
     $('#go').disabled = front.length !== CFG.front;
-    $('#foeLine').innerHTML = '<span style="box-shadow:none;color:var(--mute);padding-left:0">観測された敵の霊基：</span>' + lineup.foes.map(id => `<span>${esc((lineup.tag ? lineup.tag + 'の' : '') + svOf(id).class.label)}</span>`).join('') + '<span>？？？</span>';
+    $('#foeLine').innerHTML = '<span class="lbl">観測された敵の霊基：</span>' + lineup.foes.map(id => `<span>${esc((lineup.tag ? lineup.tag + 'の' : '') + svOf(id).class.label)}</span>`).join('') + '<span>？？？</span>';
   }
   $('#partyCards').addEventListener('click', e => {
+    if (e.target.closest('[data-tip]')) return;   // 評価の印を押したときは解説だけ（前衛は切り替えない）
     const b = e.target.closest('[data-i]'); if (!b) return;
     const i = +b.dataset.i;
     if (front.includes(i)) front = front.filter(x => x !== i);
@@ -401,14 +662,14 @@ body.watching .war { display: block; }
     front.sort((a, b2) => a - b2);
     renderFormation();
   });
-  $('#observe').onclick = () => observe(false);   // 書いたシードがあればそれで、空欄なら新しく
-  $('#reroll').onclick = () => { $('#seed').value = ''; observe(false); };
-  // 編成を自分で決める（下に格納）
-  // クラス → サーヴァントの二段選択（サーヴァント側の select が値を持つ）
+  $('#observe').onclick = () => observe();   // 書いたシードがあればそれで、空欄なら新しく
+  $('#reroll').onclick = () => { $('#seed').value = ''; picks = { party: [], foes: [], boss: null }; buildPickers(); observe(); };
+  // 編成を自分で決める（下に格納）。クラス → サーヴァントの二段選択（サーヴァント側の select が値を持つ）
+  const pickRoster = () => castRosterOf([...excluded]);
   function svGroups() {
     const order = Object.keys(H.CONFIG.CLASS_DEFS);
     const groups = new Map();
-    for (const s of roster.slice().sort((a, b) => (order.indexOf(a.class.key) - order.indexOf(b.class.key)) || a.trueName.localeCompare(b.trueName, 'ja'))) {
+    for (const s of pickRoster().slice().sort((a, b) => (order.indexOf(a.class.key) - order.indexOf(b.class.key)) || a.trueName.localeCompare(b.trueName, 'ja'))) {
       if (!groups.has(s.class.label)) groups.set(s.class.label, []);
       groups.get(s.class.label).push(s);
     }
@@ -419,7 +680,7 @@ body.watching .war { display: block; }
     return '<option value="">（ランダム）</option>' + list.map(s => `<option value="${esc(s.id)}"${s.id === sel ? ' selected' : ''}>${esc(s.trueName)}</option>`).join('');
   }
   function pickCell(attr, i, label, selId) {
-    const sv = roster.find(s => s.id === selId), cls = sv ? sv.class.label : '';
+    const sv = pickRoster().find(s => s.id === selId), cls = sv ? sv.class.label : '';
     const clsOpts = '<option value="">（クラス：ランダム）</option>' + [...svGroups().keys()].map(g => `<option value="${esc(g)}"${g === cls ? ' selected' : ''}>${esc(g)}</option>`).join('');
     return `<label><span>${label} ${i + 1}</span><span class="pair"><select class="pcls" aria-label="${label} ${i + 1} のクラス">${clsOpts}</select><select ${attr}="${i}" aria-label="${label} ${i + 1} の英霊"${cls ? '' : ' disabled'}>${svOptions(cls, selId)}</select></span></label>`;
   }
@@ -435,34 +696,59 @@ body.watching .war { display: block; }
     sv.disabled = !e.target.value;
   });
   $('#pickApply').onclick = () => {
-    picks = { party: [...document.querySelectorAll('[data-p]')].map(s => s.value || null), foes: [...document.querySelectorAll('[data-e]')].map(s => s.value || null), boss: $('#pickBossSel').value || null };
-    const all = picks.party.concat(picks.foes).filter(Boolean);
+    const np = { party: [...document.querySelectorAll('[data-p]')].map(s => s.value || null), foes: [...document.querySelectorAll('[data-e]')].map(s => s.value || null), boss: $('#pickBossSel').value || null };
+    const all = np.party.concat(np.foes).filter(Boolean);
     if (new Set(all).size !== all.length) { toast('同じ英霊が二つの席に入っています'); return; }
+    picks = np;
     if (!$('#seed').value.trim()) $('#seed').value = seed;
-    observe(false); toast('この顔ぶれで観測し直しました');
+    if (observe()) toast('この顔ぶれで観測し直しました');
   };
   $('#pickClear').onclick = () => { picks = { party: [], foes: [], boss: null }; buildPickers(); };
 
   // ---------- 進行 ----------
   let gen = null, out = null, pending = null, done = false, result = null, idx = 0, timer = null, speed = 2, paused = false, autoAll = false;
+  let playerName = '', curDay = 0, tickDay = 0, decLog = [], logFilter = 'all', words = '';
   let focus = 'auto', focusLog = '', replayFocus = '', choices = [], replay = [], queue = [], cmdLog = [], replayCmds = [], maxDays = 30, lastSnap = null;
   const DELAY = { death: 2200, np: 1700, end: 1900, cs: 1500, summon: 900, prologue: 1300, choice: 500, council: 900, life: 1300, event: 1100, scout: 1100 };
   function pump(a) { const r = gen.next(a); if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value; }
   function start(o) {
     o = o || {};
-    maxDays = +$('#days').value;
+    maxDays = formDays();
     speed = formSpeed(); paused = false; autoAll = false;
+    playerName = (o.replay && qs.has('n') ? qs.get('n') : $('#pname').value).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+    words = formWords() ? $('#pword').value.trim() : '';
+    curDay = 0; tickDay = 0; decLog = []; lastPlace = ''; lastSceneKey = null;
     out = {}; done = false; result = null; pending = null; idx = 0; queue = []; cmdLog = []; choices = []; focusLog = ''; focus = 'auto'; lastSnap = null;
     replay = o.replay && qs.get('c') ? qs.get('c').split('.') : [];
     replayFocus = o.replay ? qs.get('f') || '' : '';
     replayCmds = o.replay ? parseCmds(qs.get('k')) : [];
-    try { gen = SG.gen({ roster, bosses, seed, lineup, front, ask: 'big', out, days: maxDays }); pump(); }
+    try { gen = SG.gen({ roster, bosses, seed, lineup, front, ask: 'big', out, days: maxDays, playerName: playerName || undefined }); pump(); }
     catch (e) { toast('始められませんでした：' + e.message); console.error(e); return; }
     document.body.classList.add('watching');
     $('#log').innerHTML = ''; $('#result').innerHTML = '';
     $('#hudName').textContent = lineup.name; $('#mName').textContent = '';
+    drawSkyline(seed); setLogFilter('all');
     renderFocus(); syncCtl(); updateURL(); window.scrollTo(0, 0);
+    if (o.replay && qs.has('dy')) return catchUp();
     step();
+  }
+  // 続きから・記録の再現：保存した分は、アニメーションなしで一気に追いつく（そのあとは一時停止で止まる）
+  function catchUp() {
+    const dy = +qs.get('dy') || 0;
+    let guard = 0;
+    while (guard++ < 20000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick' && pending.day <= dy) { advanceTick(); continue; }
+      if (pending && pending.type === 'decision' && replay.length) { applyAnswer(replay.shift()); continue; }
+      break;
+    }
+    if (replayFocus) { const c = replayFocus[Math.min(replayFocus.length, dy) - 1]; if (c && BY_CODE[c]) focus = BY_CODE[c]; }
+    replayFocus = ''; replayCmds = []; replay = [];
+    renderFocus(); updateURL();
+    if (done && idx >= out.entries.length) return finish();
+    paused = true; syncCtl();
+    if (pending && pending.type === 'decision') return present(pending);
+    toast('続きから再現しました。「再開」で進みます');
   }
   $('#go').onclick = () => start({});
   // 令呪・推測の記録（URL の k）：日＋種類（h 癒やす / m 魔力 / g 推測）＋相手
@@ -474,12 +760,12 @@ body.watching .war { display: block; }
       const d = +m[1];
       if (m[2] === 'h') outc.push({ d, c: { k: 'heal', t: +m[3] } });
       else if (m[2] === 'm') outc.push({ d, c: { k: 'mana' } });
-      else { const [t2, sv] = m[3].split('-'); const s = roster[parseInt(sv, 36)]; if (s) outc.push({ d, c: { k: 'guess', t: +t2, sv: s.id } }); }
+      else { const [t2, sv] = m[3].split('-'); const s = rosterAll[parseInt(sv, 36)]; if (s) outc.push({ d, c: { k: 'guess', t: +t2, sv: s.id } }); }
     }
     return outc;
   }
   function advanceTick() {
-    const d = pending.day;
+    const d = pending.day; tickDay = Math.max(tickDay, d);
     const code = replayFocus && replayFocus[d - 1] ? replayFocus[d - 1] : FOCUS[focus].code;
     const f = BY_CODE[code] || 'auto';
     focusLog = (focusLog + 'o'.repeat(Math.max(0, d - 1 - focusLog.length))).slice(0, d - 1) + FOCUS[f].code;
@@ -505,6 +791,12 @@ body.watching .war { display: block; }
     const u = new URL(location.href);
     u.searchParams.set('seed', seed);
     if (maxDays !== CFG.maxDays) u.searchParams.set('d', maxDays); else u.searchParams.delete('d');
+    const ex = exParam(castEx);
+    if (ex) u.searchParams.set('ex', ex); else u.searchParams.delete('ex');
+    if (pickMode === 'open') u.searchParams.set('p', 'open'); else u.searchParams.delete('p');
+    if (!extraOn) u.searchParams.set('x', '0'); else u.searchParams.delete('x');
+    if (playerName) u.searchParams.set('n', playerName); else u.searchParams.delete('n');
+    if (tickDay) u.searchParams.set('dy', tickDay); else u.searchParams.delete('dy');
     u.searchParams.set('fr', front.join('.'));
     const pt = enc36(picks.party || []), en = enc36(picks.foes || []);
     if (pt.replace(/\./g, '')) u.searchParams.set('pt', pt); else u.searchParams.delete('pt');
@@ -515,6 +807,7 @@ body.watching .war { display: block; }
     if (cmdLog.length) u.searchParams.set('k', cmdLog.join('_')); else u.searchParams.delete('k');
     if (source === 'local') u.searchParams.set('data', 'local');
     history.replaceState(null, '', u);
+    saveProgress();
   }
   function syncCtl() {
     $('#pause').textContent = paused ? '▸ 再開' : '❚❚ 一時停止';
@@ -525,7 +818,7 @@ body.watching .war { display: block; }
   $('#pause').onclick = () => { if (done && idx >= out.entries.length) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
-  $('#quitBtn').onclick = () => { clearTimeout(timer); gen = null; $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); };
+  $('#quitBtn').onclick = () => { clearTimeout(timer); saveProgress(); gen = null; $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); renderIntroRecords(); };
   $('#skip').onclick = () => {
     if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); $('#dlgMin').textContent = 'いったん下ろす ▾'; return; }
     clearTimeout(timer);
@@ -551,7 +844,12 @@ body.watching .war { display: block; }
     const f = $('#dlgOpts button'); if (f) f.focus({ preventScroll: true });
   }
   $('#dlgMin').onclick = () => { const m = $('#dlg').classList.toggle('min'); $('#dlgMin').textContent = m ? '決断に戻る ▴' : 'いったん下ろす ▾'; };
-  function answer(k, silent) { $('#dlg').classList.remove('on', 'min'); choices.push(k); pump(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
+  function applyAnswer(k) {
+    const q = pending, o = q && q.options ? q.options.find(x => x.k === k) : null;
+    decLog.push({ day: q ? q.day : 0, title: q ? q.title : '', label: o ? o.label : 'おまかせ', auto: !o });
+    choices.push(k); pump(k);
+  }
+  function answer(k, silent) { $('#dlg').classList.remove('on', 'min'); applyAnswer(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
   $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
   $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); };
   document.addEventListener('keydown', e => {
@@ -600,15 +898,17 @@ body.watching .war { display: block; }
   $('#queue').addEventListener('click', e => { const a = e.target.closest('[data-q]'); if (!a) return; e.preventDefault(); queue.splice(+a.dataset.q, 1); renderQueue(); renderOrders(); });
 
   // ---------- 表示 ----------
-  const PH = { day: '昼', night: '夜', prologue: '', end: '' };
+  const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   function show(e, fast) {
     const li = document.createElement('li');
-    li.className = `k-${e.kind}${e.you ? ' is-you' : ''}${fast ? '' : ' new'}`;
+    li.className = `k-${e.kind}${e.you ? ' is-you' : ''}${fast ? '' : ' new'}${isHL(e) ? ' hl' : ''}${FB.includes(e.kind) ? ' fb' : ''}`;
+    curDay = e.day || curDay;
     if (e.kind === 'dayhead') li.innerHTML = `<span class="txt">${esc(e.text)}</span>`;
     else li.innerHTML = `<span class="when">${e.day ? 'D' + e.day : ''}<span>${PH[e.phase] || ''}</span></span><span class="txt">${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</span>`;
     $('#log').prepend(li);
     while ($('#log').children.length > 400) $('#log').lastChild.remove();
     if (e.snap) board(e);
+    sceneOf(e);
   }
   function board(e) {
     const sn = e.snap; lastSnap = sn;
@@ -624,35 +924,244 @@ body.watching .war { display: block; }
     $('#mItems').textContent = p.items; $('#mCamp').textContent = p.camp; $('#mSlain').textContent = `${p.slain}/${CFG.foes}`; $('#mPlace').textContent = p.place || '';
     const unit = c => {
       const cls = c.side === 'party' ? '' : ' foe';
-      const name = c.side === 'party' || c.name ? `<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `${c.label.includes(c.cls) ? '' : `<small>${esc(c.cls)}</small>`}${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
+      const kn = c.side === 'party' || c.name, ico = kn ? fic(c.name || (svOf(((out.meta[c.id] || {}).servantId)) || {}).trueName, keyOf(c.id)) : ci(keyOf(c.id));
+      const name = c.side === 'party' || c.name ? `${ico}<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `${c.label.includes(c.cls) ? '' : `<small>${esc(c.cls)}</small>`}${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
       const g = c.gaugeMax > 1 ? `<span class="gauges">${Array.from({ length: c.gaugeMax }, (_, i) => `<i class="${i < c.gauges ? '' : 'off'}"></i>`).join('')}</span>` : '';
       const showHp = c.side === 'party' || c.seen;
-      return `<div class="unit${cls}${c.front ? ' front' : ''}${c.alive ? '' : ' dead'}${c.seen || c.side === 'party' ? '' : ' unseen'}"><span class="u-nm">${name}${g}</span><span class="u-hp">${showHp ? (c.alive ? c.hp : '✝') : ''}</span>${showHp ? `<div class="bar"><i style="width:${c.alive ? c.hp : 0}%;background:${c.side === 'party' ? 'var(--hp)' : 'var(--foe)'}"></i></div>` : ''}</div>`;
+      return `<div data-id="${c.id}" class="unit${cls}${c.front ? ' front' : ''}${c.alive ? '' : ' dead'}${c.seen || c.side === 'party' ? '' : ' unseen'}"><span class="u-nm">${name}${g}</span><span class="u-hp">${showHp ? (c.alive ? c.hp : '✝') : ''}</span>${showHp ? `<div class="bar"><i style="width:${c.alive ? c.hp : 0}%;background:${c.side === 'party' ? 'var(--hp)' : 'var(--foe)'}"></i></div>` : ''}</div>`;
     };
     const party = sn.c.filter(c => c.side === 'party'), stray = sn.c.find(c => c.side === 'stray' && c.joined);
     $('#partyList').innerHTML = party.filter(c => c.front).concat(party.filter(c => !c.front)).map(unit).join('') + (stray ? unit(stray).replace('class="unit foe', 'class="unit') : '');
     const foes = sn.c.filter(c => c.side === 'foe'), boss = sn.c.find(c => c.side === 'boss');
     $('#foeList').innerHTML = foes.map(unit).join('') + (boss ? (p.stage === 'boss' || !boss.alive ? unit(boss) : `<div class="unit unseen"><span class="u-nm"><small>ボス</small>？？？（七騎を倒すと現れる）</span><span></span></div>`) : '');
+    fillFaces($('#partyList')); fillFaces($('#foeList'));
     $('#foeHead').textContent = p.stage === 'boss' ? '特異点の主' : `特異点の敵（残り${foes.filter(c => c.alive).length}騎）`;
     renderOrders();
   }
 
+  // ---------- 記録の絞り込み・山場 ----------
+  const KIND_JA = { prologue: '序幕', summon: '召喚', dayhead: '日付', day: '昼', night: '夜', battle: '戦い', np: '宝具', cs: '令呪', death: '退場', event: '出来事', world: '世界', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
+  const FB = ['battle', 'np', 'cs', 'death'];
+  const isHL = e => !!e.big || ['death', 'np', 'cs', 'end', 'council', 'choice'].includes(e.kind);
+  const keyOf = id => String(((out && out.meta && out.meta[id]) || {}).servantId || '').split(':')[0];
+  function setLogFilter(f) {
+    logFilter = f; $('#log').dataset.f = f;
+    document.querySelectorAll('[data-lf]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lf === f)));
+  }
+  document.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => setLogFilter(b.dataset.lf));
+
+  // ---------- 情景（背景画像があれば使い、無ければ描いた街並み） ----------
+  const imgOk = new Map();
+  function probe(url) {
+    if (imgOk.has(url)) return Promise.resolve(imgOk.get(url));
+    const p = new Promise(res => { const im = new Image(); im.onload = () => { imgOk.set(url, true); res(true); }; im.onerror = () => { imgOk.set(url, false); res(false); }; im.src = url; });
+    imgOk.set(url, p); return p;
+  }
+  let lastSceneKey = null, sceneReq = 0, lastPlace = '', lastScene = '';
+  function sceneOf(e) {
+    if (e.scene) lastScene = e.scene;
+    if (e.place) lastPlace = e.place;
+    else if (e.snap && e.snap.p && e.snap.p.place) lastPlace = e.snap.p.place;
+    const scene = e.scene || lastScene || (e.snap && e.snap.p && e.snap.p.scene) || H.SCENE_CONFIG.defaultScene;
+    $('#sceneCap').textContent = `${lineup.city} ・ ${lastPlace || lineup.city}`;
+    setScene(scene, e.phase === 'day' ? 'day' : 'night', e.weather);
+  }
+  async function setScene(scene, time, weather) {
+    $('#view').classList.toggle('rainy', weather === 'rain');
+    $('#sceneTag').textContent = time === 'day' ? 'DAY' : 'NIGHT'; $('#sceneTag').classList.toggle('day', time === 'day');
+    $('#sceneSvg').style.filter = time === 'day' ? 'brightness(1.7) saturate(.7) hue-rotate(-10deg)' : '';
+    const st = $('#sceneSvg').querySelector('#stars'); if (st) st.setAttribute('opacity', time === 'day' ? 0 : .8);
+    const key = scene + '|' + time; if (key === lastSceneKey) return; lastSceneKey = key;
+    const req = ++sceneReq;
+    for (const url of H.sceneCandidates(scene, time)) {
+      const ok = await (imgOk.get(url) === true ? true : imgOk.get(url) === false ? false : probe(url));
+      if (req !== sceneReq) return;
+      if (ok) { const im = $('#sceneImg'); if (im.getAttribute('src') !== url) { im.classList.remove('on'); im.src = url; } requestAnimationFrame(() => im.classList.add('on')); return; }
+    }
+    $('#sceneImg').classList.remove('on');
+  }
+  function drawSkyline(sd) {
+    const rnd = H.engine.makeRng('scene' + sd);
+    let x = 0, b = '', w = '';
+    while (x < 300) {
+      const bw = 10 + Math.floor(rnd() * 22), bh = 22 + Math.floor(rnd() * 50), y = 100 - bh;
+      b += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}"/>`;
+      for (let wy = y + 4; wy < 96; wy += 6) for (let wx = x + 2; wx < x + bw - 3; wx += 5) if (rnd() < 0.26) w += `<rect x="${wx}" y="${wy}" width="2" height="3"/>`;
+      if (rnd() < 0.18) b += `<rect x="${x + bw / 2 - 0.5}" y="${y - 9}" width="1" height="9"/>`;
+      x += bw + (rnd() < 0.3 ? 2 : 0);
+    }
+    const stars = Array.from({ length: 50 }, () => `<rect x="${Math.floor(rnd() * 300)}" y="${Math.floor(rnd() * 55)}" width="1" height="1"/>`).join('');
+    $('#sceneSvg').innerHTML = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050d26"/><stop offset=".7" stop-color="#123a7a"/><stop offset="1" stop-color="#1c64a8"/></linearGradient></defs>
+      <rect width="300" height="100" fill="url(#sky)"/><g id="stars" fill="#cfefff" opacity=".8" shape-rendering="crispEdges">${stars}</g>
+      <circle cx="${40 + Math.floor(rnd() * 220)}" cy="22" r="8" fill="#e9f6ff" opacity=".9"/><g fill="#071a3c" shape-rendering="crispEdges">${b}</g><g fill="#59e3ff" opacity=".85" shape-rendering="crispEdges">${w}</g>`;
+  }
+
+  // ---------- CSV ----------
+  function exportCsv() {
+    if (!out || !out.entries) return;
+    const list = out.entries.slice(0, idx).filter(e => e.kind !== 'dayhead');
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const who = (e, id) => { const c = e.snap && e.snap.c && e.snap.c.find(x => x.id === id); return c ? c.label + (c.name ? '「' + c.name + '」' : '') : ''; };
+    const rows = [['日', '時間帯', '種類', 'ハイライト', '前衛に関わる', '関わった者', '本文', 'セリフ', '場所']];
+    for (const e of list) rows.push([e.day || 0, PH[e.phase] || '', KIND_JA[e.kind] || e.kind, isHL(e) ? '★' : '', e.you ? '○' : '', (e.ids || []).map(id => who(e, id)).filter(Boolean).join(' / '), e.text, e.quote ? e.quote.text : '', e.place || '']);
+    const csv = '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `特異点_${lineup.name.replace(/\s+/g, '_')}_${seed}_${done && idx >= out.entries.length ? '全記録' : curDay + '日目まで'}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`記録を${list.length}件、CSVで保存しました`);
+  }
+  $('#csvBtn').onclick = exportCsv;
+
+  // ---------- 詳細（サーヴァント・マスター） ----------
+  function openDet(title, sub, html) { $('#detTitle').innerHTML = title; $('#detSub').textContent = sub || ''; $('#detBody').innerHTML = html; $('#det').classList.add('on'); syncLock(); fillFaces($('#det')); $('#detClose').focus({ preventScroll: true }); }
+  const closeDet = () => { $('#det').classList.remove('on'); syncLock(); };
+  $('#detClose').onclick = closeDet;
+  $('#det').addEventListener('click', e => { if (e.target === $('#det')) closeDet(); });
+  function openServant(id) {
+    const sn = lastSnap && lastSnap.c.find(c => c.id === id); if (!sn) return;
+    const m = out.meta[id] || {}, sv = svOf(m.servantId), known = sn.side === 'party' || !!sn.name;
+    if (!known) {
+      openDet(`${ci(keyOf(id))}${esc(sn.label)}`, sn.cls, `<dl class="kv"><dt>クラス</dt><dd>${esc(sn.cls)}</dd><dt>真名</dt><dd>不明${sn.clues ? `（手がかり${sn.clues}）` : ''}</dd></dl><p class="lead2">真名を見抜くには、戦って手がかりを集めるか、令呪・推測の欄から真名を推測します。</p>`);
+      return;
+    }
+    const T = sv && sv.text || {}, prof = sv && sv.profile || {};
+    const para = [T.commentary, T.personality].filter(Boolean).join('\n\n').slice(0, 700);
+    openDet(`${fic(m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
+      `<dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>地域</dt><dd>${esc(sv.origin)}</dd>` : ''}</dl>${para ? `<p class="txt">${esc(para)}${para.length >= 700 ? '…' : ''}</p>` : ''}`);
+  }
+  function openMaster() {
+    const mm = (out && out.meta && out.meta[0] || {}).master; if (!mm) return;
+    const P = H.PERSONAS || {}, per = mm.persona && P[mm.persona] ? P[mm.persona].label : '';
+    const st = Object.entries(mm.stats || {}).map(([k, v]) => `${({ mana: '魔力', craft: '魔術', body: '体', mind: '精神', luck: '運' })[k] || k} ${v}`).join('　');
+    openDet(esc(mm.name), 'マスター', `<dl class="kv">${mm.originLabel ? `<dt>出自</dt><dd>${esc(mm.originLabel)}</dd>` : ''}${mm.sex ? `<dt>性別</dt><dd>${esc(mm.sex)}</dd>` : ''}${mm.age ? `<dt>年齢</dt><dd>${esc(mm.age)}</dd>` : ''}${per ? `<dt>性格</dt><dd>${esc(per)}</dd>` : ''}${st ? `<dt>能力</dt><dd>${esc(st)}</dd>` : ''}${mm.wish ? `<dt>願い</dt><dd>${esc(mm.wish)}</dd>` : ''}${mm.catalyst ? `<dt>縁</dt><dd>${esc(mm.catalyst)}</dd>` : ''}</dl>`);
+  }
+  $('#mName').onclick = openMaster; $('#mName').onkeydown = e => { if (e.key === 'Enter') openMaster(); };
+  for (const sel of ['#partyList', '#foeList']) $(sel).addEventListener('click', e => { const u = e.target.closest('[data-id]'); if (u) openServant(+u.dataset.id); });
+
+  // ---------- 画面の固定・一番上へ・Esc ----------
+  let lockY = null;
+  function syncLock() {
+    const open = !!document.querySelector('.dlg.on:not(.min)');
+    if (open && lockY == null) { lockY = scrollY; document.body.style.top = -lockY + 'px'; document.body.classList.add('locked'); }
+    else if (!open && lockY != null) { const y = lockY; lockY = null; document.body.classList.remove('locked'); document.body.style.top = ''; scrollTo(0, y); }
+  }
+  const lockObs = new MutationObserver(syncLock);
+  document.querySelectorAll('.dlg').forEach(d => lockObs.observe(d, { attributes: true, attributeFilter: ['class'] }));
+  addEventListener('scroll', () => { $('#toTopBtn').hidden = !(scrollY > 700 && lockY == null); }, { passive: true });
+  $('#toTopBtn').onclick = () => scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('#det').classList.contains('on')) return closeDet();
+    const d = $('#dlg'); if (d.classList.contains('on') && !d.classList.contains('min')) $('#dlgMin').click();
+  });
+
+  // ---------- 中断・これまでの記録 ----------
+  const SAVE_KEY = 'hgw.sing.save.v1', HIST_KEY = 'hgw.sing.history.v1', HIST_MAX = 10, KEEP_MAX = 30;
+  const rosterFp = () => { let h = 2166136261; for (const s of rosterAll) { const t = s.id + ':' + Math.round(s.power || 0) + ';'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } } return (h >>> 0).toString(36) + '.' + rosterAll.length; };
+  const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const validRec = r => r && typeof r.q === 'string' && /(^|&)seed=/.test(r.q);
+  const loadHist = () => { const l = store.get(HIST_KEY); return Array.isArray(l) ? l.filter(validRec) : []; };
+  function saveProgress() {
+    if (!gen || done || !out || !document.body.classList.contains('watching') || !lineup) return false;
+    return store.set(SAVE_KEY, { v: 1, at: Date.now(), q: location.search.replace(/^\?/, ''), fp: rosterFp(), name: lineup.name, day: curDay, days: maxDays });
+  }
+  addEventListener('pagehide', saveProgress);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
+  function addHistory(r, cls) {
+    const rec = { v: 1, at: Date.now(), q: location.search.replace(/^\?/, ''), fp: rosterFp(), name: r.name, ending: r.ending, day: r.days, slain: r.slain, foes: r.foes, boss: r.boss ? { name: r.boss.trueName, alive: r.boss.alive } : null };
+    let list = loadHist().filter(x => x.q !== rec.q);
+    list.unshift(rec);
+    const keep = list.filter(x => x.keep).slice(0, KEEP_MAX), rest = list.filter(x => !x.keep).slice(0, HIST_MAX);
+    store.set(HIST_KEY, list.filter(x => keep.includes(x) || rest.includes(x)));
+    store.set(SAVE_KEY, null);
+  }
+  function openRecord(q, fpSaved) {
+    if (fpSaved && dataLoaded && fpSaved !== rosterFp() && !confirm('サーヴァントのリストが、保存したときから変わっています。\nこのまま開くと、別の特異点になることがあります。開きますか？')) return;
+    location.href = location.pathname + '?' + q;
+  }
+  function renderIntroRecords() {
+    const sv = store.get(SAVE_KEY), hist = loadHist();
+    const END_JA = { clear: '人理修復 成功', wipe: '全滅', master: 'マスター死亡', timeout: '人理定礎崩壊' };
+    const rows = [];
+    if (sv && sv.q) rows.push(`<div class="rec"><div><b>中断：${esc(sv.name)}</b><small>${sv.day ? sv.day + '日目 / ' + sv.days + '日 ・ ' : ''}${esc(fmtAt(sv.at))}</small></div><div class="acts"><button class="btn primary" data-act="resume">続きから</button><button class="btn" data-act="drop">破棄</button></div></div>`);
+    hist.forEach((h, i) => rows.push(`<div class="rec${h.keep ? ' keep' : ''}"><div><b>${esc(h.name)}</b><small>${esc(END_JA[h.ending] || '終了')} ・ ${h.day}日目 ・ 討伐 ${h.slain}/${h.foes}${h.boss ? '・ボス' + (h.boss.alive ? '健在' : '撃破') : ''} ・ ${esc(fmtAt(h.at))}</small></div><div class="acts"><button class="btn" data-act="open" data-i="${i}">見返す</button><button class="btn" data-act="keep" data-i="${i}">${h.keep ? '残さない' : '残す'}</button><button class="btn" data-act="del" data-i="${i}">削除</button></div></div>`));
+    $('#recBox').innerHTML = rows.join('');
+    $('#recPanel').hidden = !rows.length;
+  }
+  $('#recBox').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const sv = store.get(SAVE_KEY), hist = loadHist(), h = hist[+b.dataset.i];
+    if (b.dataset.act === 'resume' && sv) openRecord(sv.q, sv.fp);
+    else if (b.dataset.act === 'drop') { store.set(SAVE_KEY, null); renderIntroRecords(); }
+    else if (b.dataset.act === 'open' && h) openRecord(h.q, h.fp);
+    else if (b.dataset.act === 'keep' && h) { if (!h.keep && hist.filter(x => x.keep).length >= KEEP_MAX) return toast(`残せるのは${KEEP_MAX}件までです`); h.keep = !h.keep; store.set(HIST_KEY, hist); renderIntroRecords(); }
+    else if (b.dataset.act === 'del' && h) { hist.splice(+b.dataset.i, 1); store.set(HIST_KEY, hist); renderIntroRecords(); }
+  });
+  $('#recExport').onclick = () => {
+    const blob = new Blob([JSON.stringify({ format: 'hgw-sing-records', version: 1, history: loadHist(), save: store.get(SAVE_KEY) })], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '特異点攻略_記録.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $('#recImport').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (!j || j.format !== 'hgw-sing-records') throw new Error('特異点攻略の記録ではありません');
+      const have = loadHist(), seen = new Set(have.map(x => x.q)), add = (j.history || []).filter(x => validRec(x) && !seen.has(x.q));
+      store.set(HIST_KEY, have.concat(add).sort((a, b) => b.at - a.at));
+      if (j.save && validRec(j.save) && !store.get(SAVE_KEY)) store.set(SAVE_KEY, j.save);
+      renderIntroRecords(); toast(`記録を${add.length}件、読み込みました`);
+    } catch (err) { toast('読み込めませんでした：' + err.message); }
+  };
+
   // ---------- 結末 ----------
   const END = { clear: ['人理修復 成功', 'ok'], wipe: ['全滅', 'ng'], master: ['マスター死亡', 'ng'], timeout: ['人理定礎崩壊', 'ng'] };
+  function lastWord(r) {
+    const alive = r.party.filter(c => c.alive), pool = alive.length ? alive : r.party;
+    const keys = r.ending === 'clear' ? ['勝利', '聖杯について', '絆'] : ['戦闘不能', '敗北', '絆'];
+    for (const c of pool.slice().sort((a, b) => (b.front ? 1 : 0) - (a.front ? 1 : 0))) {
+      const sv = rosterAll.find(s => s.trueName === c.trueName); if (!sv || !sv.voice) continue;
+      for (const k of keys) {
+        const lines = H.voiceLines(sv, k); if (!lines.length) continue;
+        let h = 2166136261; const t = seed + ':last:' + k; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return { who: `${c.label}「${c.trueName}」`, text: lines[(h >>> 0) % lines.length] };
+      }
+    }
+    return null;
+  }
   function finish() {
     clearTimeout(timer); paused = false; syncCtl();
     const r = result, [t, cls] = END[r.ending] || ['終了', 'ng'];
-    const row = c => `<tr><th>${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
+    const row = c => `<tr><th>${fic(c.trueName, String((rosterAll.find(s => s.trueName === c.trueName) || {}).id || '').split(':')[0])}${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
+    const q = lastWord(r);
+    const hls = out.entries.filter(e => isHL(e) && e.kind !== 'dayhead' && e.kind !== 'prologue');
+    const decs = decLog.filter(d => d.title);
+    const dlist = decs.length ? `<details class="rsec"><summary><h5>下した決断（${decs.length}）</h5></summary><ol>${decs.map(d => `<li><b>D${pad2(d.day || 0)}</b><span>${esc(d.title)}　→　${esc(d.label)}${d.auto ? '（おまかせ）' : ''}</span></li>`).join('')}</ol></details>` : '';
+    const tl = hls.length ? `<details class="rsec"><summary><h5>この攻略の振り返り（${hls.length}件）</h5></summary><ol>${hls.map(e => `<li class="k-${e.kind}"><b>${e.day ? 'D' + pad2(e.day) + ' ' + (PH[e.phase] || '') : '開戦'}</b><span>${esc(e.text)}</span></li>`).join('')}</ol></details>` : '';
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">${esc(r.name)}</span></div><div class="body">
-      <p class="big ${cls}">${t}</p><p class="sub">${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${esc(r.boss.trueName)}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}</p>
+      <p class="big ${cls}">${t}</p><p class="sub">${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${esc(r.boss.trueName)}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}${playerName || r.master ? ` ・ マスター ${esc(playerName || r.master)}` : ''}</p>
+      ${q ? `<div class="lastword"><span class="who">最後に、${esc(q.who)}から一言</span><p>「${esc(q.text)}」</p></div>` : ''}
+      ${words ? `<div class="lastword" style="border-color:var(--bond)"><span class="who">あなたの一言</span><p style="color:var(--bond)">「${esc(words)}」</p></div>` : ''}
       <table><tbody>${r.party.map(row).join('')}</tbody></table>
       <p class="hint">敵：${r.enemies.map(c => `${esc(c.label)}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
-      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button></div></div></section>`;
+      ${dlist}${tl}
+      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button><button class="btn" id="csv2">記録をCSVで保存</button></div></div></section>`;
+    fillFaces($('#result'));
+    addHistory(r);
+    $('#csv2').onclick = exportCsv;
     $('#again').onclick = () => start({});
-    $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(false); };
-    $('#copyUrl').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました'); } catch (e) { toast('コピーできませんでした'); } };
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(); };
+    $('#copyUrl').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ特異点が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
+
+  // ---------- PWA ----------
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  let installEv = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('#installBox').hidden = false; $('#installBtn').hidden = false; });
+  $('#installBtn').onclick = async () => { if (!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch (e) { /* 閉じられた */ } installEv = null; $('#installBox').hidden = true; };
+  addEventListener('appinstalled', () => { $('#installBox').hidden = true; toast('ホーム画面に追加しました'); });
   function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
   load();
 })();
