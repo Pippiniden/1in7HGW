@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node tools/servant.js index)",
+      "Bash(node -e ' *)",
+      "PowerShell(node test/servant.js)",
+      "PowerShell(node test/sim.js 40)",
+      "PowerShell(node test/interactive.js 40)",
+      "PowerShell(node test/kagemiya.js)",
+      "PowerShell(node -e \"const H=require\\('./js/config.js'\\);\" 2>&1)"
+    ]
+  }
+}
