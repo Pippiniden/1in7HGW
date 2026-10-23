@@ -647,9 +647,14 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function rebuildAll() { rosterVer++; roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
   function upsert(list) {
     let add = 0, rep = 0;
-    for (const s of list) { const i = roster.findIndex(x => x.id === s.id); if (i >= 0) { roster[i] = s; rep++; } else { roster.push(s); add++; } }
+    const keyed = [];
+    for (let s of list) {
+      // 同じ真名の別の騎（ページが違う・クラスが違う）は、上書きせず印 key を付けて別の騎として足す。同じページの取り直しは前の騎の印を引き継ぐ
+      if (!s.key) { const k = B.keyFor(s, roster); if (k) { const lean = B.toLean(s); lean.key = k; s = B.fromJSON(lean); if (!roster.some(x => x.id === s.id)) keyed.push(s.trueName); } }
+      const i = roster.findIndex(x => x.id === s.id); if (i >= 0) { roster[i] = s; rep++; } else { roster.push(s); add++; }
+    }
     roster.sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
-    return { add, rep };
+    return { add, rep, keyed };
   }
   const CLS_ORDER = Object.keys(H.CONFIG.CLASS_DEFS);
   const order = s => { const i = CLS_ORDER.indexOf(s.class.key); return i < 0 ? 99 : i; };
@@ -676,9 +681,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- Wikiのページ名（真名と違うことがある。手直し表 pages に入る） ----------
   // missing：取り直しで見つからなかった（取り込みツールが pageMissing を付ける）、unknown：取り込んだときのページ名が無い
-  const pageState = s => s.bossOnly ? null : s.pageMissing ? (E.PAGE_OVERRIDES[s.trueName] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
+  const pageState = s => s.bossOnly ? null : s.pageMissing ? (E.PAGE_OVERRIDES[E.okey(s)] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
   function pageBox(sv, i) {
-    const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[sv.trueName];
+    const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[E.okey(sv)];
     const msg = st === 'missing' ? `⚠ ${esc(pm.at || '')}の取り直しで、Wikiのページが見つかりませんでした（試した名前：${esc((pm.tried || []).join('、') || sv.trueName)}）。kagemiya で正しいページ名を確かめて入れ、保存してから取り直してください。`
       : st === 'fixed' ? `ページ名を「${esc(ov)}」に直しました。手直し表を公開してから（または「Wikiから取り直す」で）取り直すと、この印は消えます。`
       : st === 'unknown' ? `取り込んだときのページ名が残っていません。いまは真名「${esc(sv.trueName)}」で探します。真名とページ名が違うとき（例：ページ名が別の名前）は入れてください。`
@@ -689,7 +694,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const sv = roster[i], inp = document.querySelector(`[data-page="${i}"]`); if (!sv || !inp) return;
     const v = inp.value.trim().replace(/^https?:\/\/seesaawiki\.jp\/kagemiya\/d\//, '');
     let name = v; try { if (/%[0-9A-F]{2}/i.test(v)) name = new TextDecoder('euc-jp').decode(Uint8Array.from(v.replace(/%([0-9A-F]{2})/gi, (m, h) => String.fromCharCode(parseInt(h, 16))), c => c.charCodeAt(0))); } catch (e) { /* そのまま */ }
-    if (!name || name === sv.page) delete E.PAGE_OVERRIDES[sv.trueName]; else E.PAGE_OVERRIDES[sv.trueName] = name;
+    if (!name || name === sv.page) delete E.PAGE_OVERRIDES[E.okey(sv)]; else E.PAGE_OVERRIDES[E.okey(sv)] = name;
     afterEdit(); status(name && name !== sv.page ? `${sv.trueName}のWikiのページ名を「${name}」にしました（手直し表に入ります）` : `${sv.trueName}のWikiのページ名を、取り込んだときのものに戻しました`);
   }
   document.addEventListener('click', e => { const b = e.target.closest('[data-pagesave]'); if (b) savePage(+b.dataset.pagesave); });
@@ -699,7 +704,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function setReviewed(sv, sigs) {
     const now = new Set(sv.review.concat(sv.reviewDone || []).map(r => r.sig));
     const keep = Array.from(new Set(sigs)).filter(s => now.has(s));
-    if (keep.length) E.REVIEWED[sv.trueName] = keep; else delete E.REVIEWED[sv.trueName];
+    if (keep.length) E.REVIEWED[E.okey(sv)] = keep; else delete E.REVIEWED[E.okey(sv)];
     afterEdit();
   }
   document.addEventListener('click', e => {
@@ -865,7 +870,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const i = roster.findIndex(x => x.id === sel), sv = roster[i];
     if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : 'リストが空です'}</div>`; $('#browse').classList.remove('show'); return; }
     const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
-    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="attrs edit" data-attr="${i}" role="button" tabindex="0" title="押すと、この騎の属性を編集します">${attrChips(sv) || '<span class="attr un">属性なし</span>'}</span><span class="sp"></span>`
+    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}${sv.key ? ` ・ 印 ${esc(sv.key)}` : ''}</small></span><span class="attrs edit" data-attr="${i}" role="button" tabindex="0" title="押すと、この騎の属性を編集します">${attrChips(sv) || '<span class="attr un">属性なし</span>'}</span><span class="sp"></span>`
       + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
     fillFace();
   }
@@ -1087,7 +1092,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#adChips').innerHTML = names.map(n => `<label class="${(sv.attrsUnknown || []).includes(n) ? 'un' : ''}"><input type="checkbox" value="${esc(n)}"${have.has(n) ? ' checked' : ''}><span>${esc(n)}</span></label>`).join('');
     $('#attrMasterList').innerHTML = list.map(n => `<option value="${esc(n)}">`).join('');
     $('#adNew').value = '';
-    $('#adNote').textContent = `Wikiの特性：${(sv.traits || []).join('・') || 'なし'}${E.ATTR_OF[sv.trueName] ? '（いまは付け替え済みです）' : ''}。点線の属性は、マスタにまだ無い書き方です（保存するとマスタに登録されます）。`;
+    $('#adNote').textContent = `Wikiの特性：${(sv.traits || []).join('・') || 'なし'}${E.ATTR_OF[E.okey(sv)] ? '（いまは付け替え済みです）' : ''}。点線の属性は、マスタにまだ無い書き方です（保存するとマスタに登録されます）。`;
     $('#ad').showModal();
   }
   document.addEventListener('click', e => { const b = e.target.closest('[data-attr]'); if (b) openAttrEditor(roster[+b.dataset.attr]); });
@@ -1097,12 +1102,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const sv = adCtx, picked = [...$('#adChips').querySelectorAll('input:checked')].map(i => i.value), nw = cleanAttr($('#adNew').value);
     if (nw) { const hit = E.attrIndex().get(E.attrFold(nw)) || nw; if (!picked.includes(hit)) picked.push(hit); }
     for (const n of picked) if (!E.attrIndex().get(E.attrFold(n))) E.ATTR_MASTER[n] = { aliases: [] };
-    const tn = sv.trueName; delete E.ATTR_OF[tn];
+    const tn = E.okey(sv); delete E.ATTR_OF[tn];
     const def = E.resolveAttrs(sv).attrs;   // Wikiの特性をマスタで読み替えたもの。同じなら付け替えは持たない
     if (!(def.length === picked.length && picked.every(n => def.includes(n)))) E.ATTR_OF[tn] = picked;
     $('#ad').close(); afterEdit(); status(`${tn}の属性を保存しました（手直し表に入ります）`);
   };
-  $('#adReset').onclick = () => { if (adCtx) delete E.ATTR_OF[adCtx.trueName]; $('#ad').close(); afterEdit(); };
+  $('#adReset').onclick = () => { if (adCtx) delete E.ATTR_OF[E.okey(adCtx)]; $('#ad').close(); afterEdit(); };
   $('#adCancel').onclick = () => $('#ad').close();
 
   // ボス：属性「ボス専用」の英霊。bosses.json の1騎の形（B.leanFromSpec）から、リストの英霊と手直し表を作る
@@ -1159,7 +1164,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function openBossEditor(sv) {
     if (!sv) return;
     bpCtx = sv;
-    const cur = E.BOSS_PARAMS[sv.trueName] || {}, D = H.CONFIG.SING.boss || {};
+    const cur = E.BOSS_PARAMS[E.okey(sv)] || {}, D = H.CONFIG.SING.boss || {};
     $('#bpTitle').textContent = `${sv.trueName} のボスの設定`;
     $('#bpFields').innerHTML = BOSS_FIELDS.map(([k, t, ty]) => `<label>${t}<input type="${ty === 'number' ? 'number' : 'text'}"${ty === 'number' ? ' step="any"' : ''} data-b="${k}" value="${esc(cur[k] == null ? '' : cur[k])}" placeholder="${esc(D[k] == null ? '' : D[k])}"></label>`).join('')
       + `<label style="grid-column:1/-1">登場の文（空欄なら定型文）<input type="text" data-b="intro" value="${esc(cur.intro || '')}" maxlength="300" autocomplete="off"></label>`;
@@ -1168,13 +1173,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   document.addEventListener('click', e => { const b = e.target.closest('[data-boss]'); if (b) openBossEditor(roster[+b.dataset.boss]); });
   $('#bpCancel').onclick = () => $('#bp').close();
-  $('#bpReset').onclick = () => { if (bpCtx) delete E.BOSS_PARAMS[bpCtx.trueName]; $('#bp').close(); afterEdit(); };
+  $('#bpReset').onclick = () => { if (bpCtx) delete E.BOSS_PARAMS[E.okey(bpCtx)]; $('#bp').close(); afterEdit(); };
   $('#bpSave').onclick = () => {
     const o = {};
     for (const i of $('#bpFields').querySelectorAll('input')) { const v = i.value.trim(); if (v === '') continue; o[i.dataset.b] = i.type === 'number' ? +v : v; }
     const aoe = {}; for (const i of $('#bpNps').querySelectorAll('input')) { const v = i.value.trim(); if (v !== '') aoe[i.dataset.aoe] = +v; }
     if (Object.keys(aoe).length) o.aoe = aoe;
-    if (Object.keys(o).length) E.BOSS_PARAMS[bpCtx.trueName] = o; else delete E.BOSS_PARAMS[bpCtx.trueName];
+    if (Object.keys(o).length) E.BOSS_PARAMS[E.okey(bpCtx)] = o; else delete E.BOSS_PARAMS[E.okey(bpCtx)];
     $('#bp').close(); afterEdit(); status(`${bpCtx.trueName}のボスの設定を保存しました`);
   };
 
@@ -1262,10 +1267,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     // セリフ・解説などの書き換え（変えた見出し・項目だけ）と、読み取りの間違いとして消すスキル・宝具（内容の手直しに重ねる）
     const ce = req.contentEdit || {}, dr = req.drop || {};
     if (Object.keys(ce).length || Object.keys(dr).length) {
-      const name = req.servant, now = roster.find(x => x.trueName === name);
+      const name = req.servant, now = (req.id && roster.find(x => x.id === req.id)) || roster.find(x => x.trueName === name);
       if (!now) notes.push('セリフなどの書き換えは、英霊がまだリストにいないので掛けていません（取り込んでから、もう一度この申請を読んでください）');
       else {
-        const key = B.wikiName(now), wk = B.wikiOf(now), c = Object.assign({}, E.CONTENT_OVERRIDES[key] || {}), cb = Object.assign({}, c.base || {}), secs = [];
+        const key = B.wikiKey(now), wk = B.wikiOf(now), c = Object.assign({}, E.CONTENT_OVERRIDES[key] || {}), cb = Object.assign({}, c.base || {}), secs = [];
         const put = (sec, val) => {
           if (same(val, B.contentOf(wk, sec))) { delete c[sec]; delete cb[sec]; } // Wikiと同じに戻す申請
           else { c[sec] = val; cb[sec] = B.hashOf(B.contentOf(wk, sec)); }
@@ -1319,7 +1324,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   function done(res, errs, extra) {
     rebuildAll(); save(); render();
-    status(`追加 ${res.add}騎・置き換え ${res.rep}騎` + (extra || '') + (errs.length ? ' / 失敗：' + errs.join('、') : ''));
+    status(`追加 ${res.add}騎・置き換え ${res.rep}騎` + (res.keyed && res.keyed.length ? `（同じ真名の別の騎として印を付けて追加：${res.keyed.join('、')}）` : '') + (extra || '') + (errs.length ? ' / 失敗：' + errs.join('、') : ''));
   }
   $('#add').onclick = () => {
     const req = findRequest($('#src').value);
@@ -1387,7 +1392,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // この騎に付いた手直し（Wikiでの真名で引く内容・真名とクラス、表示の真名で引く効果・宝具・ステータス・確認済み）。ページ名は残す
   function ownOverrides(sv) {
-    const wn = B.wikiName(sv), dn = sv.trueName, out = [];
+    const wn = B.wikiKey(sv), dn = E.okey(sv), out = [];
     if (E.CONTENT_OVERRIDES[wn]) out.push(['content', wn, '内容' + (E.CONTENT_OVERRIDES[wn].identity ? '・真名とクラスの変更' : '')]);
     for (const [t, ja] of [['servant', '効果'], ['np', '宝具の扱い']]) for (const k of Object.keys(TABLES[t])) if (k.startsWith(dn + '/')) out.push([t, k, ja]);
     for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済みの要確認'], ['attrOf', '属性の付け替え'], ['boss', 'ボスの設定']]) if (TABLES[t][dn]) out.push([t, dn, ja]);
@@ -1480,7 +1485,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。「発動のしかた」で、AIが選んで使う代わりに、常時発動（効果はスキルと同じに常に働き、毎日の維持魔力が宝具の消費×${H.CONFIG.ENGINE.npAlwaysUpkeep}だけ増える）や、戦いの始め・瀕死・致命傷などの場面で自動で発動する（1回の戦いに一度、消費は×${H.CONFIG.ENGINE.npAutoCost}）宝具にできます。`
       : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。「発動」を選ぶと、その場面で発動します（魔力を払う・回数を限ることもできます）。回復・吸収・解除は、選ばなければ効果ごとの既定の場面で発動します。';
     if (kind === 'n') {
-      const o = E.NP_OVERRIDES[sv.trueName + '/' + E.normName(item.name)];
+      const o = E.NP_OVERRIDES[E.okey(sv) + '/' + E.normName(item.name)];
       document.querySelector(`input[name=atk][value=${o && (o.attack === true || o.attack === false) ? (o.attack ? 'yes' : 'no') : 'auto'}]`).checked = true;
       const auto = item.modeBasis === 'override' ? '' : E.NP_MODE_JA[item.mode] || 'AIが選んで使う';
       $('#edMode').innerHTML = `<option value="__auto">読み取りのまま（${esc(item.modeBasis === 'override' ? '説明文からは読み取りなし' : auto)}）</option>` + E.NP_MODES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('');
@@ -1495,7 +1500,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   });
   $('#edAdd').onclick = () => edRow();
   $('#edCancel').onclick = () => $('#ed').close();
-  const keysFor = ctx => { const n = E.normName(ctx.item.name); return { servant: ctx.sv.trueName + '/' + n, global: n }; };
+  const keysFor = ctx => { const n = E.normName(ctx.item.name); return { servant: E.okey(ctx.sv) + '/' + n, global: n }; };
   function afterEdit() { ovStore(); ovVer++; rebuildAll(); save(); render(); }
   /** 同じ名前のスキル・宝具を持つ騎（全員に効く手直しが掛かる範囲） */
   const holdersOf = n => roster.filter(s => s.allSkills.concat(s.nps).some(x => E.normName(x.name) === n));
@@ -1548,17 +1553,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     for (const t of [E.SERVANT_OVERRIDES, E.NP_OVERRIDES]) for (const k of Object.keys(t)) if (k.startsWith(from + '/')) { const nk = to + k.slice(from.length); if (!(nk in t)) t[nk] = t[k]; delete t[k]; }
     for (const t of [E.STAT_OVERRIDES, E.PAGE_OVERRIDES, E.REVIEWED, E.ATTR_OF, E.BOSS_PARAMS]) if (from in t) { if (!(to in t)) t[to] = t[from]; delete t[from]; }
   }
+  const sv0Suffix = sv => sv.key ? '#' + sv.key : '';   // 同じ真名の別の騎を見分ける印（手直し表では '真名#印'）
   function setIdentity(name, cls) {
-    const { sv, wk } = idCtx, key = wk.trueName, wkCls = wk.class.raw || wk.class.label, from = sv.trueName;
+    const sfx = sv0Suffix(idCtx.sv);
+    const { sv, wk } = idCtx, key = wk.trueName + sfx, wkCls = wk.class.raw || wk.class.label, from = sv.trueName;
     name = name || wk.trueName; cls = cls || wkCls;
-    const newId = H.parser.parseClass(cls).key + ':' + name;
+    const newId = H.parser.parseClass(cls).key + ':' + name + sfx;
     if (roster.some(x => x !== sv && x.id === newId)) { alert(`「${name}」（${cls}）はすでにリストにいます`); return; }
     const c = Object.assign({}, E.CONTENT_OVERRIDES[key] || {}), idn = {};
     if (name !== wk.trueName) idn.trueName = name;
     if (cls !== wkCls) idn.cls = cls;
     if (Object.keys(idn).length) c.identity = idn; else delete c.identity;
     if (Object.keys(c).some(k => k !== 'base')) E.CONTENT_OVERRIDES[key] = c; else delete E.CONTENT_OVERRIDES[key];
-    if (name !== from) moveKeys(from, name);
+    if (name !== from) moveKeys(from + sfx, name + sfx);
     $('#idd').close(); afterEdit(); select(newId, { force: true });
     status(Object.keys(idn).length ? `${from}を「${name}」（${cls}）にしました（手直し表に入ります）` : `${name}をWikiの表記に戻しました`);
   }
@@ -1569,7 +1576,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // どの英霊にも当たらない手直し（改名・取り込み直しで残ったもの）
   function orphanList() {
-    const byName = new Map(roster.map(s => [s.trueName, s])), wikiNames = new Set(roster.map(s => B.wikiName(s)));
+    const byName = new Map(roster.map(s => [E.okey(s), s])), wikiNames = new Set(roster.map(s => B.wikiKey(s)));
     const hasItem = (s, n) => s.allSkills.concat(s.nps).some(x => x.name === n || E.normName(x.name) === n);
     const out = [];
     for (const k of Object.keys(E.CONTENT_OVERRIDES)) if (!wikiNames.has(k)) out.push(['content', k, '内容の手直し']);
@@ -1609,7 +1616,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-st]'); if (!b) return;
     const sv = roster[+b.dataset.st]; stCtx = sv;
-    const cur = E.STAT_OVERRIDES[sv.trueName] || {};
+    const cur = E.STAT_OVERRIDES[E.okey(sv)] || {};
     $('#stTitle').textContent = `${sv.trueName} のステータス`;
     $('#stRows').innerHTML = B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="${esc(cur[k] || '')}" placeholder="${esc(sv.stats[k] ? sv.stats[k].raw : '')}"></label>`).join('');
     $('#stAlts').innerHTML = sv.statsAlt.length ? '<span class="hint">別のステータスを写す：</span>' + sv.statsAlt.map((a, i) => `<button class="sm" data-alt="${i}">${esc(a.label)}</button>`).join('') : '';
@@ -1623,10 +1630,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#stCancel').onclick = () => $('#st').close();
   $('#stSave').onclick = () => {
     const o = {}; for (const inp of $('#stRows').querySelectorAll('input')) if (inp.value.trim()) o[inp.dataset.k] = inp.value.trim();
-    if (Object.keys(o).length) E.STAT_OVERRIDES[stCtx.trueName] = o; else delete E.STAT_OVERRIDES[stCtx.trueName];
+    if (Object.keys(o).length) E.STAT_OVERRIDES[E.okey(stCtx)] = o; else delete E.STAT_OVERRIDES[E.okey(stCtx)];
     $('#st').close(); afterEdit();
   };
-  $('#stReset').onclick = () => { delete E.STAT_OVERRIDES[stCtx.trueName]; $('#st').close(); afterEdit(); };
+  $('#stReset').onclick = () => { delete E.STAT_OVERRIDES[E.okey(stCtx)]; $('#st').close(); afterEdit(); };
 
   // ---------- 内容の編集（スキル・宝具・セリフ・解説・プロフィール・因縁） ----------
   // 直した内容は E.CONTENT_OVERRIDES['真名'] に項目ごとに入る（Wikiと同じに戻した項目は入れない）
@@ -1727,7 +1734,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const { out, bad } = ctCollect();
     const lost = [].concat(bad.voice.map(l => 'セリフ：' + l), bad.relations.map(l => '因縁：' + l));
     if (lost.length && !confirm(`次の${lost.length}行は形が読めないため保存されません。よろしいですか？\n\n${lost.slice(0, 8).join('\n')}${lost.length > 8 ? '\n…' : ''}`)) return;
-    const name = ct.sv.trueName, key = B.wikiName(ct.sv), c = {}, base = {};
+    const name = ct.sv.trueName, key = B.wikiKey(ct.sv), c = {}, base = {};
     for (const sec of Object.keys(B.CONTENT_SECTIONS)) {
       const w = ctWiki(sec);
       if (!same(out[sec], w)) { c[sec] = out[sec]; base[sec] = B.hashOf(w); }
@@ -1740,7 +1747,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   };
   $('#ctReset').onclick = () => {
     if (!confirm(`${ct.sv.trueName}の内容の手直しをすべて消して、Wikiの内容に戻します`)) return;
-    const key = B.wikiName(ct.sv), idn = (E.CONTENT_OVERRIDES[key] || {}).identity;
+    const key = B.wikiKey(ct.sv), idn = (E.CONTENT_OVERRIDES[key] || {}).identity;
     if (idn) E.CONTENT_OVERRIDES[key] = { identity: idn }; else delete E.CONTENT_OVERRIDES[key];
     $('#ct').close(); afterEdit(); status(`${ct.sv.trueName}をWikiの内容に戻しました${idn ? '（真名・クラスの手直しは残しています）' : ''}`);
   };

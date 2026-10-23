@@ -782,6 +782,7 @@
 
   // ---------- 手直し用の表（取り込みツールやゲーム側から追加する） ----------
   const SKILL_OVERRIDES = {};    // 'スキル名': [[部品ID, 係数, params], ...]
+  // 以下の表の「真名」は、同じ真名の別の騎がいて印 key があるときは '真名#印'（okey）
   const SERVANT_OVERRIDES = {};  // '真名/スキル名または宝具名': [[...]]
   const STAT_OVERRIDES = {};     // '真名': { str: 'B', end: 'C', ... }  書いた項目だけ置き換える
   const NP_OVERRIDES = {};       // '真名/宝具名': { attack?: true|false, mode?: NP_MODES のキー }  攻撃宝具かどうか・発動のしかたの手直し
@@ -795,6 +796,12 @@
   const ATTR_OF = {};            // '真名': ['属性名', ...]  この騎の属性を直接決める（Wikiの特性の代わりに使う。無ければ Wikiの特性をマスタで読み替える）
   const BOSS_PARAMS = {};        // '真名': { label?, gauges?, power?, guard?, mana?, regen?, heal?, find?, intro?, aoe?: { 宝具名: 値 } }  ボス専用の英霊の設定（特異点攻略）
   const BOSS_ATTR = 'ボス専用';  // この属性を持つ英霊は聖杯戦争には呼ばれず、特異点攻略のボスになる
+  // 同じ真名の別の騎（同じクラスでも、別のクラスでも）を見分ける印 sv.key。手直し表は真名だけで引くため、印があるときは '真名#印' で引く。
+  // 印が無い騎は今までどおり真名のまま（既存の手直しはそのまま効く）
+  /** 手直し表で引くときの名前（効果・ステータス・宝具の扱い・ページ名・確認済み・属性・ボス設定。内容の手直しは Wiki の真名で、同じ形） */
+  const okey = sv => !sv ? '' : sv.key ? sv.trueName + '#' + sv.key : sv.trueName;
+  /** サーヴァントの id（'クラス:真名'、印があれば 'クラス:真名#印'） */
+  const idOf = sv => ((sv.class && sv.class.key) || 'extra') + ':' + (okey(sv) || 'unknown');
   const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES, reviewed: REVIEWED, attrs: ATTR_MASTER, attrOf: ATTR_OF, boss: BOSS_PARAMS };
   // 属性名の照合用（全角半角・大小・前後の空白とかっこを無視）
   const attrFold = s => String(s == null ? '' : s).normalize('NFKC').trim().replace(/^[(（\[【〔]+|[)）\]】〕]+$/g, '').trim().toLowerCase();
@@ -813,7 +820,7 @@
   }
   /** 属性の一覧：{ attrs: 属性名の並び, unknown: マスタにない書き方 }。attrOf があればそれを、無ければ Wikiの特性を読み替える */
   function resolveAttrs(sv) {
-    const own = ATTR_OF[sv.trueName], map = attrIndex(), attrs = [], unknown = [];
+    const own = ATTR_OF[okey(sv)], map = attrIndex(), attrs = [], unknown = [];
     for (const t of Array.isArray(own) ? own : (sv.traits || [])) {
       const raw = String(t == null ? '' : t).trim(); if (!raw) continue;
       const hit = map.get(attrFold(raw)), n = hit || raw;
@@ -1076,6 +1083,6 @@
     };
   }
 
-  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, attrFold, attrIndex, resolveAttrs,
+  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, okey, idOf, attrFold, attrIndex, resolveAttrs,
     COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, TEAM_IDS, teamFieldsHtml, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

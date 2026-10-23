@@ -25,10 +25,49 @@
     return sv;
   }
   /** kagemiya のページ名（手直し表 pages → 取り込んだときのページ名 の順）。分からなければ null（真名で探す） */
-  const pageOf = sv => (sv && (E.PAGE_OVERRIDES[sv.trueName] || sv.page || (sv._wiki && sv._wiki.trueName))) || null;
+  const pageOf = sv => (sv && (E.PAGE_OVERRIDES[E.okey(sv)] || sv.page || (sv._wiki && sv._wiki.trueName))) || null;
   /** Wiki での真名・id（真名・クラスを手直ししていても、取り込んだときのもの。内容の手直し表と公開中のリストとの突き合わせに使う） */
   const wikiName = sv => (sv && sv._wiki && sv._wiki.trueName) || (sv && sv.trueName);
   const wikiId = sv => (sv && sv._wiki && sv._wiki.id) || (sv && sv.id);
+  /** 内容の手直し表（CONTENT_OVERRIDES）で引く名前：Wiki の真名（印 key があれば '#印' 付き） */
+  const wikiKey = sv => !sv ? '' : wikiName(sv) + (sv.key ? '#' + sv.key : '');
+
+  // ---------- 同じ真名の別の騎を見分ける印（sv.key） ----------
+  // 同じ真名・同じクラスの別人、同じ真名で別クラスの別人は、手直し表（真名で引く）を共有してしまう。
+  // 後から入ってきたほうに印を付けて、id も手直し表の引き方も分ける。印は取り込むときに一度だけ決めて、公開用のデータに保存する（読み込みのたびには決めない）。
+  const KEY_LEN = 5;
+  /** kagemiya のページ名から決まる印（同じページなら、取り直しても同じ印になる） */
+  function keyFromPage(page) {
+    let h = 0x811c9dc5; const s = String(page || '');
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+    return ('00000' + (h >>> 0).toString(36)).slice(-KEY_LEN);
+  }
+  /** ページ名が無い手書きの騎に付ける印（取り込みツールで一度だけ使う。ゲームの進行では使わない） */
+  const randomKey = () => { let k = ''; while (k.length < KEY_LEN) k += Math.random().toString(36).slice(2); return k.slice(0, KEY_LEN); };
+  /**
+   * list（いま名簿にいる騎）に対して sv が持つべき印を返す。
+   *   - 同じ真名がいなければ印なし。
+   *   - 同じ真名・同じクラスで、ページ名が食い違わない騎がいれば同じ騎（取り直し）なので、その騎の印を引き継ぐ。
+   *   - それ以外（ページが違う・クラスが違う）は別の騎なので、ページ名から決めた印（ページが無ければ乱数）。
+   * sv が既に印を持っていればそのまま。
+   */
+  // 手書きの lean はクラスが { raw } だけのことがあるので、key が無ければ読み直す
+  const classKeyOf = x => (x.class && (x.class.key || G.parser.parseClass(x.class.raw || x.class.label || '').key)) || 'extra';
+  function keyFor(sv, list) {
+    if (sv.key) return sv.key;
+    const rivals = (list || []).filter(o => o && o !== sv && o.trueName === sv.trueName);
+    if (!rivals.length) return '';
+    const same = rivals.find(o => o.class && sv.class && classKeyOf(o) === classKeyOf(sv) && !(o.page && sv.page && o.page !== sv.page));
+    if (same) return same.key || '';
+    return sv.page ? keyFromPage(sv.page) : randomKey();
+  }
+  /** keyFor で決めた印を sv に付け、id を付け直す。付けたときだけ true */
+  function assignKey(sv, list) {
+    const k = keyFor(sv, list);
+    if (k && !sv.key) sv.key = k;
+    sv.id = classKeyOf(sv) + ':' + E.okey(sv);
+    return !!k;
+  }
   /** Wiki から読んだままの内容（手直しを外したもの）の写し */
   const wikiOf = sv => restoreWiki(clone(sv));
   /** 編集・比較に使う、項目ごとの内容（計算で出す値を除いたもの） */
@@ -49,7 +88,7 @@
   /** 手直しを掛ける。戻り値は差し替えた項目の一覧 */
   function applyContent(sv, review) {
     restoreWiki(sv);
-    const c = E.CONTENT_OVERRIDES[sv.trueName];
+    const c = E.CONTENT_OVERRIDES[E.okey(sv)];
     if (!c) return [];
     const wiki = {}, done = [];
     const idn = c.identity;
@@ -57,7 +96,7 @@
       wiki.trueName = sv.trueName; wiki.class = clone(sv.class); wiki.id = sv.id;
       if (idn.trueName) sv.trueName = String(idn.trueName).trim();
       if (idn.cls) sv.class = G.parser.parseClass(String(idn.cls).trim());
-      sv.id = sv.class.key + ':' + sv.trueName;
+      sv.id = E.idOf(sv);
       done.push('identity');
     }
     for (const sec of Object.keys(CONTENT_SECTIONS)) {
@@ -91,7 +130,7 @@
     }
 
     // ステータス（手直しがあればそれを優先）
-    const so = E.STAT_OVERRIDES[sv.trueName] || {};
+    const so = E.STAT_OVERRIDES[E.okey(sv)] || {};
     sv.ranks = {}; sv.score = {}; sv.statSource = {};
     for (const k of STAT_KEYS) {
       const st = sv.stats[k];
@@ -121,7 +160,7 @@
     if (sv.sex) tags.add(/女/.test(sv.sex) ? '女性' : /男/.test(sv.sex) ? '男性' : sv.sex);
 
     // スキル
-    const ctx = { trueName: sv.trueName };
+    const ctx = { trueName: E.okey(sv) };
     const allSkills = sv.classSkills.map(s => Object.assign(s, { group: 'class' })).concat(sv.skills.map(s => Object.assign(s, { group: 'own' })));
     const WHY = {
       keyword: '辞書に無いため説明文から推定',
@@ -162,7 +201,7 @@
     sv.power = combatPower(sv);
     sv.npPeak = npPeak(sv);
     // 要確認：確認済みにしたもの（手直し表 reviewed）は外して reviewDone に。目印には対象の中身も入るので、取り直しで中身が変われば出直す
-    const done = new Set(E.REVIEWED[sv.trueName] || []);
+    const done = new Set(E.REVIEWED[E.okey(sv)] || []);
     for (const r of review) { r.sig = reviewSig(sv, r); delete r.ctx; }
     sv.review = review.filter(r => !done.has(r.sig));
     sv.reviewDone = review.filter(r => done.has(r.sig));
@@ -330,7 +369,7 @@
     const sv = restoreWiki(JSON.parse(JSON.stringify(obj))); // 内容の手直しは buildServant で掛け直す
     if (sv.class) sv.class = G.parser.parseClass(sv.class.raw || sv.class.label || '');
     G.parser.finalize(sv);
-    sv.id = sv.class.key + ':' + sv.trueName;
+    sv.id = E.idOf(sv);
     return buildServant(sv);
   }
 
@@ -339,7 +378,7 @@
     let n = 0;
     for (const sv0 of list) {
       // リストツールで内容を直したまま書き出したJSON（_wiki あり）：直した内容を内容の手直し表に戻す
-      if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[wikiName(sv0)]) {
+      if (sv0 && sv0._wiki && sv0.trueName && !E.CONTENT_OVERRIDES[wikiKey(sv0)]) {
         const wiki = wikiOf(sv0), c = { base: {} };
         if ('trueName' in sv0._wiki) {
           const idn = {};
@@ -351,7 +390,7 @@
           if (!fields.some(f => f in sv0._wiki)) continue;
           c[sec] = contentOf(sv0, sec); c.base[sec] = hashOf(contentOf(wiki, sec));
         }
-        if (Object.keys(c).length > 1) { E.CONTENT_OVERRIDES[wiki.trueName] = c; n++; }
+        if (Object.keys(c).length > 1) { E.CONTENT_OVERRIDES[wikiKey(wiki)] = c; n++; }
       }
       // 宝具名の「名前(読み)」の分離などを済ませた名前で登録する
       const sv = G.parser.finalize(JSON.parse(JSON.stringify(sv0)));
@@ -361,7 +400,7 @@
         const specs = (it.effects || []).map(e => e.params ? [e.id, e.factor, e.params] : [e.id, e.factor]);
         const nm = E.normName(it.name);
         if (it.effectSource === 'override') { if (!E.SKILL_OVERRIDES[nm]) { E.SKILL_OVERRIDES[nm] = specs; n++; } }
-        else { const k = sv.trueName + '/' + nm; if (!E.SERVANT_OVERRIDES[k]) { E.SERVANT_OVERRIDES[k] = specs; n++; } }
+        else { const k = E.okey(sv) + '/' + nm; if (!E.SERVANT_OVERRIDES[k]) { E.SERVANT_OVERRIDES[k] = specs; n++; } }
       }
     }
     return n;
@@ -418,5 +457,5 @@
   }
 
   G.build = { leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId, softDef };
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});

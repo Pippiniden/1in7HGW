@@ -313,7 +313,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       const same = base && base.trueName === sv.trueName;
       base = sv; if (!same) resetEdits();
       const dup = roster.find(s => s.id === sv.id);
-      $('#parseNote').textContent = `読み取りました：${sv.class.label}「${sv.trueName}」` + (dup ? '。同じクラス・真名の英霊がすでにリストにあります（申請すると置き換えになります）' : '');
+      $('#parseNote').textContent = `読み取りました：${sv.class.label}「${sv.trueName}」` + (dup ? '。同じクラス・真名の英霊がすでにリストにあります（申請すると、取り込むときにページが同じなら置き換え、別のページなら別の騎として追加されます）' : '');
     } catch (e) { base = cur = null; $('#parseNote').textContent = '読み取れませんでした：' + e.message; $('#parseNote').className = 'status err'; }
     showEdit();
   }
@@ -417,7 +417,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     const tg = p.tag ? '〔' + p.tag + '〕' : p.stat ? '〔' + (MS[p.stat] ? MS[p.stat].name : p.stat) + '〕' : '';
     return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
-  const keyOf = (sv, item) => sv.trueName + '/' + E.normName(item.name);
+  const keyOf = (sv, item) => E.okey(sv) + '/' + E.normName(item.name);
   const specOf = e => { const p = {}, q = e.params || {}; for (const k of ['tag', 'stat', 'cond', 'vs', 'name', 'msg']) if (q[k]) p[k] = q[k]; if (q.chance != null) p.chance = q.chance; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
   // 条件欄（効果が働く場面：場所・拠点・瀕死／相手の属性／戦いごとの発動確率。effects.js の COND_OPTS）
   const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
@@ -481,7 +481,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     $('#kpis').innerHTML = `<div class="kpi">評価<b><span class="grade ${g0}">${g0}</span>${g0 !== g1 ? ` → <span class="grade ${g1}">${g1}</span> <span class="${gv[g1] > gv[g0] ? 'up' : 'down'}">${gv[g1] > gv[g0] ? '↑' : '↓'}</span>` : ''}</b></div>`
       + (r0 == null ? '<div class="kpi">平均勝率<b>—</b></div>' : kpi('平均勝率', r0, r1, v => Math.round(v * 100) + '%'))
       + kpi('戦闘力', base.power, cur.power, v => String(v)) + kpi('宝具の威力', base.npPeak || 0, cur.npPeak || 0, v => v ? String(v) : '—');
-    const so = prop.stats[base.trueName] || {};
+    const so = prop.stats[E.okey(base)] || {};
     $('#stats').innerHTML = B.STAT_KEYS.map(k => {
       const rk = cur.ranks[k], raw = base.stats[k] ? base.stats[k].raw : '';
       return `<label class="stat${so[k] ? ' chg' : ''}"><span class="k">${B.STAT_JA[k]}（Wiki：${esc(raw || 'なし')}）</span><span class="v">${esc(R.label(rk))}</span><input type="text" data-stat="${k}" value="${esc(so[k] || '')}" placeholder="変えない"></label>`;
@@ -588,7 +588,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p], [data-e=vs], [data-e=chance], [data-e=name], [data-e=msg]')) { pItem = e.target.closest('.item'); soon(readP); } });
   function readStats() {
     const o = {}; for (const inp of $('#stats').querySelectorAll('[data-stat]')) if (inp.value.trim()) o[inp.dataset.stat] = inp.value.trim();
-    if (Object.keys(o).length) prop.stats[base.trueName] = o; else delete prop.stats[base.trueName];
+    if (Object.keys(o).length) prop.stats[E.okey(base)] = o; else delete prop.stats[E.okey(base)];
   }
   $('#edit').addEventListener('click', e => {
     const nb = e.target.closest('[data-notebtn]');
@@ -671,7 +671,7 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     if (req.from || req.contact) L.push(`- 申請者：${[req.from, req.contact].filter(Boolean).join(' ／ ')}`);
     const ch = [];
     if (base && req.overrides) {
-      const so = (req.overrides.stats || {})[base.trueName];
+      const so = (req.overrides.stats || {})[E.okey(base)];
       if (so) ch.push('- ステータス：' + Object.entries(so).map(([k, v]) => `${B.STAT_JA[k]} ${v}（Wiki：${base.stats[k] ? base.stats[k].raw : 'なし'}）`).join('、'));
       for (const [k, specs] of Object.entries(req.overrides.servant || {})) ch.push(`- 「${k.split('/').slice(1).join('/')}」の効果：${specs.map(specText).join('、') || '効果なし'}`);
       for (const [k, o] of Object.entries(req.overrides.np || {})) ch.push(`- 宝具「${k.split('/').slice(1).join('/')}」：${o.attack ? '攻撃宝具' : '補助宝具'}として扱う`);

@@ -41,15 +41,18 @@ function main() {
     if (fs.existsSync(OV)) L.applyOverrides(L.readJSON(OV));
     const pack = fs.existsSync(SV) ? L.readJSON(SV) : { format: 'hgw-servants', version: 2, lean: true, servants: [] };
     let list = L.listOf(pack);
-    const idOf = s => (s.class && s.class.key ? s.class.key : H.parser.parseClass((s.class && (s.class.raw || s.class.label)) || '').key) + ':' + s.trueName;
+    const idOf = s => (s.class && s.class.key ? s.class.key : H.parser.parseClass((s.class && (s.class.raw || s.class.label)) || '').key) + ':' + H.effects.okey(s);
     const upsert = (incoming, label) => {
       let add = 0, rep = 0;
+      const keyed = [];
       for (const s of incoming) {
+        // 同じ真名の別の騎（ページ名が違う・クラスが違う）は上書きせず、印 key を付けて別の騎として足す
+        const had = !!s.key; B.assignKey(s, list); if (s.key && !had && !list.some(x => (x.id || idOf(x)) === s.id)) keyed.push(s.id);
         const id = s.id || idOf(s), i = list.findIndex(x => (x.id || idOf(x)) === id);
         if (i >= 0) { if (!s.page && list[i].page) s.page = list[i].page; list[i] = s; rep++; } // Wikiのページのテキストにはページ名が無いので、前のものを引き継ぐ
         else { list.push(s); add++; }
       }
-      notes.push(`- ${label}：足す・置き換える（追加 ${add}・置き換え ${rep}）`);
+      notes.push(`- ${label}：足す・置き換える（追加 ${add}・置き換え ${rep}）` + (keyed.length ? `\n  - 同じ真名の別の騎として、印 key を付けて追加：${keyed.join('、')}` : ''));
     };
     // 書き出しの形（中身を組み立てた形でも）を、公開用の軽い形に直す
     const toLean = raw => { const n = B.harvestOverrides(raw); return { lean: raw.map(s => B.toLean(B.fromJSON(s))), harvested: n }; };

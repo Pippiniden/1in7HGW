@@ -191,7 +191,7 @@ async function importOne(name) {
 function line(r) {
   if (!r.ok) return `| ❌ | [${r.name}](${r.url || '#'}) | — | ${r.error}${r.flagged ? `（試した名前：${(r.tried || [r.name]).join('、')}。リストツールの詳細の「Wikiのページ名」に正しいページ名を入れて、取り直してください）` : ''} |`;
   const s = r.servant, n = s.review.filter(x => x.kind !== 'class').length;
-  const note = [r.change, s.warnings.length ? '読み取りの警告 ' + s.warnings.length : '', n ? '要確認 ' + n : ''].filter(Boolean).join('・');
+  const note = [r.change, r.keyed ? `同じ真名の別の騎として追加（印 ${r.keyed}）` : '', s.warnings.length ? '読み取りの警告 ' + s.warnings.length : '', n ? '要確認 ' + n : ''].filter(Boolean).join('・');
   return `| ${r.change === '変更なし' ? '＝' : '✅'} | [${s.trueName}](${r.url}) | ${s.class.label} | スキル${s.classSkills.length + s.skills.length}・宝具${s.nps.length}・セリフ${Object.values(s.voice).reduce((t, v) => t + v.length, 0)}　${note} |`;
 }
 function details(r) {
@@ -278,6 +278,11 @@ async function main() {
       if (!r.ok) continue;
       const lean = H.build.toLean(r.servant);
       const target = targets.find(t => t.name === r.name);
+      // 同じ真名の別の騎（ページが違う・クラスが違う）は、上書きせず印 key を付けて別の騎にする。同じページの取り直しは前の騎の印を引き継ぐ
+      // 取り直しなら前の騎（prevId）を引き継ぐ（クラスの読みが変わっても同じ騎）。前の騎は衝突の相手に数えない
+      const prev = target && target.prevId && list.find(s => s.id === target.prevId);
+      if (prev && prev.key && prev.trueName === lean.trueName && !lean.key) lean.key = prev.key;
+      H.build.assignKey(lean, list.filter(s => s !== prev));
       let i = list.findIndex(s => s.id === lean.id);
       if (i < 0 && target && target.prevId) i = list.findIndex(s => s.id === target.prevId); // クラスの読みが変わった場合も同じ騎として置き換える
       if (i >= 0) {
@@ -290,7 +295,7 @@ async function main() {
         const same = JSON.stringify(stripVolatile(list[i])) === JSON.stringify(stripVolatile(lean));
         r.change = r.change || (same ? '変更なし' : list[i].id !== lean.id ? `置き換え（${list[i].class.label}→${r.servant.class.label}）` : '更新');
         list[i] = lean;
-      } else { list.push(lean); r.change = r.change || '追加'; }
+      } else { list.push(lean); r.change = r.change || '追加'; if (lean.key) r.keyed = lean.key; }
     }
     const CLS = Object.keys(H.CONFIG.CLASS_DEFS);
     const ord = s => { const k = H.parser.parseClass(s.class.raw || s.class.label || '').key, i = CLS.indexOf(k); return i < 0 ? 99 : i; };
@@ -327,8 +332,8 @@ async function main() {
 
 /** その騎に付いた手直し（内容と真名の変更は Wikiでの真名、効果・宝具・ステータス・確認済みは表示の真名で引く）。ページ名は数えない */
 function leftovers(lean) {
-  const E = H.effects, out = [], wn = lean.trueName;
-  let dn = wn; try { dn = H.build.fromJSON(lean).trueName; } catch (e) { /* 組み立てられなければ Wiki の真名で */ }
+  const E = H.effects, out = [], sfx = lean.key ? '#' + lean.key : '', wn = lean.trueName + sfx;
+  let dn = wn; try { dn = H.build.fromJSON(lean).trueName + sfx; } catch (e) { /* 組み立てられなければ Wiki の真名で */ }
   if (E.CONTENT_OVERRIDES[wn]) out.push({ table: 'content', key: wn, ja: E.CONTENT_OVERRIDES[wn].identity ? '内容・真名の変更' : '内容' });
   for (const [t, ja] of [['servant', '効果'], ['np', '宝具の扱い']]) for (const k of Object.keys(E.OVERRIDE_TABLES[t])) if (k.startsWith(dn + '/')) out.push({ table: t, key: k, ja });
   for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済み']]) if (E.OVERRIDE_TABLES[t][dn]) out.push({ table: t, key: dn, ja });

@@ -29,7 +29,7 @@ const TABLE_JA = { global: 'スキル全体の効果', servant: '英霊ごとの
 
 function diff(oldDir, newDir) {
   const A = L.loadDir(oldDir), gA = L.grades(A.roster);
-  const leanA = new Map(A.raw.map(s => [(s.class && s.class.key || 'extra') + ':' + s.trueName, s]));
+  const leanA = new Map(A.raw.map(s => [(s.class && s.class.key || 'extra') + ':' + L.E.okey(s), s]));
   const builtA = new Map(A.roster.map(s => [s.id, s]));
   const Bn = L.loadDir(newDir), gB = L.grades(Bn.roster);
   const builtB = new Map(Bn.roster.map(s => [s.id, s]));
