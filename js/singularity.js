@@ -41,38 +41,23 @@
   // 組み立てたボスには bossOnly（ボス専用）が付き、聖杯戦争には呼ばれない（engine.js が roster から外す）。
   function prepareBoss(spec) {
     if (!spec || !spec.trueName || !spec.stats) throw new Error('ボスには trueName と stats が要ります');
-    const tn = String(spec.trueName).trim();
-    const asStr = v => v == null ? '' : String(v).trim();
-    const stats = {};
-    for (const k of B.STAT_KEYS) { const raw = asStr(spec.stats[k] && spec.stats[k].raw != null ? spec.stats[k].raw : spec.stats[k]) || 'C'; stats[k] = { raw, rank: R.parseRank(raw) }; }
-    const reg = (it, isNP) => {
-      const n = E.normName(it.name);
-      if (Array.isArray(it.effects)) E.SERVANT_OVERRIDES[tn + '/' + n] = it.effects;
-      if (isNP && (it.attack === true || it.attack === false || it.mode != null)) {
-        const o = {}; if (it.attack === true || it.attack === false) o.attack = it.attack; if (it.mode != null) o.mode = it.mode;
-        E.NP_OVERRIDES[tn + '/' + n] = o;
-      }
-    };
-    const skill = it => { reg(it, false); const rr = asStr(it.rankRaw != null ? it.rankRaw : it.rank); return { name: asStr(it.name), rankRaw: rr, rank: R.parseRank(rr), desc: asStr(it.desc) }; };
-    const P = G.parser;
-    const np = it => {
-      reg(it, true);
-      const g = f => asStr(it[f]);
-      return { name: g('name'), reading: g('reading'), rankRaw: g('rankRaw'), rank: R.parseRank(g('rankRaw')), typeRaw: g('typeRaw'), typeKey: P.npTypeKey(g('typeRaw')),
-        rangeRaw: g('rangeRaw'), range: P.parseRange(g('rangeRaw')), maxRaw: g('maxRaw'), maxTargets: P.parseNum(g('maxRaw')), desc: asStr(it.desc) };
-    };
-    const lean = {
-      kind: 'servant', trueName: tn, aliases: spec.aliases || [], class: { raw: asStr(spec.class) || '？' }, origin: spec.origin || '', sex: spec.sex || '',
-      alignment: spec.alignment || '', attribute: spec.attribute || '', traits: (spec.traits || []).slice(), stats, statsAlt: [],
-      classSkills: (spec.classSkills || []).map(skill), skills: (spec.skills || []).map(skill), nps: (spec.nps || []).map(np), weapons: [],
-      profile: spec.profile || {}, relations: [], voice: spec.voice || {}, text: spec.text || {}, info: {}, warnings: [],
-    };
-    const sv = B.fromJSON(lean);
+    const r = B.leanFromSpec(spec);
+    Object.assign(E.SERVANT_OVERRIDES, r.servantOv);
+    Object.assign(E.NP_OVERRIDES, r.npOv);
+    const sv = B.fromJSON(r.lean);
     sv.bossOnly = true;
     sv.boss = Object.assign({}, spec.boss || {});
+    sv.boss.aoe = r.aoe;
+    return sv;
+  }
+  // 名簿（servants.json）にいるボス専用の英霊を、ボスとして使えるようにする：手直し表 boss（BOSS_PARAMS）の設定を sv.boss にする。
+  // 設定の無い項目は CONFIG.SING.boss の既定が使われる。宝具の全体攻撃の広がり（aoe）は、書いた宝具だけ。
+  function bossFromRoster(sv) {
+    const p = E.BOSS_PARAMS[sv.trueName] || {};
+    sv.bossOnly = true;
+    sv.boss = Object.assign({}, p);
     sv.boss.aoe = {};
-    for (const it of spec.nps || []) if (it.aoe != null) sv.boss.aoe[E.normName(it.name)] = +it.aoe;
-    if (!sv.traits.includes('ボス専用')) sv.traits.push('ボス専用');
+    for (const [n, v] of Object.entries(p.aoe || {})) sv.boss.aoe[E.normName(n)] = +v;
     return sv;
   }
   // 読み込んだボスのデータ（{ bosses: [...] } か配列）を組み立てる。読めなかったものは errors に
@@ -852,5 +837,5 @@
     return r.value;
   }
 
-  G.singularity = { compose, gen, run, prepareBoss, prepareBosses, FOCUS, FOCUS_BY_CODE, SIDE_JA };
+  G.singularity = { compose, gen, run, prepareBoss, prepareBosses, bossFromRoster, FOCUS, FOCUS_BY_CODE, SIDE_JA };
 })(globalThis.HGW = globalThis.HGW || {});

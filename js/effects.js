@@ -790,7 +790,38 @@
   // overrides.json の表の名前 → 表。読み込む・書き出す・公開中と見比べるときはこれを使う
   // 確認済みの「要確認」：'真名': [要確認の目印（build.js の reviewSig）…]。取り直しても、同じ内容の要確認なら確認済みのまま
   const REVIEWED = {};
-  const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES, reviewed: REVIEWED };
+  // 属性マスタ：Wikiの「その他属性（特性）」は書き方がばらばら（神／神性、獣／魔獣…）なので、正規の名前と別名を決めて、どの騎にも同じ名前で付ける
+  const ATTR_MASTER = {};        // '属性名': { aliases: ['別の書き方', ...], note?: '説明' }
+  const ATTR_OF = {};            // '真名': ['属性名', ...]  この騎の属性を直接決める（Wikiの特性の代わりに使う。無ければ Wikiの特性をマスタで読み替える）
+  const BOSS_PARAMS = {};        // '真名': { label?, gauges?, power?, guard?, mana?, regen?, heal?, find?, intro?, aoe?: { 宝具名: 値 } }  ボス専用の英霊の設定（特異点攻略）
+  const BOSS_ATTR = 'ボス専用';  // この属性を持つ英霊は聖杯戦争には呼ばれず、特異点攻略のボスになる
+  const OVERRIDE_TABLES = { global: SKILL_OVERRIDES, servant: SERVANT_OVERRIDES, stats: STAT_OVERRIDES, np: NP_OVERRIDES, content: CONTENT_OVERRIDES, pages: PAGE_OVERRIDES, reviewed: REVIEWED, attrs: ATTR_MASTER, attrOf: ATTR_OF, boss: BOSS_PARAMS };
+  // 属性名の照合用（全角半角・大小・前後の空白とかっこを無視）
+  const attrFold = s => String(s == null ? '' : s).normalize('NFKC').trim().replace(/^[(（\[【〔]+|[)）\]】〕]+$/g, '').trim().toLowerCase();
+  // 書き方 → 属性名の表（マスタの名前・別名。ボス専用は常にある）
+  let attrCache = null;
+  function attrIndex() {
+    const sig = JSON.stringify(ATTR_MASTER);
+    if (attrCache && attrCache.sig === sig) return attrCache.map;
+    const map = new Map();
+    const put = (k, n) => { k = attrFold(k); if (k && !map.has(k)) map.set(k, n); };
+    put(BOSS_ATTR, BOSS_ATTR); put('ボス', BOSS_ATTR); put('ボスキャラ', BOSS_ATTR);
+    for (const [n, v] of Object.entries(ATTR_MASTER)) put(n, n);
+    for (const [n, v] of Object.entries(ATTR_MASTER)) for (const a of (v && v.aliases) || []) put(a, n);
+    attrCache = { sig, map };
+    return map;
+  }
+  /** 属性の一覧：{ attrs: 属性名の並び, unknown: マスタにない書き方 }。attrOf があればそれを、無ければ Wikiの特性を読み替える */
+  function resolveAttrs(sv) {
+    const own = ATTR_OF[sv.trueName], map = attrIndex(), attrs = [], unknown = [];
+    for (const t of Array.isArray(own) ? own : (sv.traits || [])) {
+      const raw = String(t == null ? '' : t).trim(); if (!raw) continue;
+      const hit = map.get(attrFold(raw)), n = hit || raw;
+      if (!attrs.includes(n)) attrs.push(n);
+      if (!hit && !Array.isArray(own) && !unknown.includes(n)) unknown.push(n);
+    }
+    return { attrs, unknown };
+  }
 
   // ---------- 名前の正規化と照合 ----------
   function normName(s) {
@@ -1045,6 +1076,6 @@
     };
   }
 
-  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES,
+  G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, attrFold, attrIndex, resolveAttrs,
     COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, TEAM_IDS, teamFieldsHtml, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -9,7 +9,7 @@
   const STAT_KEYS = ['str', 'end', 'agi', 'mag', 'luk', 'np'];
   const STAT_JA = { str: '筋力', end: '耐久', agi: '敏捷', mag: '魔力', luk: '幸運', np: '宝具' };
   // 再計算で作り直す項目（古いJSONから組み直すときに捨てる）
-  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'reviewDone', 'built', 'statSource', 'contentEdited'];
+  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'reviewDone', 'built', 'statSource', 'contentEdited', 'attrs', 'attrsUnknown', 'bossOnly'];
 
   // ---------- 内容の手直し（effects.js の CONTENT_OVERRIDES） ----------
   // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、リストツールで直した内容に差し替える。
@@ -86,7 +86,7 @@
     sv.contentEdited = applyContent(sv, review);
     const def = G.classDef(sv.class.key);
 
-    if (sv.class.key === 'extra' || def.slot === 'extra') {
+    if ((sv.class.key === 'extra' || def.slot === 'extra') && !E.resolveAttrs(sv).attrs.includes(E.BOSS_ATTR)) {   // ボス専用はクラスが何でもよいので、確認は要らない
       review.push({ kind: 'class', target: 'クラス', why: sv.class.unknown || sv.class.key === 'extra' ? `「${sv.class.raw || '不明'}」はどのクラスにも当てはまらないためエクストラ扱い（config.js の CLASS_DEFS に足せば専用クラスにできる）` : `エクストラクラス（${def.label}）` });
     }
 
@@ -113,7 +113,11 @@
     const addTag = t => { if (!t) return; tags.add(t); const c = E.canonTag(t); if (c) tags.add(c); };
     if (sv.attribute) addTag(sv.attribute.replace(/属性$/, ''));
     String(sv.alignment || '').split(/[・･、\/\s]+/).filter(Boolean).forEach(t => tags.add(t));
-    (sv.traits || []).forEach(addTag);
+    // 属性（その他属性）：属性マスタで正規の名前にそろえたもの。ボス専用なら聖杯戦争には呼ばれない
+    const ar = E.resolveAttrs(sv);
+    sv.attrs = ar.attrs; sv.attrsUnknown = ar.unknown;
+    if (sv.attrs.includes(E.BOSS_ATTR)) sv.bossOnly = true;
+    sv.attrs.forEach(addTag);
     if (sv.sex) tags.add(/女/.test(sv.sex) ? '女性' : /男/.test(sv.sex) ? '男性' : sv.sex);
 
     // スキル
@@ -377,6 +381,42 @@
     return o;
   }
 
-  G.build = { reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  /**
+   * 手書きの英霊（data/bosses.json の1騎の形。ランクは文字列のまま、スキル・宝具に effects・宝具に attack/mode/aoe を書ける）を、
+   * 公開用の軽いデータ（lean）にする。手書きの効果などは手直し表に入れるものとして一緒に返す：
+   *   { lean, servantOv: { '真名/名前': 効果の配列 }, npOv: { '真名/宝具名': { attack?, mode? } }, aoe: { 正規化した宝具名: 値 } }
+   */
+  function leanFromSpec(spec) {
+    if (!spec || !spec.trueName || !spec.stats) throw new Error('trueName と stats が要ります');
+    const P = G.parser, tn = String(spec.trueName).trim(), asStr = v => v == null ? '' : String(v).trim();
+    const servantOv = {}, npOv = {}, aoe = {};
+    const stats = {};
+    for (const k of STAT_KEYS) { const raw = asStr(spec.stats[k] && spec.stats[k].raw != null ? spec.stats[k].raw : spec.stats[k]) || 'C'; stats[k] = { raw, rank: R.parseRank(raw) }; }
+    const reg = (it, isNP) => {
+      const n = E.normName(it.name);
+      if (Array.isArray(it.effects)) servantOv[tn + '/' + n] = it.effects;
+      if (isNP && (it.attack === true || it.attack === false || it.mode != null)) {
+        const o = {}; if (it.attack === true || it.attack === false) o.attack = it.attack; if (it.mode != null) o.mode = it.mode;
+        npOv[tn + '/' + n] = o;
+      }
+      if (isNP && it.aoe != null) aoe[n] = +it.aoe;
+    };
+    const skill = it => { reg(it, false); const rr = asStr(it.rankRaw != null ? it.rankRaw : it.rank); return { name: asStr(it.name), rankRaw: rr, rank: R.parseRank(rr), desc: asStr(it.desc) }; };
+    const np = it => {
+      reg(it, true);
+      const g = f => asStr(it[f]);
+      return { name: g('name'), reading: g('reading'), rankRaw: g('rankRaw'), rank: R.parseRank(g('rankRaw')), typeRaw: g('typeRaw'), typeKey: P.npTypeKey(g('typeRaw')),
+        rangeRaw: g('rangeRaw'), range: P.parseRange(g('rangeRaw')), maxRaw: g('maxRaw'), maxTargets: P.parseNum(g('maxRaw')), desc: asStr(it.desc) };
+    };
+    const lean = {
+      kind: 'servant', trueName: tn, aliases: spec.aliases || [], class: { raw: asStr(spec.class) || '？' }, origin: spec.origin || '', sex: spec.sex || '',
+      alignment: spec.alignment || '', attribute: spec.attribute || '', traits: (spec.traits || []).filter(t => t !== E.BOSS_ATTR).concat(E.BOSS_ATTR), stats, statsAlt: [],
+      classSkills: (spec.classSkills || []).map(skill), skills: (spec.skills || []).map(skill), nps: (spec.nps || []).map(np), weapons: [],
+      profile: spec.profile || {}, relations: [], voice: spec.voice || {}, text: spec.text || {}, info: {}, warnings: [],
+    };
+    return { lean, servantOv, npOv, aoe };
+  }
+
+  G.build = { leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId, softDef };
 })(globalThis.HGW = globalThis.HGW || {});

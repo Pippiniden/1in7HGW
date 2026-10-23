@@ -135,6 +135,7 @@ stats {str,end,agi,mag,luk,np: {raw, rank}}, statsAlt, classSkills/skills [{name
 typeRaw, typeKey, rangeRaw, range, maxRaw, maxTargets, desc, mode, modeBasis}], weapons, profile, relations [{name,text}], voice {heading:[lines]},
 text {commentary, personality, comment, …}, info (all 【key】 pairs), warnings, body, sourceText (wiki original), page?, pageMissing?, skippedItems?`.
 Derived fields added by `buildServant` and stripped by `toLean`: `ranks, score, statSource, tags, allSkills, effectSummary, power, npPeak, review, reviewDone, contentEdited`, and per-item `effects, effectSource, matched, attack*, power, cost, exposure, …`.
+Derived `attrs` (`E.resolveAttrs`: traits mapped through `ATTR_MASTER`/`ATTR_OF`; `attrsUnknown` = spellings not in the master) feed `sv.tags`; an attribute `ボス専用` sets derived `sv.bossOnly`, which keeps the servant out of Holy Grail Wars (engine roster filter, `survival.fingerprint`, index/ranking loaders) and makes it a singularity boss candidate (`singularity.bossFromRoster`; a roster boss replaces a same-named `bosses.json` boss in place). `B.leanFromSpec` turns a `bosses.json` entry into a lean servant + override entries.
 Identity = `class.key + trueName`; later files win. The browser roster may also hold `_wiki` (see 4.5).
 
 ### 4.4 Data files
@@ -154,6 +155,9 @@ overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each 
 | `content` → `CONTENT_OVERRIDES` | `'wikiTrueName'` → `{ skills?, nps?, voice?, text?, profile?, relations?, identity?, base }` (4.5) |
 | `pages` → `PAGE_OVERRIDES` | `'trueName'` → kagemiya page name (when the title differs from the true name) |
 | `reviewed` → `REVIEWED` | `'trueName'` → review sigs the owner checked off; items whose `B.reviewSig` matches go to `sv.reviewDone` and are ignored by counts/filters; a changed rank/description/reason makes a new sig |
+| `attrs` → `ATTR_MASTER` | `'attrName'` → `{ aliases: [raw spellings], note? }` — the attribute master (Wiki 特性 / その他属性 are spelled inconsistently). `E.BOSS_ATTR` (`ボス専用`) always exists |
+| `attrOf` → `ATTR_OF` | `'trueName'` → `[attrName…]` — per-servant assignment replacing the Wiki traits (absent = Wiki traits read through the master) |
+| `boss` → `BOSS_PARAMS` | `'trueName'` → `{ label?, gauges?, power?, guard?, mana?, regen?, heal?, find?, intro?, aoe?: { npName: v } }` — singularity boss settings for a `bossOnly` servant |
 
 Overrides embedded in an exported servant JSON (`effectSource: 'override'|'servant-override'`, `_wiki`) are harvested back into the tables on load (`harvestOverrides`) without overwriting existing entries.
 

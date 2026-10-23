@@ -312,7 +312,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
       if (qs.get('data') === 'local') { res = H.data.loadLocal(); dataLabel = 'リストツールで作ったリスト'; }
       else if (/^https?:$/.test(location.protocol)) res = await H.data.loadPublished('data/');
       else { $('#status').textContent = 'ファイルを直接開いているため、データを読めません。サイトから開いてください。'; return; }
-      roster = res.servants; masters = res.masters || [];
+      roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || [];   // ボス専用の英霊は聖杯戦争に出ない
       if (!roster.length) { $('#status').textContent = '英霊がいません'; return; }
     } catch (e) { $('#status').textContent = 'データを読めませんでした：' + e.message; return; }
     const keys = Object.keys(H.CONFIG.CLASS_DEFS).filter(k => roster.some(s => s.class.key === k));

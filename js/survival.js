@@ -17,6 +17,7 @@
 
   /** リストの指紋（index.html の記録の照合と同じ式）。リストの顔ぶれと強さが変われば変わる */
   function fingerprint(roster) {
+    roster = roster.filter(s => !s.bossOnly);   // ボス専用の英霊（特異点のボス）は聖杯戦争に出ないので数えない
     let h = 2166136261;
     for (const s of roster) { const t = s.id + '|' + s.power + '|' + (s.npPeak || 0) + ';'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } }
     return roster.length + ':' + (h >>> 0).toString(36);

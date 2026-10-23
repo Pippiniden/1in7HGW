@@ -626,6 +626,12 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     rosterAll = res.servants.filter(s => !s.bossOnly);
     const b = SG.prepareBosses(res.bosses || []);
     bosses = b.bosses;
+    // サーヴァントリストにいるボス専用の英霊（属性「ボス専用」）も、ボスとして使う（bosses.json のボスの後ろに、リストの順で並べる）
+    // 同じ真名がどちらにもあれば、リストの方を使う（bosses.json の同じ場所に入れ替えるので、リンクの bs の番号は変わらない）
+    const inList = new Map(res.servants.filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+    bosses = bosses.map(x => inList.has(x.trueName) ? SG.bossFromRoster(inList.get(x.trueName)) : x);
+    const have = new Set(bosses.map(x => x.trueName));
+    for (const [tn, s] of inList) if (!have.has(tn)) bosses.push(SG.bossFromRoster(s));
     const errs = (res.errors || []).concat(b.errors);
     dataLoaded = true;
     initExcluded();
