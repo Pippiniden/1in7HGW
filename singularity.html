@@ -241,6 +241,123 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .lastword { margin: 10px 0 4px; padding: 8px 14px; border-left: 3px solid var(--cyan); background: linear-gradient(90deg, rgba(62, 230, 255, .10), transparent 80%); }
 .lastword .who { font-size: 12px; color: var(--mute); } .lastword p { margin: 2px 0 0; font: 500 16px/1.9 var(--mincho); color: var(--cyan-2); }
 .totop { position: fixed; right: 14px; bottom: calc(14px + var(--safe-b)); z-index: 15; }
+/* ---------- 追加（聖杯戦争側 index.html と同じ機能：名前・開戦の案内・解説・画像・⋯メニュー・方針をたたむ） ---------- */
+.namerow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.namerow input[type=text] { flex: 1 1 200px; min-width: 0; }
+.namerow .btn { min-height: 34px; font-size: 12px; --cut: 7px; white-space: normal; max-width: 100%; text-align: left; line-height: 1.5; }
+.ctl .more { display: none; }
+.menu { display: none; position: absolute; right: 16px; top: 100%; z-index: 12; min-width: 200px; padding: 8px; }
+.menu.on { display: grid; gap: 4px; }
+.menu .rowsel button { min-height: 38px; }
+@media (max-width: 820px) { .ctl .wide { display: none; } .ctl .more { display: inline-block; margin-left: auto; } .menu { right: 8px; } }
+.focus .hd { cursor: default; }
+.focus .fnow { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--mute); }
+.focus .fnow b { color: var(--cyan-2); font-weight: 700; margin-left: 4px; }
+.focus .ftog { flex: none; min-height: 28px; padding: 3px 12px; font-size: 12px; --cut: 7px; margin-left: auto; }
+.focus.collapsed .body, .focus.collapsed .ja { display: none; }
+.focus.collapsed .fnow { display: block; margin-left: 0; }
+.focus.collapsed .hd { cursor: pointer; padding-bottom: 12px; }
+.dlg .hd .step { margin-left: auto; font: 600 13px var(--en); letter-spacing: .14em; color: var(--mute); white-space: nowrap; }
+.dlg-foot .keys { margin-right: auto; font-size: 12px; color: var(--mute); }
+.dlg-foot .keys i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-hi); font: 700 11px var(--en); margin-right: 3px; }
+.opening .dlg-in { width: min(640px, 100%); }
+.opbody { padding: 0 16px; font-size: 14px; }
+.opbody .say { font: 500 15px/1.95 var(--mincho); margin: 0 0 12px; }
+.opkv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 13px; margin: 0 0 10px; }
+.opkv dt { color: var(--mute); white-space: nowrap; } .opkv dd { margin: 0; }
+.opstats { display: grid; gap: 6px; margin: 0 0 12px; }
+.opstats div { display: grid; grid-template-columns: 4.4em 2.6em minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.opstats b { font: 700 17px var(--en); color: var(--cyan); text-shadow: 0 0 6px rgba(62, 230, 255, .5); }
+.opening .note2, .lore .note2 { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+.opbody .txt2 { font: 500 14px/1.95 var(--mincho); white-space: pre-wrap; margin: 0 0 10px; }
+.namefield { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0 0 14px; padding: 10px 12px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.namefield .lbl { font-size: 12px; color: var(--mute); }
+.namefield input { flex: 1 1 200px; min-width: 0; background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 12px; font: 500 18px var(--gothic); }
+.namefield input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
+.namefield .hint2 { font-size: 12px; color: var(--mute); margin: 0; }
+.ptlist { display: grid; gap: 6px; margin: 0 0 6px; }
+.pt { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 8px 10px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.pt.front { box-shadow: inset 0 0 0 1px var(--cyan); background: linear-gradient(90deg, rgba(62, 230, 255, .12), var(--inset) 70%); }
+.pt .g { grid-row: span 2; width: 48px; height: 48px; display: grid; place-items: center; font: 700 28px/1 var(--en); color: var(--sel-ink); background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
+.g.S { background: linear-gradient(135deg, var(--gold), #fff3c4) !important; } .g.C { background: linear-gradient(135deg, #9fb7d8, #dfe9f7) !important; }
+.g.D { background: linear-gradient(135deg, #b9a6d9, #e9e0f8) !important; } .g.E { background: linear-gradient(135deg, var(--seal), #ff9db1) !important; }
+.pt b { font-size: 15px; } .pt .tg { font: 700 11px var(--gothic); color: var(--mute); } .pt.front .tg { color: var(--cyan); }
+.pt small { grid-column: 2 / 4; font-size: 12px; color: var(--mute); }
+.pt .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; --cut: 6px; grid-column: 3; grid-row: 1; }
+.opening .rowsel { padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opening .rowsel button { min-height: 58px; }
+.verdicts { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 12px; color: var(--mute); }
+.lore details summary { cursor: pointer; color: var(--cyan); font-size: 13px; margin-bottom: 6px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 16px 2px; } .links a { text-decoration: none; }
+.det .txt2 { margin: 0 16px 12px; font: 500 14px/1.95 var(--mincho); white-space: pre-wrap; }
+.det details { margin: 0 16px 10px; } .det details .txt2 { margin: 0 0 8px; }
+.det details summary { cursor: pointer; color: var(--cyan); font-size: 13px; margin-bottom: 6px; }
+.det .face.xl { float: right; width: 112px; height: 112px; margin: 0 16px 8px 12px; border-radius: 6px; }
+.imgdlg { background: rgba(2, 6, 16, .86); }
+.imgdlg .dlg-in { width: min(760px, 100%); }
+.imgdlg .dlg-foot #imgBack { margin-right: auto; }
+.imgpick { display: grid; gap: 8px; }
+.imgpick .lead4 { margin: 0 0 4px; font-size: 13px; color: var(--mute); }
+.imgopt { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 14px; align-items: center; text-align: left; cursor: pointer; padding: 8px; border: 0; color: var(--ice);
+  background: linear-gradient(90deg, rgba(20, 70, 150, .55), rgba(10, 36, 86, .45)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.imgopt:hover, .imgopt:focus-visible { box-shadow: inset 0 0 0 1px var(--cyan); outline: none; }
+.imgopt img { grid-row: span 2; width: 112px; height: 84px; object-fit: cover; object-position: top; display: block; box-shadow: inset 0 0 0 1px var(--line); background: var(--void); }
+.imgopt b { font-size: 15px; align-self: end; } .imgopt small { font-size: 12px; color: var(--mute); align-self: start; }
+.imgwrap { background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; max-height: 62vh; overflow: auto; }
+.imgwrap img { display: block; width: 100%; height: auto; }
+@media (max-width: 820px) {
+  .dlg { padding: 8px; align-items: flex-end; } .dlg-in { max-height: calc(100dvh - 16px); }
+  .dlg-foot { padding-bottom: calc(14px + var(--safe-b)); } .dlg-foot .keys { display: none; }
+  .opening .rowsel { grid-template-columns: minmax(0, 1fr); } .opstats div { grid-template-columns: 4em 2.4em minmax(0, 1fr); }
+  .det .face.xl { width: 84px; height: 84px; }
+}
+/* ---------- スマホ（820px 以下）：上に常に見える状況の帯、記録を上に、細かい欄は折りたたむ ---------- */
+.strip, .ctl .sp1, .logmore, .sheet { display: none; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 18; padding: 0 0 var(--safe-b); }
+.sheet.on { display: block; }
+.sheet .rowsel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 820px) {
+  .hud-in { padding: calc(6px + var(--safe-t)) 12px 4px; gap: 4px; }
+  .hud .nm { font-size: 15px; }
+  #hudInfo { display: none; }
+  .ctl { flex-wrap: nowrap; gap: 4px; }
+  .ctl .btn { min-height: 40px; padding: 4px 10px; --cut: 7px; flex: 0 0 auto; }
+  .ctl [data-sp] { display: none; }
+  .ctl .sp1 { display: inline-block; min-width: 3.4em; }
+  .ctl #pause { flex: 1 1 auto; font-weight: 700; }
+  .strip { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; padding: 2px 12px 8px; }
+  .strip .sg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mute); }
+  .strip .sg .bar { width: 38px; height: 6px; }
+  .strip .chip small { font-size: 10px; color: var(--mute); margin-right: 4px; }
+  .strip { flex-wrap: nowrap; gap: 8px; } .strip #stripBars { display: flex !important; align-items: center; gap: 8px; min-width: 0; }
+  .strip .seals i { height: 12px; }
+  .strip .pips { display: inline-flex; gap: 3px; }
+  .strip .pip { position: relative; width: 9px; height: 22px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); display: block; }
+  .strip .pip b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--hp); }
+  .strip .pip.low b { background: var(--seal); }
+  .strip .pip.f { box-shadow: inset 0 0 0 1px var(--cyan); }
+  .strip .pip.x { opacity: .4; } .strip .pip.x b { display: none; }
+  .strip .sf { font-size: 12px; color: var(--foe); white-space: nowrap; }
+  .strip .chip { margin-left: auto; min-height: 30px; padding: 2px 10px; font-size: 12px; --cut: 7px; }
+  /* 並べ替え：情景 → 記録 → 方針 → 味方 → 敵 → マスター → 令呪（詳しい欄は折りたたんで、必要なときだけ開く） */
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 10px calc(24px + var(--safe-b)); }
+  .col { display: contents; }
+  #result { order: 0; }
+  .m-scene { order: 1; } .m-log { order: 2; } .m-focus { order: 3; } .m-party { order: 4; } .m-foes { order: 5; } .m-master { order: 6; } .m-order { order: 7; }
+  .view { aspect-ratio: 5 / 2; }
+  .focus.panel { display: none; }
+  .foldable .hd { cursor: pointer; }
+  .foldable .hd::after { content: "▾"; margin-left: 6px; color: var(--mute); font-size: 12px; }
+  .foldable.folded .hd::after { content: "▸"; }
+  .foldable.folded .body { display: none; }
+  .foldable .hd .ja { margin-left: auto; }
+  #log:not(.open) li:nth-child(n+9) { display: none; }
+  .logmore { display: block; width: calc(100% - 20px); margin: 4px 10px 10px; }
+  .log { padding: 0 4px 6px; }
+  .logbar { padding: 0 10px 8px; }
+  .toast { bottom: calc(70px + var(--safe-b)); }
+}
 </style>
 </head>
 <body>
@@ -271,7 +388,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
           <label><input type="radio" name="speed" value="8"><span class="ico"></span>とても速い</label>
         </div>
       </div>
-      <label class="field"><span class="lbl">あなた（マスター）の名前（空欄なら、ランダム）</span><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+      <div class="field"><label class="lbl" for="pname">あなた（マスター）の名前（空欄なら、ランダム）</label>
+        <div class="namerow"><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>ランダムの名前に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></div></div>
       <label class="field"><span class="lbl">結末に残す、あなたの一言（空欄でよい。リンクには入らず、このブラウザにだけ残る）</span><input type="text" id="pword" class="wide" maxlength="60" autocomplete="off" placeholder="空欄でよい"></label>
       <div class="field"><span class="lbl">エクストラクラス</span>
         <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="extra" value="1" checked><span class="ico"></span>あり（ときどき混じる）</label><label><input type="radio" name="extra" value="0"><span class="ico"></span>なし</label></div></div>
@@ -327,17 +445,30 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       </div>
       <div class="ctl">
         <button class="btn" id="pause">❚❚ 一時停止</button>
-        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button>
+        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button><button class="btn sp1" id="spCycle" type="button" aria-label="進む速さを切り替える">2×</button>
         <button class="btn" id="skip" title="次の決断（なければ最後）まで進める">▸▸ 先へ</button>
-        <button class="btn" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
-        <button class="btn" id="csvBtn" title="ここまでの記録をCSVで保存">CSV</button><button class="btn" id="quitBtn">やめる</button>
+        <button class="btn wide" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
+        <button class="btn wide" id="csvBtn" title="ここまでの記録をCSVで保存">CSV</button><button class="btn wide" id="quitBtn">やめる</button>
+        <button class="btn more" id="moreBtn" aria-expanded="false" aria-controls="menu" aria-label="そのほかの操作">⋯</button>
+      </div>
+    </div>
+    <div class="strip" id="strip" aria-label="いまの状況">
+      <div id="stripBars" style="display:contents"></div>
+      <button class="btn chip" id="focusChip" type="button" aria-label="方針を選ぶ"><small>方針</small><b id="focusChipLabel">おまかせ</b> ▾</button>
+    </div>
+    <div class="menu panel" id="menu" role="menu">
+      <div class="rowsel">
+        <button id="stopBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>退場・令呪で自動的に止める</button>
+        <button id="autoBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>決断をおまかせ</button>
+        <button id="csvBtn2" role="menuitem"><span class="ico"></span>記録をCSVで保存</button>
+        <button id="quitBtn2" role="menuitem"><span class="ico"></span>やめて最初の画面へ</button>
       </div>
     </div>
   </header>
   <div class="layout">
     <div id="result" class="full"></div>
     <div class="col">
-      <section class="panel" aria-label="マスター">
+      <section class="panel foldable m-master" data-fold="master" aria-label="マスター">
         <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja clk" id="mName" role="button" tabindex="0" title="マスターの詳細"></span></div>
         <div class="body">
           <div class="mstat"><span>体力</span><div class="bar"><i id="mHp" style="background:var(--hp)"></i></div><b id="mHpT"></b>
@@ -346,15 +477,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
           <div class="mrow"><span>いま <b id="mPlace"></b></span></div>
         </div>
       </section>
-      <section class="panel" aria-label="味方">
+      <section class="panel foldable m-party" data-fold="party" aria-label="味方">
         <div class="hd"><i class="chev"></i><span class="en">Party</span><span class="ja">率いる英霊</span></div>
         <div class="body" id="partyList" style="padding:0 8px 10px"></div>
       </section>
-      <section class="panel focus" aria-label="方針">
-        <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span></div>
-        <div class="body"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p class="hint" id="focusDesc"></p></div>
+      <section class="panel focus m-focus" id="focusPanel" aria-label="方針">
+        <div class="hd" id="focusHead"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span><span class="fnow">方針<b id="focusNow">おまかせ</b></span><button class="btn ftog" id="focusToggle" type="button" aria-expanded="true" aria-controls="focusBody">たたむ ▴</button></div>
+        <div class="body" id="focusBody"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p class="hint" id="focusDesc"></p></div>
       </section>
-      <section class="panel order" aria-label="令呪と推理">
+      <section class="panel order foldable m-order" data-fold="orders" aria-label="令呪と推理">
         <div class="hd"><i class="chev"></i><span class="en">Orders</span><span class="ja">令呪・真名の推測</span></div>
         <div class="body">
           <p class="hint" id="orderHint" style="margin-top:0">一時停止中に選べる。選んだものは次の朝に働く。</p>
@@ -367,17 +498,17 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       </section>
     </div>
     <div class="col">
-      <section class="panel scene" aria-label="情景">
+      <section class="panel scene m-scene" aria-label="情景">
         <div class="view" id="view"><svg id="sceneSvg" viewBox="0 0 300 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg><img id="sceneImg" alt=""><div class="rain"></div><div class="scan"></div><div class="fx" id="fx"></div>
           <div class="cap"><span class="en">Location</span><span id="sceneCap" class="capt"></span><span class="tag" id="sceneTag">NIGHT</span></div></div>
       </section>
-      <section class="panel" aria-label="敵">
+      <section class="panel foldable m-foes" data-fold="foes" aria-label="敵">
         <div class="hd"><i class="chev"></i><span class="en">Enemies</span><span class="ja" id="foeHead">特異点の敵</span></div>
         <div class="body" id="foeList" style="padding:0 8px 10px"></div>
       </section>
-      <section class="panel logp" aria-label="記録">
+      <section class="panel logp m-log" aria-label="記録">
         <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">攻略の記録</span></div>
-        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol></div>
+        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol><button class="btn logmore" id="logMore" type="button" aria-expanded="false" aria-controls="log">すべての記録を見る</button></div>
       </section>
     </div>
   </div>
@@ -390,6 +521,32 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     <p class="lead2" id="dlgBody"></p>
     <div class="rowsel" id="dlgOpts"></div>
     <div class="dlg-foot"><button class="btn" id="dlgAuto">これからはおまかせ</button></div>
+  </section>
+</div>
+<div class="sheet" id="focusSheet" role="dialog" aria-label="方針を選ぶ">
+  <section class="panel">
+    <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span></div>
+    <div class="body"><div class="rowsel" id="focusSeg2" role="radiogroup"></div><p class="hint" id="focusDesc2"></p></div>
+  </section>
+</div>
+<div class="dlg opening" id="opening" role="dialog" aria-modal="true" aria-labelledby="opTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en" id="opEn">Master</span><span class="step" id="opStep">1 / 3</span></div>
+    <h4 id="opTitle"></h4>
+    <div class="opbody" id="opBody"></div>
+    <div class="dlg-foot"><span class="keys" id="opKeys">Enter で次へ</span><button class="btn" id="opBack" type="button">戻る</button><button class="btn primary" id="opNext" type="button">次へ</button></div>
+  </section>
+</div>
+<div class="dlg opening imgdlg" id="imgDlg" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en">Image</span><span class="step" id="imgSub"></span></div>
+    <h4 id="imgTitle">画像</h4>
+    <div class="opbody">
+      <div id="imgPick"></div>
+      <div id="imgView" hidden><div class="imgwrap"><img id="imgPrev" alt=""></div>
+        <p class="note2">画像を長押し（パソコンは右クリック）しても保存できます。</p></div>
+    </div>
+    <div class="dlg-foot"><button class="btn" id="imgBack" type="button" hidden>← 選び直す</button><button class="btn" id="imgClose" type="button">閉じる</button><button class="btn" id="imgShare" type="button" hidden>共有する</button><button class="btn primary" id="imgSave" type="button" hidden>保存する</button></div>
   </section>
 </div>
 <div class="dlg" id="det" role="dialog" aria-modal="true" aria-labelledby="detTitle">
@@ -597,10 +754,22 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     $('#pname').value = qs.has('seed') ? (qs.get('n') || '') : (st.name || '');
     $('#pword').value = st.word || '';
   })();
-  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined });
+  const cleanPName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined, last: settings0.last || undefined });
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
-  $('#pname').addEventListener('change', saveSettings); $('#pword').addEventListener('change', saveSettings);
+  $('#pname').addEventListener('change', () => { saveSettings(); syncNameBtns(); }); $('#pword').addEventListener('change', saveSettings);
+  // 名前の欄の「ランダムの名前に戻す」「前回の名前」（前回＝いちばん最近に始めた特異点で使った名前）
+  function syncNameBtns() {
+    const cur = cleanPName($('#pname').value), last = cleanPName(settings0.last);
+    $('#pnameReset').hidden = !cur;
+    $('#pnameLast').hidden = !last || last === cur;
+    $('#pnameLast').textContent = last ? `前回の名前「${last.length > 12 ? last.slice(0, 12) + '…' : last}」` : '';
+  }
+  $('#pname').addEventListener('input', syncNameBtns);
+  $('#pnameReset').onclick = () => { $('#pname').value = ''; saveSettings(); syncNameBtns(); $('#pname').focus(); };
+  $('#pnameLast').onclick = () => { $('#pname').value = cleanPName(settings0.last); saveSettings(); syncNameBtns(); $('#pname').focus(); };
+  syncNameBtns();
   document.querySelectorAll('input[name=extra], input[name=pick], input[name=words]').forEach(r => r.addEventListener('change', () => { saveSettings(); if (r.name !== 'words') formationStale(); }));
   // 七騎の組み方（エクストラクラスの有無と、選び方）
   let pickMode = 'class', extraOn = true;
@@ -706,7 +875,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   $('#pickClear').onclick = () => { picks = { party: [], foes: [], boss: null }; buildPickers(); };
 
   // ---------- 進行 ----------
-  let gen = null, out = null, pending = null, done = false, result = null, idx = 0, timer = null, speed = 2, paused = false, autoAll = false;
+  let gen = null, out = null, pending = null, done = false, result = null, idx = 0, timer = null, speed = 2, paused = false, autoAll = false, op = null;
   let playerName = '', curDay = 0, tickDay = 0, decLog = [], logFilter = 'all', words = '';
   let focus = 'auto', focusLog = '', replayFocus = '', choices = [], replay = [], queue = [], cmdLog = [], replayCmds = [], maxDays = 30, lastSnap = null;
   const DELAY = { death: 2200, np: 1700, end: 1900, cs: 1500, summon: 900, prologue: 1300, choice: 500, council: 900, life: 1300, event: 1100, scout: 1100 };
@@ -715,14 +884,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     o = o || {};
     maxDays = formDays();
     speed = formSpeed(); paused = false; autoAll = false;
-    playerName = (o.replay && qs.has('n') ? qs.get('n') : $('#pname').value).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+    playerName = cleanPName(o.replay && qs.has('n') ? qs.get('n') : $('#pname').value);
+    if (playerName && !o.replay) { settings0.last = playerName; saveSettings(); syncNameBtns(); }
     words = formWords() ? $('#pword').value.trim() : '';
     curDay = 0; tickDay = 0; decLog = []; lastPlace = ''; lastSceneKey = null;
-    out = {}; done = false; result = null; pending = null; idx = 0; queue = []; cmdLog = []; choices = []; focusLog = ''; focus = 'auto'; lastSnap = null;
+    done = false; result = null; pending = null; idx = 0; queue = []; cmdLog = []; choices = []; focusLog = ''; focus = 'auto'; lastSnap = null; op = null;
     replay = o.replay && qs.get('c') ? qs.get('c').split('.') : [];
     replayFocus = o.replay ? qs.get('f') || '' : '';
     replayCmds = o.replay ? parseCmds(qs.get('k')) : [];
-    try { gen = SG.gen({ roster, bosses, seed, lineup, front, ask: 'big', out, days: maxDays, playerName: playerName || undefined }); pump(); }
+    try { makeGen(); }
     catch (e) { toast('始められませんでした：' + e.message); console.error(e); return; }
     document.body.classList.add('watching');
     $('#log').innerHTML = ''; $('#result').innerHTML = '';
@@ -730,7 +900,14 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     drawSkyline(seed); setLogFilter('all');
     renderFocus(); syncCtl(); updateURL(); window.scrollTo(0, 0);
     if (o.replay && qs.has('dy')) return catchUp();
+    // 新しい攻略は、マスターの紹介 → 率いる英霊の評価 → 最初の方針、を順に出してから始める
+    if (!o.replay && openOpening()) return;
     step();
+  }
+  // 同じシード・同じ編成でジェネレータを作り直す（名前を付け直すとき。進行はまだ0日目）
+  function makeGen() {
+    out = {}; done = false; result = null; pending = null; idx = 0;
+    gen = SG.gen({ roster, bosses, seed, lineup, front, ask: 'big', out, days: maxDays, playerName: playerName || undefined }); pump();
   }
   // 続きから・記録の再現：保存した分は、アニメーションなしで一気に追いつく（そのあとは一時停止で止まる）
   function catchUp() {
@@ -780,6 +957,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (idx < out.entries.length) {
       const e = out.entries[idx++];
       show(e);
+      if (autoStop && (e.kind === 'cs' || (e.kind === 'death' && e.you))) { paused = true; syncCtl(); toast('大事な場面なので止めました。「再開」で続きます'); return; }
       timer = setTimeout(step, (DELAY[e.kind] || (e.big ? 1400 : e.kind === 'dayhead' ? 350 : 800)) / speed + (e.quote ? 600 / speed : 0));
       return;
     }
@@ -813,13 +991,29 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     $('#pause').textContent = paused ? '▸ 再開' : '❚❚ 一時停止';
     document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
     $('#autoBtn').setAttribute('aria-pressed', String(autoAll));
+    $('#autoBtn2').setAttribute('aria-pressed', String(autoAll)); $('#autoBtn2').setAttribute('aria-checked', String(autoAll));
+    $('#stopBtn2').setAttribute('aria-pressed', String(autoStop)); $('#stopBtn2').setAttribute('aria-checked', String(autoStop));
+    $('#spCycle').textContent = speed + '×';
     renderOrders();
   }
-  $('#pause').onclick = () => { if (done && idx >= out.entries.length) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
+  // スマホ向け：速さを一つのボタンで切り替える／退場・令呪の場面で自動的に止める（このブラウザに残す）
+  const SPEEDS = [1, 2, 4, 8, 16], STOP_KEY = 'hgw.sing.autostop';
+  let autoStop = store.get(STOP_KEY) === true;
+  $('#spCycle').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; syncCtl(); };
+  $('#stopBtn2').onclick = () => { autoStop = !autoStop; store.set(STOP_KEY, autoStop || null); syncCtl(); toast(autoStop ? '前衛の退場と令呪の場面で、自動的に止めます' : '自動では止めません'); };
+  $('#pause').onclick = () => { if (op || (done && idx >= out.entries.length)) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
-  $('#quitBtn').onclick = () => { clearTimeout(timer); saveProgress(); gen = null; $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); renderIntroRecords(); };
+  $('#quitBtn').onclick = () => { clearTimeout(timer); saveProgress(); gen = null; op = null; $('#opening').classList.remove('on'); $('#imgDlg').classList.remove('on'); $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); renderIntroRecords(); };
+  // ⋯メニュー（スマホでは、おまかせ・CSV・やめるをここにまとめる）
+  const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
+  $('#moreBtn').onclick = e => { e.stopPropagation(); const on = $('#menu').classList.toggle('on'); $('#moreBtn').setAttribute('aria-expanded', String(on)); };
+  document.addEventListener('click', e => { if (!e.target.closest('#menu')) closeMenu(); });
+  $('#autoBtn2').onclick = () => { closeMenu(); $('#autoBtn').click(); };
+  $('#csvBtn2').onclick = () => { closeMenu(); $('#csvBtn').click(); };
+  $('#quitBtn2').onclick = () => { closeMenu(); $('#quitBtn').click(); };
   $('#skip').onclick = () => {
+    if (op) return;
     if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); $('#dlgMin').textContent = 'いったん下ろす ▾'; return; }
     clearTimeout(timer);
     let guard = 0;
@@ -855,15 +1049,157 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, select, textarea')) return;
     if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }
-    if (e.key === ' ' && document.body.classList.contains('watching')) { e.preventDefault(); $('#pause').click(); }
+    if (e.key === ' ' && document.body.classList.contains('watching') && !op && !$('#det').classList.contains('on') && !$('#imgDlg').classList.contains('on')) { e.preventDefault(); $('#pause').click(); }
   });
 
   // ---------- 方針 ----------
   function renderFocus() {
-    $('#focusSeg').innerHTML = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
-    $('#focusDesc').textContent = FOCUS[focus].desc;
+    const html = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
+    $('#focusSeg').innerHTML = html; $('#focusSeg2').innerHTML = html;
+    $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusDesc2').textContent = FOCUS[focus].desc;
+    $('#focusNow').textContent = FOCUS[focus].label; $('#focusChipLabel').textContent = FOCUS[focus].label;
   }
-  $('#focusSeg').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } });
+  ['#focusSeg', '#focusSeg2'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } }));
+  // スマホ：帯の「方針」から、画面下の選択欄で切り替える
+  $('#focusChip').onclick = e => { e.stopPropagation(); $('#focusSheet').classList.toggle('on'); };
+  document.addEventListener('click', e => { if (!e.target.closest('#focusSheet') && !e.target.closest('#focusChip')) $('#focusSheet').classList.remove('on'); });
+  // 方針の欄は「たたむ」で一行に格納できる（たたんだかどうかはこのブラウザに残す）
+  const FC_KEY = 'hgw.sing.focusCollapsed';
+  function setFocusCollapsed(on, save) {
+    $('#focusPanel').classList.toggle('collapsed', on);
+    $('#focusToggle').setAttribute('aria-expanded', String(!on));
+    $('#focusToggle').textContent = on ? 'ひらく ▾' : 'たたむ ▴';
+    if (save) try { localStorage.setItem(FC_KEY, on ? '1' : '0'); } catch (e) { /* 保存できなくても動く */ }
+  }
+  try { setFocusCollapsed(localStorage.getItem(FC_KEY) === '1'); } catch (e) { setFocusCollapsed(false); }
+  $('#focusToggle').onclick = e => { e.stopPropagation(); setFocusCollapsed(!$('#focusPanel').classList.contains('collapsed'), true); };
+  $('#focusHead').onclick = () => { if ($('#focusPanel').classList.contains('collapsed')) setFocusCollapsed(false, true); };
+
+  // ---------- 開戦の案内（マスターの紹介 → 率いる英霊の評価 → 最初の方針） ----------
+  // 新しい攻略を始めたとき、記録を流す前に順に出す。方針を決めるまで1日目は始まらない（共有リンク・続きからの再現では出さない）
+  const ORIGIN_DESC = {
+    noble: '魔術の名門に生まれ、豊かな魔力と家伝の知識を受け継いだ魔術師。',
+    newblood: '歴史の浅い家系の魔術師。腕も魔力も人並みだが、この戦いに家の名を賭けている。',
+    mercenary: '魔術を道具として使う実戦の人。体と度胸で修羅場をくぐってきた。',
+    civilian: '魔術とは縁のない暮らしから、偶然この戦いに巻き込まれた。魔力は乏しいが、運だけはある。',
+    irregular: '生まれついての異能を持つ者。魔術師の常識には収まらない。',
+  };
+  const GRADE_JA = {
+    S: '最上位の戦力。正面からの勝負で後れを取る相手はほとんどいない',
+    A: '有力な戦力。多くの英霊と互角以上に渡り合える',
+    B: '並み以上の力を持つ。前衛でも控えでも安定して働く',
+    C: '多くの英霊と五分に渡り合う。編成と巡り合わせしだいで戦力になる',
+    D: '正面からでは分の悪い相手も多い。控えで機を待たせたい',
+    E: '単独での活躍は難しい。控えや、前衛を支える役に向く',
+  };
+  const MSTAT_JA = { mana: '魔力', craft: '魔術', body: '体', mind: '精神', luck: '運' };
+  // マスターの能力値（0〜100）をランクの表記に
+  function scoreRank(v) {
+    const S = H.CONFIG.RANK_SCORE, L = H.rank.LEVELS;
+    if (v < S.E - 4) return 'E-';
+    let best = L[0]; for (const l of L) if (v >= S[l] - 4) best = l;
+    return best + (v - S[best] >= 7 ? '+' : '');
+  }
+  const firstEntry = () => (out && out.entries ? out.entries.find(e => e.snap) : null);
+  function openOpening() {
+    const first = firstEntry();
+    if (!first || !(out.meta && out.meta[0] && out.meta[0].master)) return false;
+    board(first);
+    op = { step: 1, focus };
+    $('#opening').classList.add('on');
+    renderOpening();
+    return true;
+  }
+  function renderOpening() {
+    const step = op.step, mm = (out.meta[0] || {}).master || {};
+    $('#opStep').textContent = `${step} / 3`;
+    $('#opBack').hidden = step === 1;
+    $('#opNext').textContent = step === 3 ? 'この方針で一日目を始める' : '次へ';
+    $('#opKeys').innerHTML = step === 3 ? '<i>1</i>〜 で選ぶ ・ Enter で始める' : 'Enter で次へ';
+    if (step === 1) {
+      $('#opEn').textContent = 'Master';
+      $('#opTitle').textContent = mm.name || 'あなた';
+      const stats = Object.entries(mm.stats || {}).map(([k, v]) => `<div><span>${esc(MSTAT_JA[k] || k)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana)"></i></span></div>`).join('');
+      const P = H.PERSONAS || {}, per = mm.persona && P[mm.persona] ? P[mm.persona] : null, last = cleanPName(settings0.last);
+      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、くじで決まった名前になる）</label>
+          <div class="namerow"><input type="text" id="opName" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="next" value="${esc(mm.name || '')}">
+            ${playerName ? '<button class="btn" id="opNameReset" type="button">くじの名前に戻す</button>' : ''}
+            ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last.length > 12 ? last.slice(0, 12) + '…' : last)}」</button>` : ''}</div>
+          <p class="hint2">名前を変えても、特異点の展開は変わらない。</p></div>
+        <p class="say">${esc(lineup.name)}。${esc(lineup.region && lineup.region !== lineup.city ? lineup.region + '・' + lineup.city : lineup.city)}に降り立ち、あなたは${CFG.party}騎の英霊を率いて、${CFG.foes}騎の敵サーヴァントと特異点の主に挑む。手の甲には${(lastSnap && lastSnap.p && lastSnap.p.cs) || 3}画の令呪が刻まれている。</p>
+        <dl class="opkv">
+          <dt>素性</dt><dd>${esc([mm.sex, mm.age ? mm.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
+          ${mm.originLabel ? `<dt>出自</dt><dd><b>${esc(mm.originLabel)}</b>${ORIGIN_DESC[mm.origin] ? '<br>' + esc(ORIGIN_DESC[mm.origin]) : ''}</dd>` : ''}
+          ${per ? `<dt>性格</dt><dd><b>${esc(per.label)}</b>${mm.personaDesc ? '<br>' + esc(mm.personaDesc) : ''}</dd>` : ''}
+          ${mm.wish ? `<dt>願い</dt><dd>${esc(mm.wish)}</dd>` : ''}
+          ${mm.catalyst ? `<dt>縁</dt><dd>${esc(typeof mm.catalyst === 'string' ? mm.catalyst : '縁の品がある')}</dd>` : ''}
+        </dl>
+        <div class="opstats">${stats}</div>
+        <p class="note2">前衛・控えの入れ替えは、観測の画面で済ませてある。ここから先は、方針と令呪で導く。</p>`;
+      $('#opName').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); opNext(); } });
+    } else if (step === 2) {
+      $('#opEn').textContent = 'Party';
+      $('#opTitle').textContent = `率いる${CFG.party}騎の評価`;
+      $('#opBody').innerHTML = `<div class="ptlist">${lineup.party.map((id, i) => {
+        const sv = svOf(id), m = out.meta[i] || {}, g = (sv && evaluate(sv).grade) || '', fr = front.includes(i);
+        return `<div class="pt${fr ? ' front' : ''}"><span class="g ${g}">${g || '？'}</span>
+          <span><b>${fic(m.trueName || (sv || {}).trueName, keyOf(i))}${esc((sv || {}).class ? sv.class.label : m.cls)}「${esc(m.trueName || (sv || {}).trueName)}」</b> <span class="tg">${fr ? '前衛' : '控え'}</span></span>
+          <button class="btn" type="button" data-lore="${i}">解説</button>
+          <small>${esc((m.ranks || []).map(r => r[0] + r[1]).join(' '))}${g ? ` ・ ${esc(GRADE_JA[g])}` : ''}</small></div>`;
+      }).join('')}</div>
+        <p class="note2">評価は、リストの全騎と1対1で戦った平均勝率の順位（S〜E）です。敵との相性や、編成での連携は含みません。</p>`;
+      fillFaces($('#opBody'));
+    } else {
+      $('#opEn').textContent = 'Focus';
+      $('#opTitle').textContent = '最初の方針';
+      $('#opBody').innerHTML = `<p class="say">方針はいつでも変えられ、次の朝から反映される。まずは一日目の動き方を決めよう。</p>
+        <div class="rowsel" id="opFocus" role="radiogroup">${Object.entries(FOCUS).map(([k, f], i) => `<button data-f="${k}" role="radio" aria-pressed="${k === op.focus}" aria-checked="${k === op.focus}"><span class="n">${i + 1}</span><b>${esc(f.label)}</b><small>${esc(f.desc)}</small></button>`).join('')}</div>`;
+    }
+    $('#opening .dlg-in').scrollTop = 0;
+    const f = step === 3 ? document.querySelector('#opFocus [aria-pressed="true"]') : step === 1 ? $('#opName') : $('#opNext');
+    if (f) f.focus({ preventScroll: true });
+  }
+  function opPick(k) {
+    if (!op || !FOCUS[k]) return;
+    op.focus = k;
+    document.querySelectorAll('#opFocus [data-f]').forEach(b => { const on = b.dataset.f === k; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-checked', String(on)); });
+  }
+  function closeOpening() { $('#opening').classList.remove('on'); op = null; }
+  // 名前を付ける（付け直す）。同じシードで組み直すので、マスターの紹介も新しい名前で出し直す
+  function applyName(v) {
+    const name = cleanPName(v);
+    if (!op || name === playerName) return;
+    if (!playerName && name === (((out.meta[0] || {}).master) || {}).name) return;   // くじで決まった名前のままなら、付け直さない
+    playerName = name;
+    makeGen();
+    const first = firstEntry(); if (first) board(first);
+    $('#pname').value = name;
+    if (name) settings0.last = name;
+    saveSettings(); syncNameBtns(); updateURL();
+  }
+  function opNext() {
+    if (!op) return;
+    if (op.step === 1 && $('#opName')) applyName($('#opName').value);
+    if (op.step < 3) { op.step++; return renderOpening(); }
+    const k = op.focus;
+    closeOpening(); focus = k; replayFocus = ''; renderFocus();
+    toast(`方針「${FOCUS[k].label}」で一日目を始めます`);
+    step();
+  }
+  $('#opNext').onclick = opNext;
+  $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
+  $('#opBody').addEventListener('click', e => {
+    const lb = e.target.closest('[data-lore]'); if (lb) { openServant(+lb.dataset.lore); return; }
+    if (e.target.closest('#opNameReset')) { applyName(''); renderOpening(); $('#opName').focus(); return; }
+    if (e.target.closest('#opNameLast')) { applyName(settings0.last); renderOpening(); $('#opName').focus(); return; }
+    const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f);
+  });
+  $('#opBody').addEventListener('dblclick', e => { const b = e.target.closest('#opFocus [data-f]'); if (b) { opPick(b.dataset.f); opNext(); } });
+  document.addEventListener('keydown', e => {
+    if (!op || $('#det').classList.contains('on') || (e.target.closest && e.target.closest('input, select, textarea'))) return;
+    if (e.key === 'Enter' && !(e.target.closest && e.target.closest('button, a, summary'))) { e.preventDefault(); opNext(); }
+    else if (op.step === 3 && /^[1-9]$/.test(e.key)) { const k = Object.keys(FOCUS)[+e.key - 1]; if (k) opPick(k); }
+  });
 
   // ---------- 令呪と推測（一時停止中だけ。次の朝に働く） ----------
   function renderOrders() {
@@ -935,9 +1271,26 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const foes = sn.c.filter(c => c.side === 'foe'), boss = sn.c.find(c => c.side === 'boss');
     $('#foeList').innerHTML = foes.map(unit).join('') + (boss ? (p.stage === 'boss' || !boss.alive ? unit(boss) : `<div class="unit unseen"><span class="u-nm"><small>ボス</small>？？？（七騎を倒すと現れる）</span><span></span></div>`) : '');
     fillFaces($('#partyList')); fillFaces($('#foeList'));
+    renderStrip(sn);
     $('#foeHead').textContent = p.stage === 'boss' ? '特異点の主' : `特異点の敵（残り${foes.filter(c => c.alive).length}騎）`;
     renderOrders();
   }
+
+  // ---------- スマホ：上に常に出す状況の帯（体力・魔力・令呪・味方のHP・敵の残り）と、細かい欄の折りたたみ ----------
+  function renderStrip(sn) {
+    const p = sn.p, party = sn.c.filter(c => c.side === 'party'), foes = sn.c.filter(c => c.side === 'foe');
+    const pips = party.map(c => `<i class="pip${c.front ? ' f' : ''}${c.alive ? '' : ' x'}${c.alive && c.hp < 35 ? ' low' : ''}" title="${esc(c.name || c.label)}　${c.alive ? c.hp : '✝'}"><b style="height:${c.alive ? c.hp : 0}%"></b></i>`).join('');
+    const seals = Array.from({ length: CFG.csMax }, (_, i) => `<i class="${i < p.cs ? '' : 'used'}"></i>`).join('') + (p.cs > CFG.csMax ? `+${p.cs - CFG.csMax}` : '');
+    $('#stripBars').innerHTML = `<span class="sg" title="マスターの体力">体<span class="bar"><i style="width:${p.mhp}%;background:var(--hp)"></i></span></span><span class="sg" title="魔力の蓄え">魔<span class="bar"><i style="width:${p.mana}%;background:var(--mana)"></i></span></span><span class="seals" title="令呪">${seals}</span><span class="pips" title="味方の霊基（太枠は前衛）">${pips}</span><span class="sf">${p.stage === 'boss' ? 'ボス戦' : `敵 ${foes.filter(c => c.alive).length}/${CFG.foes}`}</span>`;
+  }
+  const FOLD_KEY = 'hgw.sing.folds', FOLD_DEF = { master: true, party: true, foes: true, orders: true };
+  let folds = store.get(FOLD_KEY) || {};
+  document.querySelectorAll('[data-fold]').forEach(p => {
+    const k = p.dataset.fold;
+    p.classList.toggle('folded', k in folds ? !!folds[k] : !!FOLD_DEF[k]);
+    p.querySelector('.hd').addEventListener('click', () => { if (!matchMedia('(max-width: 820px)').matches) return; const on = p.classList.toggle('folded'); folds[k] = on; store.set(FOLD_KEY, folds); });
+  });
+  $('#logMore').onclick = () => { const on = $('#log').classList.toggle('open'); $('#logMore').setAttribute('aria-expanded', String(on)); $('#logMore').textContent = on ? '最近の記録だけにする' : 'すべての記録を見る'; };
 
   // ---------- 記録の絞り込み・山場 ----------
   const KIND_JA = { prologue: '序幕', summon: '召喚', dayhead: '日付', day: '昼', night: '夜', battle: '戦い', np: '宝具', cs: '令呪', death: '退場', event: '出来事', world: '世界', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
@@ -1015,8 +1368,57 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   $('#csvBtn').onclick = exportCsv;
 
   // ---------- 詳細（サーヴァント・マスター） ----------
-  function openDet(title, sub, html) { $('#detTitle').innerHTML = title; $('#detSub').textContent = sub || ''; $('#detBody').innerHTML = html; $('#det').classList.add('on'); syncLock(); fillFaces($('#det')); $('#detClose').focus({ preventScroll: true }); }
-  const closeDet = () => { $('#det').classList.remove('on'); syncLock(); };
+  // 開いている間は記録を止め、閉じたら続きから流す（聖杯戦争側の解説と同じ）
+  let detResume = false;
+  function openDet(title, sub, html) {
+    if (!$('#det').classList.contains('on')) {
+      detResume = !!gen && !paused && !done && !op && !$('#dlg').classList.contains('on') && !$('#imgDlg').classList.contains('on');
+      clearTimeout(timer);
+    }
+    $('#detTitle').innerHTML = title; $('#detSub').textContent = sub || ''; $('#detBody').innerHTML = html; $('#det').classList.add('on'); syncLock(); fillFaces($('#det')); $('#detClose').focus({ preventScroll: true });
+    $('#det .dlg-in').scrollTop = 0;
+  }
+  const closeDet = () => {
+    if (!$('#det').classList.contains('on')) return;
+    $('#det').classList.remove('on'); syncLock();
+    if (detResume) { detResume = false; step(); }
+  };
+  // 解説の冒頭（文の切れ目で limit 字まで）
+  function excerpt(text, limit) {
+    const flat = String(text || '').replace(/\s*\n\s*/g, '').trim();
+    if (flat.length <= limit) return flat;
+    let s = ''; for (const part of flat.split(/(?<=。)/)) { if (s && (s + part).length > limit) break; s += part; }
+    return s.length > limit * 1.4 ? s.slice(0, limit) + '…' : s;
+  }
+  // kagemiya のURL（ページ名は EUC-JP でパーセント符号化する）。対応表は初回に作る
+  let eucMap = null;
+  function eucEncode(str) {
+    if (!eucMap) {
+      eucMap = new Map(); const dec = new TextDecoder('euc-jp');
+      for (let a = 0xa1; a <= 0xfe; a++) for (let b = 0xa1; b <= 0xfe; b++) { const ch = dec.decode(Uint8Array.of(a, b)); if (ch.length === 1 && ch !== '�' && !eucMap.has(ch)) eucMap.set(ch, [a, b]); }
+      for (let b = 0xa1; b <= 0xdf; b++) { const ch = dec.decode(Uint8Array.of(0x8e, b)); if (!eucMap.has(ch)) eucMap.set(ch, [0x8e, b]); }
+    }
+    let o2 = '';
+    for (const ch of String(str)) {
+      const c = ch.codePointAt(0);
+      if (c < 0x80) { o2 += /[A-Za-z0-9\-_.~]/.test(ch) ? ch : '%' + c.toString(16).toUpperCase().padStart(2, '0'); continue; }
+      const bs = eucMap.get(ch); if (!bs) return null;
+      o2 += bs.map(x => '%' + x.toString(16).toUpperCase()).join('');
+    }
+    return o2;
+  }
+  const wikiSearch = q => 'https://ja.wikipedia.org/w/index.php?search=' + encodeURIComponent(q) + '&go=Go';
+  const cleanName = n => String(n || '').replace(/[（(〔\[【].*?[)）〕\]】]/g, '').trim();
+  function loreLinks(sv) {
+    if (!sv || sv.bossOnly) return '';
+    const links = [], name = cleanName(sv.trueName);
+    if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
+    const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
+    if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
+    try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
+    return `<div class="links">${links.join('')}</div>`;
+  }
   $('#detClose').onclick = closeDet;
   $('#det').addEventListener('click', e => { if (e.target === $('#det')) closeDet(); });
   function openServant(id) {
@@ -1027,9 +1429,13 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       return;
     }
     const T = sv && sv.text || {}, prof = sv && sv.profile || {};
-    const para = [T.commentary, T.personality].filter(Boolean).join('\n\n').slice(0, 700);
+    const body = (T.commentary || '').trim(), person = (T.personality || '').trim(), ex = excerpt(body, 160);
     openDet(`${fic(m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
-      `<dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>地域</dt><dd>${esc(sv.origin)}</dd>` : ''}</dl>${para ? `<p class="txt">${esc(para)}${para.length >= 700 ? '…' : ''}</p>` : ''}`);
+      `<img class="face xl" data-face="${esc(m.trueName)}" alt="" hidden><dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}${prof.wish ? `<dt>願い</dt><dd>${esc(prof.wish)}</dd>` : ''}</dl>`
+      + (body ? `<p class="txt2">${esc(ex)}</p>${ex.length < body.replace(/\s*\n\s*/g, '').length ? `<details><summary>解説をすべて読む</summary><p class="txt2">${esc(body)}</p></details>` : ''}`
+        : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '')
+      + (body && person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(person)}</p></details>` : '')
+      + loreLinks(sv));
   }
   function openMaster() {
     const mm = (out && out.meta && out.meta[0] || {}).master; if (!mm) return;
@@ -1054,6 +1460,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   document.addEventListener('keydown', e => {
     if (e.key !== 'Escape') return;
     if ($('#det').classList.contains('on')) return closeDet();
+    if ($('#imgDlg').classList.contains('on')) return closeImg();
     const d = $('#dlg'); if (d.classList.contains('on') && !d.classList.contains('min')) $('#dlgMin').click();
   });
 
@@ -1146,15 +1553,263 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       <table><tbody>${r.party.map(row).join('')}</tbody></table>
       <p class="hint">敵：${r.enemies.map(c => `${esc(c.label)}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
       ${dlist}${tl}
-      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button><button class="btn" id="csv2">記録をCSVで保存</button></div></div></section>`;
+      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button><button class="btn" id="csv2">記録をCSVで保存</button><button class="btn" id="cardBtn">画像にする</button></div></div></section>`;
     fillFaces($('#result'));
     addHistory(r);
     $('#csv2').onclick = exportCsv;
+    $('#cardBtn').onclick = openImages;
     $('#again').onclick = () => start({});
     $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(); };
     $('#copyUrl').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じデータなら、同じ選択で同じ特異点が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
     window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
   }
+
+  // ---------- 画像にする（結末のまとめ・率いた英霊の評価） ----------
+  // canvas に描いて PNG にする。サーバーは使わない。共有できる端末では「共有する」も出す（描き方は index.html と同じ）
+  const CV = { W: 1200, P: 64 };
+  const CF = { en: '"Rajdhani", "Zen Kaku Gothic New", sans-serif', go: '"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif', mi: '"Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif' };
+  const CC = { void: '#050d22', ice: '#e8f7ff', mute: '#8daed4', cyan: '#3ee6ff', cyan2: '#8ff4ff', gold: '#ffd84a', seal: '#ff4f72', bond: '#ff8fc8', ink: '#04152e', line: 'rgba(80, 196, 255, .30)' };
+  const GRADE_BG = { S: [CC.gold, '#fff3c4'], A: [CC.cyan, CC.cyan2], B: [CC.cyan, CC.cyan2], C: ['#9fb7d8', '#dfe9f7'], D: ['#b9a6d9', '#e9e0f8'], E: [CC.seal, '#ff9db1'] };
+  // Webフォントを使う文字だけ読み込んでから描く（つながらないときは端末の字体で描く）
+  async function cardFonts(text) {
+    if (!document.fonts || !document.fonts.load) return;
+    const t = String(text).slice(0, 6000) + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%／・';
+    const faces = ['700 40px "Zen Kaku Gothic New"', '500 40px "Zen Kaku Gothic New"', '500 40px "Shippori Mincho"', '700 40px "Shippori Mincho"', '700 40px "Rajdhani"', '600 40px "Rajdhani"'];
+    try { await Promise.race([Promise.all(faces.map(f => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 5000))]); } catch (e) { /* 端末の字体で描く */ }
+  }
+  const setFont = (ctx, w, size, fam) => { ctx.font = `${w} ${size}px ${fam}`; };
+  const spacing = (ctx, px) => { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; };
+  // 1文字ずつ折り返す（句読点や閉じ括弧は行頭に来ないよう、前の行にぶら下げる）
+  function wrapText(ctx, text, maxW) {
+    const lines = []; let cur = '';
+    for (const ch of String(text || '')) {
+      if (ch === '\n') { lines.push(cur); cur = ''; continue; }
+      const t = cur + ch;
+      if (cur && ctx.measureText(t).width > maxW) {
+        if (/[、。，．・：；？！」』）〕】…ー]/.test(ch)) { lines.push(t); cur = ''; } else { lines.push(cur); cur = ch; }
+      } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function para(ctx, text, x, y, maxW, lh, maxLines) {
+    let lines = wrapText(ctx, text, maxW);
+    if (maxLines && lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…'; }
+    for (const l of lines) { ctx.fillText(l, x, y + lh * 0.78); y += lh; }
+    return y;
+  }
+  function cardBg(ctx, W, Ht) {
+    ctx.fillStyle = CC.void; ctx.fillRect(0, 0, W, Ht);
+    let g = ctx.createRadialGradient(W * 0.8, -Ht * 0.1, 0, W * 0.8, -Ht * 0.1, Math.max(W, Ht) * 0.75);
+    g.addColorStop(0, '#15367a'); g.addColorStop(1, 'rgba(21, 54, 122, 0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, Ht);
+    g = ctx.createRadialGradient(-W * 0.05, Ht * 1.05, 0, -W * 0.05, Ht * 1.05, Math.max(W, Ht) * 0.65);
+    g.addColorStop(0, '#0d2a62'); g.addColorStop(1, 'rgba(13, 42, 98, 0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, Ht);
+    ctx.strokeStyle = 'rgba(62, 230, 255, .05)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0.5; x < W; x += 48) { ctx.moveTo(x, 0); ctx.lineTo(x, Ht); }
+    for (let y = 0.5; y < Ht; y += 48) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+    ctx.strokeStyle = CC.line; ctx.strokeRect(24.5, 24.5, W - 49, Ht - 49);
+    ctx.strokeStyle = CC.cyan; ctx.lineWidth = 3; ctx.shadowColor = 'rgba(62, 230, 255, .6)'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(24, 58); ctx.lineTo(24, 24); ctx.lineTo(58, 24); ctx.moveTo(W - 24, Ht - 58); ctx.lineTo(W - 24, Ht - 24); ctx.lineTo(W - 58, Ht - 24); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // 見出し（英字の帯・金の山形・題）。top は帯の上端（つなげた画像の2枚目では途中から描く）。戻り値は次に描く位置
+  function cardHead(ctx, en, right, title, top) {
+    const { W, P } = CV, T = top == null ? P : top;
+    setFont(ctx, 700, 22, CF.en); spacing(ctx, 4); ctx.fillStyle = CC.cyan; ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(62, 230, 255, .55)'; ctx.shadowBlur = 10; ctx.fillText(en, P, T + 20); ctx.shadowBlur = 0;
+    spacing(ctx, 0); setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.textAlign = 'right'; ctx.fillText(right, W - P, T + 20); ctx.textAlign = 'left';
+    const cx = P, cy = T + 48;
+    ctx.fillStyle = CC.gold; ctx.beginPath();
+    for (const ox of [0, 14]) { ctx.moveTo(cx + ox, cy); ctx.lineTo(cx + ox + 9, cy); ctx.lineTo(cx + ox + 20, cy + 14); ctx.lineTo(cx + ox + 9, cy + 28); ctx.lineTo(cx + ox, cy + 28); ctx.lineTo(cx + ox + 11, cy + 14); ctx.closePath(); }
+    ctx.fill();
+    setFont(ctx, 700, 40, CF.go); spacing(ctx, 6); ctx.fillStyle = CC.ice; ctx.fillText(title, P + 46, cy + 28); spacing(ctx, 0);
+    const y = cy + 52;
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
+    return y + 28;
+  }
+  // つなげた画像の区切り（シアンの二重線と、中央の菱形）
+  function cardDivider(ctx, y) {
+    const { W, P } = CV;
+    ctx.strokeStyle = 'rgba(62, 230, 255, .55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(W - P, y); ctx.stroke();
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 6.5); ctx.lineTo(W - P, y + 6.5); ctx.stroke();
+    ctx.fillStyle = CC.gold; ctx.save(); ctx.translate(W / 2, y + 3); ctx.rotate(Math.PI / 4); ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+    return y + 34;
+  }
+  function cardFoot(ctx, y, left) {
+    const { W, P } = CV;
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
+    setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute; ctx.textAlign = 'left'; ctx.fillText(left, P, y + 34);
+    spacing(ctx, 0); setFont(ctx, 500, 18, CF.go); ctx.textAlign = 'right';
+    ctx.fillText('特異点攻略（テスト版）' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/[^/]*$/, '') : ''), W - P, y + 34);
+    ctx.textAlign = 'left';
+    return y + 56;
+  }
+  // 引用の帯（左に色の線）
+  function quoteBlock(ctx, y, who, text, color) {
+    const { W, P } = CV, x = P + 22, w = W - P * 2 - 22;
+    setFont(ctx, 500, 26, CF.mi);
+    const lines = Math.min(4, wrapText(ctx, '「' + text + '」', w).length);
+    const h = 30 + lines * 40 + 14;
+    const g = ctx.createLinearGradient(P, 0, W - P, 0); g.addColorStop(0, color === CC.bond ? 'rgba(255, 143, 200, .14)' : 'rgba(62, 230, 255, .14)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g; ctx.fillRect(P, y, W - P * 2, h);
+    ctx.fillStyle = color; ctx.fillRect(P, y, 4, h);
+    setFont(ctx, 500, 19, CF.go); ctx.fillStyle = CC.mute; ctx.fillText(who, x, y + 26);
+    setFont(ctx, 500, 26, CF.mi); ctx.fillStyle = color;
+    para(ctx, '「' + text + '」', x, y + 34, w, 40, 4);
+    return y + h + 14;
+  }
+  const cardIcons = new Map();
+  async function loadCardIcons() {
+    const r = result, list = r.party.concat(r.enemies, r.boss ? [r.boss] : [], r.stray ? [r.stray] : []);
+    const keys = new Set(list.map(c => String(c.servantId || '').split(':')[0]).filter(Boolean));
+    await Promise.all([...keys].map(async k => {
+      if (cardIcons.has(k)) return;
+      const im = new Image(); im.src = H.classIcon(k);
+      try { await im.decode(); cardIcons.set(k, im); } catch (e) { /* アイコンなしで描く */ }
+    }));
+  }
+  const clsKeyOf = c => String(c.servantId || '').split(':')[0];
+  const placeOf = () => (lineup.region && lineup.region !== lineup.city ? lineup.region + '・' + lineup.city : lineup.city);
+  const fateOf = c => c.alive ? '生存' : c.fate ? c.fate.day + '日目に消滅' : '消滅';
+
+  // 結末のまとめ（o.foot === false なら下の帯を描かずに、次に描く位置を返す）
+  function drawResultCard(ctx, o) {
+    o = o || {};
+    const { W, P } = CV, r = result, endT = (END[r.ending] || ['終了'])[0];
+    let y = cardHead(ctx, 'SINGULARITY ／ RESULT', `${placeOf()} ・ ${r.days}日目`, '特異点攻略 記録');
+    setFont(ctx, 700, 34, CF.go); ctx.fillStyle = r.ending === 'clear' ? CC.gold : CC.seal; ctx.shadowColor = r.ending === 'clear' ? 'rgba(255, 216, 74, .35)' : 'rgba(255, 79, 114, .35)'; ctx.shadowBlur = 12;
+    y = para(ctx, `${r.name}　${endT}`, P, y, W - P * 2, 48) + 6;
+    ctx.shadowBlur = 0;
+    const decided = choices.filter(k => k !== 'auto').length;
+    const sum = `${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${r.boss.trueName}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}${decided ? ` ・ 下した決断 ${decided}回` : ''}`;
+    setFont(ctx, 500, 24, CF.mi); ctx.fillStyle = CC.ice; y = para(ctx, sum, P, y, W - P * 2, 40) + 4;
+    setFont(ctx, 500, 22, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, `マスター ${playerName || r.master || ''}`, P, y, W - P * 2, 34) + 12;
+    const q = lastWord(r);
+    if (q) y = quoteBlock(ctx, y, `最後に、${q.who}から一言`, q.text, CC.cyan2);
+    if (words) y = quoteBlock(ctx, y, 'あなたの一言', words, CC.bond);
+    y += 6;
+    // 率いた六騎の表
+    const cols = [P, P + 240, P + 640], widths = [220, 380, W - P - (P + 640)];
+    setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute;
+    ['CLASS', '真名', '結末'].forEach((t, i) => ctx.fillText(t, cols[i], y + 18)); spacing(ctx, 0);
+    y += 30;
+    for (const c of r.party) {
+      const icon = cardIcons.get(clsKeyOf(c)), iw = icon ? 34 : 0;
+      setFont(ctx, 500, 22, CF.go);
+      const fate = fateOf(c) + (c.kills.length ? `・討伐 ${c.kills.join('、')}` : '');
+      const cells = [c.label, c.trueName + (c.front ? '（前衛）' : ''), fate].map((t, i) => { const max = i === 2 ? 3 : 2, l = wrapText(ctx, t, widths[i] - (i ? 0 : iw)); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });
+      const h = Math.max(...cells.map(l => l.length)) * 31 + 16;
+      if (c.front) { ctx.fillStyle = 'rgba(62, 230, 255, .12)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, h); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, h); }
+      ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + h + 0.5); ctx.lineTo(W - P, y + h + 0.5); ctx.stroke();
+      cells.forEach((lines, i) => {
+        ctx.fillStyle = i === 2 ? (c.alive ? CC.cyan2 : CC.seal) : i === 1 ? CC.cyan2 : CC.ice;
+        setFont(ctx, i === 1 ? 700 : 500, i === 2 ? 20 : 22, CF.go);
+        lines.forEach((l, j) => ctx.fillText(l, cols[i] + (i ? 0 : iw), y + 30 + j * 31));
+      });
+      if (icon) ctx.drawImage(icon, cols[0], y + 9, 26, 26);
+      y += h;
+    }
+    y += 18;
+    const foes = `敵：${r.enemies.map(c => `${c.label}「${c.trueName}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${r.stray.trueName}${r.strayJoined ? '（共闘）' : ''}` : ''}`;
+    setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, foes, P, y, W - P * 2, 32, 5);
+    return o.foot === false ? y + 24 : cardFoot(ctx, y + 24, `SEED ${seed}`);
+  }
+  // 率いた六騎の評価（開戦の案内の2枚目と同じ内容）。o.top を渡すと、その位置から続けて描く
+  function drawPartyCard(ctx, o) {
+    o = o || {};
+    const { W, P } = CV, r = result;
+    let y = cardHead(ctx, 'PARTY APPRAISAL', o.top != null ? '開戦時の評価' : `${lineup.name} ・ SEED ${seed}`, '率いた英霊', o.top);
+    for (const c of r.party) {
+      const sv = svOf(c.servantId), g = sv ? evaluate(sv).grade : '', [g1, g2] = GRADE_BG[g] || GRADE_BG.B, m = out.meta[c.id] || {}, rh = 116;
+      if (c.front) { ctx.fillStyle = 'rgba(62, 230, 255, .10)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, rh - 6); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, rh - 6); }
+      const gs = 84, gx = P, gy = y + 10, cut = 16;
+      const gr = ctx.createLinearGradient(gx, gy, gx + gs, gy + gs); gr.addColorStop(0, g1); gr.addColorStop(1, g2);
+      ctx.fillStyle = gr; ctx.shadowColor = g1; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(gx + cut, gy); ctx.lineTo(gx + gs, gy); ctx.lineTo(gx + gs, gy + gs - cut); ctx.lineTo(gx + gs - cut, gy + gs); ctx.lineTo(gx, gy + gs); ctx.lineTo(gx, gy + cut); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      setFont(ctx, 700, 64, CF.en); ctx.fillStyle = CC.ink; ctx.textAlign = 'center'; ctx.fillText(g || '？', gx + gs / 2, gy + gs / 2 + 23); ctx.textAlign = 'left';
+      const rx = P + gs + 24, icon = cardIcons.get(clsKeyOf(c)), iw = icon ? 40 : 0;
+      if (icon) ctx.drawImage(icon, rx, y + 8, 30, 30);
+      setFont(ctx, 700, 28, CF.go); ctx.fillStyle = CC.ice; ctx.fillText(`${c.label}「${c.trueName}」`, rx + iw, y + 33);
+      setFont(ctx, 700, 20, CF.go); ctx.fillStyle = c.front ? CC.cyan : CC.mute; ctx.textAlign = 'right'; ctx.fillText(`${c.front ? '前衛' : '控え'} ・ ${fateOf(c)}`, W - P, y + 33); ctx.textAlign = 'left';
+      setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.fillText((m.ranks || []).map(k => k[0] + k[1]).join('  '), rx, y + 66);
+      para(ctx, g ? GRADE_JA[g] : '', rx, y + 74, W - P - rx, 28, 1);
+      ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + rh - 5.5); ctx.lineTo(W - P, y + rh - 5.5); ctx.stroke();
+      y += rh;
+    }
+    setFont(ctx, 500, 18, CF.go); ctx.fillStyle = CC.mute;
+    y = para(ctx, '評価は、リストの全騎と1対1で戦った平均勝率の順位（S〜E）。敵との相性や、編成での連携は含みません。', P, y + 6, W - P * 2, 28);
+    return cardFoot(ctx, y + 10, `SEED ${seed}`);
+  }
+  // 画像は3パターン（結末のまとめ・六騎の評価・両方をつなげた一枚）。終わってから作れる
+  const CARD_KINDS = {
+    result: { title: '結末のまとめ', desc: '結末・あなたの歩み・最後の一言・六騎の行方', file: '結末' },
+    party: { title: '率いた英霊の評価', desc: '六騎それぞれの評価（S〜E）と能力、前衛・控え、行方', file: '評価' },
+    both: { title: '両方をつなげた一枚', desc: '結末のまとめの下に、英霊の評価をつなげる', file: '結末と評価' },
+  };
+  async function makeCard(kind) {
+    const draft = document.createElement('canvas'); draft.width = CV.W; draft.height = 4400;
+    const dctx = draft.getContext('2d'); dctx.textBaseline = 'alphabetic';
+    let h;
+    if (kind === 'result') h = drawResultCard(dctx);
+    else if (kind === 'party') h = drawPartyCard(dctx);
+    else { const y = cardDivider(dctx, drawResultCard(dctx, { foot: false }) + 6); h = drawPartyCard(dctx, { top: y }); }
+    const cv = document.createElement('canvas'); cv.width = CV.W; cv.height = Math.min(draft.height, Math.ceil(h) + 30);
+    const ctx = cv.getContext('2d'); cardBg(ctx, cv.width, cv.height); ctx.drawImage(draft, 0, 0);
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('PNGにできませんでした');
+    return { kind, blob, url: URL.createObjectURL(blob), name: `特異点_${CARD_KINDS[kind].file}_${lineup.name.replace(/[\\/:*?"<>|\s]+/g, '_')}_${seed}.png`, title: CARD_KINDS[kind].title };
+  }
+  let cards = {}, imgCur = null;
+  async function openImages() {
+    if (!out || !result) return;
+    const kinds = ['result', 'party', 'both'];
+    $('#imgTitle').textContent = '画像にする'; $('#imgSub').textContent = 'PNG';
+    $('#imgPick').innerHTML = '<p class="note2">画像を作っています…</p>'; showImgPick(true);
+    $('#imgDlg').classList.add('on');
+    await loadCardIcons();
+    const q = lastWord(result);
+    await cardFonts(JSON.stringify([result.name, result.master, result.party, result.enemies, result.boss, result.stray, out.meta.map(m => m.ranks)]) + lineup.name + placeOf() + words + (q ? q.who + q.text : '') + Object.values(GRADE_JA).join('')
+      + '特異点攻略記録結末のまとめ人理修復成功全滅マスター死亡人理定礎崩壊日目倒した敵騎ボス健在撃破には至らず残りの令呪画全滅から度復帰下した決断回最後に、から一言あなたの一言率いた英霊開戦時の評価前衛控え生存消滅討伐はぐれ共闘評価はリストの全騎と対で戦った平均勝率の順位敵との相性や編成での連携は含みません');
+    for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
+    cards = {};
+    try { for (const k of kinds) cards[k] = await makeCard(k); }
+    catch (e) { $('#imgPick').innerHTML = `<p class="note2">画像を作れませんでした：${esc(e.message)}</p>`; return; }
+    if (!$('#imgDlg').classList.contains('on')) return;
+    $('#imgPick').innerHTML = `<div class="imgpick"><p class="lead4">どの画像にするか選んでください。</p>${kinds.map(k =>
+      `<button class="imgopt" type="button" data-card="${k}"><img src="${cards[k].url}" alt=""><b>${esc(CARD_KINDS[k].title)}</b><small>${esc(CARD_KINDS[k].desc)}</small></button>`).join('')}</div>`;
+    const first = $('#imgPick .imgopt'); if (first) first.focus({ preventScroll: true });
+  }
+  function showImgPick(on) {
+    $('#imgPick').hidden = !on; $('#imgView').hidden = on;
+    $('#imgSave').hidden = on; $('#imgShare').hidden = true; $('#imgBack').hidden = true;
+  }
+  function showCard(kind) {
+    const c = cards[kind]; if (!c) return;
+    imgCur = c; showImgPick(false);
+    $('#imgPrev').src = c.url; $('#imgPrev').alt = c.title; $('#imgTitle').textContent = c.title;
+    let can = false;
+    try { can = !!(navigator.canShare && navigator.canShare({ files: [new File([c.blob], c.name, { type: 'image/png' })] })); } catch (e) { can = false; }
+    $('#imgShare').hidden = !can; $('#imgBack').hidden = false;
+    $('#imgDlg .dlg-in').scrollTop = 0;
+    $('#imgSave').focus({ preventScroll: true });
+  }
+  $('#imgPick').addEventListener('click', e => { const b = e.target.closest('[data-card]'); if (b) showCard(b.dataset.card); });
+  $('#imgBack').onclick = () => { $('#imgTitle').textContent = '画像にする'; showImgPick(true); const b = $('#imgPick .imgopt'); if (b) b.focus({ preventScroll: true }); };
+  const closeImg = () => $('#imgDlg').classList.remove('on');
+  $('#imgClose').onclick = closeImg;
+  $('#imgDlg').addEventListener('click', e => { if (e.target.id === 'imgDlg') closeImg(); });
+  $('#imgSave').onclick = () => {
+    if (!imgCur) return;
+    const a = document.createElement('a'); a.href = imgCur.url; a.download = imgCur.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('画像を保存しました');
+  };
+  $('#imgShare').onclick = async () => {
+    if (!imgCur) return;
+    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '特異点攻略 記録' }); }
+    catch (e) { if (e && e.name !== 'AbortError') toast('共有できませんでした。「保存する」を使ってください'); }
+  };
 
   // ---------- PWA ----------
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
