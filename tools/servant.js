@@ -36,17 +36,19 @@ const { H, B } = L;
 const R = H.rank;
 
 const STAT_KEYS = B.STAT_KEYS;
-const KEY_ORDER = ['kind', 'id', 'trueName', 'aliases', 'class', 'origin', 'sex', 'alignment', 'attribute', 'traits', 'stats', 'statsAlt',
+const KEY_ORDER = ['kind', 'id', 'trueName', 'key', 'aliases', 'class', 'origin', 'sex', 'alignment', 'attribute', 'traits', 'stats', 'statsAlt',
   'classSkills', 'skills', 'nps', 'weapons', 'profile', 'relations', 'voice', 'text', 'info', 'warnings', 'body', 'sourceText'];
 const PARTS = {
-  core: ['trueName', 'aliases', 'class', 'origin', 'sex', 'alignment', 'attribute', 'traits', 'stats', 'classSkills', 'skills', 'nps', 'weapons'],
+  core: ['trueName', 'key', 'aliases', 'class', 'origin', 'sex', 'alignment', 'attribute', 'traits', 'stats', 'classSkills', 'skills', 'nps', 'weapons'],
   text: ['text'], voice: ['voice'], profile: ['profile'], relations: ['relations'], source: ['sourceText'],
 };
 const SKILL_FIELDS = ['name', 'rankRaw', 'desc'], NP_FIELDS = ['name', 'reading', 'rankRaw', 'typeRaw', 'rangeRaw', 'maxRaw', 'desc'], WEAPON_FIELDS = ['name', 'reading', 'desc'];
 
 const fail = msg => { console.error(msg); process.exit(1); };
 const j = (x, sp) => JSON.stringify(x, null, sp);
-const idOf = s => s.id || ((s.class && (s.class.key || H.parser.parseClass(s.class.raw || s.class.label || '').key)) || 'extra') + ':' + s.trueName;
+const idOf = s => s.id || ((s.class && (s.class.key || H.parser.parseClass(s.class.raw || s.class.label || '').key)) || 'extra') + ':' + H.effects.okey(s);
+/** 手直し表で真名の後ろに付く印（同じ真名の別の騎を見分ける key。無ければ空） */
+const keySuffix = s => s.key ? '#' + s.key : '';
 
 /* ---------- 引数 ---------- */
 function parseArgs(argv) {
@@ -87,7 +89,7 @@ function writePack(P, pack, list) {
 const pick = (o, keys) => { const r = {}; for (const k of keys) if (o[k] !== undefined) r[k] = o[k]; return r; };
 function core(s) {
   const o = { id: idOf(s) };
-  for (const k of ['trueName', 'aliases', 'origin', 'sex', 'alignment', 'attribute', 'traits']) if (s[k] !== undefined) o[k] = s[k];
+  for (const k of ['trueName', 'key', 'aliases', 'origin', 'sex', 'alignment', 'attribute', 'traits']) if (s[k] !== undefined) o[k] = s[k];
   o.class = s.class && (s.class.raw || s.class.label) || '';
   o.stats = {}; for (const k of STAT_KEYS) { const v = s.stats && s.stats[k]; o.stats[k] = v ? (typeof v === 'string' ? v : v.raw) : ''; }
   o.classSkills = (s.classSkills || []).map(x => pick(x, SKILL_FIELDS));
@@ -236,17 +238,27 @@ function cmdAdd(args, P) {
       if (!asStr(inp.trueName)) throw new Error('trueName（真名）がありません');
       const cls = inp.class != null ? (typeof inp.class === 'string' ? { raw: inp.class } : inp.class) : null;
       const cur = cls ? H.parser.parseClass(cls.raw || cls.label || '') : null;
-      let at = index.get(cur ? cur.key + ':' + asStr(inp.trueName) : inp.id);
-      if (at == null && !cur) {   // class を書かないときは、同じ真名の1騎を探す
-        const hit = list.map((x, i) => [x, i]).filter(([x]) => x.trueName === asStr(inp.trueName));
-        if (hit.length > 1) throw new Error('同じ真名が複数のクラスにいます。id か class を書いてください');
-        if (hit.length) at = hit[0][1];
+      // 同じ真名の別の騎（同じクラスでも別クラスでも）は印 key で見分ける。key を書かなければ、ページ名（page）が同じ騎なら取り直し、違えば別の騎として印を付ける
+      let at, key = asStr(inp.key);
+      if (cur) {
+        const probe = { trueName: asStr(inp.trueName), class: cur, page: asStr(inp.page) || undefined, key: key || undefined };
+        key = B.keyFor(probe, list) || key;
+        probe.key = key || undefined;
+        at = index.get(H.effects.idOf(probe));
+      } else {
+        at = index.get(inp.id);
+        if (at == null) {   // class を書かないときは、同じ真名の1騎を探す
+          const hit = list.map((x, i) => [x, i]).filter(([x]) => x.trueName === asStr(inp.trueName) && (!key || x.key === key));
+          if (hit.length > 1) throw new Error('同じ真名が複数います。id か class（と key）を書いてください');
+          if (hit.length) at = hit[0][1];
+        }
       }
       const old = at != null ? list[at] : null;
       if (!old && !cur) throw new Error('新しい英霊には class（クラス）が要ります');
       if (!old && !inp.stats) throw new Error('新しい英霊には stats（ステータス）が要ります');
       const given = normalizeInput(inp, old);
       given.trueName = asStr(inp.trueName);
+      if (key && (!old || old.key !== key)) given.key = key;
       if (old) for (const k of Object.keys(given)) if (same(sig(k, given[k]), sig(k, old[k]))) delete given[k];
       const cand = Object.assign(old ? clone(old) : DEFAULTS(), given);
       const built = B.fromJSON(cand), rebuilt = B.toLean(built);
@@ -258,7 +270,8 @@ function cmdAdd(args, P) {
         if ('class' in given || 'trueName' in given) next.id = rebuilt.id;
       }
       const id = next.id;
-      if (inp.id && inp.id !== id) notes.push(`${label}：id は「${inp.id}」ではなく「${id}」になります（クラス＋真名から決まります）`);
+      if (key && !asStr(inp.key) && !old) notes.push(`${label}：同じ真名の別の騎がいるので、印 key「${key}」を付けました（id は「${id}」。手直し表は「${H.effects.okey(next)}」で引きます）`);
+      if (inp.id && inp.id !== id) notes.push(`${label}：id は「${inp.id}」ではなく「${id}」になります（クラス＋真名＋印から決まります）`);
       const touched = old ? Object.keys(next).filter(k => !same(next[k], old[k])) : null;
       const info = { id, power: built.power, npPeak: built.npPeak, review: (built.review || []).map(r => `${r.target}：${r.why}`) };
       if (old && !touched.length) report.push({ label, id, status: '変更なし' });
@@ -285,9 +298,9 @@ function cmdAdd(args, P) {
 
 /* ---------- その騎の手直し ---------- */
 /** 内容（と真名・クラスの変更）は Wikiでの真名、効果・宝具・ステータス・確認済み・ページ名は表示の真名（真名の変更のあと）で引く */
-function displayName(s, o) { const idn = o && o.content && o.content[s.trueName] && o.content[s.trueName].identity; return (idn && idn.trueName) || s.trueName; }
+function displayName(s, o) { const idn = o && o.content && o.content[s.trueName + keySuffix(s)] && o.content[s.trueName + keySuffix(s)].identity; return ((idn && idn.trueName) || s.trueName) + keySuffix(s); }
 function ownKeys(s, o, withPages) {
-  const wn = s.trueName, dn = displayName(s, o), out = [];
+  const wn = s.trueName + keySuffix(s), dn = displayName(s, o), out = [];
   if (o.content && o.content[wn]) out.push(['content', wn]);
   for (const t of ['servant', 'np']) for (const k of Object.keys(o[t] || {})) if (k.startsWith(dn + '/')) out.push([t, k]);
   for (const t of ['stats', 'reviewed'].concat(withPages ? ['pages'] : [])) if (o[t] && o[t][dn] !== undefined) out.push([t, dn]);
@@ -302,7 +315,7 @@ function cmdWipe(args, P) {
   const o = L.readJSON(P.ov), all = [...byId.values()];
   let n = 0;
   for (const t of targets) {
-    const twins = all.filter(x => x !== t && x.trueName === t.trueName);
+    const twins = all.filter(x => x !== t && H.effects.okey(x) === H.effects.okey(t));
     if (twins.length) { console.log(`注意  ${idOf(t)}：同じ真名の別の騎（${twins.map(idOf).join('、')}）と手直しを共有しているので消しません`); continue; }
     const keys = ownKeys(t, o, false);
     console.log(`${keys.length ? '－' : '＝'} ${idOf(t)}  ${keys.length ? keys.map(([tb, k]) => `${tb}:${k}`).join('、') : '手直しはありません'}`);
@@ -343,7 +356,7 @@ function cmdRemove(args, P) {
       const p = path.join(P.dir, f); if (!fs.existsSync(p)) continue;
       const o = L.readJSON(p); let n = 0; const gone = [];
       for (const t of targets) {
-        if (rest.some(x => x.trueName === t.trueName)) { out.push(`${f}：同じ真名「${t.trueName}」の別の騎がいるので、手直しには触りません`); continue; }
+        if (rest.some(x => H.effects.okey(x) === H.effects.okey(t))) { out.push(`${f}：同じ名前「${H.effects.okey(t)}」の別の騎がいるので、手直しには触りません`); continue; }
         if (rest.some(x => displayName(x, o) === displayName(t, o))) { out.push(`${f}：真名を変えたあとの名前「${displayName(t, o)}」の別の騎がいるので、手直しには触りません`); continue; }
         for (const [table, k] of ownKeys(t, o, true)) { delete o[table][k]; n++; gone.push(`${table}:${k}`); }
       }
@@ -396,6 +409,10 @@ function cmdCheck(args, P) {
       }
     });
   }
+  // 同じ真名で印 key の無い騎が2騎以上いると、手直し表（真名で引く）を共有してしまう
+  const byName = new Map();
+  for (const s of loadAll(P).byId.values()) if (!s.key) byName.set(s.trueName, (byName.get(s.trueName) || []).concat(idOf(s)));
+  for (const [n, ids] of byName) if (ids.length > 1) warns.push(`同じ真名「${n}」で印 key の無い騎が${ids.length}騎います（${ids.join('、')}）。手直しを共有してしまうので、片方に key を付けてください`);
   loadOverrides(P);
   let built = 0;
   for (const s of loadAll(P).byId.values()) { try { B.fromJSON(s); built++; } catch (e) { errors.push(`${idOf(s)}：組み立てに失敗（${e.message}）`); } }

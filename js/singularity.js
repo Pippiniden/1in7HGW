@@ -53,7 +53,7 @@
   // 名簿（servants.json）にいるボス専用の英霊を、ボスとして使えるようにする：手直し表 boss（BOSS_PARAMS）の設定を sv.boss にする。
   // 設定の無い項目は CONFIG.SING.boss の既定が使われる。宝具の全体攻撃の広がり（aoe）は、書いた宝具だけ。
   function bossFromRoster(sv) {
-    const p = E.BOSS_PARAMS[sv.trueName] || {};
+    const p = E.BOSS_PARAMS[E.okey(sv)] || {};
     sv.bossOnly = true;
     sv.boss = Object.assign({}, p);
     sv.boss.aoe = {};

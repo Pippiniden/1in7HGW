@@ -5,6 +5,7 @@
 //   - 新しい騎（最小のJSON）が足せて、ランクが読まれ、並びが整い、check が通る
 //   - 足りない入力は何も書き込まずに断る
 //   - 削除は packs からも消え、手直し表の取り残しも片付ける（--dry-run は何も書かない）
+//   - 同じ真名の別の騎（同じクラス・別クラス）は印 key が付いて別の騎になり、手直しを共有しない
 // data/ は書き換えず、一時フォルダに写して試す。
 'use strict';
 const fs = require('fs'), os = require('os'), path = require('path'), { execFileSync, spawnSync } = require('child_process');
@@ -126,6 +127,31 @@ try {
     ok(read().length === list3.length - 1, 'wipe は servants.json の騎を消さない');
     ok(/手直しはありません/.test(run('wipe', wn).stdout), 'もう一度 wipe しても何もしない');
   }
+  // 8) 同じ真名の別の騎：同じクラスでも別クラスでも、後から入るほうに印 key が付き、手直しを共有しない（既存の騎は印なしのまま）
+  const L = require('../tools/datalib'), keyed = x => x.key && /^[0-9a-z]{5}$/.test(x.key);
+  const twin = (extra, name) => { const f = path.join(tmp, 'twin.json'); fs.writeFileSync(f, S(Object.assign({}, fresh, { trueName: name || 'テスト双子' }, extra))); return run('add', f); };
+  const n8 = read().length;
+  const rA = twin({ page: '双子A' });
+  ok(rA.status === 0 && /＋ saber:テスト双子\s/.test(rA.stdout), '同じ真名がいなければ、印なしで追加される');
+  const rB = twin({ page: '双子B' });
+  const twinB = read().find(x => x.trueName === 'テスト双子' && x.page === '双子B');
+  ok(rB.status === 0 && twinB && keyed(twinB) && twinB.id === 'saber:テスト双子#' + twinB.key, `同じクラス・別ページは別の騎になり、印が付く（${twinB && twinB.id}）`);
+  ok(read().filter(x => x.trueName === 'テスト双子').length === 2 && !read().find(x => x.page === '双子A').key, '先にいた騎は印なしのまま・2騎に増える');
+  ok(/変更なし/.test(twin({ page: '双子A' }).stdout) && /変更なし/.test(twin({ page: '双子B' }).stdout), '同じページで足し直しても、それぞれの騎の取り直しになる（増えない）');
+  ok(read().filter(x => x.trueName === 'テスト双子').length === 2, '足し直したあとも2騎のまま');
+  const rC = twin({ class: 'ランサー', page: '双子C' });
+  const twinC = read().find(x => x.trueName === 'テスト双子' && x.class.raw === 'ランサー');
+  ok(rC.status === 0 && twinC && keyed(twinC) && twinC.id === 'lancer:テスト双子#' + twinC.key, `同じ真名で別クラスも印が付いて別の騎になる（${twinC && twinC.id}）`);
+  ok(read().length === n8 + 3, '双子は合わせて3騎が増えただけ');
+  ok(!/印 key の無い騎が/.test(run('check').stdout), 'check：印なしの同名は1騎までなので注意は出ない');
+  const ovp = path.join(tmp, 'overrides.json'), ov9 = JSON.parse(fs.readFileSync(ovp, 'utf8'));
+  ov9.stats = Object.assign({}, ov9.stats, { 'テスト双子': { str: 'E' }, ['テスト双子#' + twinB.key]: { end: 'E' } });
+  fs.writeFileSync(ovp, S(ov9));
+  const built = new Map(L.loadDir(tmp).roster.map(x => [x.id, x]));
+  const bA = built.get('saber:テスト双子'), bB = built.get(twinB.id), bC = built.get(twinC.id);
+  ok(bA && bA.ranks.str.base === 'E' && bA.ranks.end.base === 'B', '印なしの騎には、真名だけの手直しが効く');
+  ok(bB && bB.ranks.str.base === 'A' && bB.ranks.end.base === 'E', '印付きの騎には、「真名#印」の手直しだけが効く');
+  ok(bC && bC.ranks.str.base === 'A' && bC.ranks.end.base === 'B', '別クラスの同名には、どちらの手直しも掛からない');
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

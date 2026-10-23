@@ -57,5 +57,32 @@ const [A, Bsv, C] = [published[0], published[1], published[2]];
   fs.rmSync(t, { recursive: true, force: true });
 }
 
+// --- 同じ真名の別の騎（少ないリストの足し込み）：印 key が付いて別の騎になり、同じページの再アップは置き換え
+//     （ページ名が残っていない騎は同じ騎として置き換える。ページが食い違うときだけ別の騎）
+{
+  const t = sandbox();
+  const mk = page => Object.assign(JSON.parse(S(A)), { trueName: 'テスト同名', id: A.id.split(':')[0] + ':テスト同名', page });
+  const send = (name, servants) => fs.writeFileSync(path.join(t, 'data', 'incoming', name), S({ format: 'hgw-servants', version: 2, lean: true, servants }));
+  const twinsOf = () => readList(t).filter(s => s.trueName === 'テスト同名');
+  send('a.json', [mk('テストページ甲')]);
+  let r = run(t);
+  ok(r.status === 0 && twinsOf().length === 1 && !twinsOf()[0].key, '同じ真名がいなければ、印なしで足される');
+  send('b.json', [mk('テストページ乙')]);       // 同じ真名・同じクラスだが別のページ
+  r = run(t);
+  const twins = twinsOf(), added = twins.find(s => s.key);
+  ok(r.status === 0 && twins.length === 2, `同じ真名・同じクラス・別ページは上書きせず別の騎になる（${twins.map(s => s.id).join('、')}）`);
+  ok(added && added.page === 'テストページ乙' && added.id === A.id.split(':')[0] + ':テスト同名#' + added.key && twins.find(s => !s.key).page === 'テストページ甲', '後から入った騎だけに印が付く（先にいた騎は印なしのまま）');
+  ok(/印 key を付けて追加/.test(r.stdout), '報告に印を付けたことが出る');
+  const again = mk('テストページ乙'); again.origin = '（再アップで変わった）';
+  send('c.json', [again]);                     // 同じページをもう一度
+  r = run(t);
+  ok(twinsOf().length === 2 && twinsOf().find(s => s.key).origin === again.origin, '同じページの再アップは、その騎の置き換え（増えない）');
+  const first = mk('テストページ甲'); first.origin = '（甲を再アップ）';
+  send('d.json', [first]);
+  r = run(t);
+  ok(twinsOf().length === 2 && twinsOf().find(s => !s.key).origin === first.origin, '印なしの騎のページを再アップしても、印なしの騎の置き換え');
+  fs.rmSync(t, { recursive: true, force: true });
+}
+
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

@@ -56,7 +56,7 @@ function grades(roster) {
 function sortLean(list) {
   const CLS = Object.keys(H.CONFIG.CLASS_DEFS);
   const ord = s => { const k = H.parser.parseClass((s.class && (s.class.raw || s.class.label)) || '').key, i = CLS.indexOf(k); return i < 0 ? 99 : i; };
-  return list.sort((a, b) => ord(a) - ord(b) || String(a.trueName).localeCompare(String(b.trueName), 'ja'));
+  return list.sort((a, b) => ord(a) - ord(b) || String(a.trueName).localeCompare(String(b.trueName), 'ja') || String(a.key || '').localeCompare(String(b.key || '')));
 }
 
 module.exports = { H, E, B, ROOT, readJSON, listOf, clearOverrides, applyOverrides, currentOverrides, loadDir, grades, sortLean };
