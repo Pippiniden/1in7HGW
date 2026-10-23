@@ -402,7 +402,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
       <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出したリスト）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
-      <div class="row" style="margin-top:10px"><button id="bossNew">ボスを新しく作る</button><button id="bossPub" title="data/bosses.json にいるボスを、リストの英霊（ボス専用）として取り込みます">公開中の bosses.json のボスを取り込む</button></div>
+      <div class="row" style="margin-top:10px"><button id="svNew" title="Wikiのページが無くても、真名・クラス・能力値から英霊を作ります">英霊を一から作る</button><button id="bossNew">ボスを新しく作る</button><button id="bossPub" title="data/bosses.json にいるボスを、リストの英霊（ボス専用）として取り込みます">公開中の bosses.json のボスを取り込む</button></div>
       <div class="hint" style="margin-top:6px">ボスは、属性「ボス専用」の英霊です。聖杯戦争には呼ばれず、特異点攻略のボスとして出ます。スキルや宝具は、作ったあとに「内容を編集」「効果の編集」で足せます。</div>
       <div class="status" id="status"></div>
       <div class="box warn" id="reqBox" hidden></div>
@@ -543,14 +543,15 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </dialog>
 
 <dialog id="bd">
-  <h3>ボスを新しく作る</h3>
+  <h3 id="bdTitle">ボスを新しく作る</h3>
   <div class="bform">
     <label>真名<input type="text" id="bdName" autocomplete="off" maxlength="40"></label>
     <label>クラスの表記<input type="text" id="bdCls" value="ボス" autocomplete="off" maxlength="20"></label>
     <div class="srow" id="bdStats"></div>
     <label class="wide">解説（任意）<input type="text" id="bdText" autocomplete="off" maxlength="200"></label>
+    <label class="wide">リンク先（任意。kagemiya 以外でもよい）<input type="text" id="bdLink" autocomplete="off" placeholder="https://…"></label>
   </div>
-  <p class="hint">作ると、属性「ボス専用」の英霊としてリストに入ります。能力値は A+・B・EX などで書きます。</p>
+  <p class="hint" id="bdHint">作ると、属性「ボス専用」の英霊としてリストに入ります。能力値は A+・B・EX などで書きます。</p>
   <div class="row">
     <button class="primary" id="bdSave">作る</button>
     <button class="ghost" id="bdCancel">閉じる</button>
@@ -681,18 +682,24 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- Wikiのページ名（真名と違うことがある。手直し表 pages に入る） ----------
   // missing：取り直しで見つからなかった（取り込みツールが pageMissing を付ける）、unknown：取り込んだときのページ名が無い
-  const pageState = s => s.bossOnly ? null : s.pageMissing ? (E.PAGE_OVERRIDES[E.okey(s)] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
+  const pageState = s => s.bossOnly || B.isManual(s) ? null : s.pageMissing ? (E.PAGE_OVERRIDES[E.okey(s)] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
   function pageBox(sv, i) {
     const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[E.okey(sv)];
     const msg = st === 'missing' ? `⚠ ${esc(pm.at || '')}の取り直しで、Wikiのページが見つかりませんでした（試した名前：${esc((pm.tried || []).join('、') || sv.trueName)}）。kagemiya で正しいページ名を確かめて入れ、保存してから取り直してください。`
       : st === 'fixed' ? `ページ名を「${esc(ov)}」に直しました。手直し表を公開してから（または「Wikiから取り直す」で）取り直すと、この印は消えます。`
       : st === 'unknown' ? `取り込んだときのページ名が残っていません。いまは真名「${esc(sv.trueName)}」で探します。真名とページ名が違うとき（例：ページ名が別の名前）は入れてください。`
       : ov ? `手直しで「${esc(ov)}」にしています（取り込んだときのページ名：${esc(sv.page || 'なし')}）。` : '取り込み・取り直しは、このページ名で行います。';
-    return `<div class="pagebox${st && st !== 'fixed' ? ' warn' : ''}"><label>Wikiのページ名<input type="text" data-page="${i}" value="${esc(ov || sv.page || '')}" placeholder="${esc(sv.trueName)}（空なら真名で探す）" autocomplete="off"></label><button class="sm" data-pagesave="${i}">保存</button><p class="hint">${msg}</p></div>`;
+    const ext = B.linkOf(sv);
+    if (ext) return `<div class="pagebox"><label>リンク先（kagemiya 以外）<input type="text" data-page="${i}" value="${esc(ext)}" placeholder="https://…（空にすると、取り込んだときのページ名に戻す）" autocomplete="off"></label><button class="sm" data-pagesave="${i}">保存</button><p class="hint">この騎は kagemiya 以外のページを指しているので、Wikiからの取り直しはしません。kagemiya のページ名を入れると、また取り直せます。</p></div>`;
+    if (sv.manual) return `<div class="pagebox"><label>リンク先（任意）<input type="text" data-page="${i}" value="" placeholder="https://…（元にしたページがあれば）" autocomplete="off"></label><button class="sm" data-pagesave="${i}">保存</button><p class="hint">手書きで作った騎です。Wikiからの取り直しはしません。</p></div>`;
+    return `<div class="pagebox${st && st !== 'fixed' ? ' warn' : ''}"><label>Wikiのページ名（kagemiya 以外のURLも入れられます）<input type="text" data-page="${i}" value="${esc(ov || sv.page || '')}" placeholder="${esc(sv.trueName)}（空なら真名で探す）" autocomplete="off"></label><button class="sm" data-pagesave="${i}">保存</button><p class="hint">${msg}</p></div>`;
   }
   function savePage(i) {
     const sv = roster[i], inp = document.querySelector(`[data-page="${i}"]`); if (!sv || !inp) return;
-    const v = inp.value.trim().replace(/^https?:\/\/seesaawiki\.jp\/kagemiya\/d\//, '');
+    const raw = inp.value.trim(), kg = /^https?:\/\/seesaawiki\.jp\/kagemiya\/d\//.test(raw), v = raw.replace(/^https?:\/\/seesaawiki\.jp\/kagemiya\/d\//, '');
+    if (!kg && B.extLinkOf(raw)) {   // kagemiya 以外のURL：そのまま手直し表に入れる
+      E.PAGE_OVERRIDES[E.okey(sv)] = raw; afterEdit(); status(`${sv.trueName}のリンク先を ${raw} にしました（手直し表に入ります）`); return;
+    }
     let name = v; try { if (/%[0-9A-F]{2}/i.test(v)) name = new TextDecoder('euc-jp').decode(Uint8Array.from(v.replace(/%([0-9A-F]{2})/gi, (m, h) => String.fromCharCode(parseInt(h, 16))), c => c.charCodeAt(0))); } catch (e) { /* そのまま */ }
     if (!name || name === sv.page) delete E.PAGE_OVERRIDES[E.okey(sv)]; else E.PAGE_OVERRIDES[E.okey(sv)] = name;
     afterEdit(); status(name && name !== sv.page ? `${sv.trueName}のWikiのページ名を「${name}」にしました（手直し表に入ります）` : `${sv.trueName}のWikiのページ名を、取り込んだときのものに戻しました`);
@@ -744,9 +751,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       ${req ? `<div class="box warn reqnote"><b>取り込んだ申請（${req.kind === 'add' ? '追加' : '調整の希望'}${req.from ? '・' + esc(req.from) : ''}）</b>${reqNotesHtml(req)}${req.reason ? `<div style="white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : ''}${req.content ? `<div style="white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : ''}</div>` : ''}
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
-      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span></div>
+      <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
       <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
-        <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
+        ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">${B.linkOf(sv) ? '元のページ' : 'kagemiya のページ'}</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
@@ -775,7 +782,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const SORTS = {
     class: (a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'),
     name: (a, b) => a.trueName.localeCompare(b.trueName, 'ja'),
-    grade: (a, b) => (rateOf(b) - rateOf(a)),
+    grade: (a, b) => (!!a.bossOnly - !!b.bossOnly) || (rateOf(b) - rateOf(a)),   // ボスは最後
     power: (a, b) => b.power - a.power,
     np: (a, b) => (b.npPeak || 0) - (a.npPeak || 0),
     review: (a, b) => nReviewOf(b) - nReviewOf(a) || order(a) - order(b),
@@ -802,6 +809,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   const rateOf = s => (strengthTable().rates.get(s.id) || 0);
   function gradeOf(s) {
+    if (s.bossOnly) return '－';   // ボスは評価（順位）に入れない
     const T = strengthTable(), r = rateOf(s), n = roster.filter(x => !x.bossOnly).length;
     const pct = T.sorted.filter(x => x > r + 1e-9).length / Math.max(1, n - 1);
     return H.gradeOfPct(pct);
@@ -860,7 +868,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#list').innerHTML = shown.length ? shown.map(([s]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
       const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : '', ['missing', 'unknown'].includes(pageState(s)) ? `<span class="badge" title="${pageState(s) === 'missing' ? '取り直しでWikiのページが見つからなかった' : '取り込んだときのページ名が無い'}">ページ名？</span>` : ''].join('');
-      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="nmrow"><span class="sumname">${mark(s.trueName)}</span><span class="attrs">${attrChips(s, 3)}</span></span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
+      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${s.bossOnly ? 'boss' : g}" title="${s.bossOnly ? 'ボスは評価の対象外' : `評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）`}">${g}</span><span class="t"><span class="nmrow"><span class="sumname">${mark(s.trueName)}</span><span class="attrs">${attrChips(s, 3)}</span></span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
     }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div>';
     // 選んでいる騎が一覧から消えたら、一覧の先頭を選ぶ（スマホで詳細を開いていないときだけ）
     if (!roster.some(x => x.id === sel)) { sel = shownIds[0] || (roster[0] && roster[0].id) || null; renderDetail(); }
@@ -870,7 +878,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const i = roster.findIndex(x => x.id === sel), sv = roster[i];
     if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : 'リストが空です'}</div>`; $('#browse').classList.remove('show'); return; }
     const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
-    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}${sv.key ? ` ・ 印 ${esc(sv.key)}` : ''}</small></span><span class="attrs edit" data-attr="${i}" role="button" tabindex="0" title="押すと、この騎の属性を編集します">${attrChips(sv) || '<span class="attr un">属性なし</span>'}</span><span class="sp"></span>`
+    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${sv.bossOnly ? 'boss' : g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}${sv.key ? ` ・ 印 ${esc(sv.key)}` : ''}</small></span><span class="attrs edit" data-attr="${i}" role="button" tabindex="0" title="押すと、この騎の属性を編集します">${attrChips(sv) || '<span class="attr un">属性なし</span>'}</span><span class="sp"></span>`
       + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
     fillFace();
   }
@@ -1118,17 +1126,27 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (Object.keys(p).length) E.BOSS_PARAMS[tn] = p;
     return B.fromJSON(r.lean);
   }
-  $('#bossNew').onclick = () => {
-    $('#bdName').value = ''; $('#bdCls').value = 'ボス'; $('#bdText').value = '';
+  let bdPlain = false;   // true：ボスではない通常の英霊を一から作る
+  const openBd = plain => {
+    bdPlain = plain;
+    $('#bdTitle').textContent = plain ? '英霊を一から作る' : 'ボスを新しく作る';
+    $('#bdHint').textContent = plain ? '作ると、Wikiから取り込んだものと同じように聖杯戦争に呼ばれます（Wikiからの取り直しの対象にはなりません）。能力値は A+・B・EX などで書きます。スキルや宝具は、作ったあとに「内容を編集」で足せます。' : '作ると、属性「ボス専用」の英霊としてリストに入ります。能力値は A+・B・EX などで書きます。';
+    $('#bdName').value = ''; $('#bdCls').value = plain ? '' : 'ボス'; $('#bdText').value = ''; $('#bdLink').value = '';
+    $('#bdCls').placeholder = plain ? 'セイバー、アーチャー … など' : '';
     $('#bdStats').innerHTML = B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="B" autocomplete="off"></label>`).join('');
     $('#bd').showModal(); $('#bdName').focus();
   };
+  $('#bossNew').onclick = () => openBd(false);
+  $('#svNew').onclick = () => openBd(true);
   $('#bdCancel').onclick = () => $('#bd').close();
   $('#bd').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input') && !e.isComposing) { e.preventDefault(); $('#bdSave').click(); } });
   $('#bdSave').onclick = () => {
     const name = $('#bdName').value.trim(); if (!name) { status('真名を入れてください'); return; }
     const stats = {}; for (const i of $('#bdStats').querySelectorAll('input')) stats[i.dataset.k] = i.value.trim() || 'C';
-    const text = $('#bdText').value.trim(), spec = { trueName: name, class: $('#bdCls').value.trim() || 'ボス', stats, text: text ? { commentary: text } : {} };
+    const link = $('#bdLink').value.trim();
+    if (link && !B.extLinkOf(link)) { status('リンク先は http:// か https:// で始まるURLで入れてください'); return; }
+    if (bdPlain && !$('#bdCls').value.trim()) { status('クラスの表記を入れてください'); return; }
+    const text = $('#bdText').value.trim(), spec = { trueName: name, class: $('#bdCls').value.trim() || 'ボス', stats, text: text ? { commentary: text } : {}, plain: bdPlain, link };
     let sv; try { sv = B.fromJSON(B.leanFromSpec(spec).lean); } catch (err) { status('作れませんでした：' + err.message); return; }
     if (roster.some(x => x.id === sv.id) && !confirm(`「${name}」はすでにリストにいます。置き換えますか？`)) return;
     const res = upsert([sv]); $('#bd').close(); done(res, []); jumpTo(sv.id);
@@ -1934,7 +1952,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     }
     return out;
   }
-  const wikiUrl = sv => { try { const u = eucEncode(B.pageOf(sv) || sv.trueName); return u ? 'https://seesaawiki.jp/kagemiya/d/' + u : ''; } catch (e) { return ''; } };
+  const wikiUrl = sv => { if (B.linkOf(sv)) return B.linkOf(sv); if (sv.manual) return ''; try { const u = eucEncode(B.pageOf(sv) || sv.trueName); return u ? 'https://seesaawiki.jp/kagemiya/d/' + u : ''; } catch (e) { return ''; } };
 
   // ---------- 起動 ----------
   roster = store.get(ROSTER_KEY, []);

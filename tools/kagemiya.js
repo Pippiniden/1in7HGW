@@ -237,7 +237,8 @@ async function main() {
     const built = new Map(list.map(s => { try { return [s, H.build.fromJSON(s)]; } catch (e) { return [s, s]; } }));
     const pg = s => H.build.pageOf(built.get(s)) || H.build.pageOf(s);
     const names = s => [s.trueName, built.get(s).trueName, s.page, pg(s)];
-    const pick = o.names.length ? list.filter(s => names(s).some(n => o.names.includes(n))) : list;
+    const fetchable = s => !(s.manual || H.build.linkOf(built.get(s)));   // 手書き・外部リンクの騎は取り直せない
+    const pick = (o.names.length ? list.filter(s => names(s).some(n => o.names.includes(n))) : list).filter(fetchable);
     const unknown = o.names.filter(n => !list.some(s => names(s).includes(n)));
     // ページ名が分からない騎は、真名 →「真名(クラス)」の順に探す
     const alts = s => pg(s) ? [] : [s.trueName + '(' + s.class.label + ')', s.trueName + '（' + s.class.label + '）'];
