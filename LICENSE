@@ -1,0 +1,180 @@
+# 1in7HGW 非商用ライセンス
+# 1in7HGW Non-Commercial License
+
+**Version 1.0**
+
+Copyright (c) 2026 Pippiniden
+
+Original repository: https://github.com/Pippiniden/1in7HGW
+
+---
+
+# 日本語版
+
+## 第1条（対象範囲）
+
+1. 本ライセンスは、上記リポジトリで公開されているプログラムのソースコード、関連するプログラムファイル、および本ライセンスで明示的に利用を許可する素材（以下、総称して「本ソフトウェア」といいます）に適用されます。
+2. 本リポジトリに含まれるファイルであっても、本ライセンスにおいて個別に利用条件を定めているものについては、その個別の条件が優先されます。
+3. 本ライセンスは、著作権者が権利を有する範囲においてのみ適用されます。第三者が権利を有する著作物、キャラクター設定、画像、その他の素材については、各権利者の権利および利用条件が優先されます。
+
+## 第2条（プログラム本体の利用許諾）
+
+1. 本ソフトウェアのプログラム本体について、利用者は、非商用目的に限り、以下の行為を行うことができます。
+   - プログラムの実行および利用
+   - ソースコードの複製および改変
+   - 改変版の制作
+   - 本ソフトウェアまたはその改変版の再配布
+   - 本ソフトウェアを基礎としたオリジナルゲームの制作および公開
+2. 前項の利用にあたっては、以下の条件をすべて遵守しなければなりません。
+   - 本ライセンスおよび既存の著作権表示を保持すること。
+   - 改変版を配布する場合、改変を行ったことが分かるように表示すること。
+   - 本ライセンスで別途禁止または制限されている素材を、許可された範囲を超えて利用しないこと。
+   - 第5条に定めるクレジット表示義務を遵守すること。
+3. 本ライセンスにおける「非商用目的」とは、商業的利益または金銭的報酬を主たる目的としない利用をいいます。広告収益、投げ銭、販売、課金、その他の収益を伴う利用については、非商用目的に該当するかどうかを本ライセンスだけで判断できない場合があるため、事前に著作権者の許可を得てください。
+4. 商用利用を希望する場合は、事前に著作権者から書面による許可を得なければなりません。
+5. 本条の許諾は、他の条項において利用が禁止または制限されている画像、データ、その他の素材に対する利用許諾を意味しません。
+
+## 第3条（顔画像およびサーヴァントデータ）
+
+1. `img/faces/` に含まれる顔画像、およびサーヴァントの情報・設定等を収録したデータファイル（`data/` 内のファイルを含みます。以下「制限対象素材」といいます）は、原則として本ライセンスによる利用許諾の対象外です。
+2. 利用者は、制限対象素材について、著作権者または当該素材の権利者から別途明示的な許可を得ない限り、以下の行為を行ってはなりません。
+   - 複製、再配布または公開
+   - 他のゲーム、ソフトウェア、ウェブサイトその他の作品への転載または組み込み
+   - 本ソフトウェアから素材を抽出し、別の用途に転用すること
+   - 改変したうえで再配布すること
+3. 本ソフトウェアを利用して別のゲームを制作する場合、利用者は、原則として自ら用意した顔画像およびサーヴァントデータを使用してください。
+4. 本条は、第三者が権利を有するキャラクター、設定、画像等について、著作権者がそれらの権利を保有していることを意味しません。第三者の著作物については、当該権利者の許可および利用条件に従ってください。
+5. 制限対象素材に関して、リポジトリの公開や本ソフトウェアの利用許諾は、当該素材の再利用、再配布または二次利用を許可するものではありません。
+
+## 第4条（クラスアイコンおよび背景画像の限定的な利用許諾）
+
+1. `img/classes/` に含まれるクラスアイコン、および `img/scenes/` に含まれる背景画像については、本条の条件に従い、非商用ゲーム内での利用を許可します。
+2. 利用者は、前項の素材について、以下の行為を行うことができます。
+   - 非商用ゲーム内での表示および使用
+   - ゲームへの組み込みに必要な範囲でのサイズ変更、切り抜き、ファイル形式の変換その他の技術的な加工
+   - 本ライセンスの条件を満たす非商用ゲームに組み込んだ状態での、ゲーム本体の配布
+3. 利用者は、前項の許可を超えて、以下の行為を行ってはなりません。
+   - 素材単体での配布または公開
+   - 素材集、画像パック、素材ライブラリ等としての再配布
+   - 素材をゲームから抽出し、別の用途に転用すること
+   - ゲーム以外の用途で素材を使用すること
+   - 商用目的で素材を使用すること
+4. 前各項の許可は、著作権者が利用許諾を行う権利を有する素材に限って適用されます。第三者が権利を有する素材については、当該権利者の許可および利用条件に従ってください。
+5. 本条は、素材そのものの著作権を利用者に譲渡するものではありません。また、素材に含まれる第三者の著作物について、著作権者が権利を有することを保証するものでもありません。
+
+## 第5条（クレジット表示）
+
+1. 本ソフトウェアを利用してゲームを制作し、公開または配布する場合、利用者は、元の著作権者へのクレジットとして、ゲーム内のクレジット画面、スタッフロール、またはこれらに相当するプレイヤーが確認可能な場所に、以下の情報を明記しなければなりません。
+
+   - 著作権者名：Pippiniden
+   - 元リポジトリ：https://github.com/Pippiniden/1in7HGW
+
+2. リポジトリへのリンクは、プレイヤーがアクセス可能な形式で表示してください。ゲーム内でリンクを直接開けない場合は、URLを文字列として表示する方法でも構いません。
+3. ゲーム内にクレジット画面またはスタッフロールが存在しない場合は、ゲーム内から容易に確認できるヘルプ画面、情報画面、タイトル画面その他これらに相当する場所に表示してください。
+4. 本条の表示義務は、本ソフトウェアの改変版、および本ソフトウェアを基礎として制作されたゲームにも適用されます。
+5. クレジット表示は、本ソフトウェアの利用許諾を示すものであり、著作権者が当該ゲームを制作、承認、推奨または公式に関与していることを意味しません。
+
+## 第6条（第三者の権利）
+
+1. 本ソフトウェアには、第三者が権利を有するキャラクター、設定、文章、画像、その他の著作物が含まれる場合があります。
+2. 本ライセンスは、著作権者が適法に利用許諾できる権利の範囲でのみ効力を有します。
+3. 第三者の著作物については、利用者自身の責任において、必要な許可を取得し、各権利者が定める条件を遵守してください。
+4. 第三者から提供された素材についても、提供者が再配布や二次利用を許可する権利を有しているとは限りません。利用者は、当該素材に適用される利用条件を確認してください。
+
+## 第7条（無保証）
+
+本ソフトウェアは、明示または黙示を問わず、いかなる保証もない「現状有姿」で提供されます。著作権者は、商品性、特定目的への適合性、権利侵害がないこと、動作の正確性または継続性を含め、本ソフトウェアに関する一切の保証を行いません。
+
+適用される法律で認められる範囲において、著作権者は、本ソフトウェアの利用または利用不能に起因する損害について責任を負いません。
+
+## 第8条（権利の留保および許諾の範囲）
+
+1. 本ライセンスで明示的に許可されていない権利は、すべて各権利者に留保されます。
+2. 本ライセンスに定める条件を超える利用については、事前に該当する権利者から許可を得てください。
+3. 本ライセンスのいずれかの条項が適用法令により無効と判断された場合でも、その他の条項は、法令で認められる範囲において引き続き効力を有します。
+
+---
+
+# English Version
+
+## Section 1 — Scope
+
+1. This license applies to the program source code, related program files, and assets explicitly licensed under this document that are published in the repository identified above (collectively, the “Software”).
+2. Files subject to specific restrictions under this license are governed by those restrictions, even if they are included in the repository.
+3. This license applies only to rights that the copyright holder is entitled to license. Third-party works, character settings, images, and other materials remain subject to the rights and terms of their respective rights holders.
+
+## Section 2 — License for the Program Code
+
+1. The program code of the Software may be used, copied, modified, and redistributed for **non-commercial purposes only**. Permitted activities include:
+   - Running and using the Software
+   - Copying and modifying its source code
+   - Creating modified versions
+   - Redistributing the Software or modified versions
+   - Creating and publishing original games based on the Software
+2. All of the following conditions must be met:
+   - Retain this license and existing copyright notices.
+   - Clearly indicate when a redistributed version has been modified.
+   - Do not use any assets prohibited or restricted by this license beyond the scope of the applicable permission.
+   - Comply with the attribution requirements in Section 5.
+3. “Non-commercial purposes” means use that is not primarily intended for commercial advantage or monetary compensation. Uses involving advertising revenue, donations, sales, in-game purchases, or other revenue may not qualify as non-commercial. If the status of a proposed use is unclear, obtain prior written permission from the copyright holder.
+4. Commercial use requires prior written permission from the copyright holder.
+5. This permission does not grant rights to images, data, or other assets whose use is separately prohibited or restricted under this license.
+
+## Section 3 — Face Images and Servant Data
+
+1. Face images contained in `img/faces/` and data files containing Servant information, settings, or related content, including files in `data/` (collectively, “Restricted Assets”), are excluded from the permissions granted by this license unless explicitly stated otherwise.
+2. Unless separate, explicit permission has been obtained from the copyright holder or the relevant rights holder, you may not:
+   - Copy, redistribute, or publish Restricted Assets
+   - Reproduce or incorporate them into other games, software, websites, or works
+   - Extract them from the Software for other uses
+   - Modify and redistribute them
+3. When creating another game using the Software, you should provide your own face images and Servant data.
+4. This section does not imply that the copyright holder owns the rights to third-party characters, settings, images, or other works. Such works remain subject to the permissions and terms of their respective rights holders.
+5. Publication of the repository and permission to use the Software do not authorize reuse, redistribution, or derivative use of Restricted Assets.
+
+## Section 4 — Limited License for Class Icons and Background Images
+
+1. Class icons in `img/classes/` and background images in `img/scenes/` may be used in non-commercial games subject to this section.
+2. You may:
+   - Display and use these assets within a non-commercial game
+   - Resize, crop, convert file formats, or make other technical modifications necessary to integrate them into a game
+   - Distribute a non-commercial game that incorporates these assets, provided that the game complies with this license
+3. You may not:
+   - Distribute or publish these assets individually
+   - Redistribute them as asset packs, image collections, or asset libraries
+   - Extract them from a game for other uses
+   - Use them for purposes outside a game
+   - Use them for commercial purposes
+4. These permissions apply only to assets that the copyright holder is entitled to license. Third-party assets remain subject to the permissions and terms of their respective rights holders.
+5. This section does not transfer ownership of the assets to you or guarantee that the copyright holder owns rights in any third-party works included in them.
+
+## Section 5 — Attribution
+
+1. When creating, publishing, or distributing a game using the Software, you must credit the original copyright holder by displaying the following information in the game's credits screen, staff roll, or another equivalent location accessible to players:
+
+   - Copyright holder: Pippiniden
+   - Original repository: https://github.com/Pippiniden/1in7HGW
+
+2. The repository link must be presented in a form accessible to players. If the game cannot open links directly, displaying the URL as text is sufficient.
+3. If the game has no credits screen or staff roll, the attribution must be displayed in a help screen, information screen, title screen, or another equivalent location that is readily accessible from within the game.
+4. This attribution requirement also applies to modified versions of the Software and games based on the Software.
+5. Attribution does not imply that the copyright holder created, approved, endorsed, or officially participated in the game.
+
+## Section 6 — Third-Party Rights
+
+1. The Software may contain characters, settings, text, images, or other works owned by third parties.
+2. This license is effective only to the extent of the rights that the copyright holder is legally entitled to license.
+3. You are responsible for obtaining any necessary permissions for third-party works and complying with the terms established by their respective rights holders.
+4. Materials contributed by third parties are not necessarily available for redistribution or derivative use. You must verify the applicable terms for each such material.
+
+## Section 7 — Disclaimer of Warranty
+
+The Software is provided “AS IS,” without warranties of any kind, express or implied, including warranties of merchantability, fitness for a particular purpose, non-infringement, accuracy, or continued availability.
+
+To the extent permitted by applicable law, the copyright holder shall not be liable for damages arising from the use of, or inability to use, the Software.
+
+## Section 8 — Reservation of Rights and Scope of Permission
+
+1. All rights not expressly granted by this license are reserved by their respective rights holders.
+2. Any use beyond the permissions granted by this license requires prior permission from the relevant rights holder.
+3. If any provision of this license is found to be invalid under applicable law, the remaining provisions shall remain in effect to the extent permitted by law.
