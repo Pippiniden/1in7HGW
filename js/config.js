@@ -275,6 +275,11 @@
   // 顔グラフィック：img/faces/<真名>.webp（.png・.jpg も可）。無い英霊がほとんどなので、見つかったときだけ表示する（UI が順に試す）
   G.FACE_DIR = 'img/faces/';
   G.FACE_EXT = ['webp', 'png', 'jpg'];
+  // 顔グラフィックのファイル名（拡張子なし）。真名のあとに、同じ真名の別の騎を見分ける key があれば「#key」を付ける（手直し表の okey と同じ形）。
+  // key が無い騎は今までどおり「真名」。key のある騎は、key の無い同名の騎の顔を借りない（別の英霊なので、無ければクラスのアイコンのまま）
+  G.faceNameOf = sv => !sv ? '' : sv.key ? String(sv.trueName || '') + '#' + sv.key : String(sv.trueName || '');
+  // servantId（「クラス:真名」「クラス:真名#key」）から。先頭のクラスの部分を除く
+  G.faceNameOfId = sid => { const s = String(sid || ''), i = s.indexOf(':'); return i < 0 ? s : s.slice(i + 1); };
   G.faceCandidates = name => { const n = String(name || '').trim(); return n ? G.FACE_EXT.map(x => G.FACE_DIR + encodeURIComponent(n) + '.' + x) : []; };
   // 一度だけ順に試して、見つかった URL を覚える（ブラウザ用。見つからなければ null）。onFound は見つかったときに呼ぶ
   const faceSeen = new Map();

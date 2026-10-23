@@ -690,7 +690,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const keyTxt = sv.key
       ? `key：<code>${esc(sv.key)}</code>（同じ真名の別の騎を見分ける印。手直し表では「<code>${esc(E.okey(sv))}</code>」で引きます）`
       : 'key：なし（同じ真名の別の騎が後から入ると、入れた方に付きます）';
-    const tw = twins.length ? `<br>同じ真名の騎：${twins.map(x => `<a href="#" data-goto="${esc(x.id)}"><code>${esc(x.id)}</code></a>`).join('、')}。顔グラフィックは真名だけで探すので、この騎たちは同じ画像を共有します。` : '';
+    const tw = twins.length ? `<br>同じ真名の騎：${twins.map(x => `<a href="#" data-goto="${esc(x.id)}"><code>${esc(x.id)}</code></a>`).join('、')}。顔グラフィックのファイル名は、key の無い騎が「真名」、key のある騎が「真名#key」です（同名でも別の画像を置けます）。` : '';
     return `<div class="hint idbox" style="margin-top:6px">id：<code>${esc(sv.id)}</code> ・ ${keyTxt}${tw}</div>`;
   }
   function pageBox(sv, i) {
@@ -766,7 +766,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">${B.linkOf(sv) ? '元のページ' : 'kagemiya のページ'}</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
-      <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
+      <div class="facebox"><img data-face="${esc(H.faceNameOf(sv))}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(H.faceNameOf(sv))}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}

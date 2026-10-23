@@ -395,7 +395,7 @@ Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are register
   seeds match `survival.json`), 試し戦い, name import (opens the GitHub workflow page). Published-roster sync is a three-way merge (`merge3`) between last-synced, current published and local state.
 - **submit.html**: player request form; output `{ format:'hgw-request', version:1, kind:'add'|'adjust', … }` as a GitHub issue URL, a .json file or copied text; roster's 取り込み applies it (`findRequest`/`applyRequest`).
 - **ranking.html**: per-servant grade, win rate, survival and five abilities from stats + `effectSummary`, using `survival.json` when its fingerprint matches.
-- Scenes: `img/scenes/{scene}-{day|night}.webp` along the `G.sceneCandidates` fallback chain; with no image a procedural SVG skyline is used (404s are expected). Class icons: `H.classIcon(key)`; faces: `H.faceUrl(name)`.
+- Scenes: `img/scenes/{scene}-{day|night}.webp` along the `G.sceneCandidates` fallback chain; with no image a procedural SVG skyline is used (404s are expected). Class icons: `H.classIcon(key)`; faces: `H.faceUrl(name)` where `name` is the **face file name** (`H.faceNameOf(sv)` / `H.faceNameOfId(servantId)` = `trueName` or `trueName#key`, same as `E.okey`). A keyed servant never falls back to the plain-name image of its unkeyed namesake. Pass these helpers' result to `fic()`/`data-face`, never a bare `trueName`.
 
 ---
 

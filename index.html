@@ -1376,7 +1376,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         <p class="note2">方針を「おまかせ」にしている日は、陣営の戦略「${esc(meta.policyLabel || '臨機応変')}」に沿って動く。</p>`;
     } else if (step === 2) {
       $('#opEn').textContent = 'Servant'; $('#opBand').textContent = 'あなたのサーヴァント';
-      $('#opTitle').innerHTML = `${fic(meta.trueName, keyOf(snap.id), true)}${esc(snap.label)}「${esc(meta.trueName)}」`; fillFaces($('#opTitle'));
+      $('#opTitle').innerHTML = `${fic(faceOf(snap.id), keyOf(snap.id), true)}${esc(snap.label)}「${esc(meta.trueName)}」`; fillFaces($('#opTitle'));
       const ranks = `<div class="ranks">${meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], sv ? sv.class.key : '')}><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`;
       $('#opBody').innerHTML = ev ? `
         <div class="grade"><span class="g ${ev.grade}">${ev.grade}</span><span class="verdict">${esc(GRADE[ev.grade])}</span>
@@ -1495,6 +1495,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // ---------- 表示 ----------
   // クラスのアイコン（陣営の一覧・サーヴァントの欄・開戦の案内・結末）。key はクラスのキー（servantId の前半）
   const keyOf = id => String((metaOf(id) || {}).servantId || '').split(':')[0];
+  // 顔グラフィックのファイル名（真名、同名の別の騎なら 真名#key）。陣営の id から
+  const faceOf = id => { const m = metaOf(id) || {}; return H.faceNameOfId(m.servantId) || m.trueName || ''; };
   const ci = (key, big) => key ? `<img class="ci${big ? ' big' : ''}" src="${H.classIcon(key)}" alt="" width="20" height="20" loading="lazy" decoding="async">` : '';
   // 顔グラフィックがあればクラスのアイコンの代わりに出す（真名が分かっている英霊だけに使う。無ければアイコンのまま）
   const fic = (name, key, big) => name ? `<span class="fic${big ? ' big' : ''}">${ci(key, big)}<img class="face" data-face="${esc(name)}" alt="" hidden></span>` : ci(key, big);
@@ -1697,7 +1699,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const body = (t.commentary || '').trim(), person = (t.personality || '').trim();
     $('#loreSub').textContent = c.you ? 'あなたのサーヴァント' : '真名判明';
     $('#loreTitle').textContent = `${c.label}「${sv.trueName}」`;
-    $('#loreBody').innerHTML = `<img class="face xl" data-face="${esc(sv.trueName)}" alt="" hidden><dl class="opkv">
+    $('#loreBody').innerHTML = `<img class="face xl" data-face="${esc(faceOf(id))}" alt="" hidden><dl class="opkv">
         ${sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}
         ${sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}
         ${sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}
@@ -2201,7 +2203,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#mKv').innerHTML = `<dt>出自</dt><dd>${esc(youNow.origin)}</dd>${youNow.persona ? `<dt>性格</dt><dd>${esc(youNow.persona)}</dd>` : ''}<dt${tipAttr('st.cs')}>令呪</dt><dd>残り${youNow.cs}画</dd><dt>状態</dt><dd>${youNow.masterAlive ? '健在' : '死亡'}</dd><dt>願い</dt><dd>${esc(youNow.wish)}</dd>`;
       $('#svClass').innerHTML = ci(keyOf(youNow.id)) + esc(youNow.label); $('#svLore').hidden = !canLore(youNow.id);
       $('#svName').innerHTML = `${esc(meta.trueName)}${youNow.alive ? '' : '<small>消滅</small>'}`;
-      if ($('#svFace').dataset.face !== meta.trueName) { $('#svFace').dataset.face = meta.trueName; $('#svFace').hidden = true; $('#svFace').removeAttribute('src'); }
+      if ($('#svFace').dataset.face !== faceOf(youNow.id)) { $('#svFace').dataset.face = faceOf(youNow.id); $('#svFace').hidden = true; $('#svFace').removeAttribute('src'); }
       fillFaces($('#svFace').parentNode);
       const svNow = servantOf(youNow.id), clsKey = svNow ? svNow.class.key : '';
       $('#svRanks').innerHTML = meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], clsKey)}><span>${k}</span><b>${esc(v)}</b></div>`).join('');
@@ -2217,7 +2219,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const st = win ? '聖杯を手にした' : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
       const can = canLore(c.id);
       return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
-        <div class="row1"><b>${can ? fic(servantOf(c.id).trueName, keyOf(c.id)) : ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
+        <div class="row1"><b>${can ? fic(faceOf(c.id), keyOf(c.id)) : ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
         <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${(() => { const al = (c.allies && c.allies.length ? c.allies : c.ally != null ? [c.ally] : []).filter(i => e.snap[i]); return al.length ? ' ・ ' + al.map(i => esc(e.snap[i].label)).join('・') + 'と同盟' : ''; })()} ${sealsInline(c.cs)}</div>
         ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
       </li>`;
@@ -2258,7 +2260,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       <p>${esc(yours)}${decided ? `あなたが下した大きな決断は${decided}回。` : ''}</p>
       ${lastWordHtml()}
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
-        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${canLore(c.id) ? fic(c.trueName, String(c.servantId || '').split(':')[0]) : ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${canLore(c.id) ? fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || '').split(':')[0]) : ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
       ${purposeSection()}
       ${bondSection()}

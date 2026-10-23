@@ -1155,7 +1155,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       $('#opBody').innerHTML = `<div class="ptlist">${lineup.party.map((id, i) => {
         const sv = svOf(id), m = out.meta[i] || {}, g = (sv && evaluate(sv).grade) || '', fr = front.includes(i);
         return `<div class="pt${fr ? ' front' : ''}"><span class="g ${g}">${g || '？'}</span>
-          <span><b>${fic(m.trueName || (sv || {}).trueName, keyOf(i))}${esc((sv || {}).class ? sv.class.label : m.cls)}「${esc(m.trueName || (sv || {}).trueName)}」</b> <span class="tg">${fr ? '前衛' : '控え'}</span></span>
+          <span><b>${fic(faceOf(i) || (sv || {}).trueName, keyOf(i))}${esc((sv || {}).class ? sv.class.label : m.cls)}「${esc(m.trueName || (sv || {}).trueName)}」</b> <span class="tg">${fr ? '前衛' : '控え'}</span></span>
           <button class="btn" type="button" data-lore="${i}">解説</button>
           <small>${esc((m.ranks || []).map(r => r[0] + r[1]).join(' '))}${g ? ` ・ ${esc(GRADE_JA[g])}` : ''}</small></div>`;
       }).join('')}</div>
@@ -1272,7 +1272,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     $('#mItems').textContent = p.items; $('#mCamp').textContent = p.camp; $('#mSlain').textContent = `${p.slain}/${CFG.foes}`; $('#mPlace').textContent = p.place || '';
     const unit = c => {
       const cls = c.side === 'party' ? '' : ' foe';
-      const kn = c.side === 'party' || c.name, ico = kn ? fic(c.name || (svOf(((out.meta[c.id] || {}).servantId)) || {}).trueName, keyOf(c.id)) : ci(keyOf(c.id));
+      const kn = c.side === 'party' || c.name, ico = kn ? fic(faceOf(c.id) || c.name || (svOf(((out.meta[c.id] || {}).servantId)) || {}).trueName, keyOf(c.id)) : ci(keyOf(c.id));
       const name = c.side === 'party' || c.name ? `${ico}<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `${c.label.includes(c.cls) ? '' : `<small>${esc(c.cls)}</small>`}${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
       const g = c.gaugeMax > 1 ? `<span class="gauges">${Array.from({ length: c.gaugeMax }, (_, i) => `<i class="${i < c.gauges ? '' : 'off'}"></i>`).join('')}</span>` : '';
       const showHp = c.side === 'party' || c.seen;
@@ -1309,6 +1309,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   const FB = ['battle', 'np', 'cs', 'death'];
   const isHL = e => !!e.big || ['death', 'np', 'cs', 'end', 'council', 'choice'].includes(e.kind);
   const keyOf = id => String(((out && out.meta && out.meta[id]) || {}).servantId || '').split(':')[0];
+  // 顔グラフィックのファイル名（真名、同名の別の騎なら 真名#key）。陣営の id から
+  const faceOf = id => { const m = (out && out.meta && out.meta[id]) || {}; return H.faceNameOfId(m.servantId) || m.trueName || ''; };
   function setLogFilter(f) {
     logFilter = f; $('#log').dataset.f = f;
     document.querySelectorAll('[data-lf]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lf === f)));
@@ -1443,8 +1445,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     }
     const T = sv && sv.text || {}, prof = sv && sv.profile || {};
     const body = (T.commentary || '').trim(), person = (T.personality || '').trim(), ex = excerpt(body, 160);
-    openDet(`${fic(m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
-      `<img class="face xl" data-face="${esc(m.trueName)}" alt="" hidden><dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}${prof.wish ? `<dt>願い</dt><dd>${esc(prof.wish)}</dd>` : ''}</dl>`
+    openDet(`${fic(faceOf(id) || m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
+      `<img class="face xl" data-face="${esc(faceOf(id) || m.trueName)}" alt="" hidden><dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}${prof.wish ? `<dt>願い</dt><dd>${esc(prof.wish)}</dd>` : ''}</dl>`
       + (body ? `<p class="txt2">${esc(ex)}</p>${ex.length < body.replace(/\s*\n\s*/g, '').length ? `<details><summary>解説をすべて読む</summary><p class="txt2">${esc(body)}</p></details>` : ''}`
         : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '')
       + (body && person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(person)}</p></details>` : '')
@@ -1553,7 +1555,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   function finish() {
     clearTimeout(timer); paused = false; syncCtl();
     const r = result, [t, cls] = END[r.ending] || ['終了', 'ng'];
-    const row = c => `<tr><th>${fic(c.trueName, String((rosterAll.find(s => s.trueName === c.trueName) || {}).id || '').split(':')[0])}${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
+    const row = c => `<tr><th>${fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || (rosterAll.find(s => s.trueName === c.trueName) || {}).id || '').split(':')[0])}${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
     const q = lastWord(r);
     const hls = out.entries.filter(e => isHL(e) && e.kind !== 'dayhead' && e.kind !== 'prologue');
     const decs = decLog.filter(d => d.title);
