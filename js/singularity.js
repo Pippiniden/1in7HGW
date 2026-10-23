@@ -41,38 +41,23 @@
   // 組み立てたボスには bossOnly（ボス専用）が付き、聖杯戦争には呼ばれない（engine.js が roster から外す）。
   function prepareBoss(spec) {
     if (!spec || !spec.trueName || !spec.stats) throw new Error('ボスには trueName と stats が要ります');
-    const tn = String(spec.trueName).trim();
-    const asStr = v => v == null ? '' : String(v).trim();
-    const stats = {};
-    for (const k of B.STAT_KEYS) { const raw = asStr(spec.stats[k] && spec.stats[k].raw != null ? spec.stats[k].raw : spec.stats[k]) || 'C'; stats[k] = { raw, rank: R.parseRank(raw) }; }
-    const reg = (it, isNP) => {
-      const n = E.normName(it.name);
-      if (Array.isArray(it.effects)) E.SERVANT_OVERRIDES[tn + '/' + n] = it.effects;
-      if (isNP && (it.attack === true || it.attack === false || it.mode != null)) {
-        const o = {}; if (it.attack === true || it.attack === false) o.attack = it.attack; if (it.mode != null) o.mode = it.mode;
-        E.NP_OVERRIDES[tn + '/' + n] = o;
-      }
-    };
-    const skill = it => { reg(it, false); const rr = asStr(it.rankRaw != null ? it.rankRaw : it.rank); return { name: asStr(it.name), rankRaw: rr, rank: R.parseRank(rr), desc: asStr(it.desc) }; };
-    const P = G.parser;
-    const np = it => {
-      reg(it, true);
-      const g = f => asStr(it[f]);
-      return { name: g('name'), reading: g('reading'), rankRaw: g('rankRaw'), rank: R.parseRank(g('rankRaw')), typeRaw: g('typeRaw'), typeKey: P.npTypeKey(g('typeRaw')),
-        rangeRaw: g('rangeRaw'), range: P.parseRange(g('rangeRaw')), maxRaw: g('maxRaw'), maxTargets: P.parseNum(g('maxRaw')), desc: asStr(it.desc) };
-    };
-    const lean = {
-      kind: 'servant', trueName: tn, aliases: spec.aliases || [], class: { raw: asStr(spec.class) || '？' }, origin: spec.origin || '', sex: spec.sex || '',
-      alignment: spec.alignment || '', attribute: spec.attribute || '', traits: (spec.traits || []).slice(), stats, statsAlt: [],
-      classSkills: (spec.classSkills || []).map(skill), skills: (spec.skills || []).map(skill), nps: (spec.nps || []).map(np), weapons: [],
-      profile: spec.profile || {}, relations: [], voice: spec.voice || {}, text: spec.text || {}, info: {}, warnings: [],
-    };
-    const sv = B.fromJSON(lean);
+    const r = B.leanFromSpec(spec);
+    Object.assign(E.SERVANT_OVERRIDES, r.servantOv);
+    Object.assign(E.NP_OVERRIDES, r.npOv);
+    const sv = B.fromJSON(r.lean);
     sv.bossOnly = true;
     sv.boss = Object.assign({}, spec.boss || {});
+    sv.boss.aoe = r.aoe;
+    return sv;
+  }
+  // 名簿（servants.json）にいるボス専用の英霊を、ボスとして使えるようにする：手直し表 boss（BOSS_PARAMS）の設定を sv.boss にする。
+  // 設定の無い項目は CONFIG.SING.boss の既定が使われる。宝具の全体攻撃の広がり（aoe）は、書いた宝具だけ。
+  function bossFromRoster(sv) {
+    const p = E.BOSS_PARAMS[sv.trueName] || {};
+    sv.bossOnly = true;
+    sv.boss = Object.assign({}, p);
     sv.boss.aoe = {};
-    for (const it of spec.nps || []) if (it.aoe != null) sv.boss.aoe[E.normName(it.name)] = +it.aoe;
-    if (!sv.traits.includes('ボス専用')) sv.traits.push('ボス専用');
+    for (const [n, v] of Object.entries(p.aoe || {})) sv.boss.aoe[E.normName(n)] = +v;
     return sv;
   }
   // 読み込んだボスのデータ（{ bosses: [...] } か配列）を組み立てる。読めなかったものは errors に
@@ -91,6 +76,7 @@
   /**
    * 特異点の名前と顔ぶれを決める（シードから。エンジンの戦いの乱数とは別の流れなので、顔ぶれを指定しても名前は変わらない）。
    * picks: { party: [サーヴァントの id か null ×6], foes: [id か null ×7], boss: ボスの id | 'empower'（超強化）| null（くじ） }
+   * o.bossMode: ボスの抽選（'both' 両方・既定 / 'boss' ボス専用だけ / 'empower' 既存の英霊だけ）。picks.boss を指定した席には効かない
    * 戻り値: { name, words, tag（敵の呼び名に付ける言葉）, city, region, party: [id], foes: [id], boss: { id, kind: 'boss'|'empower' }, stray: id|null, front: [前衛の番号] }
    */
   function compose(o) {
@@ -139,7 +125,10 @@
     // ボス：ボス専用のデータがあれば多くはそれ、ときどき（無ければ必ず）残りの英霊のうち一騎が超強化されて現れる
     if (!bossPick) {
       const rest = roster.filter(s => !used.has(s.id));
-      if (picks.boss !== 'empower' && bosses.length && !(rnd() < S.empower.chance)) bossPick = { id: pickN(rnd, bosses).id, kind: 'boss' };
+      // 抽選のしかた o.bossMode：'both'（既定。ボス専用が多め、ときどき超強化）／'boss'（ボス専用だけ）／'empower'（既存の英霊の超強化だけ）。
+      // 'both' のときだけ、超強化にするかの乱数を引く（従来と同じ順序）。ボス専用が無ければ、どのモードでも超強化になる
+      const mode = o.bossMode === 'boss' || o.bossMode === 'empower' ? o.bossMode : 'both';
+      if (picks.boss !== 'empower' && bosses.length && (mode === 'boss' || (mode === 'both' && !(rnd() < S.empower.chance)))) bossPick = { id: pickN(rnd, bosses).id, kind: 'boss' };
       else if (rest.length) { const s = pickN(rnd, rest); used.add(s.id); bossPick = { id: s.id, kind: 'empower' }; }
       else if (bosses.length) bossPick = { id: bosses[0].id, kind: 'boss' };
     }
@@ -852,5 +841,5 @@
     return r.value;
   }
 
-  G.singularity = { compose, gen, run, prepareBoss, prepareBosses, FOCUS, FOCUS_BY_CODE, SIDE_JA };
+  G.singularity = { compose, gen, run, prepareBoss, prepareBosses, bossFromRoster, FOCUS, FOCUS_BY_CODE, SIDE_JA };
 })(globalThis.HGW = globalThis.HGW || {});

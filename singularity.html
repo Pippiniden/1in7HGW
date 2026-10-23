@@ -395,6 +395,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
         <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="extra" value="1" checked><span class="ico"></span>あり（ときどき混じる）</label><label><input type="radio" name="extra" value="0"><span class="ico"></span>なし</label></div></div>
       <div class="field"><span class="lbl">七騎の選び方</span>
         <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎ずつ</label><label><input type="radio" name="pick" value="open"><span class="ico"></span>クラスを問わず選ぶ</label></div></div>
+      <div class="field"><span class="lbl">特異点のボスの抽選</span>
+        <div class="rowsel" role="radiogroup"><label><input type="radio" name="bmode" value="both" checked><span class="ico"></span>ボス専用と既存の英霊の両方（ボス専用が多め）</label><label><input type="radio" name="bmode" value="boss"><span class="ico"></span>ボス専用だけ</label><label><input type="radio" name="bmode" value="empower"><span class="ico"></span>既存の英霊だけ（超強化されて現れる）</label></div></div>
       <div class="field"><span class="lbl">一言を結末に出す</span>
         <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="words" value="1" checked><span class="ico"></span>出す</label><label><input type="radio" name="words" value="0"><span class="ico"></span>出さない</label></div></div>
       <details class="cast" id="castBox" hidden>
@@ -626,6 +628,12 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     rosterAll = res.servants.filter(s => !s.bossOnly);
     const b = SG.prepareBosses(res.bosses || []);
     bosses = b.bosses;
+    // サーヴァントリストにいるボス専用の英霊（属性「ボス専用」）も、ボスとして使う（bosses.json のボスの後ろに、リストの順で並べる）
+    // 同じ真名がどちらにもあれば、リストの方を使う（bosses.json の同じ場所に入れ替えるので、リンクの bs の番号は変わらない）
+    const inList = new Map(res.servants.filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+    bosses = bosses.map(x => inList.has(x.trueName) ? SG.bossFromRoster(inList.get(x.trueName)) : x);
+    const have = new Set(bosses.map(x => x.trueName));
+    for (const [tn, s] of inList) if (!have.has(tn)) bosses.push(SG.bossFromRoster(s));
     const errs = (res.errors || []).concat(b.errors);
     dataLoaded = true;
     initExcluded();
@@ -735,6 +743,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   const SET_KEY = 'hgw.sing.settings';
   const formExtra = () => document.querySelector('input[name=extra]:checked').value !== '0';
   const formPick = () => document.querySelector('input[name=pick]:checked').value === 'open' ? 'open' : 'class';
+  const formBoss = () => { const v = document.querySelector('input[name=bmode]:checked').value; return v === 'boss' || v === 'empower' ? v : 'both'; };
+  const BM_URL = { boss: 'b', empower: 'e' };
   const formWords = () => document.querySelector('input[name=words]:checked').value !== '0';
   const formSpeed = () => +document.querySelector('input[name=speed]:checked').value;
   const formDays = () => clampDays($('#days').value);
@@ -751,11 +761,12 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const d = qs.get('d') || st.days || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : st.extra !== false;
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : st.pick || 'class';
     setForm(d, x, pk);
+    const bm = qs.has('seed') ? ({ b: 'boss', e: 'empower' })[qs.get('bm')] : st.boss, bmEl = document.querySelector(`input[name=bmode][value="${bm === 'boss' || bm === 'empower' ? bm : 'both'}"]`); if (bmEl) bmEl.checked = true;
     $('#pname').value = qs.has('seed') ? (qs.get('n') || '') : (st.name || '');
     $('#pword').value = st.word || '';
   })();
   const cleanPName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
-  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined, last: settings0.last || undefined });
+  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), boss: formBoss(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined, last: settings0.last || undefined });
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
   $('#pname').addEventListener('change', () => { saveSettings(); syncNameBtns(); }); $('#pword').addEventListener('change', saveSettings);
@@ -770,9 +781,9 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   $('#pnameReset').onclick = () => { $('#pname').value = ''; saveSettings(); syncNameBtns(); $('#pname').focus(); };
   $('#pnameLast').onclick = () => { $('#pname').value = cleanPName(settings0.last); saveSettings(); syncNameBtns(); $('#pname').focus(); };
   syncNameBtns();
-  document.querySelectorAll('input[name=extra], input[name=pick], input[name=words]').forEach(r => r.addEventListener('change', () => { saveSettings(); if (r.name !== 'words') formationStale(); }));
+  document.querySelectorAll('input[name=extra], input[name=pick], input[name=bmode], input[name=words]').forEach(r => r.addEventListener('change', () => { saveSettings(); if (r.name !== 'words') formationStale(); }));
   // 七騎の組み方（エクストラクラスの有無と、選び方）
-  let pickMode = 'class', extraOn = true;
+  let pickMode = 'class', extraOn = true, bossMode = 'both';
   const warOpts = () => { const w = {}; if (!extraOn) w.extra = false; if (pickMode === 'open') w.pick = 'open'; return Object.keys(w).length ? w : undefined; };
 
   // ---------- 編成 ----------
@@ -782,10 +793,10 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   const dec36 = p => String(p || '').split('.').map(t => { const i = parseInt(t, 36); return t !== '' && i >= 0 && i < rosterAll.length ? rosterAll[i].id : null; });
   // 特異点の名前と顔ぶれを決める（保存・記録から組み直すときも、同じ引数なら同じ顔ぶれになる）
   function setup(o) {
-    castEx = exIds(o.ex); pickMode = o.pick === 'open' ? 'open' : 'class'; extraOn = o.extra !== false;
+    castEx = exIds(o.ex); pickMode = o.pick === 'open' ? 'open' : 'class'; extraOn = o.extra !== false; bossMode = o.boss === 'boss' || o.boss === 'empower' ? o.boss : 'both';
     seed = o.seed; picks = o.picks || { party: [], foes: [], boss: null };
     roster = castRosterOf(castEx);
-    lineup = SG.compose({ roster: roster, bosses, seed, picks, war: warOpts() });
+    lineup = SG.compose({ roster: roster, bosses, seed, picks, war: warOpts(), bossMode });
     const fr = Array.isArray(o.front) ? [...new Set(o.front.map(Number))].filter(i => i >= 0 && i < lineup.party.length).slice(0, CFG.front) : [];
     front = fr.length === CFG.front ? fr.sort((a, b) => a - b) : lineup.front.slice();
   }
@@ -794,7 +805,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     o = o || {};
     const sd = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
     $('#seed').value = sd;
-    try { setup({ seed: sd, picks: o.fromUrl ? picksFromUrl() : picks, front: o.fromUrl && qs.get('fr') ? qs.get('fr').split('.') : null, ex: [...excluded], pick: formPick(), extra: formExtra() }); }
+    try { setup({ seed: sd, picks: o.fromUrl ? picksFromUrl() : picks, front: o.fromUrl && qs.get('fr') ? qs.get('fr').split('.') : null, ex: [...excluded], pick: formPick(), extra: formExtra(), boss: o.fromUrl ? ({ b: 'boss', e: 'empower' })[qs.get('bm')] : formBoss() }); }
     catch (e) { toast('観測できませんでした：' + e.message); return false; }
     renderFormation();
     $('#formation').hidden = false;
@@ -972,6 +983,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const ex = exParam(castEx);
     if (ex) u.searchParams.set('ex', ex); else u.searchParams.delete('ex');
     if (pickMode === 'open') u.searchParams.set('p', 'open'); else u.searchParams.delete('p');
+    if (BM_URL[bossMode]) u.searchParams.set('bm', BM_URL[bossMode]); else u.searchParams.delete('bm');
     if (!extraOn) u.searchParams.set('x', '0'); else u.searchParams.delete('x');
     if (playerName) u.searchParams.set('n', playerName); else u.searchParams.delete('n');
     if (tickDay) u.searchParams.set('dy', tickDay); else u.searchParams.delete('dy');

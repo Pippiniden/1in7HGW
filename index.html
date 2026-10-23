@@ -878,7 +878,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 
   // ---------- データ ----------
   function dataReady(res, label) {
-    roster = res.servants; masters = res.masters || []; source = label;
+    roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯戦争に出ない
     initExcluded();
     const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';

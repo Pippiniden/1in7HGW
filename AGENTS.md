@@ -67,6 +67,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 ```
 index.html          Game (inline CSS + UI script)          ranking.html   Strength ranking (spoiler page)
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
+logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/
@@ -135,6 +136,7 @@ stats {str,end,agi,mag,luk,np: {raw, rank}}, statsAlt, classSkills/skills [{name
 typeRaw, typeKey, rangeRaw, range, maxRaw, maxTargets, desc, mode, modeBasis}], weapons, profile, relations [{name,text}], voice {heading:[lines]},
 text {commentary, personality, comment, …}, info (all 【key】 pairs), warnings, body, sourceText (wiki original), page?, pageMissing?, skippedItems?`.
 Derived fields added by `buildServant` and stripped by `toLean`: `ranks, score, statSource, tags, allSkills, effectSummary, power, npPeak, review, reviewDone, contentEdited`, and per-item `effects, effectSource, matched, attack*, power, cost, exposure, …`.
+Derived `attrs` (`E.resolveAttrs`: traits mapped through `ATTR_MASTER`/`ATTR_OF`; `attrsUnknown` = spellings not in the master) feed `sv.tags`; an attribute `ボス専用` sets derived `sv.bossOnly`, which keeps the servant out of Holy Grail Wars (engine roster filter, `survival.fingerprint`, index/ranking loaders) and makes it a singularity boss candidate (`singularity.bossFromRoster`; a roster boss replaces a same-named `bosses.json` boss in place). `B.leanFromSpec` turns a `bosses.json` entry into a lean servant + override entries.
 Identity = `class.key + trueName`; later files win. The browser roster may also hold `_wiki` (see 4.5).
 
 ### 4.4 Data files
@@ -154,6 +156,9 @@ overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each 
 | `content` → `CONTENT_OVERRIDES` | `'wikiTrueName'` → `{ skills?, nps?, voice?, text?, profile?, relations?, identity?, base }` (4.5) |
 | `pages` → `PAGE_OVERRIDES` | `'trueName'` → kagemiya page name (when the title differs from the true name) |
 | `reviewed` → `REVIEWED` | `'trueName'` → review sigs the owner checked off; items whose `B.reviewSig` matches go to `sv.reviewDone` and are ignored by counts/filters; a changed rank/description/reason makes a new sig |
+| `attrs` → `ATTR_MASTER` | `'attrName'` → `{ aliases: [raw spellings], note? }` — the attribute master (Wiki 特性 / その他属性 are spelled inconsistently). `E.BOSS_ATTR` (`ボス専用`) always exists |
+| `attrOf` → `ATTR_OF` | `'trueName'` → `[attrName…]` — per-servant assignment replacing the Wiki traits (absent = Wiki traits read through the master) |
+| `boss` → `BOSS_PARAMS` | `'trueName'` → `{ label?, gauges?, power?, guard?, mana?, regen?, heal?, find?, intro?, aoe?: { npName: v } }` — singularity boss settings for a `bossOnly` servant |
 
 Overrides embedded in an exported servant JSON (`effectSource: 'override'|'servant-override'`, `_wiki`) are harvested back into the tables on load (`harvestOverrides`) without overwriting existing entries.
 
@@ -368,7 +373,7 @@ Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are register
 - **Tick answers**: a focus key (`FOCUS`: auto advance search stealth rest defend) or `{ f, cmds }` with `cmds` `{k:'heal',t}` / `{k:'mana'}` / `{k:'guess',t,sv}` (applied next morning; guess once a day, only foes met).
   **Decisions**: `cs` (`heal`/`none`), `wipe` (`revive`/`give`), `council` (`deduce:<id>`, `recover`, `familiar`, `swap`, `pass`), `stray` (`yes`/`no`). Never rename these keys (URLs).
 - **URL**: `?seed=&fr=<front idx .>&d=<days>&pt=&en=<roster idx base36 . per slot>&bs=<boss idx|e>&f=<focus codes>&c=<answers .>&k=<cmds _: {day}h{camp} | {day}m | {day}g{camp}-{rosterIdx36}>`.
-  Extra params: `ex=<excluded roster idx base36 .>`, `p=open`, `x=0` (same meaning as the Holy Grail War page; `compose({ war })` takes `{ extra:false, pick:'open' }`), `n=<player name>` (passed as `playerName`), `dy=<last advanced day>` (a link with `dy` is caught up instantly without animation, then paused). Roster indices (`pt/en/ex/k`) are over the **whole** loaded roster, the exclusions are applied afterwards.
+  Extra params: `ex=<excluded roster idx base36 .>`, `p=open`, `x=0` (same meaning as the Holy Grail War page; plus `bm=b|e` = boss lottery `boss` only / `empower` only, absent = `both`, `compose({ bossMode })`, which only affects the unpicked boss seat; `compose({ war })` takes `{ extra:false, pick:'open' }`), `n=<player name>` (passed as `playerName`), `dy=<last advanced day>` (a link with `dy` is caught up instantly without animation, then paused). Roster indices (`pt/en/ex/k`) are over the **whole** loaded roster, the exclusions are applied afterwards.
   The page keeps `hgw.sing.save.v1` (one suspended run), `hgw.sing.history.v1` (finished runs, query strings only; `keep` entries are protected), `hgw.sing.settings`, `hgw.sing.exclude.v1`; export file `{ format:'hgw-sing-records', version:1, history, save }`. `out.meta[0].master` carries the Master's sex/age/origin/persona/wish for the detail dialog. `hgw.sing.settings.last` = name used by the latest new run (「前回の名前」); `hgw.sing.focusCollapsed` = focus panel folded.
   UI on `singularity.html` that mirrors `index.html`: the **opening** (Master intro with name field → party appraisal S–E via `gradeMap` → first focus; shown only for new runs, never for replays/`dy` links; renaming rebuilds the generator through `makeGen()` with the same seed, no `rnd()` involved), the servant detail dialog doubles as the lore dialog (pauses playback while open), result-card PNGs (`result` / `party` / `both`, drawn on canvas, same helpers as `index.html`), the foldable focus panel, and a phone layout (≤ 820px): sticky `#strip` (Master bars, seals, party pips, foes left, focus chip → `#focusSheet`; filled by `renderStrip`), one-button speed cycle, ⋯ menu (auto / CSV / quit / stop on front death or command seal, `hgw.sing.autostop`), panels reordered with CSS `order` (scene → log → party → foes → Master → orders), `data-fold` panels folded by default (`hgw.sing.folds`) and the log trimmed to 8 entries until `#logMore`. None of these change the war's outcome or the URL format.
 - Enemy labels are `<lineup.tag>の<class>` (tag = the city or one of the name words, chosen in `compose`). `heal_other` heals every other ally each morning (`SING.healOther`). Singularity passes `engine: { knowNameMult: SING.knowNameMult }`; `leadEdge`/`campEdge`/`restRaid` reward 索敵→進軍, 陣地 and 休息.

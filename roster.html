@@ -38,7 +38,7 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 .panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 14px; }
 .panel > h2 { font-size: 13px; color: var(--sub); margin: 0 0 8px; font-weight: 600; letter-spacing: .04em; }
 .view > .panel + .panel { margin-top: 12px; }
-.view[data-view="import"], .view[data-view="save"], .view[data-view="pool"], .view[data-view="cmp"], .view[data-view="lab"] { max-width: 900px; }
+.view[data-view="import"], .view[data-view="save"], .view[data-view="pool"], .view[data-view="cmp"], .view[data-view="lab"], .view[data-view="attrs"] { max-width: 900px; }
 /* 聖杯戦争で試す（js/simlab.js） */
 .labbar { height: 6px; border-radius: 3px; background: var(--bar-bg); margin-top: 8px; overflow: hidden; }
 .labbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
@@ -147,6 +147,30 @@ select, input[type=number], input[type=text] { font: inherit; font-size: 13px; p
 .svr[aria-selected="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: var(--hover); }
 .svr .ci { width: 22px; height: 22px; border-radius: 4px; }
 .svr .t { min-width: 0; display: grid; }
+.svr .nmrow { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.svr .nmrow .sumname { flex: 0 1 auto; min-width: 0; }
+.svr .nmrow .attrs { flex: 1 1 0; min-width: 0; flex-wrap: nowrap; overflow: hidden; }
+/* 属性（その他属性）の印。点線は属性マスタに無い書き方、色つきはボス専用 */
+.attrs { display: inline-flex; flex-wrap: wrap; gap: 3px; align-items: center; min-width: 0; }
+.attr { font-size: 11px; line-height: 1.55; padding: 0 7px; border-radius: 99px; background: var(--chip); color: var(--sub); white-space: nowrap; border: 1px solid transparent; }
+.attr.un { border: 1px dashed var(--sub); background: transparent; }
+.attr.boss { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.dhead .attrs.edit { cursor: pointer; }
+.dhead .attrs.edit:hover .attr { filter: brightness(1.15); }
+.arow { display: grid; grid-template-columns: minmax(7em, 1fr) minmax(10em, 2fr) minmax(8em, 1.4fr) auto auto; gap: 6px 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.arow input { width: 100%; min-width: 0; }
+.arow.un { grid-template-columns: minmax(8em, 1.6fr) minmax(8em, 1fr) auto auto; }
+.arow .who { min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+@media (max-width: 820px) { .arow, .arow.un { grid-template-columns: 1fr 1fr; } .arow .aal, .arow .who { grid-column: 1 / -1; } }
+.achk { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 8px 0; }
+.achk label { display: inline-flex; gap: 5px; align-items: center; font-size: 13px; cursor: pointer; }
+.achk label.un span { border-bottom: 1px dashed var(--sub); }
+.bfields { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin: 8px 0; }
+.bfields label, .bform label { display: grid; gap: 2px; font-size: 11px; color: var(--sub); min-width: 0; }
+.bfields input, .bform input { width: 100%; min-width: 0; }
+.bform { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0; }
+.bform .wide { grid-column: 1 / -1; }
+.bform .srow { grid-column: 1 / -1; }
 .sumname { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .svr .sub { font-size: 11px; color: var(--sub); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .svr .bd { display: flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; max-width: 120px; }
@@ -318,11 +342,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </head>
 <body>
 <header>
-  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
+  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a><a href="logview.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">戦いのログビューア →</a></h1>
   <p>開くと公開中のリストを読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。リストと手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <nav class="views" id="views" role="tablist" aria-label="画面">
   <button role="tab" data-v="roster" aria-selected="true">リスト</button>
+  <button role="tab" data-v="attrs" aria-selected="false">属性マスタ<i id="attrBadge" hidden></i></button>
   <button role="tab" data-v="import" aria-selected="false">取り込み<i id="impBadge" hidden>●</i></button>
   <button role="tab" data-v="cmp" aria-selected="false">試し戦い</button>
   <button role="tab" data-v="lab" aria-selected="false">聖杯戦争で試す</button>
@@ -331,6 +356,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </nav>
 <main>
   <section class="view" data-view="roster">
+    <div class="banner" id="bossBanner" hidden></div>
     <div class="banner" id="syncBanner" hidden></div>
     <div class="browse" id="browse">
       <aside class="lpane">
@@ -338,6 +364,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
           <div class="row">
             <input type="search" id="q" placeholder="真名・クラス・元ネタ・スキル・宝具で探す（/ キー）" autocomplete="off">
             <select id="clsSel" aria-label="クラスで絞る"></select>
+            <select id="attrSel" aria-label="属性で絞る"></select>
             <select id="sort" aria-label="並べ方">
               <option value="class">クラス順</option><option value="name">名前順</option><option value="grade">評価順</option>
               <option value="power">戦闘力順</option><option value="np">宝具の威力順</option><option value="review">要確認の多い順</option>
@@ -352,6 +379,20 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <article class="dpane" id="detail"><div class="empty">左の一覧から選んでください</div></article>
     </div>
   </section>
+  <section class="view" data-view="attrs" hidden>
+    <section class="panel">
+      <h2>属性マスタ</h2>
+      <p class="hint" style="margin:0 0 8px">Wikiの「その他属性（特性）」は、ページごとに書き方がばらばらです（神／神性、獣／魔獣…）。ここで正規の名前と別の書き方（別名）を決めておくと、どの騎にも同じ名前で付き、リストの名前の横に出ます。騎ごとの付け替えは、リストの詳細の「属性を編集」から。属性は特攻・弱点の照合にも使われます。「ボス専用」を付けた英霊は聖杯戦争には呼ばれず、特異点攻略のボスになります。</p>
+      <div class="row"><input type="text" id="attrNew" placeholder="新しい属性の名前" autocomplete="off" maxlength="20"><button class="primary" id="attrAdd">属性を足す</button></div>
+      <div id="attrList" style="margin-top:10px"></div>
+    </section>
+    <section class="panel" id="attrUnPanel" hidden>
+      <h2>マスタにない書き方（Wikiの特性）</h2>
+      <p class="hint" style="margin:0 0 8px">どれかの騎のWikiに書かれていて、属性マスタにまだ無い名前です。既存の属性の別名にするか、新しい属性として登録してください。</p>
+      <div class="row" style="margin-bottom:6px"><button class="sm" id="attrAuto" title="「神霊→神性」「猛獣→獣」のように、短くて意味の近いものだけをまとめます（確認してから反映）">似た書き方を自動でまとめる</button><button class="sm" id="attrRegAll">すべて新しい属性として登録</button></div>
+      <div id="attrUnknown"></div>
+    </section>
+  </section>
   <section class="view" data-view="import" hidden>
     <section class="panel" id="importPanel">
       <h2>取り込み</h2>
@@ -361,6 +402,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
       <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出したリスト）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
+      <div class="row" style="margin-top:10px"><button id="bossNew">ボスを新しく作る</button><button id="bossPub" title="data/bosses.json にいるボスを、リストの英霊（ボス専用）として取り込みます">公開中の bosses.json のボスを取り込む</button></div>
+      <div class="hint" style="margin-top:6px">ボスは、属性「ボス専用」の英霊です。聖杯戦争には呼ばれず、特異点攻略のボスとして出ます。スキルや宝具は、作ったあとに「内容を編集」「効果の編集」で足せます。</div>
       <div class="status" id="status"></div>
       <div class="box warn" id="reqBox" hidden></div>
       <div class="hint" style="margin-top:6px">プレイヤーからの申請（<a href="submit.html" target="_blank" style="color:var(--accent)">申請フォーム</a>で作ったもの）は、Issue の「管理者向け」の枠の中身をここに貼り付けるか、申請のファイルを「ファイルを読む」で読むと反映されます。</div>
@@ -425,6 +468,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button id="saveLean">公開用に保存（data/servants.json）</button>
         <button id="saveOv">手直し表を保存（data/overrides.json）</button>
         <button id="saveJson">リストをJSONで保存</button>
+        <button id="saveCsv" title="真名・クラス・強さランク（S〜E）などの一覧を、Excelなどで開けるCSVにします">一覧をCSVで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
       <div class="gh">
@@ -482,6 +526,46 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <button id="edReset">この騎の手直しを消す</button>
     <button class="ghost danger" id="edResetGlobal" hidden>全員分の手直しを消す</button>
     <button class="ghost" id="edCancel">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="ad">
+  <h3 id="adTitle"></h3>
+  <p class="hint" style="margin:0">この騎に付ける属性を選びます。選んだ内容は手直し表に入り、Wikiから取り直しても残ります（「Wikiの特性に戻す」で外せます）。</p>
+  <div class="achk" id="adChips"></div>
+  <div class="row"><input type="text" id="adNew" list="attrMasterList" placeholder="属性を足す（マスタにあれば選ぶ・無ければ新規）" autocomplete="off" maxlength="20"><datalist id="attrMasterList"></datalist></div>
+  <p class="hint" id="adNote"></p>
+  <div class="row">
+    <button class="primary" id="adSave">保存して反映</button>
+    <button id="adReset">Wikiの特性に戻す</button>
+    <button class="ghost" id="adCancel">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="bd">
+  <h3>ボスを新しく作る</h3>
+  <div class="bform">
+    <label>真名<input type="text" id="bdName" autocomplete="off" maxlength="40"></label>
+    <label>クラスの表記<input type="text" id="bdCls" value="ボス" autocomplete="off" maxlength="20"></label>
+    <div class="srow" id="bdStats"></div>
+    <label class="wide">解説（任意）<input type="text" id="bdText" autocomplete="off" maxlength="200"></label>
+  </div>
+  <p class="hint">作ると、属性「ボス専用」の英霊としてリストに入ります。能力値は A+・B・EX などで書きます。</p>
+  <div class="row">
+    <button class="primary" id="bdSave">作る</button>
+    <button class="ghost" id="bdCancel">閉じる</button>
+  </div>
+</dialog>
+
+<dialog id="bp">
+  <h3 id="bpTitle"></h3>
+  <p class="hint" style="margin:0">空欄の項目は、特異点攻略の既定の値を使います（灰色の数字）。</p>
+  <div class="bfields" id="bpFields"></div>
+  <div id="bpNps"></div>
+  <div class="row">
+    <button class="primary" id="bpSave">保存して反映</button>
+    <button id="bpReset">設定を消す</button>
+    <button class="ghost" id="bpCancel">閉じる</button>
   </div>
 </dialog>
 
@@ -592,7 +676,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- Wikiのページ名（真名と違うことがある。手直し表 pages に入る） ----------
   // missing：取り直しで見つからなかった（取り込みツールが pageMissing を付ける）、unknown：取り込んだときのページ名が無い
-  const pageState = s => s.pageMissing ? (E.PAGE_OVERRIDES[s.trueName] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
+  const pageState = s => s.bossOnly ? null : s.pageMissing ? (E.PAGE_OVERRIDES[s.trueName] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
   function pageBox(sv, i) {
     const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[sv.trueName];
     const msg = st === 'missing' ? `⚠ ${esc(pm.at || '')}の取り直しで、Wikiのページが見つかりませんでした（試した名前：${esc((pm.tried || []).join('、') || sv.trueName)}）。kagemiya で正しいページ名を確かめて入れ、保存してから取り直してください。`
@@ -653,10 +737,10 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const req = lastReq && (lastReq.servant === sv.trueName) ? lastReq : null;
     return `<div class="body">
       ${req ? `<div class="box warn reqnote"><b>取り込んだ申請（${req.kind === 'add' ? '追加' : '調整の希望'}${req.from ? '・' + esc(req.from) : ''}）</b>${reqNotesHtml(req)}${req.reason ? `<div style="white-space:pre-wrap">${req.kind === 'add' ? '補足' : '理由'}：${esc(req.reason)}</div>` : ''}${req.content ? `<div style="white-space:pre-wrap">直してほしいこと：${esc(req.content)}</div>` : ''}</div>` : ''}
-      <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).join('・')].filter(Boolean).join(' · '))}</div>
+      <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span><span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span></div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         <button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>${wikiUrl(sv) ? `<a href="${wikiUrl(sv)}" target="_blank" rel="noopener">kagemiya のページ</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
@@ -679,9 +763,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- 探す・並べ替える ----------
   // かな・カナ、全角・半角、空白と「・」の違いを無視して探す
   const fold = t => String(t || '').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s・･=＝]/g, '');
-  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, B.pageOf(s),
+  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, B.pageOf(s), (s.attrs || []).join(' '),
     (s.allSkills || []).map(x => x.name).join(' '), (s.nps || []).map(x => x.name + ' ' + (x.reading || '')).join(' ')].join(' '));
-  let query = '', sortBy = 'class';
+  let query = '', sortBy = 'class', attrFilter = '';
   const nReviewOf = s => s.review.filter(r => r.kind !== 'class').length;
   const SORTS = {
     class: (a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'),
@@ -704,7 +788,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   const REF_MAX = 120;
   function strengthTable() {
     if (strength && strength.ver === rosterVer) return strength;
-    const ids = roster.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+    const ids = roster.filter(s => !s.bossOnly).sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));   // 評価の物差しにボスは入れない
     const refs = ids.length <= REF_MAX ? ids : Array.from({ length: REF_MAX }, (_, i) => ids[Math.floor(i * ids.length / REF_MAX)]);
     const rates = new Map();
     for (const a of roster) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } rates.set(a.id, n ? t / n : 0.5); }
@@ -713,12 +797,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   const rateOf = s => (strengthTable().rates.get(s.id) || 0);
   function gradeOf(s) {
-    const T = strengthTable(), r = rateOf(s), n = roster.length;
+    const T = strengthTable(), r = rateOf(s), n = roster.filter(x => !x.bossOnly).length;
     const pct = T.sorted.filter(x => x > r + 1e-9).length / Math.max(1, n - 1);
     return H.gradeOfPct(pct);
   }
   function render() {
-    const counts = H.war.classCounts(roster);
+    const warSv = roster.filter(s => !s.bossOnly);   // 聖杯戦争に呼ばれる英霊（ボス専用を除く）
+    const counts = H.war.classCounts(warSv);
     const present = CLS_ORDER.filter(k => counts[k]);
     if (filter !== 'all' && !counts[filter]) filter = 'all';
     const nReview = roster.filter(s => nReviewOf(s)).length;
@@ -726,7 +811,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const nEdited = roster.filter(s => (s.contentEdited || []).length).length;
     const nPage = roster.filter(s => ['missing', 'unknown'].includes(pageState(s))).length;
     $('#clsSel').innerHTML = `<option value="all">すべてのクラス（${roster.length}）</option>` + present.map(k => `<option value="${k}"${filter === k ? ' selected' : ''}>${esc(H.classDef(k).label)}（${counts[k]}）</option>`).join('');
-    const flags = [['review', '要確認あり', nReview], ['changed', '未公開の追加・変更', nChanged], ['edited', '内容を手直し中', nEdited], ['page', 'Wikiのページ名を確かめる', nPage]].filter(x => x[2]);
+    const nBoss = roster.filter(s => s.bossOnly).length;
+    const flags = [['review', '要確認あり', nReview], ['changed', '未公開の追加・変更', nChanged], ['edited', '内容を手直し中', nEdited], ['page', 'Wikiのページ名を確かめる', nPage], ['boss', 'ボス専用', nBoss]].filter(x => x[2]);
+    // 属性で絞る（属性マスタの名前ごと。数は騎数）
+    const acount = new Map(); for (const s of roster) for (const n of s.attrs || []) acount.set(n, (acount.get(n) || 0) + 1);
+    if (attrFilter && !acount.has(attrFilter)) attrFilter = '';
+    $('#attrSel').innerHTML = `<option value="">すべての属性</option>` + [...acount].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja')).map(([n, c]) => `<option value="${esc(n)}"${attrFilter === n ? ' selected' : ''}>${esc(n)}（${c}）</option>`).join('');
+    renderAttrs(); renderBossBanner();
     if (flag && !flags.some(x => x[0] === flag)) flag = '';
     $('#filters').innerHTML = flags.map(([k, t, n]) => `<button class="sm${flag === k ? ' on' : ''}" data-f="${k}" aria-pressed="${flag === k}">${t} ${n}</button>`).join('');
     renderList();
@@ -736,11 +827,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     // クラス別の人数
     const std = H.standardClasses();
     $('#pool').innerHTML = std.map(k => `<div class="${counts[k] < 2 ? 'low' : ''}"><span>${esc(H.classDef(k).label)}</span><b>${counts[k]}</b></div>`).join('')
-      + `<div><span>エクストラ</span><b>${roster.filter(isExtra).length}</b></div>`;
+      + `<div><span>エクストラ</span><b>${warSv.filter(isExtra).length}</b></div>`;
     const low = std.filter(k => counts[k] < 2).map(k => H.classDef(k).label);
     $('#poolNote').textContent = !roster.length ? '' : low.length ? `${low.join('・')}は候補が1騎以下です。そのクラスは毎回同じサーヴァントになるか、別クラスの代役が入ります。` : '各クラス2騎以上います。';
 
-    $('#warPanel').hidden = roster.length < 7;
+    $('#warPanel').hidden = warSv.length < 7;
     $('#cmpPanel').hidden = roster.length < 2;
     $('#svOpts').innerHTML = roster.map(s => `<option value="${esc(optLabel(s))}"></option>`).join('');
     if (!cmpA || !roster.includes(cmpA)) cmpA = roster.find(x => cmpA && x.id === cmpA.id) || roster[0] || null;
@@ -755,7 +846,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function renderList() {
     const f = fold(query);
     const shown = roster.map((s, i) => [s, i]).filter(([s]) => (filter === 'all' || s.class.key === filter)
-      && (!flag || (flag === 'review' ? nReviewOf(s) : flag === 'changed' ? pubState(s) : flag === 'page' ? ['missing', 'unknown'].includes(pageState(s)) : (s.contentEdited || []).length))
+      && (!attrFilter || (s.attrs || []).includes(attrFilter))
+      && (!flag || (flag === 'review' ? nReviewOf(s) : flag === 'changed' ? pubState(s) : flag === 'page' ? ['missing', 'unknown'].includes(pageState(s)) : flag === 'boss' ? s.bossOnly : (s.contentEdited || []).length))
       && (!f || hay(s).includes(f)));
     shown.sort((x, y) => SORTS[sortBy](x[0], y[0]));
     shownIds = shown.map(([s]) => s.id);
@@ -763,7 +855,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#list').innerHTML = shown.length ? shown.map(([s]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
       const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : '', ['missing', 'unknown'].includes(pageState(s)) ? `<span class="badge" title="${pageState(s) === 'missing' ? '取り直しでWikiのページが見つからなかった' : '取り込んだときのページ名が無い'}">ページ名？</span>` : ''].join('');
-      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="sumname">${mark(s.trueName)}</span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
+      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${g}" title="評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）">${g}</span><span class="t"><span class="nmrow"><span class="sumname">${mark(s.trueName)}</span><span class="attrs">${attrChips(s, 3)}</span></span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
     }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div>';
     // 選んでいる騎が一覧から消えたら、一覧の先頭を選ぶ（スマホで詳細を開いていないときだけ）
     if (!roster.some(x => x.id === sel)) { sel = shownIds[0] || (roster[0] && roster[0].id) || null; renderDetail(); }
@@ -773,7 +865,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const i = roster.findIndex(x => x.id === sel), sv = roster[i];
     if (!sv) { $('#detail').innerHTML = `<div class="empty">${roster.length ? '左の一覧から選んでください' : 'リストが空です'}</div>`; $('#browse').classList.remove('show'); return; }
     const k = shownIds.indexOf(sv.id), g = gradeOf(sv);
-    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="sp"></span>`
+    $('#detail').innerHTML = `<div class="dhead"><button class="sm back" data-back>← 一覧へ</button><img class="ci" src="${H.classIcon(sv.class.key)}" alt="" width="28" height="28" style="width:28px;height:28px;border-radius:5px"><span class="cls${isExtra(sv) ? ' ex' : ''}">${esc(sv.class.label)}</span><span class="grade ${g}">${g}</span><span class="nm">${esc(sv.trueName)}<small>${esc(sv.origin || '')}</small></span><span class="attrs edit" data-attr="${i}" role="button" tabindex="0" title="押すと、この騎の属性を編集します">${attrChips(sv) || '<span class="attr un">属性なし</span>'}</span><span class="sp"></span>`
       + `<span class="nav"><button class="sm" data-step="-1" title="前の騎（↑・k）"${k <= 0 ? ' disabled' : ''}>‹</button><span class="hint">${k >= 0 ? (k + 1) + ' / ' + shownIds.length : '一覧の外'}</span><button class="sm" data-step="1" title="次の騎（↓・j）"${k < 0 || k >= shownIds.length - 1 ? ' disabled' : ''}>›</button></span></div>` + body(sv, i);
     fillFace();
   }
@@ -842,6 +934,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     for (const x of document.querySelectorAll('.view')) x.hidden = x.dataset.view !== v;
     if (v === 'import') $('#impBadge').hidden = true;
     if (v === 'lab') openLab();
+    if (v === 'attrs') renderAttrs();
     toTop();
   }
   $('#views').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) showView(b.dataset.v); });
@@ -852,7 +945,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function openLab() {
     if (lab) { lab.refresh(); return; }
     lab = H.simLab.mount($('#lab'), {
-      roster: () => roster,
+      roster: () => roster.filter(s => !s.bossOnly),
       overrides: () => ovGet(),
       order: () => (pub ? [...pub.servants.keys()] : null),
       pubFp: () => pubFingerprint(),
@@ -874,6 +967,216 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     pubFpCache = { pub, fp };
     return fp;
   }
+
+  // ---------- 属性（その他属性）マスタとボス専用 ----------
+  // 属性マスタ（E.ATTR_MASTER）：正規の名前と別名。騎ごとの付け替えは E.ATTR_OF['真名']。ボス専用（E.BOSS_ATTR）はいつもある
+  const BOSS_ATTR = E.BOSS_ATTR;
+  const cleanAttr = t => String(t == null ? '' : t).trim().replace(/^[(（\[【〔]+|[)）\]】〕]+$/g, '').trim();
+  const attrList = () => [BOSS_ATTR].concat(Object.keys(E.ATTR_MASTER).filter(n => n !== BOSS_ATTR).sort((a, b) => a.localeCompare(b, 'ja')));
+  const holdersOfAttr = n => roster.filter(s => (s.attrs || []).includes(n));
+  function attrChip(n, sv) {
+    const un = sv && (sv.attrsUnknown || []).includes(n);
+    return `<span class="attr${n === BOSS_ATTR ? ' boss' : un ? ' un' : ''}"${un ? ' title="属性マスタに無い書き方（「属性マスタ」で登録できます）"' : ''}>${esc(n)}</span>`;
+  }
+  function attrChips(sv, max) {
+    const a = sv.attrs || [], shown = max ? a.slice(0, max) : a;
+    return shown.map(n => attrChip(n, sv)).join('') + (max && a.length > max ? `<span class="attr" title="${esc(a.slice(max).join('・'))}">+${a.length - max}</span>` : '');
+  }
+  const aliasesOf = t => String(t).split(/[、,，\n]/).map(x => x.trim()).filter(Boolean);
+  function renderAttrs() {
+    const names = attrList();
+    $('#attrList').innerHTML = names.map(n => {
+      const b = n === BOSS_ATTR, m = b ? { aliases: ['ボス', 'ボスキャラ'], note: '聖杯戦争には呼ばれず、特異点攻略のボスになる（消せません）' } : E.ATTR_MASTER[n] || {}, h = holdersOfAttr(n), dis = b ? ' disabled' : '';
+      return `<div class="arow" data-a="${esc(n)}"><input type="text" data-af="name" value="${esc(n)}"${dis} aria-label="属性名"><input class="aal" type="text" data-af="aliases" value="${esc((m.aliases || []).join('、'))}" placeholder="別の書き方（、で区切る）"${dis} aria-label="別名"><input type="text" data-af="note" value="${esc(m.note || '')}" placeholder="メモ"${dis} aria-label="メモ"><button class="sm" data-aview="${esc(n)}" title="この属性の騎だけをリストに出す">${h.length}騎</button>${b ? '<span></span>' : `<button class="sm ghost danger" data-adel="${esc(n)}">消す</button>`}</div>`;
+    }).join('');
+    const un = new Map();
+    for (const s of roster) for (const u of s.attrsUnknown || []) { if (!un.has(u)) un.set(u, []); un.get(u).push(s); }
+    $('#attrUnPanel').hidden = !un.size;
+    const opts = sel => '<option value="">別名にする属性…</option>' + names.filter(n => n !== BOSS_ATTR).map(n => `<option value="${esc(n)}"${n === sel ? ' selected' : ''}>${esc(n)}</option>`).join('');
+    $('#attrUnknown').innerHTML = [...un].sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], 'ja')).map(([u, list]) => {
+      const guess = cleanAttr(E.canonTag(cleanAttr(u)));
+      return `<div class="arow un" data-u="${esc(u)}"><span class="who"><b>${esc(u)}</b> <span class="hint">${list.length}騎：${esc(list.slice(0, 5).map(s => s.trueName).join('・'))}${list.length > 5 ? ' ほか' : ''}</span></span><select data-us aria-label="別名にする属性">${opts(E.ATTR_MASTER[guess] ? guess : '')}</select><button class="sm" data-ualias>別名にする</button><button class="sm" data-unew>新しい属性にする</button></div>`;
+    }).join('');
+    $('#attrBadge').hidden = !un.size; $('#attrBadge').textContent = un.size;
+  }
+  // 名前を直す：マスタの並びを保ったまま、騎ごとの付け替えの中の名前も直す
+  function renameAttr(from, to) {
+    const entries = Object.entries(E.ATTR_MASTER);
+    for (const [k] of entries) delete E.ATTR_MASTER[k];
+    for (const [k, v] of entries) E.ATTR_MASTER[k === from ? to : k] = v;
+    for (const [tn, l] of Object.entries(E.ATTR_OF)) E.ATTR_OF[tn] = l.map(x => x === from ? to : x).filter((x, i, a) => a.indexOf(x) === i);
+  }
+  $('#attrList').addEventListener('change', e => {
+    const inp = e.target.closest('[data-af]'); if (!inp) return;
+    const row = inp.closest('[data-a]'), old = row.dataset.a, f = k => row.querySelector(`[data-af="${k}"]`).value, m = E.ATTR_MASTER[old];
+    if (!m) return;
+    if (inp.dataset.af === 'name') {
+      const to = cleanAttr(f('name'));
+      if (!to) { status('属性の名前が空です'); renderAttrs(); return; }
+      if (to !== old) {
+        const hit = E.attrIndex().get(E.attrFold(to));
+        if (hit && hit !== old) { status(`「${to}」は属性「${hit}」の名前（か別名）としてすでにあります`); renderAttrs(); return; }
+        renameAttr(old, to);
+      }
+    } else if (inp.dataset.af === 'aliases') {
+      const al = aliasesOf(f('aliases')).filter(a => E.attrFold(a) !== E.attrFold(old)), bad = al.filter(a => { const h = E.attrIndex().get(E.attrFold(a)); return h && h !== old; });
+      if (bad.length) status(`「${bad.join('・')}」は、ほかの属性の名前か別名なので入れませんでした`);
+      m.aliases = al.filter(a => !bad.includes(a));
+    } else m.note = f('note').trim();
+    afterEdit();
+  });
+  $('#attrList').addEventListener('click', e => {
+    const d = e.target.closest('[data-adel]');
+    if (d) {
+      const n = d.dataset.adel, h = holdersOfAttr(n).length;
+      if (!confirm(`属性「${n}」をマスタから消します（${h}騎から外れます。Wikiに同じ書き方が残っていれば、「マスタにない書き方」に戻ります）`)) return;
+      delete E.ATTR_MASTER[n];
+      for (const tn of Object.keys(E.ATTR_OF)) E.ATTR_OF[tn] = E.ATTR_OF[tn].filter(x => x !== n);
+      afterEdit(); return;
+    }
+    const v = e.target.closest('[data-aview]'); if (v) { attrFilter = v.dataset.aview; showView('roster'); render(); }
+  });
+  $('#attrAdd').onclick = () => {
+    const n = cleanAttr($('#attrNew').value); if (!n) return;
+    const hit = E.attrIndex().get(E.attrFold(n));
+    if (hit) { status(`「${n}」は属性「${hit}」としてすでにあります`); return; }
+    E.ATTR_MASTER[n] = { aliases: [] }; $('#attrNew').value = ''; afterEdit(); status(`属性「${n}」を足しました`);
+  };
+  $('#attrNew').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#attrAdd').click(); } });
+  $('#attrUnknown').addEventListener('click', e => {
+    const row = e.target.closest('[data-u]'); if (!row) return;
+    const u = row.dataset.u, n = cleanAttr(u);
+    if (e.target.closest('[data-unew]')) { if (!E.ATTR_MASTER[n]) E.ATTR_MASTER[n] = { aliases: [] }; afterEdit(); status(`「${n}」を属性として登録しました`); }
+    else if (e.target.closest('[data-ualias]')) {
+      const t = row.querySelector('[data-us]').value;
+      if (!t) { status('どの属性の別名にするか選んでください'); return; }
+      const m = E.ATTR_MASTER[t]; m.aliases = (m.aliases || []).concat(n).filter((x, i, a) => a.indexOf(x) === i);
+      afterEdit(); status(`「${n}」を「${t}」の別名にしました`);
+    }
+  });
+  $('#attrRegAll').onclick = () => {
+    const un = new Set(); for (const s of roster) for (const u of s.attrsUnknown || []) un.add(cleanAttr(u));
+    if (!un.size) return;
+    if (!confirm(`マスタにない ${un.size}件を、そのまま新しい属性として登録します（あとから別名にまとめ直せます）`)) return;
+    for (const n of un) if (n && !E.ATTR_MASTER[n]) E.ATTR_MASTER[n] = { aliases: [] };
+    afterEdit(); status(`${un.size}件を属性として登録しました`);
+  };
+  // 似た書き方の自動まとめ：3文字以内で、正規のタグ（effects.js の TAG_CANON：獣・竜・神性…）に当たるものだけ。長い書き方は人が決める
+  $('#attrAuto').onclick = () => {
+    const un = new Set(); for (const s of roster) for (const u of s.attrsUnknown || []) un.add(cleanAttr(u));
+    const canonNames = E.TAG_CANON.map(x => x[0]), groups = new Map();
+    for (const c of un) {
+      if (!c || c.length > 3) continue;
+      const k = E.canonTag(c); if (!canonNames.includes(k) || k === c) continue;
+      if (!groups.has(k)) groups.set(k, []); groups.get(k).push(c);
+    }
+    if (!groups.size) { status('自動でまとめられる書き方は見つかりませんでした'); return; }
+    if (!confirm('次のようにまとめます（正規の名前 ← 別名）：\n' + [...groups].map(([k, l]) => `・${k} ← ${l.join('、')}`).join('\n'))) return;
+    for (const [k, l] of groups) { const m = E.ATTR_MASTER[k] || (E.ATTR_MASTER[k] = { aliases: [] }); m.aliases = (m.aliases || []).concat(l).filter((x, i, a) => a.indexOf(x) === i); }
+    afterEdit(); status(`${groups.size}件の属性にまとめました。残りは手で振り分けてください`);
+  };
+  $('#attrSel').addEventListener('change', e => { attrFilter = e.target.value; renderList(); });
+
+  // 騎ごとの属性の付け替え
+  let adCtx = null;
+  function openAttrEditor(sv) {
+    if (!sv) return;
+    adCtx = sv;
+    const have = new Set(sv.attrs || []), list = attrList(), names = list.concat([...have].filter(n => !list.includes(n)));
+    $('#adTitle').textContent = `${sv.trueName} の属性`;
+    $('#adChips').innerHTML = names.map(n => `<label class="${(sv.attrsUnknown || []).includes(n) ? 'un' : ''}"><input type="checkbox" value="${esc(n)}"${have.has(n) ? ' checked' : ''}><span>${esc(n)}</span></label>`).join('');
+    $('#attrMasterList').innerHTML = list.map(n => `<option value="${esc(n)}">`).join('');
+    $('#adNew').value = '';
+    $('#adNote').textContent = `Wikiの特性：${(sv.traits || []).join('・') || 'なし'}${E.ATTR_OF[sv.trueName] ? '（いまは付け替え済みです）' : ''}。点線の属性は、マスタにまだ無い書き方です（保存するとマスタに登録されます）。`;
+    $('#ad').showModal();
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('[data-attr]'); if (b) openAttrEditor(roster[+b.dataset.attr]); });
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches && e.target.matches('.attrs.edit[data-attr]')) { e.preventDefault(); openAttrEditor(roster[+e.target.dataset.attr]); } });
+  $('#adNew').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); $('#adSave').click(); } });
+  $('#adSave').onclick = () => {
+    const sv = adCtx, picked = [...$('#adChips').querySelectorAll('input:checked')].map(i => i.value), nw = cleanAttr($('#adNew').value);
+    if (nw) { const hit = E.attrIndex().get(E.attrFold(nw)) || nw; if (!picked.includes(hit)) picked.push(hit); }
+    for (const n of picked) if (!E.attrIndex().get(E.attrFold(n))) E.ATTR_MASTER[n] = { aliases: [] };
+    const tn = sv.trueName; delete E.ATTR_OF[tn];
+    const def = E.resolveAttrs(sv).attrs;   // Wikiの特性をマスタで読み替えたもの。同じなら付け替えは持たない
+    if (!(def.length === picked.length && picked.every(n => def.includes(n)))) E.ATTR_OF[tn] = picked;
+    $('#ad').close(); afterEdit(); status(`${tn}の属性を保存しました（手直し表に入ります）`);
+  };
+  $('#adReset').onclick = () => { if (adCtx) delete E.ATTR_OF[adCtx.trueName]; $('#ad').close(); afterEdit(); };
+  $('#adCancel').onclick = () => $('#ad').close();
+
+  // ボス：属性「ボス専用」の英霊。bosses.json の1騎の形（B.leanFromSpec）から、リストの英霊と手直し表を作る
+  function importBossSpec(spec) {
+    const r = B.leanFromSpec(spec), tn = r.lean.trueName;
+    Object.assign(E.SERVANT_OVERRIDES, r.servantOv); Object.assign(E.NP_OVERRIDES, r.npOv);
+    const p = Object.assign({}, spec.boss || {}); if (Object.keys(r.aoe).length) p.aoe = r.aoe;
+    if (Object.keys(p).length) E.BOSS_PARAMS[tn] = p;
+    return B.fromJSON(r.lean);
+  }
+  $('#bossNew').onclick = () => {
+    $('#bdName').value = ''; $('#bdCls').value = 'ボス'; $('#bdText').value = '';
+    $('#bdStats').innerHTML = B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="B" autocomplete="off"></label>`).join('');
+    $('#bd').showModal(); $('#bdName').focus();
+  };
+  $('#bdCancel').onclick = () => $('#bd').close();
+  $('#bd').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input') && !e.isComposing) { e.preventDefault(); $('#bdSave').click(); } });
+  $('#bdSave').onclick = () => {
+    const name = $('#bdName').value.trim(); if (!name) { status('真名を入れてください'); return; }
+    const stats = {}; for (const i of $('#bdStats').querySelectorAll('input')) stats[i.dataset.k] = i.value.trim() || 'C';
+    const text = $('#bdText').value.trim(), spec = { trueName: name, class: $('#bdCls').value.trim() || 'ボス', stats, text: text ? { commentary: text } : {} };
+    let sv; try { sv = B.fromJSON(B.leanFromSpec(spec).lean); } catch (err) { status('作れませんでした：' + err.message); return; }
+    if (roster.some(x => x.id === sv.id) && !confirm(`「${name}」はすでにリストにいます。置き換えますか？`)) return;
+    const res = upsert([sv]); $('#bd').close(); done(res, []); jumpTo(sv.id);
+  };
+  // 公開中の bosses.json のボス（まだリストに入っていないものがあれば、リストの上に知らせる）
+  let pubBosses = null;
+  async function fetchPubBosses() {
+    const get = async u => { const r = await fetch('data/' + u, { cache: 'no-cache' }); if (!r.ok) throw new Error(u + '：' + r.status); return r.json(); };
+    const man = await get('manifest.json'), specs = [];
+    for (const f of man.bosses || []) { const d = await get(f); specs.push(...(Array.isArray(d) ? d : d.bosses || [])); }
+    return specs;
+  }
+  function renderBossBanner() {
+    const el = $('#bossBanner');
+    if (pubBosses === null) { pubBosses = []; fetchPubBosses().then(l => { pubBosses = l; renderBossBanner(); }).catch(() => {}); }
+    const todo = pubBosses.filter(s => !roster.some(x => x.bossOnly && x.trueName === s.trueName));
+    el.hidden = !todo.length;
+    if (todo.length) el.innerHTML = `公開中の bosses.json に、まだリストに入っていないボスがいます：<b>${esc(todo.map(s => s.trueName).join('・'))}</b>。リストに取り込むと、ここで編集できます（属性・スキル・宝具・ボスの設定）。 <button class="sm primary" id="bossBannerGo">リストに取り込む</button>`;
+  }
+  $('#bossBanner').addEventListener('click', e => { if (e.target.closest('#bossBannerGo')) $('#bossPub').click(); });
+  $('#bossPub').onclick = async () => {
+    try {
+      const specs = await fetchPubBosses();
+      if (!specs.length) { status('公開中のボスはいません'); return; }
+      if (!confirm(`公開中の bosses.json のボス ${specs.length}騎（${specs.map(s => s.trueName).join('・')}）を、ボス専用の英霊としてリストに入れます。\n公開したあとは、ゲームではリストの方が使われます（bosses.json の同名のボスは置き換わります）。`)) return;
+      const out = []; for (const s of specs) { try { out.push(importBossSpec(s)); } catch (err) { status(`${s.trueName}：${err.message}`); } }
+      ovStore(); ovVer++; const res = upsert(out); done(res, []); if (out[0]) jumpTo(out[0].id);
+    } catch (err) { status('公開中のボスを読めませんでした：' + err.message); }
+  };
+  // ボスの設定（特異点攻略）：呼び名・ブレイクゲージ・戦闘力の上乗せ・被ダメ軽減・魔力・毎朝の戻り・居城に着く確率・登場の文・宝具の全体攻撃
+  const BOSS_FIELDS = [['label', '呼び名', 'text'], ['gauges', 'ブレイクゲージ', 'number'], ['power', '戦闘力の上乗せ', 'number'], ['guard', '被ダメージ軽減', 'number'], ['mana', '魔力の蓄え', 'number'], ['regen', '毎朝の魔力の戻り', 'number'], ['heal', '毎朝の霊基の戻り', 'number'], ['find', '居城にたどり着く確率(0〜1)', 'number']];
+  let bpCtx = null;
+  function openBossEditor(sv) {
+    if (!sv) return;
+    bpCtx = sv;
+    const cur = E.BOSS_PARAMS[sv.trueName] || {}, D = H.CONFIG.SING.boss || {};
+    $('#bpTitle').textContent = `${sv.trueName} のボスの設定`;
+    $('#bpFields').innerHTML = BOSS_FIELDS.map(([k, t, ty]) => `<label>${t}<input type="${ty === 'number' ? 'number' : 'text'}"${ty === 'number' ? ' step="any"' : ''} data-b="${k}" value="${esc(cur[k] == null ? '' : cur[k])}" placeholder="${esc(D[k] == null ? '' : D[k])}"></label>`).join('')
+      + `<label style="grid-column:1/-1">登場の文（空欄なら定型文）<input type="text" data-b="intro" value="${esc(cur.intro || '')}" maxlength="300" autocomplete="off"></label>`;
+    $('#bpNps').innerHTML = sv.nps.length ? `<h4 style="margin:8px 0 4px;font-size:13px">宝具の全体攻撃の広がり（空欄は単体。押し勝った打ち合いで、相手の側の他の英霊にも 傷×この値）</h4><div class="bfields">${sv.nps.map(n => `<label>${esc(n.name)}<input type="number" step="any" data-aoe="${esc(n.name)}" value="${esc((cur.aoe && cur.aoe[n.name] != null) ? cur.aoe[n.name] : (cur.aoe && cur.aoe[E.normName(n.name)] != null ? cur.aoe[E.normName(n.name)] : ''))}"></label>`).join('')}</div>` : '';
+    $('#bp').showModal();
+  }
+  document.addEventListener('click', e => { const b = e.target.closest('[data-boss]'); if (b) openBossEditor(roster[+b.dataset.boss]); });
+  $('#bpCancel').onclick = () => $('#bp').close();
+  $('#bpReset').onclick = () => { if (bpCtx) delete E.BOSS_PARAMS[bpCtx.trueName]; $('#bp').close(); afterEdit(); };
+  $('#bpSave').onclick = () => {
+    const o = {};
+    for (const i of $('#bpFields').querySelectorAll('input')) { const v = i.value.trim(); if (v === '') continue; o[i.dataset.b] = i.type === 'number' ? +v : v; }
+    const aoe = {}; for (const i of $('#bpNps').querySelectorAll('input')) { const v = i.value.trim(); if (v !== '') aoe[i.dataset.aoe] = +v; }
+    if (Object.keys(aoe).length) o.aoe = aoe;
+    if (Object.keys(o).length) E.BOSS_PARAMS[bpCtx.trueName] = o; else delete E.BOSS_PARAMS[bpCtx.trueName];
+    $('#bp').close(); afterEdit(); status(`${bpCtx.trueName}のボスの設定を保存しました`);
+  };
 
   // ---------- 試し戦い ----------
   let cmpA = null, cmpB = null;
@@ -1006,6 +1309,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function fromJsonText(t, name) {
     const d = JSON.parse(t);
     if (d && d.format === 'hgw-request') return { request: d, list: [], harvested: 0 };
+    // ボスのデータ（data/bosses.json の形）：ボス専用の英霊としてリストに入れる（スキル・宝具の効果とボスの設定は手直し表へ）
+    if (d && d.format === 'hgw-bosses') { ovStore(); ovVer++; return { list: (d.bosses || []).map(importBossSpec), harvested: 0 }; }
     const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
     if (!list) throw new Error('リストの形式ではありません');
     const n = B.harvestOverrides(list);
@@ -1044,6 +1349,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
+  // 一覧のCSV（Excel で文字化けしないよう BOM を付ける）。いまのリストの全騎を、クラス順・名前順に。強さランクは一覧と同じ S〜E（ボス専用は評価しない）
+  $('#saveCsv').onclick = () => {
+    if (!roster.length) { status('リストが空です'); return; }
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const list = roster.slice().sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
+    const rows = [['真名', 'クラス', '強さランク', '平均勝率(%)', '戦闘力', '宝具の威力', '属性']];
+    for (const s of list) rows.push([s.trueName, s.class.label, s.bossOnly ? '' : gradeOf(s), s.bossOnly ? '' : Math.round(rateOf(s) * 100), s.power, s.npPeak || '', (s.attrs || []).join('・')]);
+    const d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
+    a.download = `サーヴァントリスト_${stamp}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    status(`${list.length}騎を、CSVで保存しました`);
+  };
   $('#saveJson').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, at: new Date().toISOString(), servants: roster }); };
   // 公開用の書き出しには、このブラウザでした変更（最後にそろえたときから）の一覧 patch を付ける。データの反映（incoming.js）は
   // patch があればその騎だけを変えるので、そのあいだに公開側で取り込んだ騎（Actions の取り込みなど）を消したり古い版に戻したりしない
@@ -1072,7 +1390,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const wn = B.wikiName(sv), dn = sv.trueName, out = [];
     if (E.CONTENT_OVERRIDES[wn]) out.push(['content', wn, '内容' + (E.CONTENT_OVERRIDES[wn].identity ? '・真名とクラスの変更' : '')]);
     for (const [t, ja] of [['servant', '効果'], ['np', '宝具の扱い']]) for (const k of Object.keys(TABLES[t])) if (k.startsWith(dn + '/')) out.push([t, k, ja]);
-    for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済みの要確認']]) if (TABLES[t][dn]) out.push([t, dn, ja]);
+    for (const [t, ja] of [['stats', 'ステータス'], ['reviewed', '確認済みの要確認'], ['attrOf', '属性の付け替え'], ['boss', 'ボスの設定']]) if (TABLES[t][dn]) out.push([t, dn, ja]);
     return out;
   }
   document.addEventListener('click', e => {
@@ -1086,7 +1404,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- 試し引き ----------
   $('#warDraw').onclick = () => {
-    const w = H.war.composeWar(roster);
+    const w = H.war.composeWar(roster.filter(s => !s.bossOnly));
     $('#warOut').innerHTML = w.map(x => `<div><span>${esc(H.classDef(x.slot).label)}</span><span>${x.servant ? esc(x.servant.trueName) + (x.extra ? `（${esc(x.servant.class.label)}）` : x.substitute ? `（代役：${esc(x.servant.class.label)}）` : '') : '空席'}</span></div>`).join('');
   };
 
@@ -1155,7 +1473,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     edCtx = { sv, item, kind };
     $('#edTitle').textContent = `${sv.trueName} ／ ${item.name}（${R.label(item.rank)}）`;
     $('#edDesc').textContent = item.desc || '';
-    $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
+    $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(attrList(), ['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
     $('#edAtkRow').hidden = kind !== 'n';
     $('#edNote').textContent = kind === 'n'
@@ -1228,7 +1546,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   });
   function moveKeys(from, to) {
     for (const t of [E.SERVANT_OVERRIDES, E.NP_OVERRIDES]) for (const k of Object.keys(t)) if (k.startsWith(from + '/')) { const nk = to + k.slice(from.length); if (!(nk in t)) t[nk] = t[k]; delete t[k]; }
-    for (const t of [E.STAT_OVERRIDES, E.PAGE_OVERRIDES, E.REVIEWED]) if (from in t) { if (!(to in t)) t[to] = t[from]; delete t[from]; }
+    for (const t of [E.STAT_OVERRIDES, E.PAGE_OVERRIDES, E.REVIEWED, E.ATTR_OF, E.BOSS_PARAMS]) if (from in t) { if (!(to in t)) t[to] = t[from]; delete t[from]; }
   }
   function setIdentity(name, cls) {
     const { sv, wk } = idCtx, key = wk.trueName, wkCls = wk.class.raw || wk.class.label, from = sv.trueName;
@@ -1259,7 +1577,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const i = k.indexOf('/'), s = byName.get(k.slice(0, i));
       if (!s) out.push([t, k, ja]); else if (!hasItem(s, k.slice(i + 1))) out.push([t, k, ja + '（その名前のスキル・宝具が無い）']);
     }
-    for (const [t, ja] of [['stats', 'ステータスの手直し'], ['pages', 'Wikiのページ名'], ['reviewed', '確認済みの要確認']]) for (const k of Object.keys(TABLES[t])) if (!byName.has(k)) out.push([t, k, ja]);
+    for (const [t, ja] of [['stats', 'ステータスの手直し'], ['pages', 'Wikiのページ名'], ['reviewed', '確認済みの要確認'], ['attrOf', '属性の付け替え'], ['boss', 'ボスの設定']]) for (const k of Object.keys(TABLES[t])) if (!byName.has(k)) out.push([t, k, ja]);
     return out;
   }
   function renderGlobals() {
