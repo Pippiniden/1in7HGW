@@ -26,6 +26,10 @@
   }
   /** kagemiya のページ名（手直し表 pages → 取り込んだときのページ名 の順）。分からなければ null（真名で探す） */
   const pageOf = sv => (sv && (E.PAGE_OVERRIDES[E.okey(sv)] || sv.page || (sv._wiki && sv._wiki.trueName))) || null;
+  // ページ名の代わりに http(s) のURLが入っているとき、それは kagemiya 以外のリンク先（取り直しはできない）
+  const extLinkOf = v => { const t = String(v || '').trim(); return /^https?:\/\/\S+$/i.test(t) ? t : null; };
+  const linkOf = sv => extLinkOf(pageOf(sv));
+  const isManual = sv => !!(sv && (sv.manual || linkOf(sv)));   // Wikiから取り直せない騎（手書き・外部リンク）
   /** Wiki での真名・id（真名・クラスを手直ししていても、取り込んだときのもの。内容の手直し表と公開中のリストとの突き合わせに使う） */
   const wikiName = sv => (sv && sv._wiki && sv._wiki.trueName) || (sv && sv.trueName);
   const wikiId = sv => (sv && sv._wiki && sv._wiki.id) || (sv && sv.id);
@@ -449,13 +453,15 @@
     };
     const lean = {
       kind: 'servant', trueName: tn, aliases: spec.aliases || [], class: { raw: asStr(spec.class) || '？' }, origin: spec.origin || '', sex: spec.sex || '',
-      alignment: spec.alignment || '', attribute: spec.attribute || '', traits: (spec.traits || []).filter(t => t !== E.BOSS_ATTR).concat(E.BOSS_ATTR), stats, statsAlt: [],
+      alignment: spec.alignment || '', attribute: spec.attribute || '', traits: (spec.traits || []).filter(t => t !== E.BOSS_ATTR).concat(spec.plain ? [] : [E.BOSS_ATTR]), stats, statsAlt: [],
       classSkills: (spec.classSkills || []).map(skill), skills: (spec.skills || []).map(skill), nps: (spec.nps || []).map(np), weapons: [],
       profile: spec.profile || {}, relations: [], voice: spec.voice || {}, text: spec.text || {}, info: {}, warnings: [],
     };
+    if (spec.plain) lean.manual = true;                  // 手書きの騎（Wikiから取り込んだものではない）。取り直しの対象にしない
+    if (extLinkOf(spec.link)) lean.page = extLinkOf(spec.link);
     return { lean, servantOv, npOv, aoe };
   }
 
   G.build = { leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
+    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});

@@ -1678,7 +1678,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
     const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
     if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
-    try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">元のページ</a>`);
+    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
     links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
     return `<div class="links">${links.join('')}</div>`;
   }
