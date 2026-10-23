@@ -203,6 +203,7 @@ th { font-size: 11px; color: var(--sub); font-weight: 600; border-top: none; whi
 .tbl { overflow-x: auto; }
 .chip { display: inline-block; background: var(--chip); border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; font-size: 12px; white-space: nowrap; }
 .chip.neg { color: var(--neg); }
+.chip.kchip { flex: none; margin: 0; font-size: 11px; }
 .chip.per { outline: 1px solid var(--ok); }
 .ef { font-size: 12px; margin: 0 0 4px; line-height: 1.45; }
 .ef .who { display: inline-block; font-size: 11px; padding: 0 5px; border-radius: 4px; margin-right: 3px; border: 1px solid var(--rule); color: var(--sub); white-space: nowrap; }
@@ -683,6 +684,15 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- Wikiのページ名（真名と違うことがある。手直し表 pages に入る） ----------
   // missing：取り直しで見つからなかった（取り込みツールが pageMissing を付ける）、unknown：取り込んだときのページ名が無い
   const pageState = s => s.bossOnly || B.isManual(s) ? null : s.pageMissing ? (E.PAGE_OVERRIDES[E.okey(s)] ? 'fixed' : 'missing') : !B.pageOf(s) ? 'unknown' : null;
+  // 識別（id と key）。key は同じ真名の別の騎を見分ける印で、ゲームの画面には出ない。ここで確かめる
+  function idBox(sv) {
+    const twins = roster.filter(x => x !== sv && x.trueName === sv.trueName);
+    const keyTxt = sv.key
+      ? `key：<code>${esc(sv.key)}</code>（同じ真名の別の騎を見分ける印。手直し表では「<code>${esc(E.okey(sv))}</code>」で引きます）`
+      : 'key：なし（同じ真名の別の騎が後から入ると、入れた方に付きます）';
+    const tw = twins.length ? `<br>同じ真名の騎：${twins.map(x => `<a href="#" data-goto="${esc(x.id)}"><code>${esc(x.id)}</code></a>`).join('、')}。顔グラフィックのファイル名は、key の無い騎が「真名」、key のある騎が「真名#key」です（同名でも別の画像を置けます）。` : '';
+    return `<div class="hint idbox" style="margin-top:6px">id：<code>${esc(sv.id)}</code> ・ ${keyTxt}${tw}</div>`;
+  }
   function pageBox(sv, i) {
     const st = pageState(sv), pm = sv.pageMissing || {}, ov = E.PAGE_OVERRIDES[E.okey(sv)];
     const msg = st === 'missing' ? `⚠ ${esc(pm.at || '')}の取り直しで、Wikiのページが見つかりませんでした（試した名前：${esc((pm.tried || []).join('、') || sv.trueName)}）。kagemiya で正しいページ名を確かめて入れ、保存してから取り直してください。`
@@ -755,7 +765,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">${B.linkOf(sv) ? '元のページ' : 'kagemiya のページ'}</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
-      <div class="facebox"><img data-face="${esc(sv.trueName)}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(sv.trueName)}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
+      ${idBox(sv)}
+      <div class="facebox"><img data-face="${esc(H.faceNameOf(sv))}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(H.faceNameOf(sv))}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
       ${alt}${warn}${review}
@@ -775,7 +786,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // ---------- 探す・並べ替える ----------
   // かな・カナ、全角・半角、空白と「・」の違いを無視して探す
   const fold = t => String(t || '').normalize('NFKC').toLowerCase().replace(/[\u30a1-\u30f6]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)).replace(/[\s・･=＝]/g, '');
-  const hay = s => fold([s.trueName, (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, B.pageOf(s), (s.attrs || []).join(' '),
+  const hay = s => fold([s.trueName, s.key ? '#' + s.key : '', (s.aliases || []).join(' '), s.class.label, s.class.raw, s.origin, B.pageOf(s), (s.attrs || []).join(' '),
     (s.allSkills || []).map(x => x.name).join(' '), (s.nps || []).map(x => x.name + ' ' + (x.reading || '')).join(' ')].join(' '));
   let query = '', sortBy = 'class', attrFilter = '';
   const nReviewOf = s => s.review.filter(r => r.kind !== 'class').length;
@@ -868,7 +879,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#list').innerHTML = shown.length ? shown.map(([s]) => {
       const nr = nReviewOf(s), ps = pubState(s), g = gradeOf(s);
       const bd = [ps === 'new' ? '<span class="badge new">未公開の追加</span>' : ps === 'changed' ? '<span class="badge chg">未公開</span>' : '', nr ? `<span class="badge">要確認 ${nr}</span>` : '', (s.contentEdited || []).length ? '<span class="badge ed">手直し</span>' : '', ['missing', 'unknown'].includes(pageState(s)) ? `<span class="badge" title="${pageState(s) === 'missing' ? '取り直しでWikiのページが見つからなかった' : '取り込んだときのページ名が無い'}">ページ名？</span>` : ''].join('');
-      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${s.bossOnly ? 'boss' : g}" title="${s.bossOnly ? 'ボスは評価の対象外' : `評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）`}">${g}</span><span class="t"><span class="nmrow"><span class="sumname">${mark(s.trueName)}</span><span class="attrs">${attrChips(s, 3)}</span></span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
+      return `<button type="button" class="svr" role="option" data-id="${esc(s.id)}" aria-selected="${s.id === sel}"><img class="ci" src="${H.classIcon(s.class.key)}" alt="" width="22" height="22" loading="lazy"><span class="grade ${s.bossOnly ? 'boss' : g}" title="${s.bossOnly ? 'ボスは評価の対象外' : `評価（リストの全騎との平均勝率 ${Math.round(rateOf(s) * 100)}%）`}">${g}</span><span class="t"><span class="nmrow"><span class="sumname">${mark(s.trueName)}</span>${s.key ? `<span class="chip kchip" title="同じ真名の別の騎を見分ける印 key（手直し表では「${esc(E.okey(s))}」）">#${esc(s.key)}</span>` : ''}<span class="attrs">${attrChips(s, 3)}</span></span><span class="sub">${esc(s.class.label)} ・ 戦闘力 ${s.power} ・ 宝具 ${s.npPeak || '—'}${s.origin ? ' ・ ' + esc(s.origin) : ''}</span></span><span class="bd">${bd}</span></button>`;
     }).join('') : roster.length ? '<div class="empty">見つかりません。探す言葉や絞り込みを変えてください</div>' : '<div class="empty">「取り込み」でWikiのページを貼り付けるか、JSONを読み込んでください</div>';
     // 選んでいる騎が一覧から消えたら、一覧の先頭を選ぶ（スマホで詳細を開いていないときだけ）
     if (!roster.some(x => x.id === sel)) { sel = shownIds[0] || (roster[0] && roster[0].id) || null; renderDetail(); }
@@ -913,6 +924,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#list').addEventListener('click', e => { const b = e.target.closest('.svr'); if (b) select(b.dataset.id, { open: true, scrollList: false }); });
   $('#detail').addEventListener('click', e => {
     const st = e.target.closest('[data-step]'); if (st) { step(+st.dataset.step); return; }
+    const go = e.target.closest('[data-goto]'); if (go) { e.preventDefault(); select(go.dataset.goto, { force: true }); return; }
     if (e.target.closest('[data-back]')) { $('#browse').classList.remove('show'); const row = $(`#list .svr[data-id="${CSS.escape(sel)}"]`); if (row) row.scrollIntoView({ block: 'center' }); return; }
   });
   document.addEventListener('keydown', e => {
