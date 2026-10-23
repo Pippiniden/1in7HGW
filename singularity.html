@@ -312,6 +312,52 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   .opening .rowsel { grid-template-columns: minmax(0, 1fr); } .opstats div { grid-template-columns: 4em 2.4em minmax(0, 1fr); }
   .det .face.xl { width: 84px; height: 84px; }
 }
+/* ---------- スマホ（820px 以下）：上に常に見える状況の帯、記録を上に、細かい欄は折りたたむ ---------- */
+.strip, .ctl .sp1, .logmore, .sheet { display: none; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 18; padding: 0 0 var(--safe-b); }
+.sheet.on { display: block; }
+.sheet .rowsel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 820px) {
+  .hud-in { padding: calc(6px + var(--safe-t)) 12px 4px; gap: 4px; }
+  .hud .nm { font-size: 15px; }
+  #hudInfo { display: none; }
+  .ctl { flex-wrap: nowrap; gap: 4px; }
+  .ctl .btn { min-height: 40px; padding: 4px 10px; --cut: 7px; flex: 0 0 auto; }
+  .ctl [data-sp] { display: none; }
+  .ctl .sp1 { display: inline-block; min-width: 3.4em; }
+  .ctl #pause { flex: 1 1 auto; font-weight: 700; }
+  .strip { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; padding: 2px 12px 8px; }
+  .strip .sg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mute); }
+  .strip .sg .bar { width: 38px; height: 6px; }
+  .strip .chip small { font-size: 10px; color: var(--mute); margin-right: 4px; }
+  .strip { flex-wrap: nowrap; gap: 8px; } .strip #stripBars { display: flex !important; align-items: center; gap: 8px; min-width: 0; }
+  .strip .seals i { height: 12px; }
+  .strip .pips { display: inline-flex; gap: 3px; }
+  .strip .pip { position: relative; width: 9px; height: 22px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); display: block; }
+  .strip .pip b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--hp); }
+  .strip .pip.low b { background: var(--seal); }
+  .strip .pip.f { box-shadow: inset 0 0 0 1px var(--cyan); }
+  .strip .pip.x { opacity: .4; } .strip .pip.x b { display: none; }
+  .strip .sf { font-size: 12px; color: var(--foe); white-space: nowrap; }
+  .strip .chip { margin-left: auto; min-height: 30px; padding: 2px 10px; font-size: 12px; --cut: 7px; }
+  /* 並べ替え：情景 → 記録 → 方針 → 味方 → 敵 → マスター → 令呪（詳しい欄は折りたたんで、必要なときだけ開く） */
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 10px calc(24px + var(--safe-b)); }
+  .col { display: contents; }
+  #result { order: 0; }
+  .m-scene { order: 1; } .m-log { order: 2; } .m-focus { order: 3; } .m-party { order: 4; } .m-foes { order: 5; } .m-master { order: 6; } .m-order { order: 7; }
+  .view { aspect-ratio: 5 / 2; }
+  .focus.panel { display: none; }
+  .foldable .hd { cursor: pointer; }
+  .foldable .hd::after { content: "▾"; margin-left: 6px; color: var(--mute); font-size: 12px; }
+  .foldable.folded .hd::after { content: "▸"; }
+  .foldable.folded .body { display: none; }
+  .foldable .hd .ja { margin-left: auto; }
+  #log:not(.open) li:nth-child(n+9) { display: none; }
+  .logmore { display: block; width: calc(100% - 20px); margin: 4px 10px 10px; }
+  .log { padding: 0 4px 6px; }
+  .logbar { padding: 0 10px 8px; }
+  .toast { bottom: calc(70px + var(--safe-b)); }
+}
 </style>
 </head>
 <body>
@@ -399,15 +445,20 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       </div>
       <div class="ctl">
         <button class="btn" id="pause">❚❚ 一時停止</button>
-        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button>
+        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button><button class="btn sp1" id="spCycle" type="button" aria-label="進む速さを切り替える">2×</button>
         <button class="btn" id="skip" title="次の決断（なければ最後）まで進める">▸▸ 先へ</button>
         <button class="btn wide" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
         <button class="btn wide" id="csvBtn" title="ここまでの記録をCSVで保存">CSV</button><button class="btn wide" id="quitBtn">やめる</button>
         <button class="btn more" id="moreBtn" aria-expanded="false" aria-controls="menu" aria-label="そのほかの操作">⋯</button>
       </div>
     </div>
+    <div class="strip" id="strip" aria-label="いまの状況">
+      <div id="stripBars" style="display:contents"></div>
+      <button class="btn chip" id="focusChip" type="button" aria-label="方針を選ぶ"><small>方針</small><b id="focusChipLabel">おまかせ</b> ▾</button>
+    </div>
     <div class="menu panel" id="menu" role="menu">
       <div class="rowsel">
+        <button id="stopBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>退場・令呪で自動的に止める</button>
         <button id="autoBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>決断をおまかせ</button>
         <button id="csvBtn2" role="menuitem"><span class="ico"></span>記録をCSVで保存</button>
         <button id="quitBtn2" role="menuitem"><span class="ico"></span>やめて最初の画面へ</button>
@@ -417,7 +468,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   <div class="layout">
     <div id="result" class="full"></div>
     <div class="col">
-      <section class="panel" aria-label="マスター">
+      <section class="panel foldable m-master" data-fold="master" aria-label="マスター">
         <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja clk" id="mName" role="button" tabindex="0" title="マスターの詳細"></span></div>
         <div class="body">
           <div class="mstat"><span>体力</span><div class="bar"><i id="mHp" style="background:var(--hp)"></i></div><b id="mHpT"></b>
@@ -426,15 +477,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
           <div class="mrow"><span>いま <b id="mPlace"></b></span></div>
         </div>
       </section>
-      <section class="panel" aria-label="味方">
+      <section class="panel foldable m-party" data-fold="party" aria-label="味方">
         <div class="hd"><i class="chev"></i><span class="en">Party</span><span class="ja">率いる英霊</span></div>
         <div class="body" id="partyList" style="padding:0 8px 10px"></div>
       </section>
-      <section class="panel focus" id="focusPanel" aria-label="方針">
+      <section class="panel focus m-focus" id="focusPanel" aria-label="方針">
         <div class="hd" id="focusHead"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span><span class="fnow">方針<b id="focusNow">おまかせ</b></span><button class="btn ftog" id="focusToggle" type="button" aria-expanded="true" aria-controls="focusBody">たたむ ▴</button></div>
         <div class="body" id="focusBody"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p class="hint" id="focusDesc"></p></div>
       </section>
-      <section class="panel order" aria-label="令呪と推理">
+      <section class="panel order foldable m-order" data-fold="orders" aria-label="令呪と推理">
         <div class="hd"><i class="chev"></i><span class="en">Orders</span><span class="ja">令呪・真名の推測</span></div>
         <div class="body">
           <p class="hint" id="orderHint" style="margin-top:0">一時停止中に選べる。選んだものは次の朝に働く。</p>
@@ -447,17 +498,17 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       </section>
     </div>
     <div class="col">
-      <section class="panel scene" aria-label="情景">
+      <section class="panel scene m-scene" aria-label="情景">
         <div class="view" id="view"><svg id="sceneSvg" viewBox="0 0 300 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg><img id="sceneImg" alt=""><div class="rain"></div><div class="scan"></div><div class="fx" id="fx"></div>
           <div class="cap"><span class="en">Location</span><span id="sceneCap" class="capt"></span><span class="tag" id="sceneTag">NIGHT</span></div></div>
       </section>
-      <section class="panel" aria-label="敵">
+      <section class="panel foldable m-foes" data-fold="foes" aria-label="敵">
         <div class="hd"><i class="chev"></i><span class="en">Enemies</span><span class="ja" id="foeHead">特異点の敵</span></div>
         <div class="body" id="foeList" style="padding:0 8px 10px"></div>
       </section>
-      <section class="panel logp" aria-label="記録">
+      <section class="panel logp m-log" aria-label="記録">
         <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">攻略の記録</span></div>
-        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol></div>
+        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol><button class="btn logmore" id="logMore" type="button" aria-expanded="false" aria-controls="log">すべての記録を見る</button></div>
       </section>
     </div>
   </div>
@@ -470,6 +521,12 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     <p class="lead2" id="dlgBody"></p>
     <div class="rowsel" id="dlgOpts"></div>
     <div class="dlg-foot"><button class="btn" id="dlgAuto">これからはおまかせ</button></div>
+  </section>
+</div>
+<div class="sheet" id="focusSheet" role="dialog" aria-label="方針を選ぶ">
+  <section class="panel">
+    <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span></div>
+    <div class="body"><div class="rowsel" id="focusSeg2" role="radiogroup"></div><p class="hint" id="focusDesc2"></p></div>
   </section>
 </div>
 <div class="dlg opening" id="opening" role="dialog" aria-modal="true" aria-labelledby="opTitle">
@@ -900,6 +957,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (idx < out.entries.length) {
       const e = out.entries[idx++];
       show(e);
+      if (autoStop && (e.kind === 'cs' || (e.kind === 'death' && e.you))) { paused = true; syncCtl(); toast('大事な場面なので止めました。「再開」で続きます'); return; }
       timer = setTimeout(step, (DELAY[e.kind] || (e.big ? 1400 : e.kind === 'dayhead' ? 350 : 800)) / speed + (e.quote ? 600 / speed : 0));
       return;
     }
@@ -934,8 +992,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
     $('#autoBtn').setAttribute('aria-pressed', String(autoAll));
     $('#autoBtn2').setAttribute('aria-pressed', String(autoAll)); $('#autoBtn2').setAttribute('aria-checked', String(autoAll));
+    $('#stopBtn2').setAttribute('aria-pressed', String(autoStop)); $('#stopBtn2').setAttribute('aria-checked', String(autoStop));
+    $('#spCycle').textContent = speed + '×';
     renderOrders();
   }
+  // スマホ向け：速さを一つのボタンで切り替える／退場・令呪の場面で自動的に止める（このブラウザに残す）
+  const SPEEDS = [1, 2, 4, 8, 16], STOP_KEY = 'hgw.sing.autostop';
+  let autoStop = store.get(STOP_KEY) === true;
+  $('#spCycle').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; syncCtl(); };
+  $('#stopBtn2').onclick = () => { autoStop = !autoStop; store.set(STOP_KEY, autoStop || null); syncCtl(); toast(autoStop ? '前衛の退場と令呪の場面で、自動的に止めます' : '自動では止めません'); };
   $('#pause').onclick = () => { if (op || (done && idx >= out.entries.length)) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
   document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
   $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
@@ -989,10 +1054,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 
   // ---------- 方針 ----------
   function renderFocus() {
-    $('#focusSeg').innerHTML = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
-    $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusNow').textContent = FOCUS[focus].label;
+    const html = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
+    $('#focusSeg').innerHTML = html; $('#focusSeg2').innerHTML = html;
+    $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusDesc2').textContent = FOCUS[focus].desc;
+    $('#focusNow').textContent = FOCUS[focus].label; $('#focusChipLabel').textContent = FOCUS[focus].label;
   }
-  $('#focusSeg').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } });
+  ['#focusSeg', '#focusSeg2'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } }));
+  // スマホ：帯の「方針」から、画面下の選択欄で切り替える
+  $('#focusChip').onclick = e => { e.stopPropagation(); $('#focusSheet').classList.toggle('on'); };
+  document.addEventListener('click', e => { if (!e.target.closest('#focusSheet') && !e.target.closest('#focusChip')) $('#focusSheet').classList.remove('on'); });
   // 方針の欄は「たたむ」で一行に格納できる（たたんだかどうかはこのブラウザに残す）
   const FC_KEY = 'hgw.sing.focusCollapsed';
   function setFocusCollapsed(on, save) {
@@ -1201,9 +1271,26 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const foes = sn.c.filter(c => c.side === 'foe'), boss = sn.c.find(c => c.side === 'boss');
     $('#foeList').innerHTML = foes.map(unit).join('') + (boss ? (p.stage === 'boss' || !boss.alive ? unit(boss) : `<div class="unit unseen"><span class="u-nm"><small>ボス</small>？？？（七騎を倒すと現れる）</span><span></span></div>`) : '');
     fillFaces($('#partyList')); fillFaces($('#foeList'));
+    renderStrip(sn);
     $('#foeHead').textContent = p.stage === 'boss' ? '特異点の主' : `特異点の敵（残り${foes.filter(c => c.alive).length}騎）`;
     renderOrders();
   }
+
+  // ---------- スマホ：上に常に出す状況の帯（体力・魔力・令呪・味方のHP・敵の残り）と、細かい欄の折りたたみ ----------
+  function renderStrip(sn) {
+    const p = sn.p, party = sn.c.filter(c => c.side === 'party'), foes = sn.c.filter(c => c.side === 'foe');
+    const pips = party.map(c => `<i class="pip${c.front ? ' f' : ''}${c.alive ? '' : ' x'}${c.alive && c.hp < 35 ? ' low' : ''}" title="${esc(c.name || c.label)}　${c.alive ? c.hp : '✝'}"><b style="height:${c.alive ? c.hp : 0}%"></b></i>`).join('');
+    const seals = Array.from({ length: CFG.csMax }, (_, i) => `<i class="${i < p.cs ? '' : 'used'}"></i>`).join('') + (p.cs > CFG.csMax ? `+${p.cs - CFG.csMax}` : '');
+    $('#stripBars').innerHTML = `<span class="sg" title="マスターの体力">体<span class="bar"><i style="width:${p.mhp}%;background:var(--hp)"></i></span></span><span class="sg" title="魔力の蓄え">魔<span class="bar"><i style="width:${p.mana}%;background:var(--mana)"></i></span></span><span class="seals" title="令呪">${seals}</span><span class="pips" title="味方の霊基（太枠は前衛）">${pips}</span><span class="sf">${p.stage === 'boss' ? 'ボス戦' : `敵 ${foes.filter(c => c.alive).length}/${CFG.foes}`}</span>`;
+  }
+  const FOLD_KEY = 'hgw.sing.folds', FOLD_DEF = { master: true, party: true, foes: true, orders: true };
+  let folds = store.get(FOLD_KEY) || {};
+  document.querySelectorAll('[data-fold]').forEach(p => {
+    const k = p.dataset.fold;
+    p.classList.toggle('folded', k in folds ? !!folds[k] : !!FOLD_DEF[k]);
+    p.querySelector('.hd').addEventListener('click', () => { if (!matchMedia('(max-width: 820px)').matches) return; const on = p.classList.toggle('folded'); folds[k] = on; store.set(FOLD_KEY, folds); });
+  });
+  $('#logMore').onclick = () => { const on = $('#log').classList.toggle('open'); $('#logMore').setAttribute('aria-expanded', String(on)); $('#logMore').textContent = on ? '最近の記録だけにする' : 'すべての記録を見る'; };
 
   // ---------- 記録の絞り込み・山場 ----------
   const KIND_JA = { prologue: '序幕', summon: '召喚', dayhead: '日付', day: '昼', night: '夜', battle: '戦い', np: '宝具', cs: '令呪', death: '退場', event: '出来事', world: '世界', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
