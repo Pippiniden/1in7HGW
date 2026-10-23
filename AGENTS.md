@@ -67,6 +67,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 ```
 index.html          Game (inline CSS + UI script)          ranking.html   Strength ranking (spoiler page)
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
+logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/

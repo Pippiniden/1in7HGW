@@ -342,7 +342,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </head>
 <body>
 <header>
-  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a></h1>
+  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a><a href="logview.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">戦いのログビューア →</a></h1>
   <p>開くと公開中のリストを読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。リストと手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <nav class="views" id="views" role="tablist" aria-label="画面">
@@ -468,6 +468,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button id="saveLean">公開用に保存（data/servants.json）</button>
         <button id="saveOv">手直し表を保存（data/overrides.json）</button>
         <button id="saveJson">リストをJSONで保存</button>
+        <button id="saveCsv" title="真名・クラス・強さランク（S〜E）などの一覧を、Excelなどで開けるCSVにします">一覧をCSVで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
       <div class="gh">
@@ -1348,6 +1349,19 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
+  // 一覧のCSV（Excel で文字化けしないよう BOM を付ける）。いまのリストの全騎を、クラス順・名前順に。強さランクは一覧と同じ S〜E（ボス専用は評価しない）
+  $('#saveCsv').onclick = () => {
+    if (!roster.length) { status('リストが空です'); return; }
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const list = roster.slice().sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
+    const rows = [['真名', 'クラス', '強さランク', '平均勝率(%)', '戦闘力', '宝具の威力', '属性']];
+    for (const s of list) rows.push([s.trueName, s.class.label, s.bossOnly ? '' : gradeOf(s), s.bossOnly ? '' : Math.round(rateOf(s) * 100), s.power, s.npPeak || '', (s.attrs || []).join('・')]);
+    const d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
+    a.download = `サーヴァントリスト_${stamp}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    status(`${list.length}騎を、CSVで保存しました`);
+  };
   $('#saveJson').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, at: new Date().toISOString(), servants: roster }); };
   // 公開用の書き出しには、このブラウザでした変更（最後にそろえたときから）の一覧 patch を付ける。データの反映（incoming.js）は
   // patch があればその騎だけを変えるので、そのあいだに公開側で取り込んだ騎（Actions の取り込みなど）を消したり古い版に戻したりしない

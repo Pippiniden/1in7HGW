@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="聖杯戦争・特異点攻略で書き出した、戦いの記録（CSV）を貼り付けて読むページ">
+<meta name="theme-color" content="#050d22">
+<title>戦いのログビューア</title>
+<link rel="icon" href="icons/favicon-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と文字は index.html と同じ */
+:root {
+  --void: #050d22; --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85); --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4;
+  --gold: #ffd84a; --seal: #ff4f72; --bond: #ff8fc8; --foe: #ff9a6b; --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif; --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --cut: 10px; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ice); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere;
+  background: repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #3a1a5c 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%), var(--void);
+  background-attachment: fixed; }
+a { color: var(--cyan); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+[hidden] { display: none !important; }
+.wrap { max-width: 980px; margin: 0 auto; padding: calc(24px + var(--safe-t)) 16px calc(48px + var(--safe-b)); display: grid; gap: 14px; }
+.title { padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font: 600 14px var(--en); letter-spacing: .14em; text-transform: uppercase; }
+.title h1 { font: 700 clamp(26px, 7vw, 40px)/1.2 var(--gothic); margin: 4px 0 0; letter-spacing: .06em; }
+.title p { margin: 8px 0 0; color: var(--mute); font-size: 13px; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); box-shadow: inset 0 0 28px rgba(62, 230, 255, .06), 0 6px 24px rgba(0, 0, 0, .35); padding: 14px 16px; min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.panel h2 { margin: 0 0 8px; font: 700 16px var(--en); letter-spacing: .14em; color: var(--cyan); text-transform: uppercase; }
+textarea { width: 100%; min-height: 150px; resize: vertical; background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 10px 12px; font: 12.5px/1.5 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
+.btn { position: relative; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; white-space: nowrap;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn[aria-pressed="true"], .btn.primary { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.btn.sm { min-height: 28px; padding: 3px 11px; font-size: 12px; --cut: 7px; }
+input[type=file] { display: none; }
+input[type=search], input[type=number], select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 6px 9px; min-height: 34px; max-width: 100%; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hint { font-size: 12px; color: var(--mute); margin: 6px 0 0; }
+.err { color: var(--seal); font-size: 13px; margin-top: 8px; }
+.drop { outline: 2px dashed var(--cyan); outline-offset: -6px; }
+/* 概要 */
+.sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--mute); }
+.sum b { color: var(--ice); font: 700 16px var(--en); margin: 0 2px; }
+.sum .game { color: var(--gold); font-weight: 700; }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.kinds .btn { min-height: 28px; padding: 2px 11px; font-size: 12px; --cut: 7px; }
+.kinds .btn small { color: var(--mute); margin-left: 4px; font-size: 11px; }
+.kinds .btn[aria-pressed="true"] small { color: var(--sel-ink); }
+.filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px 12px; margin-top: 12px; align-items: end; }
+.filters label { display: grid; gap: 3px; font-size: 12px; color: var(--mute); min-width: 0; }
+.filters .chk { display: flex; align-items: center; gap: 6px; min-height: 34px; color: var(--ice); font-size: 13px; cursor: pointer; }
+.range { display: flex; gap: 6px; align-items: center; } .range input { width: 5.5em; }
+/* 記録 */
+.cnt { font-size: 12px; color: var(--mute); margin: 0 0 8px; }
+.day { margin-top: 14px; }
+.day:first-child { margin-top: 0; }
+.day h3 { position: sticky; top: 0; z-index: 3; margin: 0; padding: 6px 4px; font: 700 14px var(--en); letter-spacing: .1em; color: var(--gold); background: linear-gradient(180deg, rgba(5, 13, 34, .96), rgba(8, 22, 56, .92)); border-bottom: 1px solid var(--line-hi); }
+.day h3 small { color: var(--mute); font: 500 12px var(--gothic); margin-left: 8px; letter-spacing: 0; }
+.ev { position: relative; display: grid; grid-template-columns: 3em 5.2em minmax(0, 1fr); gap: 4px 10px; padding: 9px 8px 9px 12px; border-bottom: 1px solid rgba(80, 196, 255, .12); }
+.ev .ph { font: 600 12px var(--gothic); color: var(--mute); padding-top: 3px; }
+.ev .kd { align-self: start; margin-top: 3px; font: 600 11px var(--gothic); text-align: center; padding: 1px 4px; background: rgba(62, 230, 255, .14); color: var(--cyan-2); white-space: nowrap; }
+.ev .tx { font: 500 15px/1.8 var(--mincho); min-width: 0; }
+.ev .q { display: block; font-size: 14px; color: var(--cyan-2); opacity: .9; margin-top: 3px; padding-left: 10px; border-left: 2px solid rgba(62, 230, 255, .4); }
+.ev .q b { font: 500 12px var(--gothic); color: var(--mute); margin-right: 6px; }
+.ev .meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; font-size: 11px; color: var(--mute); }
+.ev .meta span { padding: 0 8px; box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.ev .meta span:hover { box-shadow: inset 0 0 0 1px var(--cyan); color: var(--ice); }
+.ev .meta .pl { box-shadow: none; cursor: default; padding: 0; }
+.ev.you::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--cyan); }
+.ev.hl .tx { text-shadow: 0 0 10px rgba(255, 216, 74, .25); }
+.ev.k-death .tx { color: var(--seal); font-weight: 700; } .ev.k-death .kd { background: rgba(255, 79, 114, .2); color: #ff9db1; }
+.ev.k-np .tx { color: #fff3c4; font-weight: 700; } .ev.k-np .kd { background: rgba(255, 216, 74, .18); color: var(--gold); }
+.ev.k-cs .tx { color: #ff9db1; } .ev.k-cs .kd { background: rgba(255, 143, 200, .2); color: #ffc0dd; }
+.ev.k-end .tx { color: var(--gold); font-weight: 700; } .ev.k-end .kd { background: rgba(255, 216, 74, .18); color: var(--gold); }
+.ev.k-battle .kd { background: rgba(255, 154, 107, .18); color: var(--foe); }
+.ev.k-choice .tx, .ev.k-council .tx { font-family: var(--gothic); font-size: 14px; color: var(--gold); }
+.ev mark { background: rgba(255, 216, 74, .35); color: inherit; padding: 0 1px; }
+.empty { color: var(--mute); text-align: center; padding: 22px 0; font-size: 13px; }
+@media (max-width: 620px) {
+  .ev { grid-template-columns: 2.6em minmax(0, 1fr); }
+  .ev .kd { grid-column: 2; justify-self: start; padding: 0 8px; margin: 0; }
+  .ev .tx, .ev .meta { grid-column: 1 / -1; }
+}
+.foot { font-size: 12px; color: var(--mute); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">
+    <span class="en">Chronicle Viewer</span>
+    <h1>戦いのログビューア</h1>
+    <p>聖杯戦争・特異点攻略の「記録をCSVで保存」で書き出したCSVを、下に貼り付けるかファイルで読むと、日ごとに見やすく並べます。種類・自陣営（前衛）・登場者・言葉で絞り込めます。読み込んだ内容は、この端末の外には出ません。</p>
+  </div>
+
+  <section class="panel" id="inPanel">
+    <h2>CSVを読み込む</h2>
+    <textarea id="src" spellcheck="false" placeholder="ここにCSVを貼り付け（先頭の見出しの行から）&#10;ファイルをここへドラッグしても読めます"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="btn primary" id="go">読み込む</button>
+      <label class="btn" for="file">ファイルを読む</label><input type="file" id="file" accept=".csv,.txt,text/csv,text/plain">
+      <button class="btn" id="clear">消す</button>
+    </div>
+    <div class="err" id="err" role="alert" hidden></div>
+  </section>
+
+  <section class="panel" id="viewPanel" hidden>
+    <h2>記録</h2>
+    <div class="sum" id="sum"></div>
+    <div class="kinds" id="kinds" role="group" aria-label="種類で絞る"></div>
+    <div class="filters">
+      <label>言葉で探す<input type="search" id="q" placeholder="本文・セリフ・登場者から" autocomplete="off"></label>
+      <label>登場者<select id="who"></select></label>
+      <label>日<span class="range"><input type="number" id="d1" min="0" inputmode="numeric" aria-label="はじめの日"> 〜 <input type="number" id="d2" min="0" inputmode="numeric" aria-label="おわりの日"></span></label>
+      <label class="chk"><input type="checkbox" id="onlyHl"> ★山場だけ</label>
+      <label class="chk"><input type="checkbox" id="onlyYou"> <span id="youLbl">自陣営だけ</span></label>
+      <label class="chk"><input type="checkbox" id="newest"> 新しい順</label>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn sm" id="reset">絞り込みを外す</button><button class="btn sm" id="copy" title="いま見えている記録を、日付つきの文章としてコピー">見えている記録をコピー</button></div>
+  </section>
+
+  <section class="panel" id="logPanel" hidden>
+    <p class="cnt" id="cnt"></p>
+    <div id="log"></div>
+  </section>
+
+  <p class="foot"><a href="index.html">聖杯戦争</a> ・ <a href="singularity.html">特異点攻略</a> ・ <a href="roster.html">サーヴァントリスト</a></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // ---------- CSV を読む（引用符・改行入りのセル・BOM・CRLF に対応） ----------
+  function parseCsv(text) {
+    const t = String(text).replace(/^﻿/, ''), rows = []; let row = [], cell = '', q = false;
+    for (let i = 0; i < t.length; i++) {
+      const c = t[i];
+      if (q) { if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; continue; }
+      if (c === '"') q = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); cell = ''; if (row.some(x => x !== '')) rows.push(row); row = []; }
+      else cell += c;
+    }
+    row.push(cell); if (row.some(x => x !== '')) rows.push(row);
+    return rows;
+  }
+  // 見出しの行から、聖杯戦争（index.html）と特異点攻略（singularity.html）のどちらの書き出しかを見分ける。列は見出しの名前で探す
+  const GAMES = {
+    hgw: { name: '聖杯戦争', you: '自陣営だけ', youCol: '自陣営', whoCol: '関わった陣営' },
+    sing: { name: '特異点攻略', you: '前衛に関わるものだけ', youCol: '前衛に関わる', whoCol: '関わった者' },
+  };
+  function toLog(rows) {
+    if (rows.length < 2) throw new Error('記録の行がありません。見出しの行（日・時間帯・種類…）から貼り付けてください');
+    const head = rows[0].map(s => s.trim()), at = n => head.indexOf(n);
+    if (at('日') < 0 || at('種類') < 0 || at('本文') < 0) throw new Error('「記録をCSVで保存」で書き出したCSVではないようです（見出しに 日・種類・本文 が必要です）');
+    const game = at('自陣営') >= 0 ? 'hgw' : at('前衛に関わる') >= 0 ? 'sing' : 'hgw', G = GAMES[game];
+    const col = n => at(n);
+    const c = { day: col('日'), ph: col('時間帯'), kind: col('種類'), hl: col('ハイライト'), you: col(G.youCol), who: col(G.whoCol), text: col('本文'), qwho: col('セリフの主'), q: col('セリフ'), place: col('場所') };
+    const get = (r, k) => (c[k] >= 0 && r[c[k]] != null ? r[c[k]] : '');
+    const ev = rows.slice(1).map((r, i) => ({
+      i, day: parseInt(get(r, 'day'), 10) || 0, ph: get(r, 'ph'), kind: get(r, 'kind'), hl: get(r, 'hl') !== '', you: get(r, 'you') !== '',
+      who: get(r, 'who').split(' / ').map(s => s.trim()).filter(Boolean), text: get(r, 'text'), qwho: get(r, 'qwho'), q: get(r, 'q'), place: get(r, 'place'),
+    }));
+    return { game, G, ev };
+  }
+
+  // ---------- 状態と絞り込み ----------
+  let data = null, kindOn = new Set();
+  const KIND_CLASS = { 退場: 'death', 脱落: 'death', 宝具: 'np', 令呪: 'cs', 終幕: 'end', 戦い: 'battle', 戦闘: 'battle', 決断: 'choice', 作戦会議: 'council' };   // 聖杯戦争は「戦闘・脱落」、特異点攻略は「戦い・退場」
+  function load(text) {
+    const er = $('#err'); er.hidden = true;
+    try { data = toLog(parseCsv(text)); }
+    catch (e) { er.textContent = e.message; er.hidden = false; return; }
+    const kinds = new Map(); for (const e of data.ev) kinds.set(e.kind, (kinds.get(e.kind) || 0) + 1);
+    data.kinds = [...kinds]; kindOn = new Set();
+    const days = data.ev.map(e => e.day), names = new Map();
+    for (const e of data.ev) for (const w of e.who) names.set(w, (names.get(w) || 0) + 1);
+    data.maxDay = Math.max(0, ...days);
+    $('#who').innerHTML = '<option value="">（すべて）</option>' + [...names].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja')).map(([n, k]) => `<option value="${esc(n)}">${esc(n)}（${k}）</option>`).join('');
+    $('#youLbl').textContent = data.G.you;
+    $('#d1').value = ''; $('#d2').value = ''; $('#d2').max = data.maxDay; $('#d1').max = data.maxDay;
+    $('#q').value = ''; $('#onlyHl').checked = false; $('#onlyYou').checked = false;
+    $('#viewPanel').hidden = false; $('#logPanel').hidden = false;
+    renderSum(); render();
+    $('#viewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function renderSum() {
+    const ev = data.ev, n = (...ks) => ev.filter(e => ks.includes(e.kind)).length;
+    $('#sum').innerHTML = `<span class="game">${esc(data.G.name)}</span><span>記録 <b>${ev.length}</b>件</span><span><b>${data.maxDay}</b>日目まで</span>`
+      + (n('退場', '脱落') ? `<span>${data.game === 'hgw' ? '脱落' : '退場'} <b>${n('退場', '脱落')}</b></span>` : '') + (n('宝具') ? `<span>宝具 <b>${n('宝具')}</b></span>` : '') + (n('戦い', '戦闘') ? `<span>戦い <b>${n('戦い', '戦闘')}</b></span>` : '') + (n('令呪') ? `<span>令呪 <b>${n('令呪')}</b></span>` : '');
+    $('#kinds').innerHTML = data.kinds.map(([k, c]) => `<button class="btn" type="button" data-k="${esc(k)}" aria-pressed="false">${esc(k)}<small>${c}</small></button>`).join('');
+  }
+  const fold = s => String(s || '').normalize('NFKC').toLowerCase();
+  function visible() {
+    const q = fold($('#q').value.trim()), who = $('#who').value, d1 = $('#d1').value === '' ? -Infinity : +$('#d1').value, d2 = $('#d2').value === '' ? Infinity : +$('#d2').value;
+    const hl = $('#onlyHl').checked, you = $('#onlyYou').checked;
+    const list = data.ev.filter(e => (!kindOn.size || kindOn.has(e.kind)) && (!hl || e.hl) && (!you || e.you) && (!who || e.who.includes(who)) && e.day >= d1 && e.day <= d2
+      && (!q || fold([e.text, e.q, e.qwho, e.place, e.who.join(' ')].join(' ')).includes(q)));
+    return $('#newest').checked ? list.slice().reverse() : list;
+  }
+  function mark(t, q) {
+    t = String(t || ''); if (!q) return esc(t);
+    const k = fold(t).indexOf(q); if (k < 0) return esc(t);
+    return esc(t.slice(0, k)) + '<mark>' + esc(t.slice(k, k + q.length)) + '</mark>' + esc(t.slice(k + q.length));
+  }
+  function render() {
+    if (!data) return;
+    const list = visible(), q = fold($('#q').value.trim());
+    $('#cnt').textContent = `${list.length} / ${data.ev.length}件を表示`;
+    if (!list.length) { $('#log').innerHTML = '<div class="empty">当てはまる記録がありません。絞り込みを変えてください</div>'; return; }
+    const out = []; let cur = null;
+    for (const e of list) {
+      if (cur !== e.day) { cur = e.day; out.push(`<div class="day"><h3>${e.day ? e.day + '日目' : '開戦'}<small>${esc(data.ev.filter(x => x.day === e.day).length)}件</small></h3></div>`); }
+      const kc = KIND_CLASS[e.kind] ? ' k-' + KIND_CLASS[e.kind] : '';
+      out.push(`<div class="ev${kc}${e.you ? ' you' : ''}${e.hl ? ' hl' : ''}"><span class="ph">${esc(e.ph)}</span><span class="kd">${esc(e.kind)}${e.hl ? ' ★' : ''}</span>`
+        + `<div class="tx">${mark(e.text, q)}${e.q ? `<span class="q">${e.qwho ? `<b>${esc(e.qwho)}</b>` : ''}「${mark(e.q, q)}」</span>` : ''}`
+        + (e.who.length || e.place ? `<div class="meta">${e.who.map(w => `<span data-w="${esc(w)}" title="この人の記録だけにする">${esc(w)}</span>`).join('')}${e.place ? `<span class="pl">📍${esc(e.place)}</span>` : ''}</div>` : '') + '</div></div>');
+    }
+    $('#log').innerHTML = out.join('');
+  }
+  // ---------- 操作 ----------
+  $('#go').onclick = () => { const t = $('#src').value; if (t.trim()) load(t); };
+  $('#clear').onclick = () => { $('#src').value = ''; $('#err').hidden = true; data = null; $('#viewPanel').hidden = true; $('#logPanel').hidden = true; };
+  async function readFile(f) { if (!f) return; try { const t = await f.text(); $('#src').value = t.length > 400000 ? t.slice(0, 2000) + '\n…（長いので省略して表示。読み込みは全文です）' : t; load(t); } catch (e) { $('#err').textContent = 'ファイルを読めませんでした：' + e.message; $('#err').hidden = false; } }
+  $('#file').onchange = e => { const f = e.target.files[0]; e.target.value = ''; readFile(f); };
+  $('#src').addEventListener('paste', () => setTimeout(() => { if ($('#src').value.trim()) load($('#src').value); }, 0));
+  const dz = $('#inPanel');
+  ['dragenter', 'dragover'].forEach(n => dz.addEventListener(n, e => { e.preventDefault(); dz.classList.add('drop'); }));
+  ['dragleave', 'drop'].forEach(n => dz.addEventListener(n, e => { e.preventDefault(); dz.classList.remove('drop'); }));
+  dz.addEventListener('drop', e => readFile(e.dataTransfer.files[0]));
+  $('#kinds').addEventListener('click', e => {
+    const b = e.target.closest('[data-k]'); if (!b) return;
+    const k = b.dataset.k; if (kindOn.has(k)) kindOn.delete(k); else kindOn.add(k);
+    b.setAttribute('aria-pressed', String(kindOn.has(k))); render();
+  });
+  ['q', 'who', 'd1', 'd2', 'onlyHl', 'onlyYou', 'newest'].forEach(id => $('#' + id).addEventListener(id === 'q' || id === 'd1' || id === 'd2' ? 'input' : 'change', render));
+  $('#log').addEventListener('click', e => { const s = e.target.closest('[data-w]'); if (!s) return; $('#who').value = s.dataset.w; render(); $('#viewPanel').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('#reset').onclick = () => { kindOn.clear(); $('#kinds').querySelectorAll('[data-k]').forEach(b => b.setAttribute('aria-pressed', 'false')); $('#q').value = ''; $('#who').value = ''; $('#d1').value = ''; $('#d2').value = ''; $('#onlyHl').checked = false; $('#onlyYou').checked = false; render(); };
+  $('#copy').onclick = async () => {
+    if (!data) return;
+    const text = visible().map(e => `${e.day ? 'D' + String(e.day).padStart(2, '0') : '開戦'}${e.ph ? e.ph : ''}　${e.text}${e.q ? `　${e.qwho ? e.qwho + '：' : ''}「${e.q}」` : ''}`).join('\n');
+    try { await navigator.clipboard.writeText(text); $('#copy').textContent = 'コピーしました'; } catch (err) { $('#copy').textContent = 'コピーできませんでした'; }
+    setTimeout(() => { $('#copy').textContent = '見えている記録をコピー'; }, 2000);
+  };
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+</script>
+</body>
+</html>
