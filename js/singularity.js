@@ -76,6 +76,7 @@
   /**
    * 特異点の名前と顔ぶれを決める（シードから。エンジンの戦いの乱数とは別の流れなので、顔ぶれを指定しても名前は変わらない）。
    * picks: { party: [サーヴァントの id か null ×6], foes: [id か null ×7], boss: ボスの id | 'empower'（超強化）| null（くじ） }
+   * o.bossMode: ボスの抽選（'both' 両方・既定 / 'boss' ボス専用だけ / 'empower' 既存の英霊だけ）。picks.boss を指定した席には効かない
    * 戻り値: { name, words, tag（敵の呼び名に付ける言葉）, city, region, party: [id], foes: [id], boss: { id, kind: 'boss'|'empower' }, stray: id|null, front: [前衛の番号] }
    */
   function compose(o) {
@@ -124,7 +125,10 @@
     // ボス：ボス専用のデータがあれば多くはそれ、ときどき（無ければ必ず）残りの英霊のうち一騎が超強化されて現れる
     if (!bossPick) {
       const rest = roster.filter(s => !used.has(s.id));
-      if (picks.boss !== 'empower' && bosses.length && !(rnd() < S.empower.chance)) bossPick = { id: pickN(rnd, bosses).id, kind: 'boss' };
+      // 抽選のしかた o.bossMode：'both'（既定。ボス専用が多め、ときどき超強化）／'boss'（ボス専用だけ）／'empower'（既存の英霊の超強化だけ）。
+      // 'both' のときだけ、超強化にするかの乱数を引く（従来と同じ順序）。ボス専用が無ければ、どのモードでも超強化になる
+      const mode = o.bossMode === 'boss' || o.bossMode === 'empower' ? o.bossMode : 'both';
+      if (picks.boss !== 'empower' && bosses.length && (mode === 'boss' || (mode === 'both' && !(rnd() < S.empower.chance)))) bossPick = { id: pickN(rnd, bosses).id, kind: 'boss' };
       else if (rest.length) { const s = pickN(rnd, rest); used.add(s.id); bossPick = { id: s.id, kind: 'empower' }; }
       else if (bosses.length) bossPick = { id: bosses[0].id, kind: 'boss' };
     }

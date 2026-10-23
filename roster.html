@@ -356,6 +356,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </nav>
 <main>
   <section class="view" data-view="roster">
+    <div class="banner" id="bossBanner" hidden></div>
     <div class="banner" id="syncBanner" hidden></div>
     <div class="browse" id="browse">
       <aside class="lpane">
@@ -815,7 +816,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const acount = new Map(); for (const s of roster) for (const n of s.attrs || []) acount.set(n, (acount.get(n) || 0) + 1);
     if (attrFilter && !acount.has(attrFilter)) attrFilter = '';
     $('#attrSel').innerHTML = `<option value="">すべての属性</option>` + [...acount].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], 'ja')).map(([n, c]) => `<option value="${esc(n)}"${attrFilter === n ? ' selected' : ''}>${esc(n)}（${c}）</option>`).join('');
-    renderAttrs();
+    renderAttrs(); renderBossBanner();
     if (flag && !flags.some(x => x[0] === flag)) flag = '';
     $('#filters').innerHTML = flags.map(([k, t, n]) => `<button class="sm${flag === k ? ' on' : ''}" data-f="${k}" aria-pressed="${flag === k}">${t} ${n}</button>`).join('');
     renderList();
@@ -1126,11 +1127,25 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (roster.some(x => x.id === sv.id) && !confirm(`「${name}」はすでにリストにいます。置き換えますか？`)) return;
     const res = upsert([sv]); $('#bd').close(); done(res, []); jumpTo(sv.id);
   };
+  // 公開中の bosses.json のボス（まだリストに入っていないものがあれば、リストの上に知らせる）
+  let pubBosses = null;
+  async function fetchPubBosses() {
+    const get = async u => { const r = await fetch('data/' + u, { cache: 'no-cache' }); if (!r.ok) throw new Error(u + '：' + r.status); return r.json(); };
+    const man = await get('manifest.json'), specs = [];
+    for (const f of man.bosses || []) { const d = await get(f); specs.push(...(Array.isArray(d) ? d : d.bosses || [])); }
+    return specs;
+  }
+  function renderBossBanner() {
+    const el = $('#bossBanner');
+    if (pubBosses === null) { pubBosses = []; fetchPubBosses().then(l => { pubBosses = l; renderBossBanner(); }).catch(() => {}); }
+    const todo = pubBosses.filter(s => !roster.some(x => x.bossOnly && x.trueName === s.trueName));
+    el.hidden = !todo.length;
+    if (todo.length) el.innerHTML = `公開中の bosses.json に、まだリストに入っていないボスがいます：<b>${esc(todo.map(s => s.trueName).join('・'))}</b>。リストに取り込むと、ここで編集できます（属性・スキル・宝具・ボスの設定）。 <button class="sm primary" id="bossBannerGo">リストに取り込む</button>`;
+  }
+  $('#bossBanner').addEventListener('click', e => { if (e.target.closest('#bossBannerGo')) $('#bossPub').click(); });
   $('#bossPub').onclick = async () => {
     try {
-      const get = async u => { const r = await fetch('data/' + u, { cache: 'no-cache' }); if (!r.ok) throw new Error(u + '：' + r.status); return r.json(); };
-      const man = await get('manifest.json'), specs = [];
-      for (const f of man.bosses || []) { const d = await get(f); specs.push(...(Array.isArray(d) ? d : d.bosses || [])); }
+      const specs = await fetchPubBosses();
       if (!specs.length) { status('公開中のボスはいません'); return; }
       if (!confirm(`公開中の bosses.json のボス ${specs.length}騎（${specs.map(s => s.trueName).join('・')}）を、ボス専用の英霊としてリストに入れます。\n公開したあとは、ゲームではリストの方が使われます（bosses.json の同名のボスは置き換わります）。`)) return;
       const out = []; for (const s of specs) { try { out.push(importBossSpec(s)); } catch (err) { status(`${s.trueName}：${err.message}`); } }
