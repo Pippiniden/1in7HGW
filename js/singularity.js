@@ -95,7 +95,8 @@
    */
   function compose(o) {
     const S = Object.assign({}, G.CONFIG.SING, o.sing || {});
-    const roster = (o.roster || []).filter(s => s && s.score && !s.bossOnly);
+    const wcfg = o.war || undefined;   // 七騎の組み方：{ extra:false, pick:'open' }（聖杯戦争と同じ指定）
+    const roster = (o.roster || []).filter(s => s && s.score && !s.bossOnly && !(wcfg && wcfg.extra === false && G.classDef(s.class.key).slot === 'extra'));
     const bosses = (o.bosses || []).filter(s => s && s.score);
     const byId = new Map(roster.map(s => [s.id, s]));
     const picks = o.picks || {};
@@ -123,7 +124,7 @@
       for (const s of fixed) if (s && !got.includes(s)) got.push(s);
       if (got.length >= size) return got.slice(0, size);
       const pool = roster.filter(s => !used.has(s.id));
-      const comp = G.war.composeWar(pool, rnd).filter(x => x.servant).map(x => x.servant);
+      const comp = G.war.composeWar(pool, rnd, wcfg).filter(x => x.servant).map(x => x.servant);
       const have = new Set(got.map(clsKey));
       const cand = comp.filter(s => !have.has(clsKey(s)));
       while (cand.length > size - got.length) cand.splice(Math.floor(rnd() * cand.length), 1);
@@ -767,7 +768,7 @@
       for (const c of party) A.log('summon', `${A.nm(c)}が召喚に応えた。`, [c.id], { quote: A.say(c, ['召喚']) });
       A.log('summon', `前衛は${frontAlive().map(A.sn).join('・')}。控えに${reserveAlive().map(A.sn).join('・')}。期限は${maxDays}日。`, P.front.slice());
       Object.assign(A.out, { sing: { name: L.name, words: L.words, city: L.city, region: L.region, days: maxDays } });
-      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, master: c.party ? { name: P.master.name, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
+      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, master: c.party ? { name: P.master.name, sex: P.master.sex, age: P.master.age, origin: P.master.origin, originLabel: P.master.originLabel, persona: P.master.persona, skills: P.master.skills, traits: P.master.traits, catalyst: P.master.catalyst, wish: P.master.wish, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
 
       let day = 0;
       for (day = 1; day <= maxDays; day++) {
