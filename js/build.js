@@ -462,6 +462,36 @@
     return { lean, servantOv, npOv, aoe };
   }
 
-  G.build = { leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  /**
+   * 解説の表示用の文章。Wikiのページの解説欄には、解説のほかに「セリフ集」の一覧・区切りの記号・TRPG用のキャラシートが
+   * 続くことがある。表示（ゲームの解説ダイアログ）では、そういう枠を外して、解説の文章だけを残す。データは書き換えない
+   *   - 「セリフ集」の見出しと「見出し：「セリフ」」の行の並び（間の空行も）
+   *   - 「TRPGキャラシート」から終わりまで
+   *   - ◆だけ・罫線だけの区切り行
+   * 3行以上の空行は1つの空行にまとめる
+   */
+  const VOICE_LINE = /^[^「」：\n]{1,14}：「.*」\s*$/;
+  function loreText(text) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n'), out = [];
+    let skipping = false;
+    for (let i = 0; i < lines.length; i++) {
+      const t = lines[i].trim();
+      if (/^TRPGキャラ(クター)?シート/.test(t)) break;
+      if (/^(セリフ集?|台詞集?|ボイス集?)$/.test(t) || VOICE_LINE.test(t)) { skipping = true; continue; }
+      if (skipping) { if (!t) continue; skipping = false; }
+      if (t && /^[◆■□●○◎＊*・\-―─━=＝\s]+$/.test(t)) continue;
+      out.push(lines[i].replace(/\s+$/, ''));
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  /** 解説を「最初に出す部分」と「続き」に分ける（文や行の切れ目で limit 字まで。続きは最初の部分と重ならない） */
+  function loreLead(text, limit) {
+    const t = loreText(text);
+    let head = '', i = 0;
+    const parts = t.split(/(?<=[。\n])/);
+    for (; i < parts.length; i++) { if (head.trim() && (head + parts[i]).length > limit) break; head += parts[i]; }
+    return { head: head.trim(), rest: parts.slice(i).join('').trim() };
+  }
+  G.build = { loreText, loreLead, leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});
