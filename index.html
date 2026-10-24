@@ -689,7 +689,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   </div>
   <p class="foot">登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作です（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
   <p class="foot">テスト中の新しい遊び方：六騎の英霊を率いて七騎の敵とボスを倒す<a href="singularity.html">特異点攻略</a>。</p>
-  <p class="foot spoil">すべての英霊の真名・強さ・優勝率を見比べる<a href="ranking.html" id="rankLink">強さランキング</a>もあります（真名が分かってしまうので、戦争の中で推し量りたい人は開かないでください）。</p>
+  <p class="foot spoil">すべての英霊の真名・強さ・優勝率を見比べる<a href="ranking.html" id="rankLink">強さランキング</a>や、クラスごとに解説・スキル・宝具を読める<a href="zukan.html" id="zukanLink">英霊図鑑</a>もあります（真名が分かってしまうので、戦争の中で推し量りたい人は開かないでください）。</p>
   <details class="foot cast" id="castBox" hidden>
     <summary>参戦サーヴァントの設定</summary>
     <div class="cast-in">
@@ -888,6 +888,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯戦争に出ない
     initExcluded();
     const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
+    const zl = $('#zukanLink'); if (zl) zl.href = label === 'local' ? 'zukan.html?data=local' : 'zukan.html';
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
     const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
     const pub = label === 'local' ? ` ・ <a href="#" id="usePub">公開データに戻す</a>` : '';
