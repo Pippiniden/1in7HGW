@@ -70,6 +70,10 @@ button { font: inherit; color: inherit; }
 .panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
 .panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
 .panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+/* スクロールするダイアログでは角飾りを内容と一緒に流さず、見えている枠の隅に貼り付ける */
+.dlg-in.panel::before, .dlg-in.panel::after { position: sticky; z-index: 1; }
+.dlg-in.panel::before { top: 0; left: 0; margin-bottom: -14px; }
+.dlg-in.panel::after { bottom: 0; right: 0; margin: -14px 0 0 auto; }
 /* 見出し：金の山形と英字、和文の帯 */
 .hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; }
 .chev { flex: none; width: 22px; height: 16px; background: var(--gold); clip-path: polygon(0 0, 30% 0, 62% 50%, 30% 100%, 0 100%, 32% 50%, 38% 0, 68% 0, 100% 50%, 68% 100%, 38% 100%, 70% 50%); filter: drop-shadow(0 0 4px rgba(255, 216, 74, .6)); }
