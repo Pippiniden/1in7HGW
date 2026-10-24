@@ -114,6 +114,20 @@
     // プレイヤーが付けた名前（乱数は使わない。名前は文面にしか出ないので、展開は変わらない）
     const pName = opts.playerName ? String(opts.playerName).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20) : '';
     if (you && pName) { you.master.name = pName; you.master.named = true; }
+    // プレイヤーが決めた性別・年齢（これも乱数は使わない。性別を変えて名前を付けていないときは、名前の下の名を種から決め直す）
+    if (you) {
+      const m = you.master, sx = opts.playerSex === '男' || opts.playerSex === '女' ? opts.playerSex : '', ag = Math.round(Number(opts.playerAge));
+      if (isFinite(ag) && ag >= 10 && ag <= 99) m.age = ag;
+      if (sx && sx !== m.sex) {
+        m.sex = sx;
+        if (!pName && N && m.source !== 'preset') {
+          const h = (() => { let x = 2166136261; for (const ch of seed + ':性別:' + m.name) { x ^= ch.charCodeAt(0); x = Math.imul(x, 16777619); } return x >>> 0; })();
+          const L = a => a[h % a.length], fem = sx === '女', nm = String(m.name || '');
+          if (nm.includes('・')) m.name = L(fem ? N.westFemale : N.westMale) + '・' + nm.split('・').slice(1).join('・');
+          else if (nm.includes(' ') && N.jpSurname) m.name = nm.split(' ')[0] + ' ' + L(fem ? N.jpFemale : N.jpMale);
+        }
+      }
+    }
     const pubName = new Set();
     // 因縁：Wikiの「因縁キャラ」に、この戦争にいる別のサーヴァントの名前があるか
     const rel = {};
@@ -652,7 +666,8 @@
       if (np.exposure >= 0.8) witnessed.push(c.id);
       log('np', `${nm(c)}が宝具を解放した——『${np.name}』${np.reading ? '（' + np.reading + '）' : ''}！`, [c.id, o.id], { quote: sayNP(c, np), big: true });
       fireTrig(c, o, 'np', ctx.terrain);   // 宝具を使ったときに発動するスキル
-      if (over) { c.overUsed = true; log('battle', `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
+      if (over) { c.overUsed = true; // 魔力を肩代わりする主がいない（はぐれ）か、特異点で蓄えを英霊の霊基が肩代わりするときは、自分自身の霊基を削る文面にする
+        log('battle', SG || !c.masterAlive ? `${sn(c)}は残りの魔力も顧みずに宝具を放った——足りない分を賄うように、自らの霊基が削り取られていく。` : `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
       const bf = (np.effects || []).filter(e => e.id === 'backfire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0) + skillFx(c, 'backfire', ctx.terrain);   // スキルの反動も
       if (bf > 0) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');

@@ -75,7 +75,7 @@
 
   /**
    * 特異点の名前と顔ぶれを決める（シードから。エンジンの戦いの乱数とは別の流れなので、顔ぶれを指定しても名前は変わらない）。
-   * picks: { party: [サーヴァントの id か null ×6], foes: [id か null ×7], boss: ボスの id | 'empower'（超強化）| null（くじ） }
+   * picks: { party: [サーヴァントの id か null ×6], foes: [id か null ×7], boss: ボスの id | 'empower'（超強化）| null（ランダム） }
    * o.bossMode: ボスの抽選（'both' 両方・既定 / 'boss' ボス専用だけ / 'empower' 既存の英霊だけ）。picks.boss を指定した席には効かない
    * 戻り値: { name, words, tag（敵の呼び名に付ける言葉）, city, region, party: [id], foes: [id], boss: { id, kind: 'boss'|'empower' }, stray: id|null, front: [前衛の番号] }
    */
