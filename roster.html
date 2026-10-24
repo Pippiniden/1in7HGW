@@ -278,6 +278,13 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 /* 公開中のリストとの違い */
 .sync { font-size: 13px; }
 .sync ul { margin: 4px 0 0; padding-left: 18px; }
+.dfl { font-size: 12.5px; margin: 4px 0 0; padding-left: 0; list-style: none; }
+.dfl li { padding: 2px 0; border-top: 1px solid var(--rule); word-break: break-all; }
+.dfl .p { color: var(--sub); }
+.dfl .o { color: var(--err-ink); text-decoration: line-through; }
+.dfl .n { color: var(--ok); }
+details.dfd { margin-top: 6px; }
+details.dfd > summary { cursor: pointer; font-size: 13px; }
 .sync .ok { color: var(--ok); }
 /* ページ名で取り込む */
 .gh { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--rule); }
@@ -402,10 +409,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button class="primary" id="add">リストに追加</button>
         <label class="btn" for="files">ファイルを読む</label><input type="file" id="files" accept=".txt,.text,.json" multiple>
       </div>
-      <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出したリスト）をまとめて選べます。同じクラス・真名は新しい方で置き換えます。</div>
+      <div class="hint" style="margin-top:6px">ファイルは .txt（Wikiのページ）と .json（書き出したリスト・1騎ごとに書き出したJSON）をまとめて選べます。同じクラス・真名は新しい方で置き換え、置き換えた騎は何が変わったかを下に出します。</div>
       <div class="row" style="margin-top:10px"><button id="svNew" title="Wikiのページが無くても、真名・クラス・能力値から英霊を作ります">英霊を一から作る</button><button id="bossNew">ボスを新しく作る</button><button id="bossPub" title="data/bosses.json にいるボスを、リストの英霊（ボス専用）として取り込みます">公開中の bosses.json のボスを取り込む</button></div>
       <div class="hint" style="margin-top:6px">ボスは、属性「ボス専用」の英霊です。聖杯戦争には呼ばれず、特異点攻略のボスとして出ます。スキルや宝具は、作ったあとに「内容を編集」「効果の編集」で足せます。</div>
       <div class="status" id="status"></div>
+      <div class="box" id="impDiff" hidden></div>
       <div class="box warn" id="reqBox" hidden></div>
       <div class="hint" style="margin-top:6px">プレイヤーからの申請（<a href="submit.html" target="_blank" style="color:var(--accent)">申請フォーム</a>で作ったもの）は、Issue の「管理者向け」の枠の中身をここに貼り付けるか、申請のファイルを「ファイルを読む」で読むと反映されます。</div>
       <div class="gh">
@@ -451,6 +459,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button class="primary" id="syncPull">公開中のリストにそろえる</button>
         <button class="ghost danger sm" id="syncReplace">公開中のリストで置き換える</button>
       </div>
+    </section>
+    <section class="panel" id="diffPanel" hidden>
+      <h2>未公開の変更の内容</h2>
+      <p class="hint">公開中のリストと比べて、このブラウザで変えたところです。騎の名前を押すと、項目ごとの違い（公開中 → いま）が開きます。</p>
+      <div id="diffOut"></div>
     </section>
     <section class="panel" id="globalPanel" hidden>
       <h2>全員に効く手直し</h2>
@@ -762,10 +775,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">${B.linkOf(sv) ? '元のページ' : 'kagemiya のページ'}</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
+      ${pubDiffHtml(sv)}
       <div class="facebox"><img data-face="${esc(H.faceNameOf(sv))}" alt="" hidden><span class="hint" data-face-note>顔グラフィック：まだありません。<code>img/faces/${esc(H.faceNameOf(sv))}.webp</code>（png・jpg も可、正方形 256px 程度）を<a href="https://github.com/Pippiniden/1in7HGW/upload/main/img/faces" target="_blank" rel="noopener">アップロード</a>すると、ゲームで自分のサーヴァントと真名が分かった英霊に出ます。</span></div>
       ${(sv.contentEdited || []).length ? `<div class="hint" style="margin-top:6px">内容を手直し中：${esc(sv.contentEdited.map(k => B.CONTENT_JA[k]).join('・'))}（Wikiの内容の代わりに使います）</div>` : ''}
       <div class="hint" style="margin-top:6px">属性タグ：${esc(sv.tags.join('・'))}</div>
@@ -1348,7 +1362,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (d && d.format === 'hgw-bosses') { ovStore(); ovVer++; return { list: (d.bosses || []).map(importBossSpec), harvested: 0 }; }
     const list = Array.isArray(d) ? d : d.servants || (d.kind === 'servant' ? [d] : null);
     if (!list) throw new Error('リストの形式ではありません');
-    const n = B.harvestOverrides(list);
+    let n = B.harvestOverrides(list);
+    // 1騎ずつ書き出したJSONに添えた手直し（表ごと・キーごと）。ファイルの内容を優先して書き込む
+    if (isObj(d.overrides)) for (const t of Object.keys(TABLES)) if (isObj(d.overrides[t])) for (const [k, v] of Object.entries(d.overrides[t])) { TABLES[t][k] = v; n++; }
     if (n) { ovStore(); ovVer++; }
     return { list: list.map(B.fromJSON), harvested: n };
   }
@@ -1374,9 +1390,26 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         else { const r = fromText(splitPages(t).map((p, i, a) => ({ title: a.length > 1 ? null : f.name.replace(/\.[^.]+$/, ''), text: p }))); all.push(...r.out); errs.push(...r.errs); }
       } catch (err) { errs.push(f.name + '：' + err.message); }
     }
+    // 置き換える騎は、取り込む前との違いを控えておく
+    const chg = [];
+    for (const s of all) { const old = roster.find(x => x.id === s.id); if (old) chg.push([s, leanDiffLines(B.toLean(old), B.toLean(s))]); }
     done(upsert(all), errs, harvested ? `（ファイルに残っていた手直し ${harvested}件を引き継ぎ）` : '');
+    const box = $('#impDiff');
+    box.hidden = !chg.length;
+    box.innerHTML = chg.length ? `<b>置き換えた騎の変更点</b>` + chg.map(([s, ls]) => `<details class="dfd"${chg.length === 1 ? ' open' : ''}><summary><b>${esc(s.class.label)}｜${esc(s.trueName)}</b> <span class="hint">${ls.length ? ls.length + '項目' : '内容の違いなし'}</span></summary>${ls.length ? linesHtml(ls, 60) : ''}</details>`).join('') : '';
     if (all[0]) jumpTo(all[0].id);
   };
+  // 1騎だけのJSON：リストの書き出し（hgw-servants）と同じ形で、servants に1騎だけ入れ、その騎に付いた手直しを overrides に添える
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-one]'); if (!b) return;
+    const sv = roster[+b.dataset.one]; if (!sv) return;
+    const ov = {};
+    for (const [t, k] of ownOverrides(sv).concat(E.PAGE_OVERRIDES[E.okey(sv)] != null ? [['pages', E.okey(sv)]] : [])) (ov[t] = ov[t] || {})[k] = TABLES[t][k];
+    const out = { format: 'hgw-servants', version: 2, lean: true, single: true, at: new Date().toISOString(), servants: [B.toLean(sv)] };
+    if (Object.keys(ov).length) out.overrides = ov;
+    download(`${sv.class.label}_${sv.trueName}${sv.key ? '#' + sv.key : ''}.json`.replace(/[\\/:*?"<>|]/g, '_'), out);
+    status(`${sv.trueName}をJSONで書き出しました（手直し ${Object.values(ov).reduce((n, o) => n + Object.keys(o).length, 0)}件つき）。取り込むには「取り込み」の「ファイルを読む」`);
+  });
 
   // ---------- 書き出し ----------
   function download(name, obj) {
@@ -1834,6 +1867,91 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (!base) return null;
     const b = base.sv[id0(sv)]; return b == null ? 'new' : b !== sig(sv) ? 'changed' : null;
   }
+  // ---------- 変更の内容（公開中との違い／取り込み前との違い） ----------
+  // 軽い形（toLean）どうしを項目ごとに比べる。スキル・宝具・因縁など name を持つ配列は名前で、文字列の配列（セリフ）は行の増減で見る
+  const DJ = { trueName: '真名', aliases: '別名', class: 'クラス', origin: '出典', sex: '性別', alignment: '陣営', attribute: '属性', traits: '特性', stats: 'ステータス', statsAlt: '別のステータス', classSkills: 'クラス別スキル', skills: '保有スキル', nps: '宝具', weapons: '武器', profile: 'プロフィール', relations: '因縁', voice: 'セリフ', text: '解説・人物', info: 'Wikiの項目', sourceText: 'Wikiの原文', body: '本文', page: 'ページ名', key: '印', rankRaw: 'ランク', desc: '説明', reading: '読み', typeRaw: '種別', rangeRaw: 'レンジ', maxRaw: '最大捕捉', raw: '表記', str: '筋力', end: '耐久', agi: '敏捷', mag: '魔力', luk: '幸運', np: '宝具', label: '名前', commentary: '解説', personality: '人物', comment: '備考', manual: '手書き', pageMissing: 'ページ未発見', skippedItems: '読み飛ばした項目' };
+  const TJ = { global: '全員に効く手直し', servant: '効果の手直し', stats: 'ステータスの手直し', np: '宝具の扱い', content: '内容の手直し', pages: 'ページ名', reviewed: '確認済み', attrs: '属性の表', attrOf: '属性の付け替え', boss: 'ボスの設定' };
+  const isObj = x => x && typeof x === 'object' && !Array.isArray(x);
+  const clip = (v, n) => { const t = v === undefined ? 'なし' : typeof v === 'string' ? v : JSON.stringify(v); return t.length > (n || 48) ? t.slice(0, n || 48) + '…' : t; };
+  function diffVal(a, b, path, out) {
+    if (jkey(a) === jkey(b)) return;
+    if (isObj(a) && isObj(b)) { for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) diffVal(a[k], b[k], path.concat(DJ[k] || k), out); return; }
+    if (Array.isArray(a) && Array.isArray(b)) {
+      const named = x => x.length && x.every(e => isObj(e) && typeof e.name === 'string') && new Set(x.map(e => e.name)).size === x.length;
+      if (named(a) && named(b)) {
+        const ma = new Map(a.map(e => [e.name, e])), mb = new Map(b.map(e => [e.name, e]));
+        for (const [n, e] of mb) { const p = path.concat('『' + n + '』'); if (!ma.has(n)) out.push({ path: p, kind: 'add' }); else diffVal(ma.get(n), e, p, out); }
+        for (const n of ma.keys()) if (!mb.has(n)) out.push({ path: path.concat('『' + n + '』'), kind: 'del' });
+        return;
+      }
+      if (a.every(x => typeof x !== 'object') && b.every(x => typeof x !== 'object')) {
+        const sa = new Set(a), sb = new Set(b), add = b.filter(x => !sa.has(x)), del = a.filter(x => !sb.has(x));
+        if (add.length || del.length) { out.push({ path, kind: 'list', add, del }); return; }
+        out.push({ path, kind: 'chg', a: '並び順', b: '変更' }); return;
+      }
+    }
+    out.push({ path, kind: 'chg', a, b });
+  }
+  function leanDiffLines(a, b) {
+    const out = [];
+    if (!a) return out;
+    diffVal(a, b, [], out);
+    return out;
+  }
+  const lineHtml = d => {
+    const p = `<span class="p">${esc(d.path.join(' › ') || '全体')}</span>`;
+    if (d.kind === 'add') return `<li>${p} <span class="n">追加</span></li>`;
+    if (d.kind === 'del') return `<li>${p} <span class="o">削除</span></li>`;
+    if (d.kind === 'list') return `<li>${p} ${d.add.length ? `<span class="n">＋${d.add.length}行</span> ` : ''}${d.del.length ? `<span class="o">−${d.del.length}行</span> ` : ''}${d.add.slice(0, 2).map(x => `<span class="n">「${esc(clip(x, 30))}」</span>`).join(' ')}${d.del.slice(0, 2).map(x => `<span class="o">「${esc(clip(x, 30))}」</span>`).join(' ')}</li>`;
+    return `<li>${p} <span class="o">${esc(clip(d.a))}</span> → <span class="n">${esc(clip(d.b))}</span></li>`;
+  };
+  const linesHtml = (lines, max) => { max = max || 40; return `<ul class="dfl">${lines.slice(0, max).map(lineHtml).join('')}${lines.length > max ? `<li class="p">ほか ${lines.length - max}項目</li>` : ''}</ul>`; };
+  // 手直し表の違い（表ごと・キーごと）。only：キーを絞る関数
+  function tableDiffHtml(pl, only) {
+    const cur = ovGet(), items = [];
+    for (const t in TABLES) {
+      const m = pl.ov[t]; if (!m) continue;
+      for (const [side, mark] of [['add', 'n'], ['upd', 'n'], ['del', 'o']]) for (const k of m.local[side]) {
+        if (only && !only(t, k)) continue;
+        const L = (cur[t] || {})[k], P = ((pub.ov || {})[t] || {})[k];
+        items.push(`<li><span class="p">${esc(TJ[t] || t)} › ${esc(k)}</span> ${side === 'add' ? '<span class="n">追加</span> ' + esc(clip(L, 60)) : side === 'del' ? '<span class="o">削除</span> ' + esc(clip(P, 60)) : `<span class="o">${esc(clip(P, 40))}</span> → <span class="n">${esc(clip(L, 40))}</span>`}</li>`);
+      }
+    }
+    return items.length ? `<ul class="dfl">${items.join('')}</ul>` : '';
+  }
+  // 1騎の「公開中との違い」。公開中の版が無ければ新規の追加
+  function pubDiffHtml(sv) {
+    const pl = plan(); if (!pl) return '';
+    const id = id0(sv), st = pubState(sv), own = new Set(ownOverrides(sv).map(([t, k]) => t + '\n' + k));
+    own.add('pages\n' + E.okey(sv));
+    const tbl = tableDiffHtml(pl, (t, k) => own.has(t + '\n' + k));
+    const p = pub.servants.get(id);
+    if (!st && !tbl) return '';
+    const head = st === 'new' || !p ? '公開中のリストにいない騎です（追加）' : st === 'changed' ? '公開中のリストと違うところ' : '';
+    return `<div class="box warn"><b>未公開の変更</b>${head ? `：${head}` : ''}${st === 'changed' && p ? linesHtml(leanDiffLines(B.toLean(p), B.toLean(sv))) : ''}${tbl ? `<div style="margin-top:4px"><b>手直し表</b></div>${tbl}` : ''}</div>`;
+  }
+  // 「公開・保存」の未公開の変更の一覧（騎ごとに開くと違いが出る。開くときに計算する）
+  function renderDiffPanel(pl) {
+    const l = pl.sv.local, panel = $('#diffPanel'), nOv = pl.nOvLocal;
+    panel.hidden = !(l.add.length + l.upd.length + l.del.length + nOv);
+    if (panel.hidden) { $('#diffOut').innerHTML = ''; return; }
+    const nm = id => { const s = roster.find(x => id0(x) === id) || pub.servants.get(id); return s ? `${s.class.label}｜${s.trueName}` : id; };
+    const row = (id, tag, cls) => `<details class="dfd" data-dfid="${esc(id)}" data-dfk="${tag}"><summary><b>${esc(nm(id))}</b> <span class="badge ${cls}">${tag === 'add' ? '追加' : tag === 'del' ? '外した' : '変更'}</span></summary><div class="dfb"></div></details>`;
+    $('#diffOut').innerHTML = [...l.add.map(id => row(id, 'add', 'new')), ...l.upd.map(id => row(id, 'upd', 'chg')), ...l.del.map(id => row(id, 'del', 'chg'))].join('')
+      + (nOv ? `<details class="dfd" data-dfk="ov"><summary><b>手直し表</b> <span class="badge chg">${nOv}件</span></summary><div class="dfb"></div></details>` : '');
+  }
+  $('#diffOut').addEventListener('toggle', e => {
+    const d = e.target; if (!d.open || !d.matches('details.dfd')) return;
+    const box = d.querySelector('.dfb'), pl = plan(); if (!box || !pl || box.dataset.done) return;
+    box.dataset.done = '1';
+    const k = d.dataset.dfk, id = d.dataset.dfid;
+    if (k === 'ov') { box.innerHTML = tableDiffHtml(pl) || '<span class="hint">なし</span>'; return; }
+    const sv = roster.find(x => id0(x) === id), p = pub.servants.get(id);
+    if (k === 'add') box.innerHTML = '<span class="hint">公開中のリストにいない騎です。公開用に保存して上げると追加されます。</span>' + (sv ? `<div><a href="#" data-dfgo="${esc(sv.id)}">この騎を開く</a></div>` : '');
+    else if (k === 'del') box.innerHTML = '<span class="hint">このブラウザのリストから外してあります。公開用に保存して上げると、公開側からも外れます。</span>';
+    else box.innerHTML = (sv && p ? linesHtml(leanDiffLines(B.toLean(p), B.toLean(sv)), 60) : '') + (sv ? `<div><a href="#" data-dfgo="${esc(sv.id)}">この騎を開く</a></div>` : '');
+  }, true);
+  $('#diffOut').addEventListener('click', e => { const a = e.target.closest('[data-dfgo]'); if (!a) return; e.preventDefault(); showView('roster'); jumpTo(a.dataset.dfgo); });
   async function fetchPublished() {
     const get = async u => { const r = await fetch('data/' + u, { cache: 'no-cache' }); if (!r.ok) throw new Error(u + '：' + r.status); return r.json(); };
     const man = await get('manifest.json');
@@ -1896,9 +2014,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       $('#syncActs').hidden = true;
       box.innerHTML = pubErr ? `<span class="hint">${esc(pubErr)}</span>` : '公開中のリストを確かめています…';
       $('#unpub').textContent = '';
+      $('#diffPanel').hidden = true;
       return;
     }
     const pl = plan(), a = pl.sv.fromPub, l = pl.sv.local;
+    renderDiffPanel(pl);
     const nPub = a.add.length + a.upd.length + a.del.length + pl.nOvPub, nLoc = l.add.length + l.upd.length + l.del.length + pl.nOvLocal;
     const nm = id => { const s = pub.servants.get(id) || roster.find(x => id0(x) === id); return s ? s.trueName : id.split(':').pop(); };
     const list = ids => ids.slice(0, 6).map(nm).join('、') + (ids.length > 6 ? ` ほか${ids.length - 6}騎` : '');
