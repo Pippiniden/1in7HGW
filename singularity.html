@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>特異点攻略（テスト）</title>
-<meta name="description" content="六騎の英霊を率いて特異点の敵サーヴァント七騎とボスを倒し、人理を修復する。聖杯戦争観戦記のテスト機能。">
+<meta name="description" content="六騎の英霊を率いて特異点の敵サーヴァント七騎とボスを倒し、人理を修復する。7分の1の聖杯戦争のテスト機能。">
 <meta name="theme-color" content="#050d22">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
@@ -140,7 +140,8 @@ body.watching .war { display: block; }
 .order .row .btn { flex: 1 1 auto; }
 .queue { font-size: 12px; color: #ff9db1; margin-top: 6px; }
 .logp .body { padding: 0; }
-.log { list-style: none; margin: 0; padding: 0 10px 8px; }
+/* 記録欄の大きさは固定（件数や「すべての記録を見る」の開閉で伸び縮みさせない） */
+.log { list-style: none; margin: 0; padding: 0 10px 8px; height: min(62vh, 640px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(62, 230, 255, .45) transparent; }
 .log li { position: relative; display: grid; grid-template-columns: 3.6em minmax(0, 1fr); gap: 10px; padding: 9px 8px; border-top: 1px solid rgba(80, 196, 255, .12); }
 .log .when { font: 700 13px/1.2 var(--en); color: var(--cyan); padding-top: 3px; }
 .log .when span { display: block; font: 11px var(--gothic); color: var(--mute); }
@@ -354,7 +355,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   .foldable .hd .ja { margin-left: auto; }
   #log:not(.open) li:nth-child(n+9) { display: none; }
   .logmore { display: block; width: calc(100% - 20px); margin: 4px 10px 10px; }
-  .log { padding: 0 4px 6px; }
+  .log { padding: 0 4px 6px; height: 52vh; }
   .logbar { padding: 0 10px 8px; }
   .toast { bottom: calc(70px + var(--safe-b)); }
 }
@@ -434,7 +435,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     </div>
   </section>
   <p class="foot" id="installBox" hidden><button class="btn" id="installBtn" type="button" hidden>アプリとして追加</button></p>
-  <p class="foot"><a href="index.html">聖杯戦争 観戦記へ戻る</a> ・ 特異点攻略はテスト中の機能です。サーヴァントのデータは聖杯戦争と共有しています。</p>
+  <p class="foot"><a href="index.html">7分の1の聖杯戦争へ戻る</a> ・ <a href="roster.html">サーヴァントリスト</a> ・ <a href="submit.html">申請フォーム</a> ・ <a href="logview.html">戦いのログビューア</a> ・ 特異点攻略はテスト中の機能です。サーヴァントのデータは聖杯戦争と共有しています。</p>
 </section>
 
 <section class="war">
@@ -1302,7 +1303,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     p.classList.toggle('folded', k in folds ? !!folds[k] : !!FOLD_DEF[k]);
     p.querySelector('.hd').addEventListener('click', () => { if (!matchMedia('(max-width: 820px)').matches) return; const on = p.classList.toggle('folded'); folds[k] = on; store.set(FOLD_KEY, folds); });
   });
-  $('#logMore').onclick = () => { const on = $('#log').classList.toggle('open'); $('#logMore').setAttribute('aria-expanded', String(on)); $('#logMore').textContent = on ? '最近の記録だけにする' : 'すべての記録を見る'; };
+  $('#logMore').onclick = () => { const on = $('#log').classList.toggle('open'); $('#log').scrollTop = 0; $('#logMore').setAttribute('aria-expanded', String(on)); $('#logMore').textContent = on ? '最近の記録だけにする' : 'すべての記録を見る'; };
 
   // ---------- 記録の絞り込み・山場 ----------
   const KIND_JA = { prologue: '序幕', summon: '召喚', dayhead: '日付', day: '昼', night: '夜', battle: '戦い', np: '宝具', cs: '令呪', death: '退場', event: '出来事', world: '世界', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
