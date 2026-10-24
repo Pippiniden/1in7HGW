@@ -761,6 +761,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     settings0 = store.get(SET_KEY) || {};
     const st = settings0;
     if (st.words === false) document.querySelector('input[name=words][value="0"]').checked = true;
+    // 最後に選んだ速さと「決断をおまかせ」は、別の特異点に移っても引き継ぐ
+    const sp = document.querySelector(`input[name=speed][value="${+st.speed}"]`); if (sp) sp.checked = true;
     const d = qs.get('d') || st.days || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : st.extra !== false;
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : st.pick || 'class';
     setForm(d, x, pk);
@@ -772,7 +774,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   const cleanSex = v => ({ m: '男', f: '女', '男': '男', '女': '女' })[String(v == null ? '' : v)] || '';
   const cleanAge = v => { const n = Math.round(Number(v)); return isFinite(n) && n >= 10 && n <= 99 ? n : 0; };
   const cleanPName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
-  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), boss: formBoss(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined, last: settings0.last || undefined });
+  const saveSettings = () => store.set(SET_KEY, { days: formDays(), extra: formExtra(), pick: formPick(), boss: formBoss(), words: formWords(), name: $('#pname').value.trim() || undefined, word: $('#pword').value.trim() || undefined, last: settings0.last || undefined, speed: settings0.speed, auto: settings0.auto || undefined });
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
   $('#pname').addEventListener('change', () => { saveSettings(); syncNameBtns(); }); $('#pword').addEventListener('change', saveSettings);
@@ -900,7 +902,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   function start(o) {
     o = o || {};
     maxDays = formDays();
-    speed = formSpeed(); paused = false; autoAll = false;
+    speed = [1, 2, 4, 8, 16].includes(+settings0.speed) ? +settings0.speed : formSpeed(); paused = false; autoAll = settings0.auto === true;
     playerName = cleanPName(o.replay && qs.has('n') ? qs.get('n') : $('#pname').value);
     playerSex = o.replay ? cleanSex(qs.get('sx')) : ''; playerAge = o.replay ? cleanAge(qs.get('ag')) : 0;
     if (playerName && !o.replay) { settings0.last = playerName; saveSettings(); syncNameBtns(); }
@@ -1020,11 +1022,14 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   // スマホ向け：速さを一つのボタンで切り替える／退場・令呪の場面で自動的に止める（このブラウザに残す）
   const SPEEDS = [1, 2, 4, 8, 16], STOP_KEY = 'hgw.sing.autostop';
   let autoStop = store.get(STOP_KEY) === true;
-  $('#spCycle').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; syncCtl(); };
+  // 速さと「決断をおまかせ」を、このブラウザに残す（次の特異点の開始時の既定になる）
+  const rememberCtl = () => { settings0.speed = speed; settings0.auto = autoAll || undefined; saveSettings(); };
+  document.querySelectorAll('input[name=speed]').forEach(r => r.addEventListener('change', () => { speed = +r.value; rememberCtl(); }));
+  $('#spCycle').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; syncCtl(); rememberCtl(); };
   $('#stopBtn2').onclick = () => { autoStop = !autoStop; store.set(STOP_KEY, autoStop || null); syncCtl(); toast(autoStop ? '前衛の退場と令呪の場面で、自動的に止めます' : '自動では止めません'); };
   $('#pause').onclick = () => { if (op || (done && idx >= out.entries.length)) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
-  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
-  $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
+  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); rememberCtl(); });
+  $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); rememberCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
   $('#quitBtn').onclick = () => { clearTimeout(timer); saveProgress(); gen = null; op = null; $('#opening').classList.remove('on'); $('#imgDlg').classList.remove('on'); $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); renderIntroRecords(); };
   // ⋯メニュー（スマホでは、おまかせ・CSV・やめるをここにまとめる）
   const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
@@ -1066,7 +1071,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   }
   function answer(k, silent) { $('#dlg').classList.remove('on', 'min'); applyAnswer(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
   $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
-  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); };
+  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); rememberCtl(); answer('auto'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, select, textarea')) return;
     if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }

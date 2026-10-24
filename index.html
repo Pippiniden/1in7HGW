@@ -988,12 +988,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     let st = null; try { st = JSON.parse(localStorage.getItem(SET_KEY) || 'null'); } catch (e) { /* 読めなくてもよい */ }
     settings0 = st || {};
     if (st && st.words === false) document.querySelector('input[name=words][value="0"]').checked = true;
+    // 最後に選んだ速さと「決断をおまかせ」は、別の聖杯戦争に移っても引き継ぐ
+    const sp = document.querySelector(`input[name=speed][value="${+(st && st.speed)}"]`); if (sp) sp.checked = true;
     const d = qs.get('d') || (st && st.days) || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : (st && st.pick) || 'class';
     setForm(d, x, pk);
   })();
   // 一言を聞くか・前回つけた名前も一緒に覚えておく（どちらも戦争の展開は変えない）
-  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: settings0.name || undefined })); } catch (e) { /* 保存できなくても動く */ } };
+  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: settings0.name || undefined, speed: settings0.speed, auto: settings0.auto || undefined })); } catch (e) { /* 保存できなくても動く */ } };
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
   document.querySelectorAll('input[name=extra], input[name=pick], input[name=words]').forEach(r => r.addEventListener('change', saveSettings));
@@ -1004,8 +1006,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const warOpts = () => { const w = {}; if (!extraOn) w.extra = false; if (pickMode === 'open') w.pick = 'open'; return Object.keys(w).length ? w : undefined; };
   // 記録（out.entries）を順に再生し、追いついたら tick には今の方針を渡して進め、decision なら問いを出す
   let gen = null, out = null, pending = null, done = false, result = null;
-  let idx = 0, timer = null, speed = 2, paused = false, view = 'you', seed = '';
-  let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = false, youId = null, curDay = 0, mode = 'new';
+  let idx = 0, timer = null, speed = [1, 2, 4, 8].includes(+settings0.speed) ? +settings0.speed : 2, paused = false, view = 'you', seed = '';
+  let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = settings0.auto === true, youId = null, curDay = 0, mode = 'new';
   // playerName：プレイヤーが付けた名前（空ならランダムで決まった名前）。words：残した一言 [{ key, at: 何件目の記録のあとか, day, q, text }]
   let playerName = '', playerSex = '', playerAge = 0, words = [], wordAsked = new Set(), wordArm = [], wordsOn = true, catching = false;
   const DELAY = { quiet: 900, death: 2200, np: 1800, end: 1900, cs: 1600, summon: 1100, prologue: 1300, choice: 500, council: 900, life: 1400, world: 1400, ally: 1400 };
@@ -1118,8 +1120,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#autoBtn2').setAttribute('aria-checked', String(autoAll)); $('#autoBtn2').setAttribute('aria-pressed', String(autoAll));
   }
   $('#pause').onclick = () => { paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
-  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); });
-  const toggleAuto = () => { autoAll = !autoAll; syncCtl(); toast(autoAll ? '大きな決断はおまかせで進みます' : '大きな決断で止まります'); if (autoAll && pending && pending.type === 'decision' && $('#dlg').classList.contains('on')) answer('auto'); };
+  // 速さと「決断をおまかせ」を、このブラウザに残す（次の戦争の開始時の既定になる）
+  const rememberCtl = () => { settings0.speed = speed; settings0.auto = autoAll || undefined; saveSettings(); };
+  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); rememberCtl(); });
+  document.querySelectorAll('input[name=speed]').forEach(r => r.addEventListener('change', () => { speed = +r.value; rememberCtl(); }));
+  const toggleAuto = () => { autoAll = !autoAll; syncCtl(); rememberCtl(); toast(autoAll ? '大きな決断はおまかせで進みます' : '大きな決断で止まります'); if (autoAll && pending && pending.type === 'decision' && $('#dlg').classList.contains('on')) answer('auto'); };
   $('#autoBtn').onclick = toggleAuto; $('#autoBtn2').onclick = () => { closeMenu(); toggleAuto(); };
   const quit = () => {
     if (wordKey === 'end') closeWord(''); // 終幕の一言の途中なら、聞かずに結末まで済ませて記録に残す
@@ -1208,7 +1213,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   }
   $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
   $('#dlgMin').onclick = () => { const m = $('#dlg').classList.toggle('min'); $('#dlgMin').textContent = m ? '決断に戻る ▴' : 'いったん下ろす ▾'; };
-  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
+  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); rememberCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea')) return;
     if ($('#imgDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeImg(); } return; }
