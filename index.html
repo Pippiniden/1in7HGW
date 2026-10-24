@@ -422,6 +422,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .namefield input, .wordin input { flex: 1 1 200px; min-width: 0; background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 12px; font: 500 18px var(--gothic); }
 .wordin input { width: 100%; font: 500 16px var(--mincho); }
 .namefield input:focus, .wordin input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
+.namefield select { background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 8px 10px; font: 500 16px var(--gothic); }
+.namefield input[type=number] { flex: 0 0 7em; }
 .namefield .row > * { min-width: 0; }
 /* 長い名前でも折り返して、画面からはみ出さない */
 .namefield .btn { min-height: 34px; font-size: 12px; --cut: 7px; white-space: normal; max-width: 100%; text-align: left; line-height: 1.5; }
@@ -1004,21 +1006,24 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   let gen = null, out = null, pending = null, done = false, result = null;
   let idx = 0, timer = null, speed = 2, paused = false, view = 'you', seed = '';
   let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = false, youId = null, curDay = 0, mode = 'new';
-  // playerName：プレイヤーが付けた名前（空ならくじで決まった名前）。words：残した一言 [{ key, at: 何件目の記録のあとか, day, q, text }]
-  let playerName = '', words = [], wordAsked = new Set(), wordArm = [], wordsOn = true, catching = false;
+  // playerName：プレイヤーが付けた名前（空ならランダムで決まった名前）。words：残した一言 [{ key, at: 何件目の記録のあとか, day, q, text }]
+  let playerName = '', playerSex = '', playerAge = 0, words = [], wordAsked = new Set(), wordArm = [], wordsOn = true, catching = false;
   const DELAY = { quiet: 900, death: 2200, np: 1800, end: 1900, cs: 1600, summon: 1100, prologue: 1300, choice: 500, council: 900, life: 1400, world: 1400, ally: 1400 };
 
   function pump(answer) {
     const r = gen.next(answer);
     if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value;
   }
-  // 名前は20字まで（制御文字は除く）。空ならくじで決まった名前
+  // 名前は20字まで（制御文字は除く）。空ならランダムで決まった名前
   const cleanPName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+  // 性別（'男' '女'、空ならランダム）と年齢（10〜99、0ならランダム）。URL では sx=m|f と ag=年齢
+  const cleanSex = v => ({ m: '男', f: '女', '男': '男', '女': '女' })[String(v == null ? '' : v)] || '';
+  const cleanAge = v => { const n = Math.round(Number(v)); return isFinite(n) && n >= 10 && n <= 99 ? n : 0; };
   const validWord = w => w && typeof w.text === 'string' && w.text && typeof w.at === 'number';
   // 戦争を組み立てる（名前を付け直すときも、同じシードで組み直す。名前は乱数を使わないので展開は変わらない）
   function makeGen() {
     out = {};
-    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), playerName: playerName || undefined });
+    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerName: playerName || undefined });
     pump();
   }
   // o: { seed, view, speed, days: 戦争の長さ, extra: エクストラクラスを加えるか, c: 決断の列, f: 方針の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode,
@@ -1042,6 +1047,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#pause').disabled = false; $('#skip').disabled = false;
     choices = []; focusLog = ''; focus = 'auto'; out = {}; done = false; result = null; pending = null; idx = 0; paused = false; curDay = 0;
     playerName = view === 'all' ? '' : cleanPName(o.name);
+    playerSex = view === 'all' ? '' : cleanSex(o.sex); playerAge = view === 'all' ? 0 : cleanAge(o.age);
     words = Array.isArray(o.words) ? o.words.filter(validWord) : []; wordAsked = new Set(words.map(w => w.key)); wordArm = [];
     // 一言は、記録の再生や共有リンクの再現では聞かない（残っている言葉は出す）
     wordsOn = formWords() && view !== 'all' && mode !== 'replay' && !(mode === 'url' && (replay.length || replayFocus));
@@ -1073,7 +1079,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   }
   $('#go').onclick = () => {
     const same = qs.get('seed') && qs.get('seed') === $('#seed').value.trim();
-    start(same ? { mode: 'url', c: qs.get('c') ? qs.get('c').split('.') : [], f: qs.get('f') || '', name: qs.get('n') || '' } : {});
+    start(same ? { mode: 'url', c: qs.get('c') ? qs.get('c').split('.') : [], f: qs.get('f') || '', name: qs.get('n') || '', sex: qs.get('sx'), age: qs.get('ag') } : {});
   };
   // 記録を target 件目まで、待たずに表示する（途中の決断は replay から答える）
   function catchUp(target) {
@@ -1100,6 +1106,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (pickMode === 'open') url.searchParams.set('p', 'open'); else url.searchParams.delete('p');
     if (castEx.length) url.searchParams.set('ex', exParam(castEx)); else url.searchParams.delete('ex');
     if (playerName) url.searchParams.set('n', playerName); else url.searchParams.delete('n');
+    if (playerSex) url.searchParams.set('sx', playerSex === '女' ? 'f' : 'm'); else url.searchParams.delete('sx');
+    if (playerAge) url.searchParams.set('ag', playerAge); else url.searchParams.delete('ag');
     history.replaceState(null, '', url);
   }
 
@@ -1357,11 +1365,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#opTitle').textContent = m.name || snap.master;
       const stats = Object.entries(m.stats || {}).map(([k, v]) => `<div${tipAttr('m.' + k)}><span>${esc(H.master.MASTER_STATS[k].name)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana);color:var(--mana)"></i></span></div>`).join('');
       const last = cleanPName(settings0.name);
-      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、くじで決まった名前になる）</label>
+      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、ランダムで決まった名前になる）</label>
           <div class="row"><input type="text" id="opName" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="next" value="${esc(m.name || snap.master)}">
-            ${playerName ? '<button class="btn" id="opNameReset" type="button">くじの名前に戻す</button>' : ''}
+            ${playerName ? '<button class="btn" id="opNameReset" type="button">ランダムな名前に戻す</button>' : ''}
             ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last.length > 12 ? last.slice(0, 12) + '…' : last)}」</button>` : ''}</div>
-          <p class="hint2">名前を変えても、戦争の展開は変わらない。</p></div>
+          <div class="row" style="margin-top:6px"><label class="lbl" for="opSex">性別</label><select id="opSex"><option value=""${playerSex ? '' : ' selected'}>ランダム</option><option value="男"${playerSex === '男' ? ' selected' : ''}>男</option><option value="女"${playerSex === '女' ? ' selected' : ''}>女</option></select>
+            <label class="lbl" for="opAge">年齢</label><input type="number" id="opAge" min="10" max="99" step="1" inputmode="numeric" value="${playerAge || ''}" placeholder="ランダム">
+            ${playerSex || playerAge ? '<button class="btn" id="opProfReset" type="button">性別・年齢をランダムに戻す</button>' : ''}</div>
+          <p class="hint2">名前・性別・年齢を決めても、戦争の展開は変わらない（年齢は10〜99歳、空欄ならランダム）。</p></div>
         <p class="say">${esc(out.city)}。${esc(meta.base)}を拠点に、あなたは聖杯戦争に臨む。手の甲には三画の令呪が刻まれている。</p>
         <dl class="opkv">
           <dt>素性</dt><dd>${esc([m.sex, m.age ? m.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
@@ -1412,32 +1423,42 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     document.querySelectorAll('#opFocus [data-f]').forEach(b => { const on = b.dataset.f === k; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-checked', String(on)); });
   }
   function closeOpening() { $('#opening').classList.remove('on'); op = null; }
-  // 名前を付ける（付け直す）。同じシードで組み直すので、マスターの紹介も新しい名前で出し直す
-  function applyName(v) {
-    const name = cleanPName(v);
-    if (!op || name === playerName) return;
-    // くじで決まった名前のまま進めるなら、付け直さない
-    if (!playerName && name === (op.meta.master || {}).name) return;
-    playerName = name;
+  // 名前・性別・年齢を決める（付け直す）。同じシードで組み直すので、マスターの紹介も出し直す。undefined の項目は今のまま
+  function applyMaster(v) {
+    if (!op) return;
+    let name = v.name === undefined ? playerName : cleanPName(v.name);
+    const sex = v.sex === undefined ? playerSex : cleanSex(v.sex), age = v.age === undefined ? playerAge : cleanAge(v.age);
+    // ランダムで決まった名前のまま進めるなら、付け直さない
+    if (!playerName && name === (op.meta.master || {}).name) name = '';
+    if (name === playerName && sex === playerSex && age === playerAge) return;
+    playerName = name; playerSex = sex; playerAge = age;
     makeGen();
     const first = out.entries.find(e => e.snap) || { snap: [] };
     op.snap = first.snap.find(c => c.you) || op.snap; op.meta = metaOf(op.snap.id);
     board(first); updateURL();
     if (name) { settings0.name = name; saveSettings(); }
   }
+  const applyName = v => applyMaster({ name: v });
+  // 開いている紹介の入力欄から読む
+  const opFields = () => ({ name: $('#opName').value, sex: $('#opSex').value, age: $('#opAge').value });
   function opNext() {
     if (!op) return;
-    if (op.step === 1 && $('#opName')) applyName($('#opName').value);
+    if (op.step === 1 && $('#opName')) applyMaster(opFields());
     if (op.step < 3) { op.step++; return renderOpening(); }
     const k = op.focus;
     closeOpening(); setFocus(k);
     toast(`方針「${FOCUS[k].label}」で一日目を始めます`);
     step();
   }
+  $('#opBody').addEventListener('change', e => {
+    if (!op || op.step !== 1 || !e.target.closest('#opSex, #opAge')) return;
+    const f = opFields(), id = e.target.id; applyMaster(f); renderOpening(); $('#' + id).focus();
+  });
   $('#opNext').onclick = opNext;
   $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
   $('#opBody').addEventListener('click', e => {
     if (e.target.closest('#opLore')) { const me = lastSnap.find(c => c.you); if (me) openLore(me.id); return; }
+    if (e.target.closest('#opProfReset')) { applyMaster({ sex: '', age: 0 }); renderOpening(); $('#opSex').focus(); return; }
     if (e.target.closest('#opNameReset')) { applyName(''); renderOpening(); $('#opName').focus(); return; }
     if (e.target.closest('#opNameLast')) { applyName(settings0.name); renderOpening(); $('#opName').focus(); return; }
     const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f);
@@ -1899,7 +1920,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     return store.set(SAVE_KEY, {
       v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
-      idx, focus, auto: autoAll, speed, name: playerName || undefined, w: words.length ? words : undefined,
+      idx, focus, auto: autoAll, speed, name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, w: words.length ? words : undefined,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
     });
   }
@@ -1917,7 +1938,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
     const rec = {
       v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
-      name: playerName || undefined, w: words.length ? words : undefined,
+      name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
         winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending,
@@ -1949,11 +1970,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, words: s.w });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, words: s.w });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, words: r.w });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, words: r.w });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
@@ -1968,6 +1989,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (recPick(r) === 'open') u.searchParams.set('p', 'open');
     if (recEx(r).length) u.searchParams.set('ex', exParam(recEx(r)));
     if (r.name) u.searchParams.set('n', r.name);
+    if (r.sex) u.searchParams.set('sx', r.sex === '女' ? 'f' : 'm');
+    if (r.age) u.searchParams.set('ag', r.age);
     return u.href;
   }
 

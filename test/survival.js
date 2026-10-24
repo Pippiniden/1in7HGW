@@ -13,7 +13,7 @@ for (let i = 0; i < 30; i++) {
   const b = HGW.engine.runWar({ roster, seed: 'n' + i, ask: 'big', playerName: '衛宮 テスト' });
   // プレイヤーのマスター（再契約で陣営を移ることもある）の名前だけが違う
   const strip = (r, name) => JSON.stringify(r.camps.map(c => Object.assign({}, c, { master: c.master === name ? '' : c.master })));
-  // くじで決まった名前（プレイヤーのマスターが倒れて陣営が別のマスターに移ると、結果の表に名前が残らないので召喚の記録から）
+  // ランダムで決まった名前（プレイヤーのマスターが倒れて陣営が別のマスターに移ると、結果の表に名前が残らないので召喚の記録から）
   const summon = a.entries.find(e => e.kind === 'summon' && e.you), rolled = summon ? summon.text.split('（')[0] : '';
   ok(strip(a, rolled) === strip(b, '衛宮 テスト'), `名前で展開が変わった（シード n${i}）`);
   const y = b.camps.find(c => c.you);
