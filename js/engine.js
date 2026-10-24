@@ -523,12 +523,14 @@
       c.fate = { day, text };
       if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       leavePact(c);
-      const head = !by || !fin ? `${nm(c)}が消滅した。${text}。`
-        : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${nm(c)}は消滅した。`
-        : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${nm(c)}は消滅した。`
-        : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${nm(c)}は消滅した。`
-        : fin.how === 'mutual' ? `${nm(by)}を討った${nm(c)}もまた、受けた傷に崩れ落ちた。相討ちだった。`
-        : line('blow', { by: nm(by), c: nm(c) });
+      // 消えた英霊の真名は、まだ知られていなくても記録に残す（あとでログだけ読んでも誰だったか分かるように）
+      const dn = nm(c) === c.label ? `${c.label}（${c.sv.trueName}）` : nm(c);
+      const head = !by || !fin ? `${dn}が消滅した。${text}。`
+        : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${dn}は消滅した。`
+        : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${dn}は消滅した。`
+        : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${dn}は消滅した。`
+        : fin.how === 'mutual' ? `${nm(by)}を討った${dn}もまた、受けた傷に崩れ落ちた。相討ちだった。`
+        : line('blow', { by: nm(by), c: dn, c0: nm(c) });
       log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
       if (SG) return SG.hooks.down(c, by);   // 特異点：倒れた英霊はその場で消える（マスターは巻き込まれない）
