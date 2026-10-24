@@ -1418,12 +1418,13 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     $('#det').classList.remove('on'); syncLock();
     if (detResume) { detResume = false; step(); }
   };
-  // 解説の冒頭（文の切れ目で limit 字まで）
-  function excerpt(text, limit) {
-    const flat = String(text || '').replace(/\s*\n\s*/g, '').trim();
-    if (flat.length <= limit) return flat;
-    let s = ''; for (const part of flat.split(/(?<=。)/)) { if (s && (s + part).length > limit) break; s += part; }
-    return s.length > limit * 1.4 ? s.slice(0, limit) + '…' : s;
+  // 解説の本文：最初の部分を出し、続きがあれば「続きを読む」で開く（最初の部分は繰り返さない）。人物・性格は別に折りたたむ
+  function loreBlock(body, person) {
+    const lead = H.build.loreLead(body, 160), pl = H.build.loreLead(person, 160);
+    if (lead.head) return `<p class="txt2">${esc(lead.head)}</p>${lead.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(lead.rest)}</p></details>` : ''}`
+      + (person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(H.build.loreText(person))}</p></details>` : '');
+    if (pl.head) return `<p class="txt2">${esc(pl.head)}</p>${pl.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(pl.rest)}</p></details>` : ''}`;
+    return '';
   }
   // kagemiya のURL（ページ名は EUC-JP でパーセント符号化する）。対応表は初回に作る
   let eucMap = null;
@@ -1450,8 +1451,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
     const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
     if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
-    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">元のページ</a>`);
-    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">設定元リンク</a>`);
+    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">設定元リンク</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
     links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
     return `<div class="links">${links.join('')}</div>`;
   }
@@ -1465,12 +1466,10 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       return;
     }
     const T = sv && sv.text || {}, prof = sv && sv.profile || {};
-    const body = (T.commentary || '').trim(), person = (T.personality || '').trim(), ex = excerpt(body, 160);
+    const body = (T.commentary || '').trim(), person = (T.personality || '').trim();
     openDet(`${fic(faceOf(id) || m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
       `<img class="face xl" data-face="${esc(faceOf(id) || m.trueName)}" alt="" hidden><dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}${prof.wish ? `<dt>願い</dt><dd>${esc(prof.wish)}</dd>` : ''}</dl>`
-      + (body ? `<p class="txt2">${esc(ex)}</p>${ex.length < body.replace(/\s*\n\s*/g, '').length ? `<details><summary>解説をすべて読む</summary><p class="txt2">${esc(body)}</p></details>` : ''}`
-        : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '')
-      + (body && person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(person)}</p></details>` : '')
+      + loreBlock(body, person)
       + loreLinks(sv));
   }
   function openMaster() {

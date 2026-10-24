@@ -683,7 +683,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <button class="btn" id="installBtn" hidden>アプリとして追加する</button>
     <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
   </div>
-  <p class="foot">登場するサーヴァントは、kagemiya@ふたば の設定をもとにした二次創作です。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
+  <p class="foot">登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作です（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
   <p class="foot">テスト中の新しい遊び方：六騎の英霊を率いて七騎の敵とボスを倒す<a href="singularity.html">特異点攻略</a>。</p>
   <p class="foot spoil">すべての英霊の真名・強さ・優勝率を見比べる<a href="ranking.html" id="rankLink">強さランキング</a>もあります（真名が分かってしまうので、戦争の中で推し量りたい人は開かないでください）。</p>
   <details class="foot cast" id="castBox" hidden>
@@ -1400,7 +1400,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         </div>
         ${ranks}
         <ul class="notes">${ev.good.map(t => `<li>${esc(t)}</li>`).join('')}${ev.bad.map(t => `<li class="neg">${esc(t)}</li>`).join('')}</ul>
-        ${sv && sv.text && sv.text.commentary ? `<p class="txt2">${esc(excerpt(sv.text.commentary, 90))}</p>` : ''}
+        ${sv && sv.text && sv.text.commentary ? `<p class="txt2">${esc(excerpt(H.build.loreText(sv.text.commentary), 90))}</p>` : ''}
         <div class="links"><button class="btn" id="opLore">解説と生存曲線を見る</button></div>
         <p class="note2">ステータス・スキル・宝具から見た、この英霊そのものの強さの目安です。今回の顔ぶれとの相性は含みません。</p>`
         : `${ranks}<p class="note2">この英霊はリストに見当たらないため、評価を出せません。</p>`;
@@ -1702,8 +1702,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
     const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
     if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
-    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">元のページ</a>`);
-    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">kagemiya@ふたばのページ</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">設定元リンク</a>`);
+    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">設定元リンク</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
     links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
     return `<div class="links">${links.join('')}</div>`;
   }
@@ -1713,6 +1713,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (flat.length <= limit) return flat;
     let s = ''; for (const part of flat.split(/(?<=。)/)) { if (s && (s + part).length > limit) break; s += part; }
     return s.length > limit * 1.4 ? s.slice(0, limit) + '…' : s;
+  }
+  // 解説の本文：最初の部分を出し、続きがあれば「続きを読む」で開く（最初の部分は繰り返さない）。人物・性格は別に折りたたむ
+  function loreBlock(body, person) {
+    const lead = H.build.loreLead(body, 160), pl = H.build.loreLead(person, 160);
+    if (lead.head) return `<p class="txt2">${esc(lead.head)}</p>${lead.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(lead.rest)}</p></details>` : ''}`
+      + (person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(H.build.loreText(person))}</p></details>` : '');
+    if (pl.head) return `<p class="txt2">${esc(pl.head)}</p>${pl.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(pl.rest)}</p></details>` : ''}`;
+    return '<p class="note2">この英霊の解説はリストにありません。下のリンクから調べられます。</p>';
   }
   let loreResume = false;
   function openLore(id) {
@@ -1727,9 +1735,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         ${sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}
         ${sv.profile && sv.profile.wish ? `<dt>願い</dt><dd>${esc(sv.profile.wish)}</dd>` : ''}
       </dl>
-      ${body ? `<p class="txt2">${esc(excerpt(body, 160))}</p>${excerpt(body, 160).length < body.replace(/\s*\n\s*/g, '').length ? `<details><summary>解説をすべて読む</summary><p class="txt2">${esc(body)}</p></details>` : ''}`
-        : person ? `<p class="txt2">${esc(excerpt(person, 160))}</p>` : '<p class="note2">この英霊の解説はリストにありません。下のリンクから調べられます。</p>'}
-      ${body && person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(person)}</p></details>` : ''}
+      ${loreBlock(body, person)}
       <section class="surv" id="survBox" aria-label="生存曲線"></section>
       ${loreLinks(sv)}`;
     fillFaces($('#loreBody'));
