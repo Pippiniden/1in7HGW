@@ -239,30 +239,25 @@ details.more summary { cursor: pointer; color: var(--sub); }
 dialog { border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(660px, calc(100vw - 32px)); padding: 16px; }
 dialog::backdrop { background: rgba(0,0,0,.35); }
 dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
-.erow { display: grid; grid-template-columns: minmax(0, 1.6fr) 72px minmax(0, 1fr) 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
-.econd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); margin-top: -2px; }
-.econd label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .econd select { width: auto; max-width: 13em; }
-.erow .econd input[data-e=vs] { width: 9em; }
-.erow .econd input[data-e=chance] { width: 4.5em; }
+.erow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
 #edLegend tr.lg th { text-align: left; font-size: 12px; color: var(--accent); padding-top: 10px; border-bottom: 1px solid var(--rule); }
-.eteam { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eteam[hidden] { display: none; } .eteam label { display: inline-flex; align-items: center; gap: 4px; } .erow .eteam input { width: 4.5em; }
-.eself { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eself[hidden] { display: none; } .eself label { display: inline-flex; align-items: center; gap: 4px; } .erow .eself input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
-.estrip { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .estrip[hidden] { display: none; } .estrip label { display: inline-flex; align-items: center; gap: 4px; } .erow .estrip select { width: auto; max-width: 16em; }
-.etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
-.etrig label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .etrig select { width: auto; max-width: 14em; }
-.erow .etrig input[data-e=cost] { width: 4.5em; } .erow .etrig input[data-e=uses] { width: 6em; }
-.estat { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
-.estat[hidden] { display: none; }
-.estat label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .estat input[data-e=name] { width: 8em; }
-.estat label.msg { flex: 1 1 16em; }
-.erow .estat input[data-e=msg] { flex: 1; min-width: 0; }
+.emore { grid-column: 1 / -1; font-size: 12px; color: var(--sub); margin-top: -2px; }
+.emore > summary { cursor: pointer; padding: 2px 0; overflow-wrap: anywhere; }
+.emore[open] > summary { color: var(--ink); }
+.emore .ef { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 4px 0 0 12px; }
+.emore .ef > b { font-weight: 600; min-width: 6.5em; color: var(--ink); }
+.emore label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .emore input[type=number] { width: 4.8em; }
+.erow .emore input[type=text] { width: 10em; }
+.erow .emore select { width: auto; max-width: 15em; }
+.erow .emore input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
+.emore label.msg { flex: 1 1 16em; } .erow .emore label.msg input { flex: 1; width: auto; min-width: 0; }
+.erow .ep { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); white-space: nowrap; }
+.erow .ep input { flex: 1; }
 .srow { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .srow label { font-size: 11px; color: var(--sub); display: grid; gap: 2px; min-width: 0; }
 .srow input, .erow input, .erow select { width: 100%; min-width: 0; }
-@media (max-width: 560px) { .srow { grid-template-columns: repeat(3, minmax(0, 1fr)); } .erow { grid-template-columns: minmax(0, 1fr) 60px; } .erow input[type=text] { grid-column: 1 / 2; } }
+@media (max-width: 560px) { .srow { grid-template-columns: repeat(3, minmax(0, 1fr)); } .erow { grid-template-columns: minmax(0, 1fr) 56px 32px; } .emore .ef { margin-left: 4px; } .emore .ef > b { min-width: 0; flex-basis: 100%; } }
 .empty { color: var(--sub); text-align: center; padding: 40px 10px; border: 1px dashed var(--rule); border-radius: 12px; }
 .odds .big { font-size: 22px; font-weight: 700; }
 .meter { height: 8px; border-radius: 4px; background: var(--bar-bg); overflow: hidden; margin: 6px 0; }
@@ -516,8 +511,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <h3 id="edTitle"></h3>
   <div class="desc" id="edDesc" style="margin-bottom:10px;max-height:160px;overflow:auto"></div>
   <p class="hint" id="edNote" style="margin:0 0 8px"></p>
-  <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span>特攻・弱点の相手／マスターの能力</span><span></span></div>
-  <p class="hint" style="margin:-2px 0 8px">各行の下の「条件」「相手」「確率」で、その効果が働く場面を絞れます（空ならいつでも）。確率は戦いごとに一度判定し、当たった戦いの間だけ働きます。「発動」「魔力」「回数」で、効果が働く場面（戦いの始め・押し勝ったとき・瀕死のとき・毎朝など）と、発動ごとに払う魔力、1回の戦いで発動できる回数を決められます（発動を選んだ効果の確率は、発動のたびに判定します）。状態異常（魅了・毒・スタン・混乱・宝具封印）は「名前」で呼び名を（石化・火傷など）、「記録の文」で掛けたときの記録を変えられます（{S}＝掛けた側、{O}＝掛けられた側、{N}＝名前）。</p>
+  <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span></span></div>
+  <p class="hint" style="margin:-2px 0 8px">各効果の下の「発動・条件など」を開くと、発動する場面・魔力・回数、働く場面や相手（「それ以外」も）、確率、日数、日ごとの強さの変化、デメリットなどを決められます。その効果で働く欄だけが出ます。状態異常の「記録の文」では {S}＝掛けた側、{O}＝掛けられた側、{N}＝名前 が使えます。</p>
   <datalist id="tagList"></datalist>
   <div id="edRows"></div>
   <div class="row" style="margin:8px 0 12px"><button class="sm" id="edAdd">＋ 効果を追加</button></div>
@@ -1486,26 +1481,16 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // 行の入力 → [部品ID, 係数, params]。条件は「条件」「相手」「確率」の欄（以前の「竜@水辺」の書き方も読む）
   function specOf(r) {
     const q = k => r.querySelector(`[data-e=${k}]`);
-    const id = q('id').value, f = parseFloat(q('f').value), v = q('p').value.trim();
+    const id = q('id').value, f = parseFloat(q('f').value), v = q('p') ? q('p').value.trim() : '';
     const [main, cond] = v.split('@').map(x => (x || '').trim());
     const p = {};
     if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main;
-    const c = q('cond').value || cond; if (c) p.cond = c;
-    const vs = q('vs').value.trim(); if (vs) p.vs = vs;
-    const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-    readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p); E.readSelf(q, id, p); E.readTeam(q, id, p);
+    E.readMore(q, id, p); if (!p.cond && cond) p.cond = cond;
     return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
   }
-  // 条件欄の選択肢（効果の条件は effects.js の COND_OPTS。知らない値はそのまま残す）
-  const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
-    .map(([k, t]) => `<option value="${esc(k)}"${k === (sel || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
-  const condFields = p => { p = p || {}; return `<div class="econd"><label>条件<select data-e="cond">${condOptions(p.cond)}</select></label>`
-    + `<label>相手<input type="text" data-e="vs" list="tagList" value="${esc(p.vs || '')}" placeholder="属性（男性・竜など）" autocomplete="off"></label>`
-    + `<label>確率<input type="number" data-e="chance" min="0" max="100" step="5" value="${p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : ''}" placeholder="100">%</label></div>`; };
-  // 状態異常（魅了・毒・スタン・混乱・宝具封印）だけ：表示名と、掛けたときの記録の文（{S} 掛けた側・{O} 掛けられた側・{N} 名前）
-  const statFields = (id, p) => { p = p || {}; return `<div class="estat"${E.AILMENTS[id] ? '' : ' hidden'}><label>名前<input type="text" data-e="name" value="${esc(p.name || '')}" placeholder="${esc(E.AILMENTS[id] || '')}" autocomplete="off"></label>`
-    + `<label class="msg">記録の文<input type="text" data-e="msg" value="${esc(p.msg || '')}" placeholder="${esc(E.AIL_MSG_HINT[id] || '')}" autocomplete="off"></label></div>`; };
-  const readStat = (q, id, p) => { if (!E.AILMENTS[id]) return; const n = q('name').value.trim(), m = q('msg').value.trim(); if (n) p.name = n; if (m) p.msg = m; };
+  // 「相手・能力」の欄：特攻・弱点・属性付与・マスター強化・自己強化解除だけ（ほかの効果でも値が入っていれば残す）
+  const P_LABEL = { master_buff: '上げる能力', self_strip: '止めるスキル・宝具', tag: '持つ属性', power_vs: '特攻の相手', weakness: '弱点の相手' };
+  const pField = (id, pv) => P_LABEL[id] || pv ? `<label class="ep">${esc(P_LABEL[id] || '相手・能力')}<input type="text" data-e="p" value="${esc(pv)}"${id === 'master_buff' || id === 'self_strip' ? '' : ' list="tagList"'} placeholder="${esc(E.paramHint(id))}" autocomplete="off"></label>` : '';
   // 行の下に、ゲームでの実際の働き（ランク倍率を掛けた強さ）を出す
   function edExplain(div) {
     const out = div.nextElementSibling; if (!out || !edCtx) return;
@@ -1519,18 +1504,25 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   }
   // 宝具の発動のしかた（effects.js の NP_MODES）。'__auto' は読み取りのまま
   const edMode = () => { const v = $('#edMode').value; return v === '__auto' ? (edCtx && edCtx.item.mode) || '' : v; };
-  $('#edMode').addEventListener('change', () => { for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r); });
+  // 宝具の効果か（常時発動の宝具の効果はスキルと同じに扱う）
+  const edNp = () => !!edCtx && edCtx.kind === 'n' && edMode() !== 'always';
+  // 行の中身を作る。効果・発動・「自分に掛ける」を変えたら、いまの値を読んでから作り直す（その効果で働く欄だけを出すため）
+  function edFill(div, spec, open) {
+    const [id, f, p] = spec;
+    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}" title="係数"><button class="sm ghost" data-rm title="削除">×</button>${pField(id, p ? p.tag || p.stat || '' : '')}${E.moreHtml(id, p, esc, edNp(), open)}`;
+  }
+  const edRefill = div => { const d = div.querySelector('.emore'); edFill(div, specOf(div), !!(d && d.open)); };
+  $('#edMode').addEventListener('change', () => { for (const r of $('#edRows').querySelectorAll('.erow')) { edRefill(r); edExplain(r); } });
   function edRow(spec) {
-    const [id, f, p] = spec || ['power', 1, null];
-    const pv = p ? p.tag || p.stat || '' : '';
     const div = document.createElement('div'); div.className = 'erow';
-    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}"><input type="text" data-e="p" value="${esc(pv)}" placeholder="${esc(E.paramHint(id) || '竜 / luck')}"><button class="sm ghost" title="削除">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, edCtx && edCtx.kind === 'n')}${E.stripFieldsHtml(id, p, esc)}${E.selfFieldsHtml(id, p, esc)}${E.teamFieldsHtml(id, p, esc)}${statFields(id, p)}`;
+    edFill(div, spec || ['power', 1, null]);
     const fx = document.createElement('div'); fx.className = 'efx';
-    div.querySelector('button').onclick = () => { div.remove(); fx.remove(); };
-    div.addEventListener('input', () => edExplain(div));
+    div.addEventListener('click', e => { if (e.target.closest('[data-rm]')) { div.remove(); fx.remove(); } });
+    const sum = () => { const s = div.querySelector('.emore > summary'); if (s) s.textContent = E.moreSummary(specOf(div)[2]); };
+    div.addEventListener('input', () => { sum(); edExplain(div); });
     div.addEventListener('change', e => {
-      if (e.target.matches('[data-e=id]')) { const st = div.querySelector('.estat'), id2 = e.target.value; st.hidden = !E.AILMENTS[id2]; st.querySelector('[data-e=name]').placeholder = E.AILMENTS[id2] || ''; st.querySelector('[data-e=msg]').placeholder = E.AIL_MSG_HINT[id2] || ''; div.querySelector('[data-e=p]').placeholder = E.paramHint(id2) || '竜 / luck'; div.querySelector('.estrip').hidden = !E.STRIP_IDS.includes(id2); div.querySelector('.eself').hidden = !E.SELF_IDS.includes(id2); div.querySelector('.eteam').hidden = !E.TEAM_IDS.includes(id2); }
-      edExplain(div);
+      if (e.target.matches('[data-e=id], [data-e=on], [data-e=self]')) edRefill(div);
+      sum(); edExplain(div);
     });
     $('#edRows').appendChild(div); $('#edRows').appendChild(fx);
     edExplain(div);

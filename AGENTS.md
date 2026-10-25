@@ -92,7 +92,7 @@ js/
   singdata.js       Singularity text: name words (3 lists), CITY_TEXT (one region per line), places, mobs, sg* LINES
   singularity.js    Singularity mode: compose (name + lineup), engine plugin, prepareBoss (§7.11)
   simlab.js, simworker.js, voiceedit.js   roster.html "聖杯戦争で試す" core + worker; per-scene voice editor
-tools/              servant.js (per-servant CLI), kagemiya.js (fetch pages), incoming.js (apply uploads), datadiff.js, survival.js, datalib.js, chaldea.js
+tools/              servant.js (per-servant CLI), fxcheck.js (effects whose settings do nothing / tags nobody has), kagemiya.js (fetch pages), incoming.js (apply uploads), datadiff.js, survival.js, datalib.js, chaldea.js
 .github/workflows/  kagemiya.yml (import by name → PR), data.yml (apply uploads, check, rebuild survival, diff PR), data-cleanup.yml
 test/               Plain Node scripts (§9)
 ```
@@ -226,11 +226,13 @@ magnitude `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank
 `E.EFFECT_GROUPS`/`GROUP_OF` group them into genres for the editors. `test/effects.js` fails if a primitive is not read by engine/build or lacks an `EFFECT_INFO` description (`E.describe` text must also read correctly for a **negative** magnitude).
 
 - **Triggers** (`params.on`): `''` always, `start`, `round`, `win`, `lose`, `hit` (just before taking a lost exchange's hit), `pinch` (hp < `pinchAt`, once), `np`, `kill`, `day` (every morning).
-  Extras: `params.cost` (mana per activation), `params.uses` (max per battle), `params.chance`. **Instant** ids (`E.INSTANT`) act on the spot (default trigger via `E.trigOf`); other triggered effects go to `c.temp`
+  Extras: `params.cost` (mana per activation), `params.uses` (max per battle; with `day`, the first N mornings of the war), `params.chance`. **Instant** ids (`E.INSTANT`) act on the spot (default trigger via `E.trigOf`); other triggered effects go to `c.temp`
   (battle), `c.dayTemp` (`day`, until next morning), or `c.carry` (`kill`, until the end of the next battle). NP effects without `on` fire at use; with `on` they are armed after the NP is used.
-- **Self-inflicted** (`params.self`, only `E.SELF_IDS`): the effect hits its holder and cannot be resisted (drawbacks, servants that weaken over time).
-- **Conditions** (any effect, combinable): `params.cond` (`水辺 森 山 夜 拠点 瀕死`), `params.vs` (opponent tag), `params.chance` (rolled once per battle at start). Engine: `condOk(c, params, terrain)`; without a passed
-  terrain it falls back to the current battle's, then the base's. `c.bx = { opp, home, rolls }` exists only during a battle.
+- **Self-inflicted** (`params.self`, only `E.SELF_IDS`): the effect hits its holder and cannot be resisted (drawbacks, servants that weaken over time). `params.nocure` additionally keeps it through cleanse and strip.
+- **Conditions** (any effect, combinable): `params.cond` (`水辺 森 山 夜 拠点 瀕死`; `condNot` = all other cases), `params.vs` (opponent tag; `vsNot`), `params.chance` (rolled once per battle at start), `params.dmin`/`dmax` (war days, inclusive).
+  Engine: `condOk(c, params, terrain, o)`; without a passed terrain it falls back to the current battle's, then the base's. `c.bx = { opp, home, rolls }` exists only during a battle; out-of-battle reads with a counterpart (scouting, deduction, finding, talks) pass it as `o` (`effO`) so `vs` works there.
+- **Daily scaling** (`params.grow`, `turn`, `decay`): magnitude × `E.dayMult(p, day)` (1 on day 1, +grow per day up to `turn`, −decay per day after it; 0–`GROW_MAX`). Passive sums multiply by `dm(p)`; triggered effects are scaled once in `fireTrig`. `self_retire` honours `params.chance` (`E.retireP`).
+- **Where each primitive is read** (`E.READ_AT`: b battle / p out of battle with a counterpart / d out of battle alone / x static) drives the editors: `E.fieldsFor(id, np, on)` lists the settings that matter, `E.deadParams` names the ones that do nothing (shown in `describe`, listed by `tools/fxcheck.js`), `E.moreHtml`/`readMore` build/read the shared 「発動・条件など」 block of roster/submit. **Change `READ_AT` when you change where the engine reads an effect.**
 - `E.describe(effect, { np, attack, npMode })` → `{ name, who, whoJa, bad, when, text }` for roster/submit; `fx` must state what the engine actually does.
 
 ### 5.2 Skill resolution (`resolveSkill`)
@@ -413,6 +415,7 @@ node test/incoming.js           # tools/incoming.js: a roster export with `patch
 node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
 node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
+node tools/fxcheck.js [--grep 名] [--weak]   # effect settings that never work, 特攻/条件 tags no servant has, (--weak) negligible effects
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON
 node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars); --check compares fingerprints
 python3 -m http.server          # then open http://localhost:8000/

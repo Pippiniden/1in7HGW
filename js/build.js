@@ -193,7 +193,7 @@
       Object.assign(np, { mode: r.mode, modeBasis: r.modeBasis, attackAuto: r.attack, attackBasis: r.basis, power: r.power, burst: r.burst, cost: r.cost, exposure: r.exposure, multi: r.multi, disabled: r.disabled, effects: r.effects, effectSource: r.source, matched: r.matched || null });
       np.attackResolved = r.attack;
       if (r.disabled) review.push({ kind: 'np', target: np.name, why: '「今回の召喚では使えない」と読み取ったため使用不可' });
-      else if (r.effects.some(e => e.id === 'self_retire')) { const p = r.effects.find(e => e.id === 'self_retire').mag; review.push({ kind: 'np', target: np.name, why: p >= 0.5 ? '使うと自分が脱落する宝具として扱い' : `使うと${Math.round(p * 100)}%の確率で自分が脱落する宝具として扱い` }); }
+      else if (r.effects.some(e => e.id === 'self_retire')) { const p = E.retireP(r.effects.find(e => e.id === 'self_retire')); review.push({ kind: 'np', target: np.name, why: p >= 0.5 ? '使うと自分が脱落する宝具として扱い' : `使うと${Math.round(p * 100)}%の確率で自分が脱落する宝具として扱い` }); }
       else if (r.modeBasis === 'words') review.push({ kind: 'np', target: np.name, why: `説明文から${E.NP_MODE_JA[r.mode]}の宝具として扱い（効果は持っているだけで働き、毎日の魔力が増える）` });
       else if (r.basis === 'guess') review.push({ kind: 'np', target: np.name, why: '説明文に手がかりが無いため、種別どおり攻撃宝具として扱い' });
       else if (r.basis === 'support-effects') review.push({ kind: 'np', target: np.name, why: '攻撃の表現が見つからないため補助宝具として扱い' });
@@ -234,7 +234,8 @@
     const add = (e, kind) => {
       const p = e.params || {};
       const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
-      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + p.cond : '') + (p.vs ? '>' + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '') + (p.self ? '^self' : '') + (p.team > 0 ? '&' + p.team : '')
+      const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + (p.condNot ? '!' : '') + p.cond : '') + (p.vs ? '>' + (p.vsNot ? '!' : '') + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '') + (p.self ? '^self' : '') + (p.nocure ? '^fix' : '') + (p.team > 0 ? '&' + p.team : '')
+        + (p.dmin > 0 ? '[' + p.dmin : '') + (p.dmax > 0 ? ']' + p.dmax : '') + (p.grow ? '+g' + p.grow : '') + (p.turn > 0 ? '|t' + p.turn : '') + (p.decay ? '-d' + p.decay : '')
         + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }
@@ -258,13 +259,16 @@
   }
   // 見積もり（評価・戦闘力・試し戦い）での条件付き効果の重み（effects.js の効果の条件）。エンジンでは engine.js の condOk で本当に判定する
   //   場所：terrain と同じときだけ／拠点：o.home のときだけ／瀕死：0.3（戦いの一部でだけ働く）
-  //   相手の属性：o.opp（相手のサーヴァント）が持つときだけ（相手が分からなければ数えない）／発動確率：強さ×確率
+  //   相手の属性：o.opp（相手のサーヴァント）が持つときだけ（相手が分からなければ数えない。「それ以外」は数える）／発動確率：強さ×確率
+  //   日数・日ごとの変化：1〜EST_DAYS日目のならし（戦いの多い序盤〜中盤）
+  const EST_DAYS = 12;
   function condW(p, terrain, o) {
     if (!p) return 1;
     let w = 1;
-    if (p.cond) w *= p.cond === '拠点' ? (o && o.home ? 1 : 0) : p.cond === '瀕死' ? 0.3 : p.cond === terrain ? 1 : 0;
-    if (p.vs) w *= o && o.opp && (o.opp.tags || []).includes(p.vs) ? 1 : 0;
+    if (p.cond) { const c = p.cond === '拠点' ? (o && o.home ? 1 : 0) : p.cond === '瀕死' ? 0.3 : p.cond === terrain ? 1 : 0; w *= p.condNot ? 1 - c : c; }
+    if (p.vs) w *= o && o.opp ? ((o.opp.tags || []).includes(p.vs) !== !!p.vsNot ? 1 : 0) : p.vsNot ? 1 : 0;
     if (p.chance != null) w *= Math.max(0, Math.min(1, p.chance));
+    if (p.dmin > 0 || p.dmax > 0 || p.grow || p.decay) { let s = 0; for (let d = 1; d <= EST_DAYS; d++) s += E.dayOk(p, d) ? E.dayMult(p, d) : 0; w *= s / EST_DAYS; }
     return w;
   }
   // 常時効果の合計。terrain を渡すと、その場所の条件付き効果も足す。o = { opp: 相手, home: 拠点で戦う }
@@ -292,7 +296,7 @@
   const npStatMult = sv => Math.max(0.5, 1 + G.CONFIG.STAT_FX.magNp * statDev(sv.score.mag));
   // 最強の攻撃宝具の威力（宝具強化・魔力込み。使用不可・自滅する宝具は除く）
   function npPeak(sv) {
-    const atk = (sv.nps || []).filter(n => n.attackResolved && !n.disabled && !(n.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5));
+    const atk = (sv.nps || []).filter(n => n.attackResolved && !n.disabled && !(n.effects || []).some(e => e.id === 'self_retire' && E.retireP(e) >= 0.5));
     if (!atk.length) return 0;
     const own = n => (n.effects || []).filter(e => e.id === 'np_boost').reduce((t, e) => t + e.mag, 0); // その宝具自身の「宝具強化」
     return Math.round(Math.max(...atk.map(n => n.power * (1 + eff(sv, 'np_boost') + own(n)))) * npStatMult(sv) * 10) / 10;

@@ -99,7 +99,7 @@
     np_charge:    { name: '宝具チャージ', phase: 'np',        unit: 'chance', base: 0.15, desc: '打ち合いごとに宝具を放つ確率を上げる' },
     np_cost:      { name: '宝具消費',     phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具の魔力消費の増減（マイナスで軽くなる）' },
     backfire:     { name: '反動',         phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具を使うと自分も傷つく' },
-    self_retire:  { name: '自滅',         phase: 'np',        unit: 'chance', base: 1.0, fixed: true, desc: '宝具を使うと自分が脱落する確率' },
+    self_retire:  { name: '自滅',         phase: 'np',        unit: 'chance', base: 1.0, fixed: true, desc: '宝具を使うと自分が脱落する確率（params.chance があれば、それを掛ける）' },
     disabled:     { name: '使用不可',     phase: 'np',        unit: 'flag',   base: 1, fixed: true, desc: 'この宝具は今回の召喚では使えない' },
   };
 
@@ -150,7 +150,7 @@
     if (on) t.push(TRIG_JA[on] + '発動' + (np ? '（宝具を使ったあと）' : ''));
     else if (def && !np) t.push(TRIG_JA[def] + '発動');
     if (p && p.cost > 0) t.push(`魔力${p.cost}を払って`);
-    if (p && p.uses > 0) t.push(`1回の戦いに${p.uses}回まで`);
+    if (p && p.uses > 0) t.push(on === 'day' ? `最初の${p.uses}日だけ` : `1回の戦いに${p.uses}回まで`);
     return t.join('・');
   };
 
@@ -158,11 +158,6 @@
   // 効果の選択肢：ジャンルごとの <optgroup>。label(id) で「名前（誰に）」を作る
   const effOptionsHtml = (sel, esc, label) => EFFECT_GROUPS.map(([, title, ids]) => `<optgroup label="${esc(title)}">`
     + ids.map(id => `<option value="${id}"${id === sel ? ' selected' : ''}>${esc(label(id))}</option>`).join('') + '</optgroup>').join('');
-  // 発動のしかた・魔力・回数の欄。宝具では空欄が「使ったとき」（使ったあとでは起きない「戦いの始め」「毎朝」は出さない）
-  const trigFieldsHtml = (p, esc, np) => { p = p || {}; return `<div class="etrig"><label>発動<select data-e="on">`
-    + TRIGGERS.filter(([k]) => !np || !['start', 'day'].includes(k) || k === p.on).map(([k, t]) => `<option value="${k}"${k === (p.on || '') ? ' selected' : ''}>${esc(k ? t + (np ? '（使ったあと）' : '') : np ? '使ったとき' : '既定（常に／効果ごと）')}</option>`).join('')
-    + `</select></label><label>魔力<input type="number" data-e="cost" min="0" step="5" value="${p.cost > 0 ? p.cost : ''}" placeholder="0"></label>`
-    + `<label>回数<input type="number" data-e="uses" min="0" step="1" value="${p.uses > 0 ? p.uses : ''}" placeholder="制限なし">回まで</label></div>`; };
   const readTrig = (q, p) => {
     const on = q('on') ? q('on').value : ''; if (on) p.on = on;
     const c = parseFloat(q('cost') ? q('cost').value : ''); if (isFinite(c) && c > 0) p.cost = Math.round(c * 10) / 10;
@@ -170,16 +165,12 @@
   };
   // 解除する効果の欄（強化解除・自己強化解除だけ）。空なら「すべて」
   const STRIP_IDS = ['strip', 'self_strip'];
-  const stripFieldsHtml = (id, p, esc) => `<div class="estrip"${STRIP_IDS.includes(id) ? '' : ' hidden'}><label>止める効果<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>`
-    + effOptionsHtml((p && p.eff) || '', esc, x => EFFECTS[x].name) + '</select></label></div>';
   const readStrip = (q, id, p) => { if (!STRIP_IDS.includes(id) || !q('eff')) return; const v = q('eff').value; if (v) p.eff = v; };
   // 自分に掛ける欄（SELF_IDS の不利な効果だけ）
-  const selfFieldsHtml = (id, p, esc) => `<div class="eself"${SELF_IDS.includes(id) ? '' : ' hidden'}><label><input type="checkbox" data-e="self"${p && p.self ? ' checked' : ''}>${esc('自分に掛ける（不利な効果・デメリット）')}</label></div>`;
   const readSelf = (q, id, p) => { if (SELF_IDS.includes(id) && q('self') && q('self').checked) p.self = true; };
   // 味方にも効く欄（params.team：0〜1）。並んで戦う味方（同盟の加勢・特異点の前衛）にも、その戦いの間 強さ×この割合 が働く。
   // 常時の強化だけ（発動のしかたのある効果・自分に掛ける効果は分けない）。エンジンは engine.js の battle で分ける
   const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative'];
-  const teamFieldsHtml = (id, p, esc) => `<div class="eteam"${TEAM_IDS.includes(id) ? '' : ' hidden'}><label>${esc('味方にも効く')}<input type="number" data-e="team" min="0" max="100" step="10" value="${p && p.team > 0 ? Math.round(p.team * 100) : ''}" placeholder="0">%</label></div>`;
   const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
   const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
@@ -278,7 +269,7 @@
     np_boost:     { who: 'self', fx: m => `攻撃宝具の威力 ${sg(m)}` },
     np_cost:      { who: 'self', fx: m => `宝具の魔力消費 ${sg(m)}` },
     backfire:     { who: 'self', bad: true, fx: m => `宝具を使うと自分の霊基 ${pm(-m * 40)}` },
-    self_retire:  { who: 'self', bad: true, fx: m => m < 0 ? '宝具を使っても脱落しない（マイナスの値は働かない）' : `宝具を使うと ${pc(Math.min(1, m))} の確率で自分が脱落` },
+    self_retire:  { who: 'self', bad: true, fx: (m, p) => m < 0 ? '宝具を使っても脱落しない（マイナスの値は働かない）' : `宝具を使うと ${pc(retireP({ mag: m, params: p }))} の確率で自分が脱落` },
     disabled:     { who: 'none', bad: true, fx: () => 'この宝具は使えない' },
   };
   // 宝具の効果のうち、宝具を使ったその戦いの間だけ働くもの（np の部品はその宝具を使ったときだけ）。
@@ -286,21 +277,51 @@
   const NP_BATTLE_PHASES = ['battle', 'damage', 'lethal', 'retreat', 'np'];
   // 制御困難・魔力消費増は、宝具の説明にあっても「使ったときの代償」なので常時にはしない（エンジンは戦いの間は読まないので、実際には効かない）
   const NP_USE_ONLY = ['uncontrolled', 'upkeep_up'];
+  // 自滅の確率：強さ × 確率（params.chance）。engine.js・build.js もこれで読む
+  const retireP = e => Math.max(0, Math.min(1, e.mag * (e.params && e.params.chance != null ? Math.max(0, e.params.chance) : 1)));
+  const npRetire = n => (n.effects || []).filter(e => e.id === 'self_retire').reduce((t, e) => t + retireP(e), 0);
   const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id)) && !e.persistent;
   const COND_JA = { 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ',
     拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ' };
+  // 「〇〇以外」（params.condNot）の説明
+  const COND_NOT_JA = { 水辺: '水辺・雨の夜以外でだけ', 森: '森以外でだけ', 山: '山以外でだけ', 夜: '夜の戦い以外（昼・満月の夜）でだけ',
+    拠点: '自分の拠点の外で戦うときだけ', 瀕死: '霊基が4割以上あるときだけ' };
   // 条件欄の選択肢（リストツール・申請フォーム）。[値, 表示]
   const COND_OPTS = [['', 'いつでも'], ['水辺', '水辺・雨の夜'], ['森', '森'], ['山', '山'], ['夜', '夜（満月を除く）'], ['拠点', '自分の拠点で'], ['瀕死', '瀕死のとき（霊基4割未満）']];
-  const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1)));
+  const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1) || p.dmin > 0 || p.dmax > 0 || p.grow || p.decay));
+  // 日数の条件（params.dmin〜dmax：その日だけ働く。どちらか片方でもよい）と、日ごとの強さの変化（params.grow／turn／decay）。
+  //   強さの倍率＝1日目を1倍として、1日ごとに grow ずつ増え（マイナスなら減り）、turn 日目を過ぎると1日ごとに decay ずつ減る
+  //   （turn が無ければ decay は1日目から）。0倍〜GROW_MAX倍。engine.js（condOk・dayMult）と build.js（condW）が使う
+  const GROW_MAX = 4;
+  const dayOk = (p, day) => !p || ((!(p.dmin > 0) || day >= p.dmin) && (!(p.dmax > 0) || day <= p.dmax));
+  const dayMult = (p, day) => {
+    if (!p || !(p.grow || p.decay)) return 1;
+    const d = Math.max(1, day || 1), t = p.turn > 0 ? p.turn : 0;
+    const up = t ? Math.min(d, t) - 1 : d - 1, down = Math.max(0, d - (t || 1));
+    return Math.max(0, Math.min(GROW_MAX, 1 + (p.grow || 0) * up - (p.decay || 0) * down));
+  };
+  const dayText = p => !p ? '' : p.dmin > 0 && p.dmax > 0 ? (p.dmin === p.dmax ? `${p.dmin}日目だけ` : `${p.dmin}〜${p.dmax}日目だけ`) : p.dmin > 0 ? `${p.dmin}日目から` : p.dmax > 0 ? `${p.dmax}日目まで` : '';
+  const pct = v => Math.round(Math.abs(v) * 1000) / 10 + '%';
+  function growText(p) {
+    if (!p || !(p.grow || p.decay)) return '';
+    const t = p.turn > 0 ? p.turn : 0, x = d => Math.round(dayMult(p, d) * 100) / 100;
+    const up = p.grow ? `1日ごとに強さ${p.grow < 0 ? '−' : '+'}${pct(p.grow)}${t ? `（${t}日目で${x(t)}倍）` : ''}` : '';
+    const down = p.decay ? `${t ? t + 1 + '日目から' : ''}1日ごとに強さ−${pct(p.decay)}` : '';
+    let zero = 0; for (let d = 2; d <= 40 && !zero; d++) if (dayMult(p, d) <= 0) zero = d;
+    return [up, down].filter(Boolean).join('、') + (zero ? `（${zero}日目に消える）` : '');
+  }
   // 条件の説明（「いつ働くか」に足す）
   function condText(p, id) {
     if (!p) return '';
     const each = p.on || (id && EFFECTS[id] && EFFECTS[id].trig);
-    return [p.cond ? COND_JA[p.cond] || p.cond + 'でだけ' : '', p.vs ? `「${p.vs}」の相手と戦うときだけ` : '',
-      p.chance != null && p.chance < 1 ? `${each ? '発動のたびに' : '戦いごとに'} ${pc(Math.max(0, p.chance))} の確率で${each ? '' : '発動'}` : ''].filter(Boolean).join('・');
+    return [p.cond ? (p.condNot ? COND_NOT_JA[p.cond] || p.cond + '以外でだけ' : COND_JA[p.cond] || p.cond + 'でだけ') : '',
+      p.vs ? `「${p.vs}」${p.vsNot ? '以外の' : 'の'}相手と戦うときだけ` : '', dayText(p),
+      p.chance != null && p.chance < 1 ? `${each ? '発動のたびに' : '戦いごとに'} ${pc(Math.max(0, p.chance))} の確率で${each ? '' : '発動'}` : '', growText(p)].filter(Boolean).join('・');
   }
   // 短い表記（一覧の札など）：（水辺）〔対 竜〕（30%）
-  const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + '〉' : '') + (p.cond ? '（' + p.cond + '）' : '') + (p.vs ? '〔対 ' + p.vs + '〕' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '');
+  const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + (p.uses > 0 ? '・' + p.uses + '回' : '') + '〉' : '') + (p.cond ? '（' + p.cond + (p.condNot ? '以外' : '') + '）' : '') + (p.vs ? '〔対 ' + p.vs + (p.vsNot ? '以外' : '') + '〕' : '')
+    + (p.dmin > 0 || p.dmax > 0 ? '（' + dayText(p) + '）' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '') + (p.grow || p.decay ? '（日ごとに変化）' : '')
+    + (p.self ? '（自分に）' : '') + (p.nocure ? '（解除不可）' : '') + (p.team > 0 ? '（味方' + Math.round(p.team * 100) + '%）' : '');
   /**
    * 効果ひとつの説明。e は instantiate の結果（mag を持つ）か [id, factor, params] と rank。
    * ctx.np：宝具の効果 / ctx.attack：攻撃宝具
@@ -340,13 +361,108 @@
     let text = inf.fx(m, p);
     if (e.id === 'disabled' && !ctx.np) text = 'このスキルの効果は働かない';
     if (p && p.team > 0 && TEAM_IDS.includes(e.id)) text += `。並んで戦う味方にも、その戦いの間 ${Math.round(p.team * 100)}% の強さで働く`;
-    // 戦いの外で働く効果に、戦いの中の発動（戦いの始め・押し勝ったとき…）を付けても効かない
-    if (p && p.on && BATTLE_ONS.includes(p.on) && OUTSIDE_IDS.includes(e.id)) text += '。※戦いの外（昼・夜の索敵）で働く効果なので、戦いの中で発動しても効かない（「常に」か「毎朝」に）';
+    if (p && p.self && p.nocure) text += '。弱体解除・強化解除では消えない';
+    // 付けても働かない設定（戦いの外で読む効果に戦いの中の発動・相手の属性、など。fieldsFor）
+    const dead = deadParams(e.id, p, !!ctx.np);
+    if (dead.length) text += `。※働かない設定：${dead.join('・')}`;
     return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad, when, text };
   }
-  // 戦いの中の発動と、戦いの外でだけ読まれる効果（engine.js で戦いの外で読む：索敵・偵察・休養・工房・交渉・維持など）
-  const BATTLE_ONS = ['start', 'round', 'win', 'hit', 'lose', 'pinch', 'np'];
-  const OUTSIDE_IDS = ['stealth', 'detect', 'intel', 'regen', 'heal_other', 'craft', 'resource', 'solo', 'uncontrolled', 'negotiate', 'master_buff', 'upkeep_down'];
+
+  // ---------- 効果が読まれる場面（engine.js の読み方と合わせる。読み方を変えたらここも直す） ----------
+  //   b：戦いの中（相手・場所・拠点が分かる）  p：戦いの外で相手のいる場面（夜の索敵・偵察・真名の推理・交渉・夜襲）
+  //   d：戦いの外で相手のいない場面（昼の行動・休養・維持魔力・はぐれ）    x：条件を見ない（召喚のときに一度だけ、または持っているだけ）
+  //   書いていない効果は b。編集画面は、その効果に意味のある欄だけを出し（fieldsFor）、働かない設定に注意を出す（deadParams）
+  const READ_AT = {
+    reveal: 'bp', conceal: 'bp', anti_master: 'bp', master_guard: 'bp', rally: 'bp',
+    stealth: 'p', detect: 'p', intel: 'p', negotiate: 'p',
+    territory: 'bd', mana_gain: 'bd', regen: 'd', heal_other: 'd', craft: 'd', resource: 'd', upkeep_down: 'd', upkeep_up: 'd', solo: 'd', uncontrolled: 'd',
+    tag: 'x', master_buff: 'x', disabled: 'x', self_retire: 'x',
+  };
+  const readAt = id => READ_AT[id] || 'b';
+  // 一度だけ発動する場面（回数を付けても変わらない）
+  const ONCE_ONS = ['start', 'pinch', 'kill'];
+  /** その効果で意味のある設定。np：宝具の効果（常時発動の宝具は false で呼ぶ）、on：選んでいる発動 */
+  function fieldsFor(id, np, on) {
+    const at = readAt(id), inB = at.includes('b'), opp = inB || at.includes('p');
+    if (at === 'x') return { trig: [''], cost: false, uses: false, conds: [''], vs: false, chance: id === 'self_retire', days: false, grow: false, self: false, team: false, strip: false, ail: false };
+    let trig = TRIGGERS.map(([k]) => k);
+    if (np) trig = trig.filter(k => k !== 'start' && k !== 'day');                       // 宝具は使ったあとに働く（戦いの始め・毎朝は無い）
+    if (!inB) trig = np ? [''] : trig.filter(k => k === '' || k === 'day');              // 戦いの外で読む効果は「常に」か「毎朝」だけ
+    if (id === 'initiative') trig = [''];                                                 // 先手は戦いの始めにしか判定しない
+    // 戦いの外では拠点に居るので「拠点」は決まって当たる。昼にしか読まない効果に「夜」は来ない
+    const conds = COND_OPTS.map(([k]) => k).filter(k => (k !== '拠点' || inB) && (k !== '夜' || opp));
+    return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true,
+      self: SELF_IDS.includes(id), team: TEAM_IDS.includes(id) && !on, strip: STRIP_IDS.includes(id), ail: !!AILMENTS[id] };
+  }
+  /** 付けても働かない設定の名前の並び（編集画面の注意・点検ツール tools/fxcheck.js） */
+  function deadParams(id, p, np) {
+    if (!p || !EFFECTS[id]) return [];
+    const F = fieldsFor(id, np, p.on), out = [];
+    if (p.on && !F.trig.includes(p.on)) out.push(`発動「${TRIG_JA[p.on] || p.on}」`);
+    if (p.cost > 0 && !F.cost) out.push('魔力');
+    if (p.uses > 0 && !F.uses) out.push('回数');
+    if (p.cond && !F.conds.includes(p.cond)) out.push(`場面「${p.cond}」`);
+    if (p.vs && !F.vs) out.push(`相手「${p.vs}」`);
+    if (p.chance != null && p.chance < 1 && !F.chance) out.push('確率');
+    if (p.chance != null && p.chance <= 0) out.push('確率0%');
+    if ((p.dmin > 0 || p.dmax > 0) && !F.days) out.push('日数');
+    if (p.dmin > 0 && p.dmax > 0 && p.dmin > p.dmax) out.push('日数（始まりが終わりより後）');
+    if ((p.grow || p.decay) && !F.grow) out.push('日ごとの変化');
+    if (p.self && !F.self) out.push('自分に掛ける');
+    if (p.nocure && !p.self) out.push('解除で消えない（自分に掛ける効果だけ）');
+    if (p.team > 0 && !F.team) out.push('味方にも効く');
+    if (p.eff && !F.strip) out.push('止める効果');
+    if ((p.name || p.msg) && !F.ail) out.push('状態異常の名前・記録の文');
+    return out;
+  }
+  // ---------- 編集画面の「発動・条件など」（roster.html・submit.html で共通） ----------
+  // 1行目（効果・強さ・相手）は各画面で作り、その下の折りたたみをここで作る。その効果に意味のある欄だけを出し、
+  // 効果・発動・自分に掛けるを変えたら作り直す（画面側で readMore してから moreHtml）。働かない値が入っているときは、消えないよう欄を残す
+  function moreHtml(id, p, esc, np, open) {
+    p = p || {};
+    const F = fieldsFor(id, np, p.on), V = x => x == null ? '' : esc(String(x));
+    const opt = (list, v) => list.map(([a, t]) => `<option value="${esc(a)}"${a === (v || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    const num = (k, v, ph, at) => `<input type="number" data-e="${k}" ${at || ''} value="${V(v)}" placeholder="${esc(ph || '')}">`;
+    const chk = (k, on, t) => `<label><input type="checkbox" data-e="${k}"${on ? ' checked' : ''}>${esc(t)}</label>`;
+    const row = (t, h) => `<div class="ef"><b>${esc(t)}</b>${h}</div>`;
+    const rows = [];
+    const trig = F.trig.concat(p.on && !F.trig.includes(p.on) ? [p.on] : []);
+    if (trig.length > 1) rows.push(row('発動', `<select data-e="on">${opt(trig.map(k => [k, (k ? TRIG_JA[k] + (np ? '（使ったあと）' : '') : np ? '使ったとき' : '常に（回復・解除などは効果ごとの場面）') + (F.trig.includes(k) ? '' : '（働かない）')]), p.on)}</select>`
+      + (F.cost || p.cost > 0 ? `<label>魔力${num('cost', p.cost > 0 ? p.cost : '', '0', 'min="0" step="5"')}</label>` : '')
+      + (F.uses || p.uses > 0 ? `<label>${num('uses', p.uses > 0 ? p.uses : '', '制限なし', 'min="0" step="1"')}${p.on === 'day' ? '回（朝）まで' : '回まで（1回の戦いで）'}</label>` : '')));
+    const conds = F.conds.concat(p.cond && !F.conds.includes(p.cond) ? [p.cond] : []);
+    if (conds.length > 1) rows.push(row('場面', `<select data-e="cond">${opt(conds.map(k => [k, ((COND_OPTS.find(o => o[0] === k) || [k, k])[1]) + (F.conds.includes(k) ? '' : '（働かない）')]), p.cond)}</select>` + chk('condNot', p.condNot, 'それ以外のとき')));
+    if (F.vs || p.vs) rows.push(row('相手の属性', `<input type="text" data-e="vs" list="tagList" value="${V(p.vs)}" placeholder="男性・竜など" autocomplete="off">` + chk('vsNot', p.vsNot, 'それ以外の相手')));
+    if (F.chance || p.chance != null) rows.push(row('確率', `${num('chance', p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : '', '100', 'min="0" max="100" step="5"')}%`));
+    if (F.days || p.dmin || p.dmax) rows.push(row('日数', `${num('dmin', p.dmin || '', '1', 'min="1" step="1"')}日目から${num('dmax', p.dmax || '', '最後', 'min="1" step="1"')}日目まで`));
+    if (F.grow || p.grow || p.decay) rows.push(row('日ごとの変化', `<label>1日ごとに${num('grow', p.grow ? Math.round(p.grow * 1000) / 10 : '', '0', 'step="5"')}%</label>`
+      + `<label>${num('turn', p.turn || '', '—', 'min="1" step="1"')}日目を境に</label><label>以降1日ごとに −${num('decay', p.decay ? Math.round(p.decay * 1000) / 10 : '', '0', 'min="0" step="5"')}%</label>`));
+    if (F.self || p.self) rows.push(row('デメリット', chk('self', p.self, '自分に掛ける') + (p.self ? chk('nocure', p.nocure, '解除で消えない') : '')));
+    if (F.team || p.team > 0) rows.push(row('味方にも効く', `${num('team', p.team > 0 ? Math.round(p.team * 100) : '', '0', 'min="0" max="100" step="10"')}%`));
+    if (F.strip || p.eff) rows.push(row('止める効果', `<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>${effOptionsHtml(p.eff || '', esc, x => EFFECTS[x].name)}</select>`));
+    if (F.ail || p.name || p.msg) rows.push(row('状態異常', `<label>名前<input type="text" data-e="name" value="${V(p.name)}" placeholder="${esc(AILMENTS[id] || '')}" autocomplete="off"></label>`
+      + `<label class="msg">記録の文<input type="text" data-e="msg" value="${V(p.msg)}" placeholder="${esc(AIL_MSG_HINT[id] || '')}" autocomplete="off"></label>`));
+    if (!rows.length) return '';
+    return `<details class="emore"${open ? ' open' : ''}><summary>${esc(moreSummary(p))}</summary>${rows.join('')}</details>`;
+  }
+  const moreSummary = p => '発動・条件など：' + ((condShort(p) + (p && p.eff ? '（' + ((EFFECTS[p.eff] || {}).name || p.eff) + 'を止める）' : '')) || 'なし（いつでも）');
+  /** moreHtml の欄を読んで p に足す（空欄は足さない） */
+  function readMore(q, id, p) {
+    const v = k => q(k) ? q(k).value.trim() : '', n = k => parseFloat(v(k)), i = k => parseInt(v(k), 10), on = k => !!(q(k) && q(k).checked);
+    readTrig(q, p);
+    const c = v('cond'); if (c) { p.cond = c; if (on('condNot')) p.condNot = true; }
+    const vs = v('vs'); if (vs) { p.vs = vs; if (on('vsNot')) p.vsNot = true; }
+    const ch = n('chance'); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
+    if (i('dmin') > 0) p.dmin = i('dmin');
+    if (i('dmax') > 0) p.dmax = i('dmax');
+    const g = n('grow'), dc = n('decay');
+    if (isFinite(g) && g) p.grow = Math.round(g * 10) / 1000;
+    if (isFinite(dc) && dc > 0) p.decay = Math.round(dc * 10) / 1000;
+    if (i('turn') > 0 && (p.grow || p.decay)) p.turn = i('turn');
+    readStrip(q, id, p); readSelf(q, id, p); if (p.self && on('nocure')) p.nocure = true; readTeam(q, id, p);
+    if (AILMENTS[id]) { const nm = v('name'), m = v('msg'); if (nm) p.name = nm; if (m) p.msg = m; }
+    return p;
+  }
 
   // ---------- 既知のスキル辞書 ----------
   // 書式: 'スキル名': [[部品ID, 係数, params], ...]  係数は省略すると1
@@ -1084,5 +1200,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, okey, idOf, attrFold, attrIndex, resolveAttrs,
-    COND_JA, COND_OPTS, condText, condShort, hasCond, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, trigFieldsHtml, readTrig, paramHint, STRIP_IDS, stripFieldsHtml, readStrip, SELF_IDS, selfFieldsHtml, readSelf, TEAM_IDS, teamFieldsHtml, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_NOT_JA, COND_OPTS, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});
