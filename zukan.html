@@ -138,6 +138,19 @@ details > .txt, details > .voice { margin-top: 6px; }
   .kv { grid-template-columns: 6.5em minmax(0, 1fr); }
   .stl b { font-size: 15px; }
 }
+
+/* 画面下の遊び方リンク（聖杯戦争・特異点攻略・英霊図鑑・強さランキング） */
+.modenav { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 26px 0 8px; }
+.modenav a, .modenav .cur { display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; text-decoration: none; color: var(--ice); line-height: 1.4; text-align: left;
+  background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); box-shadow: inset 0 0 0 1px var(--line-hi);
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
+.modenav a:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.modenav b { font-size: 14px; }
+.modenav small { font-size: 11px; color: var(--mute); }
+.modenav .cur { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); }
+.modenav .cur small { color: var(--sel-ink); opacity: .75; }
+.modenav .spoil b::after { content: "ネタバレ注意"; margin-left: 8px; font-size: 10px; font-weight: 400; color: var(--gold); }
+.modenav .cur.spoil b::after { color: var(--sel-ink); }
 </style>
 </head>
 <body>
@@ -157,6 +170,12 @@ details > .txt, details > .voice { margin-top: 6px; }
   </div>
   <p class="status" id="status">読み込んでいます…</p>
   <div id="list"></div>
+  <nav class="modenav" aria-label="ほかの遊び方・資料">
+    <a class="" href="index.html"><b>7分の1の聖杯戦争</b><small>七騎の戦いを見守る</small></a>
+    <a class="" href="singularity.html"><b>特異点攻略</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></a>
+    <span class="cur spoil" aria-current="page"><b>英霊図鑑</b><small>解説・スキル・宝具を読む</small></span>
+    <a class="spoil" href="ranking.html"><b>強さランキング</b><small>真名・強さ・優勝率を見比べる</small></a>
+  </nav>
 </div>
 
 <div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dName">
