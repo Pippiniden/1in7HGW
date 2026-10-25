@@ -94,26 +94,22 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
 .src.guess { background: var(--warn-bg); color: var(--warn-ink); }
 .src.def { background: var(--err-bg); color: var(--err-ink); }
 .erows { display: grid; gap: 6px; margin-top: 4px; }
-.erow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
+.erow { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) 32px; gap: 6px; align-items: center; }
 .erow select, .erow input { width: 100%; min-width: 0; font-size: 13px; padding: 5px 6px; }
-.eteam { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eteam[hidden] { display: none; } .eteam label { display: inline-flex; align-items: center; gap: 4px; } .erow .eteam input { width: 4.5em; }
-.eself { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .eself[hidden] { display: none; } .eself label { display: inline-flex; align-items: center; gap: 4px; } .erow .eself input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
-.estrip { grid-column: 1 / -1; font-size: 12px; color: var(--sub); } .estrip[hidden] { display: none; } .estrip label { display: inline-flex; align-items: center; gap: 4px; } .erow .estrip select { width: auto; max-width: 16em; }
-.etrig { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
-.etrig label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .etrig select { width: auto; max-width: 14em; } .erow .etrig input[data-e=cost] { width: 4.5em; } .erow .etrig input[data-e=uses] { width: 6em; }
-.econd { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
-.econd label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .econd select { width: auto; max-width: 13em; }
-.erow .econd input[data-e=vs] { width: 9em; }
-.erow .econd input[data-e=chance] { width: 4.5em; }
-.estat { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--sub); }
-.estat[hidden] { display: none; }
-.estat label { display: inline-flex; align-items: center; gap: 4px; }
-.erow .estat input[data-e=name] { width: 8em; }
-.estat label.msg { flex: 1 1 16em; }
-.erow .estat input[data-e=msg] { flex: 1; min-width: 0; }
-@media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; } .erow > input { grid-column: 1 / 3; } }
+.emore { grid-column: 1 / -1; font-size: 12px; color: var(--sub); margin-top: -2px; }
+.emore > summary { cursor: pointer; padding: 2px 0; overflow-wrap: anywhere; }
+.emore[open] > summary { color: var(--ink); }
+.emore .ef { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 4px 0 0 12px; }
+.emore .ef > b { font-weight: 600; min-width: 6.5em; color: var(--ink); }
+.emore label { display: inline-flex; align-items: center; gap: 4px; }
+.erow .emore input[type=number] { width: 4.8em; }
+.erow .emore input[type=text] { width: 10em; }
+.erow .emore select { width: auto; max-width: 15em; }
+.erow .emore input[type=checkbox] { width: auto; min-width: 0; flex: none; margin: 0; }
+.emore label.msg { flex: 1 1 16em; } .erow .emore label.msg input { flex: 1; width: auto; min-width: 0; }
+.erow .ep { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--sub); white-space: nowrap; }
+.erow .ep input { flex: 1; }
+@media (max-width: 560px) { .emore .ef { margin-left: 4px; } .emore .ef > b { min-width: 0; flex-basis: 100%; } }
 .npkind { display: flex; flex-wrap: wrap; gap: 10px; font-size: 13px; min-width: 0; }
 .npkind label { min-width: 0; max-width: 100%; }
 .npkind select { max-width: 100%; min-width: 0; }
@@ -419,26 +415,21 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     return `<div class="ef${d.bad ? ' bad' : ''}"><span class="who ${esc(d.who)}">${esc(d.whoJa)}</span><b>${esc(d.name + tg)}</b> <span class="when">${esc(d.when)}</span><span class="fx">${esc(d.text)}</span></div>`;
   }
   const keyOf = (sv, item) => E.okey(sv) + '/' + E.normName(item.name);
-  const specOf = e => { const p = {}, q = e.params || {}; for (const k of ['tag', 'stat', 'cond', 'vs', 'name', 'msg']) if (q[k]) p[k] = q[k]; if (q.chance != null) p.chance = q.chance; return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
-  // 条件欄（効果が働く場面：場所・拠点・瀕死／相手の属性／戦いごとの発動確率。effects.js の COND_OPTS）
-  const condOptions = sel => (sel && !E.COND_OPTS.some(([k]) => k === sel) ? [[sel, sel]] : []).concat(E.COND_OPTS)
-    .map(([k, t]) => `<option value="${esc(k)}"${k === (sel || '') ? ' selected' : ''}>${esc(t)}</option>`).join('');
-  const condFields = p => { p = p || {}; return `<div class="econd"><label>条件<select data-e="cond">${condOptions(p.cond)}</select></label>`
-    + `<label>相手<input type="text" data-e="vs" list="tagList" value="${esc(p.vs || '')}" placeholder="属性（男性・竜など）" autocomplete="off"></label>`
-    + `<label>確率<input type="number" data-e="chance" min="0" max="100" step="5" value="${p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : ''}" placeholder="100">%</label></div>`; };
-  // 状態異常（魅了・毒・スタン・混乱・宝具封印）だけ：表示名と、掛けたときの記録の文（{S} 掛けた側・{O} 掛けられた側・{N} 名前）
-  const statFields = (id, p) => { p = p || {}; return `<div class="estat"${E.AILMENTS[id] ? '' : ' hidden'}><label>名前<input type="text" data-e="name" value="${esc(p.name || '')}" placeholder="${esc(E.AILMENTS[id] || '')}" autocomplete="off"></label>`
-    + `<label class="msg">記録の文<input type="text" data-e="msg" value="${esc(p.msg || '')}" placeholder="${esc(E.AIL_MSG_HINT[id] || '')}" autocomplete="off"></label></div>`; };
-  const readStat = (q, id, p) => { if (!E.AILMENTS[id]) return; const n = q('name').value.trim(), m = q('msg').value.trim(); if (n) p.name = n; if (m) p.msg = m; };
+  const specOf = e => { const p = Object.assign({}, e.params || {}); return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
+  // 「相手・能力」の欄：特攻・弱点・属性付与・マスター強化・自己強化解除だけ（ほかの効果でも値が入っていれば残す）。
+  // その下の「発動・条件など」は effects.js の moreHtml（その効果で働く欄だけ。画面を作り直すたびに出し分けが変わる）
+  const P_LABEL = { master_buff: '上げる能力', self_strip: '止めるスキル・宝具', tag: '持つ属性', power_vs: '特攻の相手', weakness: '弱点の相手' };
+  const pField = (id, pv) => P_LABEL[id] || pv ? `<label class="ep">${esc(P_LABEL[id] || '相手・能力')}<input type="text" data-e="p" value="${esc(pv)}"${id === 'master_buff' || id === 'self_strip' ? '' : ' list="tagList"'} placeholder="${esc(E.paramHint(id))}" autocomplete="off"></label>` : '';
+  const moreOpen = new Set();   // 開いている「発動・条件など」（'項目のキー:行'）。作り直しても開いたままにする
   const effOptions = sel => E.effOptionsHtml(sel, esc, id => `${E.EFFECTS[id].name}（${E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—'}）`);   // ジャンルごと
   function strengthOptions(f) {
     const has = STRENGTH.some(([, v]) => Math.abs(v - f) < 1e-9);
     return (has ? '' : `<option value="${f}" selected>×${f}</option>`) + STRENGTH.map(([t, v]) => `<option value="${v}"${Math.abs(v - f) < 1e-9 ? ' selected' : ''}>${t}（×${v}）</option>`).join('');
   }
-  function effRow(spec, np) {
-    const [id, f, p] = spec || ['power', 1, null], rowNp = !!np;
+  function effRow(spec, np, open) {
+    const [id, f, p] = spec || ['power', 1, null];
     const pv = p ? p.tag || p.stat || '' : '';
-    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><input type="text" data-e="p" value="${esc(pv)}" placeholder="特攻・弱点の相手／能力（竜 / luck）"><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${condFields(p)}${E.trigFieldsHtml(p, esc, rowNp)}${E.stripFieldsHtml(id, p, esc)}${E.selfFieldsHtml(id, p, esc)}${E.teamFieldsHtml(id, p, esc)}${statFields(id, p)}</div>`;
+    return `<div class="erow"><select data-e="id">${effOptions(id)}</select><select data-e="f">${strengthOptions(f == null ? 1 : f)}</select><button class="sm ghost" data-rmrow title="この効果を消す">×</button>${pField(id, pv)}${E.moreHtml(id, p, esc, !!np, open)}</div>`;
   }
   function itemHtml(kind, item, j) {
     const k = keyOf(base, item), changed = k in prop.servant || (kind === 'n' && k in prop.np);
@@ -463,10 +454,22 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
       ${noteBox(nk, `${nk}をどう直してほしいか（例：「対軍の攻撃宝具です」「戦闘続行と同じ効果です」）`)}
       ${dropped ? '' : npKind}
       ${dropped ? '' : `<details${changed ? ' open' : ''}><summary class="hint" style="cursor:pointer">効果を自分で指定する（くわしい人向け）</summary>
-        <div class="erows">${rows.map(r => effRow(r, kind === 'n')).join('')}</div>
+        <div class="erows">${rows.map((r, i) => effRow(r, kind === 'n' && curItem.mode !== 'always', moreOpen.has(k + ':' + i))).join('')}</div>
         <div class="row" style="margin-top:6px"><button class="sm" data-addrow>＋ 効果を足す</button>${changed ? '<button class="sm ghost" data-undo>元に戻す</button>' : ''}<span class="edesc">強さは、Bランクの標準を「ふつう」とした目安です（ランクの倍率は自動で掛かります）</span></div>
 </details>`}
     </div>`;
+  }
+  // 効果の欄に入力中なら、作り直したあともその欄に戻す
+  function focusKey() {
+    const a = document.activeElement, r = a && a.closest ? a.closest('.erow') : null; if (!r || !a.dataset.e) return null;
+    const it = r.closest('.item');
+    return { k: it.dataset.key, i: Array.from(it.querySelectorAll('.erow')).indexOf(r), e: a.dataset.e, s: a.type === 'text' ? a.selectionStart : null };
+  }
+  function refocus(f) {
+    if (!f) return;
+    const it = Array.from(document.querySelectorAll('#edit .item')).find(x => x.dataset.key === f.k), r = it && it.querySelectorAll('.erow')[f.i], el = r && r.querySelector(`[data-e=${f.e}]`);
+    if (!el) return;
+    el.focus(); if (f.s != null) try { el.setSelectionRange(f.s, f.s); } catch (e) { /* 数値の欄など */ }
   }
   function showEdit() {
     const has = !!base;
@@ -489,8 +492,10 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     }).join('');
     $('#judge').innerHTML = judgeHtml();
     $('#statNote').innerHTML = `<div class="acts2" style="font-size:12px"><button type="button" class="sm" data-notebtn>ステータスについて直してほしい</button></div>` + noteBox('ステータス', 'ステータスをどう直してほしいか（例：「Wikiでは敏捷A+です」「狂化時のステータスで読んでほしい」）');
+    const fk = focusKey();
     $('#skills').innerHTML = base.allSkills.map((s, j) => itemHtml('s', s, j)).join('') || '<p class="hint">スキルなし</p>';
     $('#nps').innerHTML = base.nps.map((n, j) => itemHtml('n', n, j)).join('') || '<p class="hint">宝具なし</p>';
+    refocus(fk);
     const rv = cur.review.filter(r => r.kind !== 'content');
     $('#review').innerHTML = (cur.warnings || []).length || rv.length ? `${rv.length ? `<div class="box warn"><b>読み取りが推定になっているところ</b>（意図と違えば、上で効果を直してください）<ul>${rv.map(r => `<li>${esc(r.target)}：${esc(r.why)}</li>`).join('')}</ul></div>` : ''}${(cur.warnings || []).length ? `<div class="box err"><b>読み取りの警告</b><ul>${cur.warnings.map(w => `<li>${esc(w)}</li>`).join('')}</ul></div>` : ''}` : '';
     mountContent();
@@ -558,13 +563,10 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
     const k = el.dataset.key;
     const specs = Array.from(el.querySelectorAll('.erow')).map(r => {
       const q = k => r.querySelector(`[data-e=${k}]`);
-      const id = q('id').value, f = parseFloat(q('f').value), v = q('p').value.trim();
+      const id = q('id').value, f = parseFloat(q('f').value), v = q('p') ? q('p').value.trim() : '';
       const [main, cond] = v.split('@').map(x => (x || '').trim()); const p = {};
       if (main) p[id === 'master_buff' ? 'stat' : 'tag'] = main;
-      const c = q('cond').value || cond; if (c) p.cond = c;
-      const vs = q('vs').value.trim(); if (vs) p.vs = vs;
-      const ch = parseFloat(q('chance').value); if (isFinite(ch) && ch < 100) p.chance = Math.max(0, Math.round(ch * 10) / 1000);
-      readStat(q, id, p); E.readTrig(q, p); E.readStrip(q, id, p); E.readSelf(q, id, p); E.readTeam(q, id, p);
+      E.readMore(q, id, p); if (!p.cond && cond) p.cond = cond;
       return Object.keys(p).length ? [id, isFinite(f) ? f : 1, p] : [id, isFinite(f) ? f : 1];
     });
     const item = el.dataset.kind === 's' ? base.allSkills.find(x => keyOf(base, x) === k) : base.nps.find(x => keyOf(base, x) === k);
@@ -586,7 +588,13 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   });
   let pItem = null;
   const readP = () => { if (pItem && pItem.isConnected) { readItem(pItem); showEdit(); } };
-  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.matches('[data-e=p], [data-e=vs], [data-e=chance], [data-e=name], [data-e=msg]')) { pItem = e.target.closest('.item'); soon(readP); } });
+  $('#edit').addEventListener('input', e => { if (e.target.matches('[data-note]')) return setNote(e.target); if (e.target.closest('.erow') && e.target.matches('input[type=text], input[type=number]')) { pItem = e.target.closest('.item'); soon(readP); } });
+  // 「発動・条件など」の開け閉めを覚える（toggle は泡立たないので capture で）
+  $('#edit').addEventListener('toggle', e => {
+    const d = e.target; if (!d.matches || !d.matches('.emore')) return;
+    const it = d.closest('.item'), i = Array.from(it.querySelectorAll('.erow')).indexOf(d.closest('.erow')), key = it.dataset.key + ':' + i;
+    if (d.open) moreOpen.add(key); else moreOpen.delete(key);
+  }, true);
   function readStats() {
     const o = {}; for (const inp of $('#stats').querySelectorAll('[data-stat]')) if (inp.value.trim()) o[inp.dataset.stat] = inp.value.trim();
     if (Object.keys(o).length) prop.stats[E.okey(base)] = o; else delete prop.stats[E.okey(base)];

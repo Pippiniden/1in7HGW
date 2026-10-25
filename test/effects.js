@@ -254,7 +254,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
 //     戦いの外の効果に戦いの中の発動を付けたら説明で知らせる／スキルの使用不可の説明
 {
   ok(/次の戦いの終わりまで/.test(E.describe({ id: 'power', mag: 0.1, params: { on: 'kill' } }).when), '相手を倒したときの強化の説明が違う');
-  ok(/戦いの中で発動しても効かない/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'start' } }).text) && !/効かない/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'day' } }).text), '戦いの外の効果の注意が出ない');
+  ok(/働かない設定：発動/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'start' } }).text) && !/働かない/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'day' } }).text), '戦いの外の効果の注意が出ない');
   ok(/スキルの効果は働かない/.test(E.describe({ id: 'disabled', mag: 1 }).text) && /宝具は使えない/.test(E.describe({ id: 'disabled', mag: 1 }, { np: true }).text), '使用不可の説明が違う');
   const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
   const base = roster.find(s => s.allSkills.length >= 1 && !Object.values(s.effectSummary).some(x => ['stealth', 'detect'].includes(x.id)));
@@ -287,5 +287,41 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   delete E.REVIEWED[s0.trueName];
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み`);
+// 5h) 条件の「それ以外」・日数・日ごとの強さの変化・解除で消えない効果・働かない設定の見分け
+{
+  const g = { grow: 0.1, turn: 7, decay: 0.2 };
+  ok(E.dayMult(g, 1) === 1 && Math.abs(E.dayMult(g, 7) - 1.6) < 1e-9 && Math.abs(E.dayMult(g, 9) - 1.2) < 1e-9 && E.dayMult(g, 20) === 0 && E.dayMult({ decay: 0.5 }, 3) === 0 && E.dayMult(null, 5) === 1, '日ごとの強さの倍率が違う');
+  ok(!E.dayOk({ dmin: 3, dmax: 5 }, 2) && E.dayOk({ dmin: 3, dmax: 5 }, 3) && !E.dayOk({ dmin: 3, dmax: 5 }, 6) && E.dayOk({ dmax: 4 }, 1), '日数の条件の判定が違う');
+  const w = E.describe({ id: 'power', mag: 0.2, params: Object.assign({ cond: '夜', condNot: true, vs: '竜', vsNot: true, dmin: 3 }, g) }).when;
+  ok(/夜の戦い以外/.test(w) && /「竜」以外の相手/.test(w) && /3日目から/.test(w) && /1日ごとに強さ\+10%/.test(w) && /15日目に消える/.test(w), '「それ以外」・日数・日ごとの変化の説明が出ない：' + w);
+  ok(/弱体解除・強化解除では消えない/.test(E.describe({ id: 'wither', mag: 0.1, params: { self: true, nocure: true } }).text), '解除で消えない効果の説明が出ない');
+  // 働かない設定：戦いの外で読む効果に戦いの中の発動・相手の属性・拠点、属性付与に条件、自分に掛けない効果に「解除で消えない」
+  ok(E.deadParams('regen', { on: 'start', vs: '竜', cond: '拠点' }).length === 3 && E.deadParams('tag', { tag: '竜', cond: '夜' }).length === 1
+    && E.deadParams('power', { nocure: true }).length === 1 && !E.deadParams('power', { on: 'win', cond: '夜', vs: '竜', dmin: 2, grow: 0.1 }).length
+    && !E.deadParams('reveal', { vs: 'キャスター' }, true).length && !E.deadParams('stealth', { on: 'day', cond: '夜' }).length, '働かない設定の見分けが違う');
+  ok(!E.fieldsFor('regen').vs && E.fieldsFor('regen').trig.join() === ',day' && E.fieldsFor('power').vs && E.fieldsFor('tag').trig.length === 1 && !E.fieldsFor('power', false, 'start').uses && E.fieldsFor('power', false, 'win').uses, '編集画面に出す欄の見分けが違う');
+  ok(/働かない設定：発動「戦いの始めに」/.test(E.describe({ id: 'stealth', mag: 0.2, params: { on: 'start' } }).text), '働かない設定が説明に出ない');
+  // 見積もり：「それ以外の相手」
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const foe = roster.find(s => s.tags.includes('男性')), other = roster.find(s => !s.tags.includes('男性') && s.id !== foe.id);
+  const me = B.fromJSON(B.toLean(roster.find(s => s.id !== foe.id && s.id !== other.id && s.allSkills.length)));
+  const key = me.trueName + '/' + E.normName(me.allSkills[0].name);
+  const withSpec = spec => { E.SERVANT_OVERRIDES[key] = [spec]; const s = B.fromJSON(B.toLean(me)); delete E.SERVANT_OVERRIDES[key]; return s; };
+  const plain = withSpec(['power', 0]), notMale = withSpec(['power', 5, { vs: '男性', vsNot: true }]);
+  const odds = (a, b) => B.battleOdds(a, b).a;
+  ok(Math.abs(odds(notMale, foe) - odds(plain, foe)) < 1e-9 && odds(notMale, other) > odds(plain, other) * 1.2, '「それ以外の相手」が見積もりに効いていない');
+  ok(Object.keys(withSpec(['wither', 1, { self: true, nocure: true }]).effectSummary).some(k => /\^fix/.test(k)) && Object.keys(withSpec(['power', 1, { dmin: 3 }]).effectSummary).some(k => /\[3/.test(k)), '新しい条件が効果の集計で分かれていない');
+  // エンジン：働かない日の効果は展開を変えない／日ごとに弱まる効果は2日目から消える
+  const others = roster.filter(s => s.id !== me.id).slice(0, 7);
+  const log = s => { const out = []; for (let i = 0; i < 25; i++) out.push(H.engine.runWar({ roster: others.concat([s]), seed: 'day' + i, player: 'none', war: { pick: 'open' } }).entries.map(e => e.text).join('\n')); return out.join('\n#\n'); };
+  const L0 = log(plain);
+  ok(log(withSpec(['power', 10, { dmin: 99 }])) === L0 && log(withSpec(['power', 10, { decay: 1, dmin: 2 }])) === L0, '働かない日の効果で展開が変わった');
+  ok(log(withSpec(['power', 10, { dmax: 30 }])) !== L0, '日数の条件の内側で効果が働いていない');
+  let errs = 0;
+  for (const spec of [['wither', 1, { self: true, nocure: true, on: 'start' }], ['stun', 2, { self: true, nocure: true }], ['poison', 2, { self: true, nocure: true }], ['cleanse', 1, { on: 'round' }], ['power', 3, { on: 'day', uses: 2, grow: 0.5, turn: 3, decay: 0.5 }]])
+    try { log(withSpec(spec)); } catch (e) { errs++; console.error(e); }
+  ok(!errs, '新しい条件の効果で戦争がエラーになった');
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果`);
 process.exitCode = fail ? 1 : 0;

@@ -1346,7 +1346,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (eff('guard') < 0) bad.push('打たれ弱い');
     if (eff('luck') < 0) bad.push('運に見放されがち');
     if (eff('conceal') < 0) bad.push('真名を見抜かれやすい');
-    if ((sv.nps || []).some(x => (x.effects || []).some(e => e.id === 'self_retire' && e.mag >= 0.5))) bad.push('宝具を使うと自らも消える');
+    if ((sv.nps || []).some(x => (x.effects || []).some(e => e.id === 'self_retire' && H.effects.retireP(e) >= 0.5))) bad.push('宝具を使うと自らも消える');
     // 最初の方針のおすすめ（評価ごと。REC_FOCUS を参照。根拠は test/focus.js のシミュレーション）
     const rec = REC_FOCUS[grade] || REC_FOCUS.C;
     return { rate, rank, n, grade, power: sv.power, powerRank: rankIn(T.powers, sv.power), npPeak: sv.npPeak || 0, npRank, maxPower: T.powers[0] || 1, maxNp: T.nps[0] || 1, good: good.slice(0, 4), bad: bad.slice(0, 2), rec };

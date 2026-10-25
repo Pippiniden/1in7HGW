@@ -232,45 +232,53 @@
     //   c.bx は戦いの間だけある { opp: 相手の陣営, home: 自分の拠点で戦う, rolls: { 効果の集計キー: 当たったか } }
     // 場所の条件（水辺・森・山）：場所を渡されなければ、戦いの最中ならその戦いの場所（致命傷・撤退・マスター狙いなど）、
     //   戦いの外なら自分の拠点の場所で判定する（「水辺で偵察に長ける」なら水辺に拠点があるとき）
-    const condOk = (c, p, terrain0) => {
+    //   condNot／vsNot＝「それ以外のとき」、dmin〜dmax＝その日だけ。相手の属性は、戦いの外では o（偵察・推理・索敵・交渉の相手）で判定する（o が無ければ働かない）
+    const condOk = (c, p, terrain0, o) => {
       if (!p) return true;
       const k = p.cond;
       const terrain = terrain0 != null ? terrain0 : c.bx && c.bx.ctx ? c.bx.ctx.terrain : c.base ? c.base.terrain : null;
       if (k) {
-        if (k === '拠点') { if (c.bx ? !c.bx.home : false) return false; }   // 戦いの外（昼の行動など）は拠点にいる
-        else if (k === '瀕死') { if (!(c.hp < ENG.pinchAt)) return false; }
-        else if (!(k === terrain || (k === '夜' && phase === 'night' && !tonight.moon))) return false;
+        const hit = k === '拠点' ? (c.bx ? !!c.bx.home : true)   // 戦いの外（昼の行動など）は拠点にいる
+          : k === '瀕死' ? c.hp < ENG.pinchAt
+          : k === terrain || (k === '夜' && phase === 'night' && !tonight.moon);
+        if (hit === !!p.condNot) return false;
       }
-      if (p.vs && !(c.bx && c.bx.opp && c.bx.opp.sv.tags.includes(p.vs))) return false;
+      if (p.vs) { const t = o || (c.bx && c.bx.opp); if (!t || t.sv.tags.includes(p.vs) === !!p.vsNot) return false; }
+      if ((p.dmin > 0 || p.dmax > 0) && !E.dayOk(p, day)) return false;
       return true;
     };
+    // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
+    const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
     // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
     const chanceW = (c, key, p) => !p || p.chance == null ? 1 : c.bx ? (c.bx.rolls[key] ? 1 : 0) : clamp(p.chance, 0, 1);
     // effS：スキル・宝具の常時の効果だけ（戦闘力の計算用）／eff：それに、この戦いだけの効果（c.temp）を足したもの
     // 止めた効果（自己強化解除 self_strip・特定の効果の強化解除 strip）：c.off は '名前'（その源のすべて）／'名前|効果'（その源のその効果）／
     //   '|効果'（どの源のものでもその効果）の集合。常時の効果からはその分を引き、その戦いだけの効果（c.temp）からは外す
     const offMatch = (c, from, id) => !!c.off && (c.off.has('|' + id) || (from ? c.off.has(E.normName(from)) || c.off.has(E.normName(from) + '|' + id) : false));
-    const offW = (c, x) => { if (!c.off || !x.by) return 0; let t = 0; for (const n in x.by) if (offMatch(c, n, x.id)) t += x.by[n]; return t; };
+    const offW = (c, x) => { if (!c.off || !x.by || (x.params && x.params.nocure)) return 0; let t = 0; for (const n in x.by) if (offMatch(c, n, x.id)) t += x.by[n]; return t; };
     // 止めた効果を、その戦いだけの効果（と次の朝までの効果）から外す
-    const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => !offMatch(c, e.from, e.id)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => !offMatch(c, e.from, e.id)); };
+    const keepOff = (c, e) => (e.params && e.params.nocure) || !offMatch(c, e.from, e.id);   // 解除で消えない効果は残す
+    const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => keepOff(c, e)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => keepOff(c, e)); };
     // 相手がその効果を持っているか（常時の分か、その戦いだけの分）
     const holds = (c, id) => (c.temp || []).some(e => e.id === id) || Object.values(c.sv.effectSummary || {}).some(x => x.id === id && x.passive);
     // self：自分に掛ける不利な効果（params.self）だけを数える。ふだん（false）は相手に掛ける分・自分のための分だけ
     const isSelf = p => !!(p && p.self);
-    function effS(c, id, terrain, self) {
+    //   o：戦いの外で相手のいる場面（偵察・推理・索敵・交渉）の相手。相手の属性の条件（params.vs）に使う
+    function effS(c, id, terrain, self, o) {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params);
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain, o)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params);
       return t;
     }
-    function eff(c, id, terrain, self) {
-      let t = effS(c, id, terrain, self);
+    function eff(c, id, terrain, self, o) {
+      let t = effS(c, id, terrain, self, o);
       // 戦いの外では、毎朝発動した効果（c.dayTemp）も数える（戦いの中では戦いの始めに c.temp へ写してある）
-      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) t += e.mag;
+      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain, o)) t += e.mag;
       return t;
     }
+    const effO = (c, id, o) => eff(c, id, undefined, false, o);   // 戦いの外で相手のいる場面
     const effVs = (c, id, o, terrain) => {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && o.sv.tags.includes(x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params);
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && o.sv.tags.includes(x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params);
       for (const e of c.temp) if (e.id === id && e.params && o.sv.tags.includes(e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     };
@@ -278,7 +286,7 @@
     // ailInfo：その効果の強さの合計と、いちばん強いものの params（表示名 name・記録の文 msg）
     function ailInfo(c, id, terrain, self) {
       let t = 0, top = null, best = -Infinity;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) { const m = (x.passive - offW(c, x)) * chanceW(c, k, x.params); t += m; if (m > best) { best = m; top = x.params; } }
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) { const m = (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params); t += m; if (m > best) { best = m; top = x.params; } }
       for (const e of c.temp) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) { t += e.mag; if (e.mag > best) { best = e.mag; top = e.params; } }
       return { t, p: top };
     }
@@ -318,7 +326,7 @@
     //   毎朝・相手を倒したときのものは c.dayTemp（次の朝まで。夜の戦いの始めに c.temp へ写す）に入る。同じ効果は重ねない。
     //   発動する効果を持たない英霊では何もしない（乱数も使わない）ので、いままでの展開は変わらない
     const isBuff = e => { const inf = E.EFFECT_INFO[e.id] || {}; return !!inf.bad === (e.mag < 0) && inf.who !== 'enemy' && inf.who !== 'enemyMaster'; };
-    const isHex = e => { const inf = E.EFFECT_INFO[e.id] || {}; return !!inf.bad === (e.mag < 0) && (inf.who === 'enemy' || inf.who === 'enemyMaster'); };
+    const isHex = e => { const inf = E.EFFECT_INFO[e.id] || {}; return !!inf.bad === (e.mag < 0) && (inf.who === 'enemy' || inf.who === 'enemyMaster') && !(e.params && e.params.self); };
     function trigList(c, on) {
       const out = [];
       for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.trig && x.on === on) out.push([k, x.id, x.trig, x.params, (x.from[0] || '').replace(/\(消滅後も持続\)$/, '')]);
@@ -332,14 +340,17 @@
       for (const [k, id, mag, p0, from] of list) {
         const p = p0 || {};
         if (!condOk(c, p, T) || offMatch(c, from, id)) continue;   // 止めた効果は発動しない
-        const used = (c.tUsed && c.tUsed[k]) || 0;
+        // 回数：戦いの中の発動は1回の戦いで、毎朝の発動は戦争を通して（「最初のN日」）
+        const U = on === 'day' ? (p.uses > 0 ? (c.dUsed = c.dUsed || {}) : null) : c.tUsed;
+        const used = (U && U[k]) || 0;
         const lim = p.uses > 0 ? p.uses : on === 'start' || on === 'pinch' || on === 'kill' ? 1 : 0;
-        if (c.tUsed && lim && used >= lim) continue;
+        if (U && lim && used >= lim) continue;
+        const m = mag * dm(p); if (!m) continue;   // 日ごとの変化で強さが0になった効果は発動しない
         if (p.cost > 0 && c.mana < p.cost) continue;
         if (p.chance != null && p.chance < 1 && !chance(Math.max(0, p.chance))) continue;
         if (p.cost > 0) c.mana -= p.cost;
-        if (c.tUsed) c.tUsed[k] = used + 1;
-        applyTrig(c, o, k, id, mag, p, from, on, T);
+        if (U) U[k] = used + 1;
+        applyTrig(c, o, k, id, m, p, from, on, T);
       }
     }
     // 発動した効果を働かせる。記録は、その戦いで（毎朝のものはその戦争で）その効果が初めて発動したときだけ
@@ -371,7 +382,7 @@
       if (id === 'wither') {
         // 衰弱：相手（params.self なら自分）の戦闘力を少しずつ削り、重なって残る。相手からのものは耐久と対魔力で防ぐ
         const tg = p.self ? c : o; if (!tg || !tg.alive) return;
-        const key = p.self ? 'witherSelf' : 'wither', before = tg[key] || 0;
+        const key = p.self ? (p.nocure ? 'witherFix' : 'witherSelf') : 'wither', before = tg[key] || 0;
         const v = p.self ? mag : mag * (1 - bodyRes(tg, T)) * (1 - (tg.cleanse || 0));
         if (!(v > 0)) return;
         tg[key] = Math.min(ENG.witherCap, before + v);
@@ -379,8 +390,11 @@
         return;
       }
       if (id === 'cleanse') {
-        const had = !!(c.poison || c.wither || c.witherSelf || (c.ail && (c.ail.stun || c.ail.confuse || c.ail.seal || c.ail.skseal)) || (o && o.temp && o.temp.some(isHex)));
-        c.poison = null; c.wither = 0; c.witherSelf = 0; if (c.ail) c.ail.stun = c.ail.confuse = c.ail.seal = c.ail.skseal = false;
+        // 自分に掛けた状態異常のうち、解除で消えないもの（params.nocure：ail.〇〇Fix・poison.fix）は残す
+        const cure = id => c.ail && c.ail[id] && !c.ail[id + 'Fix'];
+        const had = !!((c.poison && !c.poison.fix) || c.wither || c.witherSelf || cure('stun') || cure('confuse') || cure('seal') || (c.ail && c.ail.skseal) || (o && o.temp && o.temp.some(isHex)));
+        if (c.poison && !c.poison.fix) c.poison = null;
+        c.wither = 0; c.witherSelf = 0; if (c.ail) { for (const a of ['stun', 'confuse', 'seal']) if (cure(a)) c.ail[a] = false; c.ail.skseal = false; }
         if (o && o.temp) o.temp = o.temp.filter(e => !isHex(e));
         if (on !== 'day') c.cleanse = clamp(Math.max(c.cleanse || 0, mag), 0, 1);
         if (had) say(`${sn(c)}の${src}が、身を蝕むものを祓った。`); return;   // 消すものが無ければ記録しない（守りは掛かっている）
@@ -414,11 +428,11 @@
     const sd = (c, k) => dev(c.sv.score[k]);
     const md = (c, k) => c.masterAlive ? dev(c.master.stats[k]) : 0;
     // スキルの効果だけを足す（宝具の効果は宝具ごとに読む）。止めた効果・条件も見る
-    const skillFx = (c, id, T) => { let t = 0; for (const sk of c.sv.allSkills || []) for (const e of sk.effects || []) if (e.id === id && !(e.params && e.params.on) && condOk(c, e.params, T) && !offMatch(c, sk.name, id)) t += e.mag; return t; };
+    const skillFx = (c, id, T) => { let t = 0; for (const sk of c.sv.allSkills || []) for (const e of sk.effects || []) if (e.id === id && !(e.params && e.params.on) && condOk(c, e.params, T) && !offMatch(c, sk.name, id)) t += e.mag * dm(e.params); return t; };
     // 宝具の魔力：宝具の基本の消費 ×（スキルの宝具消費＋その宝具の条件付きの宝具消費）
     const npCostOf = (c, n) => {
       let mod = skillFx(c, 'np_cost');
-      for (const e of n.effects || []) if (e.id === 'np_cost' && e.params && e.params.cond && condOk(c, e.params)) mod += e.mag;
+      for (const e of n.effects || []) if (e.id === 'np_cost' && e.params && e.params.cond && condOk(c, e.params)) mod += e.mag * dm(e.params);
       return n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag')) * (mod ? Math.max(0.3, 1 + mod) : 1);
     };
     const active = () => camps.filter(c => c.alive);
@@ -501,7 +515,7 @@
       // 自分に掛かる弱体化（デメリット）と衰弱（重なって残る）
       const selfDeb = eff(c, 'debuff', T, true) + eff(c, 'debuff_mind', T, true) + eff(c, 'debuff_body', T, true);
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
-      if (c.wither || c.witherSelf) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0));
+      if (c.wither || c.witherSelf || c.witherFix) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0) + (c.witherFix || 0));
       if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
       if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
@@ -621,7 +635,7 @@
       const maxP = Math.max(1, ...atkAll.map(n => n.power)), minCost = Math.min(...nps.map(n => n.cost));
       const hidden = !o.knowName.has(c.id);
       const weight = n => {
-        const retire = fx(n, 'self_retire');
+        const retire = E.npRetire(n);
         if (retire >= 0.5 && !desperate) return 0;
         let w;
         if (n.attackResolved) {
@@ -673,7 +687,7 @@
       const bf = (np.effects || []).filter(e => e.id === 'backfire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0) + skillFx(c, 'backfire', ctx.terrain);   // スキルの反動も
       if (bf > 0) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');
-      if (sr && chance(sr.mag)) c.pendingRetire = np.name;
+      if (sr && chance(E.retireP(sr))) c.pendingRetire = np.name;
     }
 
     // 自動で発動する宝具（effects.js の NP_MODES）：その場面になった瞬間に、AI の判断を待たずに発動する（1回の戦いに一度）。
@@ -704,9 +718,9 @@
       const wild = wildOf(c);
       let best = null;
       for (const n of c.sv.nps || []) {
-        if (n.disabled || n.mode || npFx(n, 'self_retire') >= 0.5) continue;
+        if (n.disabled || n.mode || E.npRetire(n) >= 0.5) continue;
         let ini = 0;
-        for (const e of n.effects || []) if (e.id === 'initiative' && condOk(c, e.params, terrain)) ini += e.mag * (e.params && e.params.chance != null ? clamp(e.params.chance, 0, 1) : 1);
+        for (const e of n.effects || []) if (e.id === 'initiative' && condOk(c, e.params, terrain)) ini += e.mag * dm(e.params) * (e.params && e.params.chance != null ? clamp(e.params.chance, 0, 1) : 1);
         if (ini <= 0 || !(c.mana >= npCostOf(c, n) || wild)) continue;
         if (!best || ini > best.ini) best = { np: n, ini };
       }
@@ -793,7 +807,7 @@
           log('battle', `${sn(c)}は刃を交えずに退いた。`, [c.id, o.id]); cleanup(); return;
         }
         // 状態異常：毒は打ち合いのたびに霊基を削る（毒では倒れない）。スタン・混乱はこの打ち合いの始めに判定する
-        for (const c of all()) { c.ail.stun = c.ail.confuse = false; }
+        for (const c of all()) { c.ail.stun = c.ail.confuse = c.ail.stunFix = c.ail.confuseFix = false; }
         for (const c of [a, b]) if (c.poison && c.alive) {
           c.hp = Math.max(1, c.hp - ENG.poisonTick);
           if (!c.ail.ticked) { c.ail.ticked = true; log('battle', ailText('ailPoisonTick', 'poison', c.poison.p, null, c), [c.id]); }
@@ -811,7 +825,7 @@
           const si = ailInfo(y, id, ctx.terrain, true);
           if (!(si.t > 0) || !chance(Math.min(E.AIL_CAP[id], si.t))) continue;
           const sp = si.p || {};
-          if (id === 'poison') y.poison = { p: sp, day }; else { y.ail[id] = true; y.ail[id + 'P'] = sp; }
+          if (id === 'poison') y.poison = { p: sp, day, fix: !!sp.nocure }; else { y.ail[id] = true; y.ail[id + 'P'] = sp; y.ail[id + 'Fix'] = !!sp.nocure; }
           log('battle', sp.msg ? fillT(sp.msg, { S: sn(y), O: sn(y), N: sp.name || E.AILMENTS[id] }) : fillT(SELF_AIL_LINE[id], { O: sn(y), N: sp.name || E.AILMENTS[id] }), [y.id]);
         }
         // 開幕の宝具：先手を取った宝具は、1回目の打ち合いの頭で放つ（その打ち合いでは、ほかの宝具は使わない）
@@ -957,7 +971,7 @@
         const p = e.params;
         if (!p || !(p.team > 0) || e.on || !e.passive || isSelf(p) || !E.TEAM_IDS.includes(e.id)) continue;
         const q = Object.assign({}, p); delete q.team;
-        x.temp.push({ id: e.id, mag: e.passive * Math.min(1, p.team), params: Object.keys(q).length ? q : null, from: (e.from[0] || '').replace(/\(消滅後も持続\)$/, ''), src: '#team:' + y.id + ':' + k });
+        x.temp.push({ id: e.id, mag: e.passive * Math.min(1, p.team) * dm(p), params: Object.keys(q).length ? q : null, from: (e.from[0] || '').replace(/\(消滅後も持続\)$/, ''), src: '#team:' + y.id + ':' + k });
       }
       const r = eff(y, 'rally');
       if (r > 0 && ENG.rallyPower) x.temp.push({ id: 'power', mag: r * ENG.rallyPower, params: null, from: '統率', src: '#rally:' + y.id });
@@ -1046,7 +1060,7 @@
           options: [{ k: 'chase', label: '噂をたどる', sub: '敵の拠点かもしれない。こちらが見つかる危険もある' }, { k: 'ignore', label: '聞き流す', sub: '関わらない' }],
         }, () => chance(0.5) ? 'chase' : 'ignore');
         if (a === 'chase') {
-          if (chance(clamp(0.55 + eff(you, 'intel') * 0.5 + FX.mCraftScout * md(you, 'craft') - eff(t, 'stealth') * 0.5, 0.1, 0.9))) { you.knowLoc.add(t.id); log('scout', `噂をたどった先は、${t.label}の拠点「${t.base.name}」だった。`, [you.id, t.id]); }
+          if (chance(clamp(0.55 + effO(you, 'intel', t) * 0.5 + FX.mCraftScout * md(you, 'craft') - effO(t, 'stealth', you) * 0.5, 0.1, 0.9))) { you.knowLoc.add(t.id); log('scout', `噂をたどった先は、${t.label}の拠点「${t.base.name}」だった。`, [you.id, t.id]); }
           else if (chance(0.3)) { t.knowLoc.add(you.id); log('event', '噂の場所には何もなかった。帰り道、誰かに見られていた気がする。', [you.id, t.id]); }
           else log('event', '噂は噂にすぎなかった。', [you.id]);
         } else log('event', `${mn(you)}は噂を聞き流した。`, [you.id]);
@@ -1081,11 +1095,11 @@
           ],
         }, () => wpick({ talk: 1, follow: 1, ignore: 1 }));
         if (a === 'talk') {
-          if (canPact(you, t, alive) && chance(clamp(0.2 + eff(you, 'negotiate') + eff(t, 'negotiate') * 0.5 + (coalition(you, t) ? ENG.coalitionAlly : 0), 0, 0.85))) {
+          if (canPact(you, t, alive) && chance(clamp(0.2 + effO(you, 'negotiate', t) + effO(t, 'negotiate', you) * 0.5 + (coalition(you, t) ? ENG.coalitionAlly : 0), 0, 0.85))) {
             const m = formPact(you, t); log('ally', `${mn(you)}と${mn(t)}は喫茶店で向かい合い、手を組むことにした。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true });
           } else { if (chance(0.4)) you.knowName.add(t.id); log('event', `${mn(you)}は${mn(t)}と言葉を交わした。${you.knowName.has(t.id) ? `話の端々から、${t.label}の真名は「${t.sv.trueName}」だと察しがついた。` : '腹の探り合いに終わった。'}`, [you.id, t.id]); }
         } else if (a === 'follow') {
-          if (chance(0.7 - eff(t, 'detect') * 0.5)) { you.knowLoc.add(t.id); log('scout', `尾行は成功した。${t.label}の拠点は「${t.base.name}」だ。`, [you.id, t.id]); }
+          if (chance(0.7 - effO(t, 'detect', you) * 0.5)) { you.knowLoc.add(t.id); log('scout', `尾行は成功した。${t.label}の拠点は「${t.base.name}」だ。`, [you.id, t.id]); }
           else { t.knowLoc.add(you.id); log('event', `尾行は気づかれた。逆にこちらの拠点を知られたかもしれない。`, [you.id, t.id]); }
         } else log('event', `${mn(you)}は見なかったことにした。`, [you.id]);
       }
@@ -1095,7 +1109,7 @@
     let lastCouncil = 0;
     const focusOf = c => SG ? SG.hooks.focus(c) : c.you && c.focus && c.focus !== 'auto' && FOCUS[c.focus] ? FOCUS[c.focus] : null;
 
-    const deduceP = (c, t) => clamp(0.08 + (c.clues[t.id] || 0) * 0.12 + eff(c, 'reveal') + eff(c, 'intel') * 0.5 + c.master.stats.craft / 500 - eff(t, 'conceal') * 0.5, 0.03, 0.9);
+    const deduceP = (c, t) => clamp(0.08 + (c.clues[t.id] || 0) * 0.12 + effO(c, 'reveal', t) + effO(c, 'intel', t) * 0.5 + c.master.stats.craft / 500 - effO(t, 'conceal', c) * 0.5, 0.03, 0.9);
 
     // はぐれサーヴァント（c）と、サーヴァントを失ったマスター（m）の再契約
     function contract(c, m, how) {
@@ -1218,7 +1232,7 @@
       else if (k === 'move') { for (const t of camps) if (t !== c) t.knowLoc.delete(c.id); const np = pick(W.places.filter(p => p.name !== c.base.name)); c.base = np; c.workshop = 0; log('council', `${mn(c)}は拠点を「${np.name}」へ移した。`, [c.id]); }
       else if (k.startsWith('ally:')) {
         const t = camps[+k.split(':')[1]];
-        if (canPact(c, t, active()) && chance(clamp(0.25 + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.85))) { const m = formPact(c, t); log('ally', `${mn(t)}は申し出を受けた。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true }); }
+        if (canPact(c, t, active()) && chance(clamp(0.25 + effO(c, 'negotiate', t) + effO(t, 'negotiate', c) * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.85))) { const m = formPact(c, t); log('ally', `${mn(t)}は申し出を受けた。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true }); }
         else log('council', `${mn(t)}は申し出を断った。`, [c.id, t.id]);
       } else if (k === 'betray') { const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
       else if (k.startsWith('deduce:')) {
@@ -1228,7 +1242,7 @@
       } else if (k === 'familiar') {
         c.mana -= 20;
         const t = pick(enemies.filter(x => !c.knowLoc.has(x.id)));
-        if (t && chance(clamp(0.45 + eff(c, 'intel') + eff(c, 'craft') * 0.5 + c.master.stats.craft / 400 - eff(t, 'stealth') * 0.5, 0.1, 0.9))) { c.knowLoc.add(t.id); log('scout', `放った使い魔が、${t.label}の拠点「${t.base.name}」を見つけた。`, [c.id, t.id]); }
+        if (t && chance(clamp(0.45 + effO(c, 'intel', t) + eff(c, 'craft') * 0.5 + c.master.stats.craft / 400 - effO(t, 'stealth', c) * 0.5, 0.1, 0.9))) { c.knowLoc.add(t.id); log('scout', `放った使い魔が、${t.label}の拠点「${t.base.name}」を見つけた。`, [c.id, t.id]); }
         else log('council', '使い魔は手がかりを持ち帰れなかった。', [c.id]);
       } else if (k === 'recover') { c.mana = c.manaMax; c.hp = Math.min(100, c.hp + 30); c.restNight = true; log('council', `${sn(c)}は霊脈の上で力を蓄えた。`, [c.id]); }
     }
@@ -1327,9 +1341,9 @@
     function* doAct(c, act, alive) {
       if (act === 'scout') {
         const t = pick(alive.filter(x => x !== c && x.alive)); if (!t) return;
-        if (chance(clamp(0.35 + eff(c, 'intel') + eff(c, 'detect') * 0.5 - eff(t, 'stealth') * 0.6 + FX.mCraftScout * md(c, 'craft'), 0.05, 0.9))) {
+        if (chance(clamp(0.35 + effO(c, 'intel', t) + effO(c, 'detect', t) * 0.5 - effO(t, 'stealth', c) * 0.6 + FX.mCraftScout * md(c, 'craft'), 0.05, 0.9))) {
           const newLoc = !c.knowLoc.has(t.id); learnLoc(c, t);
-          const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + eff(c, 'reveal') + eff(c, 'intel') * 0.3 - eff(t, 'conceal') * 0.6, 0, 0.7));
+          const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + effO(c, 'reveal', t) + effO(c, 'intel', t) * 0.3 - effO(t, 'conceal', c) * 0.6, 0, 0.7));
           if (nameHit) c.knowName.add(t.id); else clue(c, t, 1);
           for (const y of allies(c)) { learnLoc(y, t); if (nameHit) y.knowName.add(t.id); }
           if (c.you && (newLoc || nameHit)) log('scout', `偵察の結果、${t.label}の拠点は「${t.base.name}」だと突き止めた。` + (nameHit ? `さらに真名が「${t.sv.trueName}」だと分かった。` : ''), [c.id, t.id]);
@@ -1353,7 +1367,7 @@
         // 包囲網：勝ちすぎている陣営には持ちかけない
         const cand = leader && leader !== c && cand0.some(x => x !== leader) ? cand0.filter(x => x !== leader) : cand0;
         const t = pick(cand);
-        const p = clamp(ENG.allyAccept + eff(c, 'negotiate') + eff(t, 'negotiate') * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + perv(t, 'ally') + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.8);
+        const p = clamp(ENG.allyAccept + effO(c, 'negotiate', t) + effO(t, 'negotiate', c) * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + perv(t, 'ally') + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.8);
         // 申し込まれた側がプレイヤーなら、受けるかどうかを聞く
         const accept = t.you ? (yield* ask(t, 'ally', {
           title: '同盟の申し出',
@@ -1420,20 +1434,20 @@
         if (h.targetPref != null && !camps[h.targetPref].alive) h.targetPref = null;
         const assault = h.assault != null && t.id === h.assault;
         h.assault = null;
-        const pf = assault ? 0.95 : clamp(ENG.findBase + eff(h, 'detect') * ENG.detectFind + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - eff(t, 'stealth') * 0.7 - Math.max(0, eff(t, 'detect')) * ENG.detectWary - (t.hidden ? 0.2 : 0)
+        const pf = assault ? 0.95 : clamp(ENG.findBase + effO(h, 'detect', t) * ENG.detectFind + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - effO(t, 'stealth', h) * 0.7 - Math.max(0, effO(t, 'detect', h)) * ENG.detectWary - (t.hidden ? 0.2 : 0)
           + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck') - (tonight.fog ? 0.15 : 0), 0.05, 0.95);
         if (!chance(pf)) { if (h.you) log('night', line('huntMiss', { S: sn(h) }), [h.id]); continue; }
         any = true;
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
         if (!home) learnLoc(t, h);
-        if (home && t.masterAlive && chance(Math.min(0.6, eff(h, 'anti_master') * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
+        if (home && t.masterAlive && chance(Math.min(0.6, effO(h, 'anti_master', t) * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
           h.fought = t.fought = true;
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
         if (assault) { h.surprise = h.betray ? 0.2 : 0.15; h.betray = false; }
         // 索敵：先に相手を見つけたぶん、有利な形で仕掛けられる（相手の索敵が高ければ打ち消される）
-        else { const dt = eff(h, 'detect') - eff(t, 'detect') * 0.5; if (dt > 0) h.surprise = (h.surprise || 0) + Math.min(ENG.detectEdgeCap, dt * ENG.detectEdge); }
+        else { const dt = effO(h, 'detect', t) - effO(t, 'detect', h) * 0.5; if (dt > 0) h.surprise = (h.surprise || 0) + Math.min(ENG.detectEdgeCap, dt * ENG.detectEdge); }
         // 同盟相手が加勢に来ることがある（拠点を守る戦いや、同じ夜に出ている味方ほど来やすい。統率で上がる）
         const helpA = joinAlly(h, t, home), helpB = joinAlly(t, h, home);
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain, helpA, helpB });
