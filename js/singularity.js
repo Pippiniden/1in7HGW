@@ -552,7 +552,7 @@
       if (!boss) { P.cleared = true; return; }
       A.pubName.add(boss.id); P.seen.add(boss.id);
       const intro = boss.bs.intro || (boss.empowered ? `聖杯の力をその身に取り込み、${boss.sv.trueName}が特異点の主として姿を現した。` : `特異点の主、${boss.sv.trueName}が姿を現した。`);
-      A.log('event', `七騎の英霊はすべて倒れた。歪みの中心から、圧倒的な魔力が立ち上る——${intro}`, [boss.id], { big: true, head: true, quote: A.say(boss, ['開始', '召喚']) });
+      A.log('event', L.foes.length ? `七騎の英霊はすべて倒れた。歪みの中心から、圧倒的な魔力が立ち上る——${intro}` : `歪みの中心から、圧倒的な魔力が立ち上る——${intro}`, [boss.id], { big: true, head: true, quote: A.say(boss, ['開始', '召喚']) });
     }
 
     // ---------- 昼 ----------
@@ -828,7 +828,8 @@
   function gen(opts) {
     opts = Object.assign({}, opts);
     opts.seed = opts.seed || Math.random().toString(36).slice(2, 8);
-    const lineup = opts.lineup || compose(opts);
+    let lineup = opts.lineup || compose(opts);
+    if (opts.skipFoes) lineup = Object.assign({}, lineup, { foes: [] });   // 敵七騎を飛ばして、最初からボス（ボスの試しなど）
     const plugin = makePlugin(opts, lineup);
     const S = Object.assign({}, G.CONFIG.SING, opts.sing || {});
     return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, playerName: opts.playerName, engine: { knowNameMult: S.knowNameMult } });
@@ -841,5 +842,27 @@
     return r.value;
   }
 
-  G.singularity = { compose, gen, run, prepareBoss, prepareBosses, bossFromRoster, FOCUS, FOCUS_BY_CODE, SIDE_JA };
+  // ---------- ボスの試し（リストツール用） ----------
+  // 指定のボスと、毎回ランダムな味方の六騎で全自動の特異点を回し、人理修復の成功率などを数える。
+  //   o: { roster, boss（ボス専用の英霊。名簿のものは bossFromRoster 済みでなくてもよい）, n, fresh（true：敵七騎を飛ばしてボス戦だけ／false：七騎を倒して消耗したままボスへ）, seedBase, sing, days, focus }
+  function bossTrialOne(o, i) {
+    const boss = o.boss.boss ? o.boss : bossFromRoster(JSON.parse(JSON.stringify(o.boss)));
+    const r = run({ roster: o.roster, bosses: [boss], seed: (o.seedBase || 'bt') + i, picks: { boss: boss.id }, skipFoes: !!o.fresh, sing: o.sing, days: o.days, focus: o.focus });
+    const alive = (r.party || []).filter(c => c.alive).length;
+    return { ending: r.ending, stage: r.stage, days: r.days, slain: r.slain, alive, size: (r.party || []).length, gauges: r.boss ? r.boss.gauges : 0, gaugeMax: r.boss ? r.boss.gaugeMax : 0, cs: r.cs };
+  }
+  function emptyTrial() { return { n: 0, errors: 0, clear: 0, wipe: 0, master: 0, timeout: 0, reach: 0, days: [], alive: 0, size: 0, gaugeLeft: 0, gaugeMax: 0, cs: 0 }; }
+  function addTrial(t, x) {
+    t.n++; if (!x) { t.errors++; return t; }
+    t[x.ending] = (t[x.ending] || 0) + 1; if (x.stage === 'boss') t.reach++;
+    t.days.push(x.days); t.alive += x.alive; t.size += x.size; t.gaugeLeft += x.ending === 'clear' ? 0 : x.gauges; t.gaugeMax += x.gaugeMax; t.cs += x.cs;
+    return t;
+  }
+  function bossTrial(o) {
+    const t = emptyTrial();
+    for (let i = 0; i < (o.n || 100); i++) { let x = null; try { x = bossTrialOne(o, i); } catch (e) { x = null; } addTrial(t, x); }
+    return t;
+  }
+
+  G.singularity = { compose, gen, run, bossTrialOne, emptyTrial, addTrial, bossTrial, prepareBoss, prepareBosses, bossFromRoster, FOCUS, FOCUS_BY_CODE, SIDE_JA };
 })(globalThis.HGW = globalThis.HGW || {});
