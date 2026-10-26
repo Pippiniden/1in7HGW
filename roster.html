@@ -1748,7 +1748,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- 内容の編集（スキル・宝具・セリフ・解説・プロフィール・因縁） ----------
   // 直した内容は E.CONTENT_OVERRIDES['真名'] に項目ごとに入る（Wikiと同じに戻した項目は入れない）
-  const CT_TABS = [['skills', 'スキル'], ['nps', '宝具'], ['voice', 'セリフ'], ['text', '解説・人物'], ['profile', 'プロフィール・因縁']];
+  const CT_TABS = [['facts', '基本情報'], ['skills', 'スキル'], ['nps', '宝具'], ['weapons', '武装'], ['voice', 'セリフ'], ['text', '解説・人物'], ['profile', 'プロフィール・因縁']];
+  const FACT_JA = [['origin', '元ネタ（史実・神話など）'], ['sex', '性別'], ['alignment', '属性'], ['attribute', '天地人属性']];
+  const listText = a => (a || []).join('、'), readList = t => String(t).split(/[、,，/／]+/).map(x => x.trim()).filter(Boolean);
   const TEXT_JA = { commentary: '解説', personality: '人物・性格', comment: 'コメント', other: 'その他' };
   const PROF_JA = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
   let ct = null; // { sv, wiki, tab }
@@ -1778,6 +1780,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <textarea data-f="desc" placeholder="説明（攻撃か補助か・効果の推定に使います）">${esc(n.desc)}</textarea>`;
     return d;
   }
+  function weaponCard(w) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = `<div class="line np"><input type="text" data-f="name" value="${esc(w.name)}" placeholder="武装名"><input type="text" data-f="reading" value="${esc(w.reading)}" placeholder="読み"><span></span><button class="sm ghost danger" data-rm title="この武装を消す">×</button></div><textarea data-f="desc" placeholder="説明">${esc(w.desc)}</textarea>`;
+    return d;
+  }
   // 1つのタブの中身を作る（val を渡すとその内容で、無ければ今の内容で）
   function ctPanel(tab, val) {
     const p = $(`#ctBody [data-p="${tab}"]`);
@@ -1785,10 +1792,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const moved = ct.sv.review.filter(r => r.kind === 'content' && (r.target === B.CONTENT_JA[tab] || (tab === 'profile' && r.target === B.CONTENT_JA.relations)));
     const note = (moved.length ? `<p class="ctnote warn">手直しした後にWikiの内容が変わっています。「Wikiの内容に戻す」で今のWikiの内容を読み込めます。</p>` : changed ? '<p class="ctnote hint">手直し中（Wikiの内容の代わりに使っています）</p>' : '<p class="ctnote hint">Wikiから読んだままの内容です</p>');
     const foot = (add) => `<div class="row">${add || ''}<button class="sm ghost" data-wiki="${tab}">Wikiの内容に戻す</button></div>`;
-    if (tab === 'skills' || tab === 'nps') {
-      p.innerHTML = note + (tab === 'skills' ? '<p class="ctnote hint">別の表を二重に読んだスキルや、関係ないスキルは × で消せます。名前を変えると、そのスキルに付けた効果の手直しは外れます。</p>' : '') + '<div class="lst"></div>' + foot(`<button class="sm" data-add="${tab}">＋ ${tab === 'skills' ? 'スキル' : '宝具'}を追加</button>`);
+    if (tab === 'skills' || tab === 'nps' || tab === 'weapons') {
+      const ja = { skills: 'スキル', nps: '宝具', weapons: '武装' }[tab], mk = { skills: skillCard, nps: npCard, weapons: weaponCard }[tab];
+      p.innerHTML = note + (tab === 'skills' ? '<p class="ctnote hint">別の表を二重に読んだスキルや、関係ないスキルは × で消せます。名前を変えると、そのスキルに付けた効果の手直しは外れます。</p>' : '') + '<div class="lst"></div>' + foot(`<button class="sm" data-add="${tab}">＋ ${ja}を追加</button>`);
       const lst = p.querySelector('.lst');
-      for (const x of val || ctNow(tab)) lst.appendChild(tab === 'skills' ? skillCard(x) : npCard(x));
+      for (const x of val || ctNow(tab)) lst.appendChild(mk(x));
+    } else if (tab === 'facts') {
+      const f = val || ctNow('facts');
+      p.innerHTML = note + '<p class="ctnote hint">図鑑の「元ネタ」「属性」などの欄です。異名と特性は「、」で区切ります（特性は 特攻の判定に使われます）。</p>'
+        + `<div class="pgrid">${FACT_JA.map(([k, ja]) => `<label class="f">${ja}<input type="text" data-k="${k}" value="${esc(f[k] || '')}"></label>`).join('')}</div>`
+        + `<label class="f">異名（「、」区切り）<input type="text" data-l="aliases" value="${esc(listText(f.aliases))}"></label>`
+        + `<label class="f">特性（「、」区切り）<input type="text" data-l="traits" value="${esc(listText(f.traits))}"></label>`
+        + `<div class="pgrid">${B.INFO_SHOWN.map(k => `<label class="f">${esc(k)}<input type="text" data-ik="${esc(k)}" value="${esc((f.info || {})[k] || '')}"></label>`).join('')}</div>` + foot();
     } else if (tab === 'voice') {
       p.innerHTML = note + '<div class="vbox"></div>' + foot();
       VE.mount(p.querySelector('.vbox'), val || ctNow('voice'), { nps: ct.sv.nps });
@@ -1808,6 +1823,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const out = {};
     out.skills = cards('skills').map(o => ({ group: o.group === 'class' ? 'class' : 'own', name: o.name, rankRaw: o.rankRaw, desc: o.desc }));
     out.nps = cards('nps').map(o => ({ name: o.name, reading: o.reading, rankRaw: o.rankRaw, typeRaw: o.typeRaw, rangeRaw: o.rangeRaw, maxRaw: o.maxRaw, desc: o.desc }));
+    out.weapons = cards('weapons').map(o => ({ name: o.name, reading: o.reading, desc: o.desc }));
+    out.facts = Object.assign({}, ctNow('facts'), { info: {} });
+    P('facts').querySelectorAll('input[data-k]').forEach(t => { out.facts[t.dataset.k] = t.value.trim(); });
+    P('facts').querySelectorAll('input[data-l]').forEach(t => { out.facts[t.dataset.l] = readList(t.value); });
+    P('facts').querySelectorAll('input[data-ik]').forEach(t => { const x = t.value.trim(); if (x) out.facts.info[t.dataset.ik] = x; });
     const v = VE.read(P('voice').querySelector('.vbox')); out.voice = v.voice;
     out.text = Object.assign({}, ctNow('text')); P('text').querySelectorAll('textarea[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.text[t.dataset.k] = x; else delete out.text[t.dataset.k]; });
     out.profile = Object.assign({}, ctNow('profile')); P('profile').querySelectorAll('input[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.profile[t.dataset.k] = x; else delete out.profile[t.dataset.k]; });
@@ -1836,7 +1856,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#ctBody').addEventListener('click', e => {
     const rm = e.target.closest('[data-rm]'); if (rm) { rm.closest('.card').remove(); return; }
     const add = e.target.closest('[data-add]');
-    if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
+    if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : add.dataset.add === 'weapons' ? weaponCard({ name: '', reading: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
     const w = e.target.closest('[data-wiki]');
     if (w) { const t = w.dataset.wiki; ctPanel(t, t === 'profile' ? { profile: ctWiki('profile'), relations: ctWiki('relations') } : ctWiki(t)); }
   });

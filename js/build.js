@@ -15,8 +15,10 @@
   // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、リストツールで直した内容に差し替える。
   // 差し替えた項目の Wiki の値は sv._wiki に取っておく（リストに保存したあとでも元に戻せるように）。
   // 公開用のデータ（toLean）は Wiki の値で書き出し、手直しは overrides.json の content に入る。
-  const CONTENT_SECTIONS = { skills: ['classSkills', 'skills'], nps: ['nps'], voice: ['voice'], text: ['text'], profile: ['profile'], relations: ['relations'] };
-  const CONTENT_JA = { identity: '真名・クラス', skills: 'スキル', nps: '宝具', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
+  const CONTENT_SECTIONS = { facts: ['origin', 'sex', 'alignment', 'attribute', 'traits', 'aliases', 'info'], skills: ['classSkills', 'skills'], nps: ['nps'], weapons: ['weapons'], voice: ['voice'], text: ['text'], profile: ['profile'], relations: ['relations'] };
+  const CONTENT_JA = { identity: '真名・クラス', facts: '基本情報', skills: 'スキル', nps: '宝具', weapons: '武装', voice: 'セリフ', text: '解説・人物', profile: 'プロフィール', relations: '因縁' };
+  /** 図鑑に出す 【key】 の項目（基本情報の編集でも同じものを扱う。これ以外の info は手直しの対象外） */
+  const INFO_SHOWN = ['出典', '原典', '地域', '年代', '身長・体重', '身長', 'スリーサイズ', '髪色', '瞳色', '肌色', '外見・容姿', '容姿'];
   // 真名・クラスの手直し（CONTENT_OVERRIDES['Wikiの真名'].identity = { trueName?, cls? }）。
   //   内容の手直し表は Wiki の真名で引く。ほかの表（効果・ステータス・宝具の扱い・ページ名）は直したあとの真名で引く。
   const clone = x => x == null ? x : JSON.parse(JSON.stringify(x));
@@ -80,6 +82,11 @@
     if (sec === 'skills') return (sv.classSkills || []).map(s => sk('class', s)).concat((sv.skills || []).map(s => sk('own', s)));
     if (sec === 'nps') return (sv.nps || []).map(n => ({ name: n.name || '', reading: n.reading || '', rankRaw: n.rankRaw || '', typeRaw: n.typeRaw || '', rangeRaw: n.rangeRaw || '', maxRaw: n.maxRaw || '', desc: n.desc || '' }));
     if (sec === 'relations') return clone(sv.relations || []);
+    if (sec === 'weapons') return (sv.weapons || []).map(w => ({ name: w.name || '', reading: w.reading || '', desc: w.desc || '' }));
+    if (sec === 'facts') {
+      const info = {}; for (const k of INFO_SHOWN) if (sv.info && sv.info[k]) info[k] = sv.info[k];
+      return { origin: sv.origin || '', sex: sv.sex || '', alignment: sv.alignment || '', attribute: sv.attribute || '', aliases: (sv.aliases || []).slice(), traits: (sv.traits || []).slice(), info };
+    }
     return clone(sv[sec] || {});
   }
   function hashOf(x) { const s = JSON.stringify(x); let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); }
@@ -112,7 +119,15 @@
         sv.classSkills = c.skills.filter(s => s.group === 'class').map(mkSkill).filter(s => s.name);
         sv.skills = c.skills.filter(s => s.group !== 'class').map(mkSkill).filter(s => s.name);
       } else if (sec === 'nps') sv.nps = c.nps.map(mkNP).filter(n => n.name);
-      else sv[sec] = clone(c[sec]);
+      else if (sec === 'weapons') sv.weapons = c.weapons.map(w => ({ name: String(w.name || '').trim(), reading: String(w.reading || '').trim(), desc: String(w.desc || '') })).filter(w => w.name);
+      else if (sec === 'facts') {
+        const f = c.facts;
+        for (const k of ['origin', 'sex', 'alignment', 'attribute']) sv[k] = String(f[k] || '').trim();
+        sv.aliases = (f.aliases || []).map(x => String(x).trim()).filter(Boolean);
+        sv.traits = (f.traits || []).map(x => String(x).trim()).filter(Boolean);
+        const info = Object.assign({}, sv.info); for (const k of INFO_SHOWN) delete info[k];
+        sv.info = Object.assign(info, f.info || {});
+      } else sv[sec] = clone(c[sec]);
       done.push(sec);
     }
     if (done.length) { sv._wiki = wiki; G.parser.finalize(sv); }
@@ -499,5 +514,5 @@
     return { head: head.trim(), rest: parts.slice(i).join('').trim() };
   }
   G.build = { loreText, loreLead, leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
-    CONTENT_SECTIONS, CONTENT_JA, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
+    CONTENT_SECTIONS, CONTENT_JA, INFO_SHOWN, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});
