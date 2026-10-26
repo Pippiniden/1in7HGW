@@ -1578,9 +1578,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       E.SKILL_OVERRIDES[k.global] = specs; delete E.SERVANT_OVERRIDES[k.servant];   // この騎も全員分に従う
     } else E.SERVANT_OVERRIDES[k.servant] = specs;   // 全員に効く手直しには触らない（以前はここで消していた）
     if (edCtx.kind === 'n') {
-      const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {};
+      const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {}, was = E.NP_OVERRIDES[k.servant] || {};
       if (a !== 'auto') o.attack = a === 'yes';
       if (m !== '__auto') o.mode = m;
+      if (was.vs) o.vs = was.vs;     // 使う相手・場面の制限は、この画面では編集しないので引き継ぐ（overrides.json を直接書く）
+      if (was.cond) o.cond = was.cond;
       if (Object.keys(o).length) E.NP_OVERRIDES[k.servant] = o; else delete E.NP_OVERRIDES[k.servant];
     }
     $('#ed').close(); afterEdit();

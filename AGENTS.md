@@ -153,7 +153,7 @@ overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each 
 | `global` → `SKILL_OVERRIDES` | `'skillName'` → `[[effectId, factor, params?], …]` (all servants) |
 | `servant` → `SERVANT_OVERRIDES` | `'trueName/skillOrNpName'` → specs (`[]` = no effects) |
 | `stats` → `STAT_OVERRIDES` | `'trueName'` → `{ str:'B', … }` |
-| `np` → `NP_OVERRIDES` | `'trueName/npName'` → `{ attack?: bool, mode?: ''｜always｜start｜win｜lose｜pinch｜lethal }` |
+| `np` → `NP_OVERRIDES` | `'trueName/npName'` → `{ attack?: bool, mode?: ''｜always｜start｜win｜lose｜pinch｜lethal, vs?: '男性', cond?: '夜' }` (`vs`/`cond` = the NP can only be used against an opponent with that tag / in that place or time, `condOk` rules; hand-written in the JSON, `np.useIf`, checked in `useNP`/`openingNP`/`autoNP`) |
 | `content` → `CONTENT_OVERRIDES` | `'wikiTrueName'` → `{ skills?, nps?, voice?, text?, profile?, relations?, identity?, base }` (4.5) |
 | `pages` → `PAGE_OVERRIDES` | `'trueName'` → kagemiya page name (when the title differs from the true name), **or an `http(s)://` URL** = a non-kagemiya link (`B.linkOf`); such servants, and lean servants with `manual: true` (made from scratch in roster's 「英霊を一から作る」, `leanFromSpec({ plain: true })`), are skipped by `kagemiya.js refresh` (`B.isManual`) |
 | `reviewed` → `REVIEWED` | `'trueName'` → review sigs the owner checked off; items whose `B.reviewSig` matches go to `sv.reviewDone` and are ignored by counts/filters; a changed rank/description/reason makes a new sig |

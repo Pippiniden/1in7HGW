@@ -5572,7 +5572,11 @@
    "attack": false
   },
   "ブリュンヒルト/怒り奮え、情愛の破断": {
-   "attack": false
+   "attack": false,
+   "vs": "男性"
+  },
+  "ダナイデス/褥を濡らすは花嫁の蒼": {
+   "vs": "男性"
   },
   "聖ホワイト/神よ、我が愛を見守りたまえ": {
    "attack": false,
@@ -5629,7 +5633,8 @@
    "attack": true
   },
   "ヴラド三世/竜血君主": {
-   "attack": false
+   "attack": false,
+   "cond": "夜"
   },
   "ベンジャミン・ホーニゴールド/海賊共和国": {
    "attack": false
