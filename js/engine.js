@@ -248,6 +248,9 @@
       return true;
     };
     // 使える相手・場面が決まっている宝具（NP_OVERRIDES の vs／cond → np.useIf）。AI が選ぶときも、先手・自動で放つときも見る
+    // 陣地の段階（工房）。ws_up はその戦いの間だけ段階を上げ、拠点でなくても足した分の陣地として戦える。上限5（c.workshop は変えない）
+    const wsUp = (c, T) => Math.round(eff(c, 'ws_up', T));
+    const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, 5) : 0; };
     const npUsable = (c, n, o, terrain) => !n.useIf || condOk(c, n.useIf, terrain, o);
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
@@ -367,6 +370,12 @@
       if (id === 'heal') { const v = Math.min(mag, 100 - c.hp); if (v > 0) { c.hp += v; say(`${sn(c)}の${src}が、傷ついた霊基を癒やした。`); } return; }
       if (id === 'drain_hp') { if (!o || !o.alive) return; const v = Math.min(mag, Math.max(0, o.hp - 1)); if (v > 0) { o.hp -= v; c.hp = Math.min(100, c.hp + v); say(`${sn(c)}の${src}が、${sn(o)}の霊基を吸い上げた。`); } return; }
       if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${sn(c)}の${src}が、魔力を満たした。`); } return; }
+      if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
+        if (!o || o.workshop == null) return;
+        const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, 5);
+        if (o.workshop < before) say(`${sn(c)}の${src}が、${sn(o)}の陣地を打ち崩した。`);
+        return;
+      }
       if (id === 'drain_mana') { if (!o) return; const v = Math.min(mag, Math.max(0, o.mana)); if (v > 0) { o.mana -= v; c.mana = Math.min(c.manaMax, c.mana + v); say(`${sn(c)}の${src}が、${sn(o)}の魔力を奪い取った。`); } return; }
       if (id === 'strip') {
         // 効果を指定したもの（params.eff）：相手のその効果を、常に持っている分も含めてその戦いの間止める
@@ -518,7 +527,7 @@
       const selfDeb = eff(c, 'debuff', T, true) + eff(c, 'debuff_mind', T, true) + eff(c, 'debuff_body', T, true);
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
       if (c.wither || c.witherSelf || c.witherFix) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0) + (c.witherFix || 0));
-      if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
+      if (ctx.home === c || wsUp(c, T)) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.05;   // 拠点か、陣地の段階を上げる効果（ws_up）を持つとき
       if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
@@ -932,7 +941,7 @@
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
         if (l.masterAlive && w.alive && !l.noMaster) {   // noMaster：特異点の敵（聖杯が呼んだ英霊）には狙えるマスターがいない
-          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0) + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
+          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + wsStage(l, ctx) * 0.04 + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
           if (chance(Math.min(0.15, pm))) {
             l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
             if (l.mhp <= 0) {
