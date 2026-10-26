@@ -567,6 +567,20 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   </div>
 </dialog>
 
+<dialog id="bt">
+  <h3 id="btTitle"></h3>
+  <p class="hint" style="margin:0">このボスと、毎回ランダムな味方の六騎（ボス専用を除く手元のリストから）で、全自動の特異点を何度も回します。ボスの設定や手直しはその場の内容のままです。</p>
+  <div class="bfields">
+    <label>回数<input type="number" id="btN" min="10" max="2000" step="10" value="100"></label>
+    <label style="grid-column:span 2">味方の状態<select id="btFresh"><option value="1">万全（敵七騎を飛ばして、ボス戦だけ）</option><option value="0">消耗あり（敵七騎を倒したあとにボスへ）</option></select></label>
+  </div>
+  <div id="btOut" class="hint odds" style="min-height:4em"></div>
+  <div class="row">
+    <button class="primary" id="btRun">試す</button>
+    <button id="btStop" disabled>止める</button>
+    <button class="ghost" id="btClose">閉じる</button>
+  </div>
+</dialog>
 <dialog id="bp">
   <h3 id="bpTitle"></h3>
   <p class="hint" style="margin:0">空欄の項目は、特異点攻略の既定の値を使います（灰色の数字）。</p>
@@ -634,6 +648,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <script src="js/engine.js"></script>
 <script src="js/survival.js"></script>
 <script src="js/simlab.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/singularity.js"></script>
 <script>
 (function () {
   'use strict';
@@ -770,7 +786,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button><button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">設定元リンク</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
@@ -1221,6 +1237,44 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (Object.keys(o).length) E.BOSS_PARAMS[E.okey(bpCtx)] = o; else delete E.BOSS_PARAMS[E.okey(bpCtx)];
     $('#bp').close(); afterEdit(); status(`${bpCtx.trueName}のボスの設定を保存しました`);
   };
+
+  // ボスを試す：このボスと毎回ランダムな味方の六騎で、全自動の特異点（js/singularity.js）をたくさん回す
+  let btSv = null, btRun = null;
+  function btShow(t, run) {
+    const ok = Math.max(1, t.n - t.errors), pc = x => Math.round(x / ok * 100) + '%', d = t.days.slice().sort((a, b) => a - b);
+    $('#btOut').innerHTML = t.n ? `<div><span class="big">${pc(t.clear)}</span> 人理修復（ボスを倒す）${run ? '　…試し中 ' + t.n + '回' : '　' + ok + '回'}</div><div class="meter"><i style="width:${t.clear / ok * 100}%"></i></div>`
+      + `<div>全滅 ${pc(t.wipe)}　マスター死亡 ${pc(t.master)}　期限切れ ${pc(t.timeout)}${$('#btFresh').value === '0' ? '　ボスに至った  ' + pc(t.reach) : ''}</div>`
+      + `<div>終わりまでの日数（中央）${d[d.length >> 1] || '—'}日　生き残り平均 ${(t.alive / ok).toFixed(1)}/${(t.size / ok).toFixed(1)}騎${t.clear < ok && t.gaugeMax ? '　倒せなかったときのゲージ残り  ' + Math.round(t.gaugeLeft / Math.max(1, ok - t.clear)) + '/' + Math.round(t.gaugeMax / ok) : ''}${t.errors ? '　エラー ' + t.errors + '回' : ''}</div>` : '';
+  }
+  function btStart() {
+    if (!btSv || btRun) return;
+    const n = Math.max(10, Math.min(2000, +$('#btN').value || 100)), fresh = $('#btFresh').value === '1', t = H.singularity.emptyTrial();
+    const party = roster.filter(s => !s.bossOnly);
+    if (party.length < 6) { $('#btOut').textContent = '味方にできる英霊が6騎に足りません'; return; }
+    btRun = { stop: false };
+    $('#btRun').disabled = true; $('#btStop').disabled = false;
+    let i = 0;
+    const step = () => {
+      const t0 = Date.now();
+      while (i < n && Date.now() - t0 < 80 && !btRun.stop) {
+        let x = null; try { x = H.singularity.bossTrialOne({ roster, boss: btSv, fresh }, i); } catch (e) { x = null; }
+        H.singularity.addTrial(t, x); i++;
+      }
+      const run = i < n && !btRun.stop;
+      btShow(t, run);
+      if (run) setTimeout(step, 0); else { btRun = null; $('#btRun').disabled = false; $('#btStop').disabled = true; }
+    };
+    step();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-bt]'); if (!b) return;
+    btSv = roster[+b.dataset.bt]; if (!btSv) return;
+    $('#btTitle').textContent = `${btSv.trueName} を試す`; $('#btOut').innerHTML = ''; $('#bt').showModal();
+  });
+  $('#btRun').onclick = btStart;
+  $('#btStop').onclick = () => { if (btRun) btRun.stop = true; };
+  $('#btClose').onclick = () => { if (btRun) btRun.stop = true; $('#bt').close(); };
+  $('#bt').addEventListener('close', () => { if (btRun) btRun.stop = true; });
 
   // ---------- 試し戦い ----------
   let cmpA = null, cmpB = null;

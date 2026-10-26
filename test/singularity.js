@@ -93,7 +93,14 @@ for (let i = 0; i < Math.min(60, n); i++) {
   } catch (e) { ierr++; if (ierr < 4) console.error(e); }
 }
 console.log({ interactive: Math.min(60, n), ierr, mismatch, asksPerRun: (asks / Math.min(60, n) / 2).toFixed(1) });
-if (errs || ierr || mismatch) process.exitCode = 1;
+// ボスの試し（リストツールの「ボスを試す」）：万全なら必ずボス戦から始まり、消耗ありはそこへ至るまでに減る
+let terr = 0;
+if (bosses.length) {
+  const a = H.singularity.bossTrial({ roster, boss: bosses[0], n: 20, fresh: true }), b = H.singularity.bossTrial({ roster, boss: bosses[0], n: 20, fresh: false });
+  terr = a.errors + b.errors + (a.reach === a.n - a.errors ? 0 : 1) + (b.reach <= b.n ? 0 : 1);
+  console.log({ bossTrial: bosses[0].trueName, fresh: { clear: a.clear, reach: a.reach, n: a.n }, worn: { clear: b.clear, reach: b.reach, n: b.n }, terr });
+}
+if (errs || ierr || mismatch || terr) process.exitCode = 1;
 
 // 考えて動くプレイヤーの例（--smart）：傷が浅いうちに休み、ボスの前に令呪で魔力を満たし、全滅に備えて令呪を残す。
 // おまかせより成功率が上がるか（＝方針に意味があるか）を見る
