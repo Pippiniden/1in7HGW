@@ -567,6 +567,20 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   </div>
 </dialog>
 
+<dialog id="bt">
+  <h3 id="btTitle"></h3>
+  <p class="hint" style="margin:0">このボスと、毎回ランダムな味方の六騎（ボス専用を除く手元のリストから）で、全自動の特異点を何度も回します。ボスの設定や手直しはその場の内容のままです。</p>
+  <div class="bfields">
+    <label>回数<input type="number" id="btN" min="10" max="2000" step="10" value="100"></label>
+    <label style="grid-column:span 2">味方の状態<select id="btFresh"><option value="1">万全（敵七騎を飛ばして、ボス戦だけ）</option><option value="0">消耗あり（敵七騎を倒したあとにボスへ）</option></select></label>
+  </div>
+  <div id="btOut" class="hint odds" style="min-height:4em"></div>
+  <div class="row">
+    <button class="primary" id="btRun">試す</button>
+    <button id="btStop" disabled>止める</button>
+    <button class="ghost" id="btClose">閉じる</button>
+  </div>
+</dialog>
 <dialog id="bp">
   <h3 id="bpTitle"></h3>
   <p class="hint" style="margin:0">空欄の項目は、特異点攻略の既定の値を使います（灰色の数字）。</p>
@@ -634,6 +648,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <script src="js/engine.js"></script>
 <script src="js/survival.js"></script>
 <script src="js/simlab.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/singularity.js"></script>
 <script>
 (function () {
   'use strict';
@@ -770,7 +786,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button><button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">設定元リンク</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
@@ -1222,6 +1238,44 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#bp').close(); afterEdit(); status(`${bpCtx.trueName}のボスの設定を保存しました`);
   };
 
+  // ボスを試す：このボスと毎回ランダムな味方の六騎で、全自動の特異点（js/singularity.js）をたくさん回す
+  let btSv = null, btRun = null;
+  function btShow(t, run) {
+    const ok = Math.max(1, t.n - t.errors), pc = x => Math.round(x / ok * 100) + '%', d = t.days.slice().sort((a, b) => a - b);
+    $('#btOut').innerHTML = t.n ? `<div><span class="big">${pc(t.clear)}</span> 人理修復（ボスを倒す）${run ? '　…試し中 ' + t.n + '回' : '　' + ok + '回'}</div><div class="meter"><i style="width:${t.clear / ok * 100}%"></i></div>`
+      + `<div>全滅 ${pc(t.wipe)}　マスター死亡 ${pc(t.master)}　期限切れ ${pc(t.timeout)}${$('#btFresh').value === '0' ? '　ボスに至った  ' + pc(t.reach) : ''}</div>`
+      + `<div>終わりまでの日数（中央）${d[d.length >> 1] || '—'}日　生き残り平均 ${(t.alive / ok).toFixed(1)}/${(t.size / ok).toFixed(1)}騎${t.clear < ok && t.gaugeMax ? '　倒せなかったときのゲージ残り  ' + Math.round(t.gaugeLeft / Math.max(1, ok - t.clear)) + '/' + Math.round(t.gaugeMax / ok) : ''}${t.errors ? '　エラー ' + t.errors + '回' : ''}</div>` : '';
+  }
+  function btStart() {
+    if (!btSv || btRun) return;
+    const n = Math.max(10, Math.min(2000, +$('#btN').value || 100)), fresh = $('#btFresh').value === '1', t = H.singularity.emptyTrial();
+    const party = roster.filter(s => !s.bossOnly);
+    if (party.length < 6) { $('#btOut').textContent = '味方にできる英霊が6騎に足りません'; return; }
+    btRun = { stop: false };
+    $('#btRun').disabled = true; $('#btStop').disabled = false;
+    let i = 0;
+    const step = () => {
+      const t0 = Date.now();
+      while (i < n && Date.now() - t0 < 80 && !btRun.stop) {
+        let x = null; try { x = H.singularity.bossTrialOne({ roster, boss: btSv, fresh }, i); } catch (e) { x = null; }
+        H.singularity.addTrial(t, x); i++;
+      }
+      const run = i < n && !btRun.stop;
+      btShow(t, run);
+      if (run) setTimeout(step, 0); else { btRun = null; $('#btRun').disabled = false; $('#btStop').disabled = true; }
+    };
+    step();
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-bt]'); if (!b) return;
+    btSv = roster[+b.dataset.bt]; if (!btSv) return;
+    $('#btTitle').textContent = `${btSv.trueName} を試す`; $('#btOut').innerHTML = ''; $('#bt').showModal();
+  });
+  $('#btRun').onclick = btStart;
+  $('#btStop').onclick = () => { if (btRun) btRun.stop = true; };
+  $('#btClose').onclick = () => { if (btRun) btRun.stop = true; $('#bt').close(); };
+  $('#bt').addEventListener('close', () => { if (btRun) btRun.stop = true; });
+
   // ---------- 試し戦い ----------
   let cmpA = null, cmpB = null;
   const optLabel = s => `${s.trueName}（${s.class.label}）`;
@@ -1578,9 +1632,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       E.SKILL_OVERRIDES[k.global] = specs; delete E.SERVANT_OVERRIDES[k.servant];   // この騎も全員分に従う
     } else E.SERVANT_OVERRIDES[k.servant] = specs;   // 全員に効く手直しには触らない（以前はここで消していた）
     if (edCtx.kind === 'n') {
-      const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {};
+      const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {}, was = E.NP_OVERRIDES[k.servant] || {};
       if (a !== 'auto') o.attack = a === 'yes';
       if (m !== '__auto') o.mode = m;
+      if (was.vs) o.vs = was.vs;     // 使う相手・場面の制限は、この画面では編集しないので引き継ぐ（overrides.json を直接書く）
+      if (was.cond) o.cond = was.cond;
       if (Object.keys(o).length) E.NP_OVERRIDES[k.servant] = o; else delete E.NP_OVERRIDES[k.servant];
     }
     $('#ed').close(); afterEdit();
@@ -1692,7 +1748,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 
   // ---------- 内容の編集（スキル・宝具・セリフ・解説・プロフィール・因縁） ----------
   // 直した内容は E.CONTENT_OVERRIDES['真名'] に項目ごとに入る（Wikiと同じに戻した項目は入れない）
-  const CT_TABS = [['skills', 'スキル'], ['nps', '宝具'], ['voice', 'セリフ'], ['text', '解説・人物'], ['profile', 'プロフィール・因縁']];
+  const CT_TABS = [['facts', '基本情報'], ['skills', 'スキル'], ['nps', '宝具'], ['weapons', '武装'], ['voice', 'セリフ'], ['text', '解説・人物'], ['profile', 'プロフィール・因縁']];
+  const FACT_JA = [['origin', '元ネタ（史実・神話など）'], ['sex', '性別'], ['alignment', '属性'], ['attribute', '天地人属性']];
+  const listText = a => (a || []).join('、'), readList = t => String(t).split(/[、,，/／]+/).map(x => x.trim()).filter(Boolean);
   const TEXT_JA = { commentary: '解説', personality: '人物・性格', comment: 'コメント', other: 'その他' };
   const PROF_JA = { firstPerson: '一人称', secondPerson: '二人称', thirdPerson: '三人称', imageColor: 'イメージカラー', specialty: '特技', likes: '好きなもの', dislikes: '嫌いなもの', nemesis: '天敵', wish: '願い' };
   let ct = null; // { sv, wiki, tab }
@@ -1722,6 +1780,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <textarea data-f="desc" placeholder="説明（攻撃か補助か・効果の推定に使います）">${esc(n.desc)}</textarea>`;
     return d;
   }
+  function weaponCard(w) {
+    const d = document.createElement('div'); d.className = 'card';
+    d.innerHTML = `<div class="line np"><input type="text" data-f="name" value="${esc(w.name)}" placeholder="武装名"><input type="text" data-f="reading" value="${esc(w.reading)}" placeholder="読み"><span></span><button class="sm ghost danger" data-rm title="この武装を消す">×</button></div><textarea data-f="desc" placeholder="説明">${esc(w.desc)}</textarea>`;
+    return d;
+  }
   // 1つのタブの中身を作る（val を渡すとその内容で、無ければ今の内容で）
   function ctPanel(tab, val) {
     const p = $(`#ctBody [data-p="${tab}"]`);
@@ -1729,10 +1792,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const moved = ct.sv.review.filter(r => r.kind === 'content' && (r.target === B.CONTENT_JA[tab] || (tab === 'profile' && r.target === B.CONTENT_JA.relations)));
     const note = (moved.length ? `<p class="ctnote warn">手直しした後にWikiの内容が変わっています。「Wikiの内容に戻す」で今のWikiの内容を読み込めます。</p>` : changed ? '<p class="ctnote hint">手直し中（Wikiの内容の代わりに使っています）</p>' : '<p class="ctnote hint">Wikiから読んだままの内容です</p>');
     const foot = (add) => `<div class="row">${add || ''}<button class="sm ghost" data-wiki="${tab}">Wikiの内容に戻す</button></div>`;
-    if (tab === 'skills' || tab === 'nps') {
-      p.innerHTML = note + (tab === 'skills' ? '<p class="ctnote hint">別の表を二重に読んだスキルや、関係ないスキルは × で消せます。名前を変えると、そのスキルに付けた効果の手直しは外れます。</p>' : '') + '<div class="lst"></div>' + foot(`<button class="sm" data-add="${tab}">＋ ${tab === 'skills' ? 'スキル' : '宝具'}を追加</button>`);
+    if (tab === 'skills' || tab === 'nps' || tab === 'weapons') {
+      const ja = { skills: 'スキル', nps: '宝具', weapons: '武装' }[tab], mk = { skills: skillCard, nps: npCard, weapons: weaponCard }[tab];
+      p.innerHTML = note + (tab === 'skills' ? '<p class="ctnote hint">別の表を二重に読んだスキルや、関係ないスキルは × で消せます。名前を変えると、そのスキルに付けた効果の手直しは外れます。</p>' : '') + '<div class="lst"></div>' + foot(`<button class="sm" data-add="${tab}">＋ ${ja}を追加</button>`);
       const lst = p.querySelector('.lst');
-      for (const x of val || ctNow(tab)) lst.appendChild(tab === 'skills' ? skillCard(x) : npCard(x));
+      for (const x of val || ctNow(tab)) lst.appendChild(mk(x));
+    } else if (tab === 'facts') {
+      const f = val || ctNow('facts');
+      p.innerHTML = note + '<p class="ctnote hint">図鑑の「元ネタ」「属性」などの欄です。異名と特性は「、」で区切ります（特性は 特攻の判定に使われます）。</p>'
+        + `<div class="pgrid">${FACT_JA.map(([k, ja]) => `<label class="f">${ja}<input type="text" data-k="${k}" value="${esc(f[k] || '')}"></label>`).join('')}</div>`
+        + `<label class="f">異名（「、」区切り）<input type="text" data-l="aliases" value="${esc(listText(f.aliases))}"></label>`
+        + `<label class="f">特性（「、」区切り）<input type="text" data-l="traits" value="${esc(listText(f.traits))}"></label>`
+        + `<div class="pgrid">${B.INFO_SHOWN.map(k => `<label class="f">${esc(k)}<input type="text" data-ik="${esc(k)}" value="${esc((f.info || {})[k] || '')}"></label>`).join('')}</div>` + foot();
     } else if (tab === 'voice') {
       p.innerHTML = note + '<div class="vbox"></div>' + foot();
       VE.mount(p.querySelector('.vbox'), val || ctNow('voice'), { nps: ct.sv.nps });
@@ -1752,6 +1823,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const out = {};
     out.skills = cards('skills').map(o => ({ group: o.group === 'class' ? 'class' : 'own', name: o.name, rankRaw: o.rankRaw, desc: o.desc }));
     out.nps = cards('nps').map(o => ({ name: o.name, reading: o.reading, rankRaw: o.rankRaw, typeRaw: o.typeRaw, rangeRaw: o.rangeRaw, maxRaw: o.maxRaw, desc: o.desc }));
+    out.weapons = cards('weapons').map(o => ({ name: o.name, reading: o.reading, desc: o.desc }));
+    out.facts = Object.assign({}, ctNow('facts'), { info: {} });
+    P('facts').querySelectorAll('input[data-k]').forEach(t => { out.facts[t.dataset.k] = t.value.trim(); });
+    P('facts').querySelectorAll('input[data-l]').forEach(t => { out.facts[t.dataset.l] = readList(t.value); });
+    P('facts').querySelectorAll('input[data-ik]').forEach(t => { const x = t.value.trim(); if (x) out.facts.info[t.dataset.ik] = x; });
     const v = VE.read(P('voice').querySelector('.vbox')); out.voice = v.voice;
     out.text = Object.assign({}, ctNow('text')); P('text').querySelectorAll('textarea[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.text[t.dataset.k] = x; else delete out.text[t.dataset.k]; });
     out.profile = Object.assign({}, ctNow('profile')); P('profile').querySelectorAll('input[data-k]').forEach(t => { const x = t.value.trim(); if (x) out.profile[t.dataset.k] = x; else delete out.profile[t.dataset.k]; });
@@ -1780,7 +1856,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   $('#ctBody').addEventListener('click', e => {
     const rm = e.target.closest('[data-rm]'); if (rm) { rm.closest('.card').remove(); return; }
     const add = e.target.closest('[data-add]');
-    if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
+    if (add) { const lst = add.closest('.ctp').querySelector('.lst'); const c = add.dataset.add === 'skills' ? skillCard({ group: 'own', name: '', rankRaw: '', desc: '' }) : add.dataset.add === 'weapons' ? weaponCard({ name: '', reading: '', desc: '' }) : npCard({ name: '', reading: '', rankRaw: '', typeRaw: '', rangeRaw: '', maxRaw: '', desc: '' }); lst.appendChild(c); c.querySelector('input').focus(); return; }
     const w = e.target.closest('[data-wiki]');
     if (w) { const t = w.dataset.wiki; ctPanel(t, t === 'profile' ? { profile: ctWiki('profile'), relations: ctWiki('relations') } : ctWiki(t)); }
   });
