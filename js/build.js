@@ -162,6 +162,8 @@
     if (sv.attrs.includes(E.BOSS_ATTR)) sv.bossOnly = true;
     sv.attrs.forEach(addTag);
     if (sv.sex) tags.add(/女/.test(sv.sex) ? '女性' : /男/.test(sv.sex) ? '男性' : sv.sex);
+    // 城塞宝具・結界宝具を持つ英霊（「城の要素を持つ宝具にだけ使える」宝具の相手の目印）
+    if ((sv.nps || []).some(n => /城塞|結界/.test(n.typeRaw || ''))) tags.add('城塞宝具');
 
     // スキル
     const ctx = { trueName: E.okey(sv) };
