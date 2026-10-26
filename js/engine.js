@@ -247,6 +247,11 @@
       if ((p.dmin > 0 || p.dmax > 0) && !E.dayOk(p, day)) return false;
       return true;
     };
+    // 使える相手・場面が決まっている宝具（NP_OVERRIDES の vs／cond → np.useIf）。AI が選ぶときも、先手・自動で放つときも見る
+    // 陣地の段階（工房）。ws_up はその戦いの間だけ段階を上げ、拠点でなくても足した分の陣地として戦える。上限5（c.workshop は変えない）
+    const wsUp = (c, T) => Math.round(eff(c, 'ws_up', T));
+    const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, 5) : 0; };
+    const npUsable = (c, n, o, terrain) => !n.useIf || condOk(c, n.useIf, terrain, o);
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
     // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
@@ -365,6 +370,12 @@
       if (id === 'heal') { const v = Math.min(mag, 100 - c.hp); if (v > 0) { c.hp += v; say(`${sn(c)}の${src}が、傷ついた霊基を癒やした。`); } return; }
       if (id === 'drain_hp') { if (!o || !o.alive) return; const v = Math.min(mag, Math.max(0, o.hp - 1)); if (v > 0) { o.hp -= v; c.hp = Math.min(100, c.hp + v); say(`${sn(c)}の${src}が、${sn(o)}の霊基を吸い上げた。`); } return; }
       if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${sn(c)}の${src}が、魔力を満たした。`); } return; }
+      if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
+        if (!o || o.workshop == null) return;
+        const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, 5);
+        if (o.workshop < before) say(`${sn(c)}の${src}が、${sn(o)}の陣地を打ち崩した。`);
+        return;
+      }
       if (id === 'drain_mana') { if (!o) return; const v = Math.min(mag, Math.max(0, o.mana)); if (v > 0) { o.mana -= v; c.mana = Math.min(c.manaMax, c.mana + v); say(`${sn(c)}の${src}が、${sn(o)}の魔力を奪い取った。`); } return; }
       if (id === 'strip') {
         // 効果を指定したもの（params.eff）：相手のその効果を、常に持っている分も含めてその戦いの間止める
@@ -516,7 +527,7 @@
       const selfDeb = eff(c, 'debuff', T, true) + eff(c, 'debuff_mind', T, true) + eff(c, 'debuff_body', T, true);
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
       if (c.wither || c.witherSelf || c.witherFix) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0) + (c.witherFix || 0));
-      if (ctx.home === c) p *= 1 + eff(c, 'territory', T) + c.workshop * 0.05;
+      if (ctx.home === c || wsUp(c, T)) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.05;   // 拠点か、陣地の段階を上げる効果（ws_up）を持つとき
       if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
@@ -619,7 +630,7 @@
       if (c.ail && (c.ail.stun || c.ail.seal)) return;   // スタンした打ち合い・宝具を封じられた戦いでは使えない
       // 制御の利かない英霊は、魔力が足りなくても宝具を放つ（足りない分はマスターの生命力から）
       const wild = wildOf(c);
-      const nps = (c.sv.nps || []).filter(n => !n.disabled && !n.mode && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 常時発動・自動で発動する宝具は AI が選ばない   // 魔力を顧みない宝具は1回の戦いに一度まで
+      const nps = (c.sv.nps || []).filter(n => !n.disabled && !n.mode && npUsable(c, n, o, ctx.terrain) && (c.mana >= npCostOf(c, n) || (wild && !c.overUsed)));   // 常時発動・自動で発動する宝具は AI が選ばない   // 魔力を顧みない宝具は1回の戦いに一度まで
       if (!nps.length) return;
       const losing = power(c, o, ctx) < power(o, c, ctx);
       let p = 0.1 + (c.hp < 50 ? 0.25 : 0) + (round >= 2 ? 0.1 : 0) + (isBerserk(c) ? 0.15 : 0) + (losing ? 0.2 : 0) + (day > ENG.maxDays - ENG.finaleDays ? 0.2 : 0);
@@ -699,7 +710,7 @@
       if (!c.alive || !c.autoUsed) return false;
       let fired = false;
       for (const np of c.sv.nps || []) {
-        if (np.mode !== ev || np.disabled || c.autoUsed.has(np.name)) continue;
+        if (np.mode !== ev || np.disabled || c.autoUsed.has(np.name) || !npUsable(c, np, o, ctx.terrain)) continue;
         if (c.ail && c.ail.seal) continue;
         if (!(c.mana >= npCostOf(c, np) * ENG.npAutoCost || (wildOf(c) && !c.overUsed))) continue;
         c.autoUsed.add(np.name);
@@ -713,12 +724,12 @@
     // 戦いの始めに切れる先手の宝具：{ np, ini（その宝具の先手の強さ） } または null
     //   使える宝具（封じられていない・魔力が足りる／魔力を顧みない英霊・自滅する宝具でない）のうち、先手のいちばん強いもの
     //   先手の付いた宝具を持たない英霊では何もしない（乱数も引かない）
-    function openingNP(c, terrain) {
+    function openingNP(c, terrain, o) {
       if (c.stance === 'retreat' || (!c.masterAlive && c.mana < 5)) return null;
       const wild = wildOf(c);
       let best = null;
       for (const n of c.sv.nps || []) {
-        if (n.disabled || n.mode || E.npRetire(n) >= 0.5) continue;
+        if (n.disabled || n.mode || E.npRetire(n) >= 0.5 || !npUsable(c, n, o, terrain)) continue;
         let ini = 0;
         for (const e of n.effects || []) if (e.id === 'initiative' && condOk(c, e.params, terrain)) ini += e.mag * dm(e.params) * (e.params && e.params.chance != null ? clamp(e.params.chance, 0, 1) : 1);
         if (ini <= 0 || !(c.mana >= npCostOf(c, n) || wild)) continue;
@@ -776,7 +787,7 @@
       for (const [c, o] of [[a, b], [b, a]]) {
         if (c.items > 0) { c.items--; c.temp.push({ id: 'guard', mag: 0.2, params: null }, { id: 'power', mag: 0.05, params: null }); if (c.you || o.you) log('battle', `${sn(c)}は用意していた道具で身を固めた。`, [c.id, o.id]); }
         // 先手の付いた宝具は、戦いの始めに切れる（いちばん先手の強い1つ。魔力が足りること、退く戦い方でないこと）
-        const op = openingNP(c, ctx.terrain);
+        const op = openingNP(c, ctx.terrain, o);
         const ini = Math.min(0.5, eff(c, 'initiative', ctx.terrain) + (op ? op.ini : 0));
         if (ini > 0 && chance(ini)) {
           c.surprise = (c.surprise || 0) + 0.08;
@@ -930,7 +941,7 @@
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
         if (l.masterAlive && w.alive && !l.noMaster) {   // noMaster：特異点の敵（聖杯が呼んだ英霊）には狙えるマスターがいない
-          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + (ctx.home === l ? l.workshop * 0.04 : 0) + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
+          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + wsStage(l, ctx) * 0.04 + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
           if (chance(Math.min(0.15, pm))) {
             l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
             if (l.mhp <= 0) {

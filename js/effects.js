@@ -81,6 +81,8 @@
     // 昼・維持
     regen:        { name: '自己回復',     phase: 'day',       unit: 'rate',   base: 0.10, desc: '1日ごとの自分の傷の回復量' },
     heal_other:   { name: '治療',         phase: 'day',       unit: 'rate',   base: 0.10, desc: 'マスターや味方の傷を回復' },
+    ws_up:        { name: '陣地段階上昇', phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, desc: '戦いの間だけ、自分の陣地の段階を上げる（拠点で戦うときは今の段階に足し、拠点でなくても足した分の段階の陣地として戦う。最大5段階）' },
+    ws_break:     { name: '陣地破壊',     phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, trig: 'start', desc: '相手の陣地（工房）の段階を下げる。下げた段階は戦いのあとも戻らない' },
     territory:    { name: '陣地',         phase: 'day',       unit: 'rate',   base: 0.20, desc: '拠点で戦うときの有利と、工房強化の伸び' },
     craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '工房を強化した日に道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
     resource:     { name: '資源獲得',     phase: 'day',       unit: 'rate',   base: 0.20, desc: '資金や物資から魔力を補う。工房の強化も成功しやすい' },
@@ -114,7 +116,7 @@
     ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'self_retire', 'disabled']],
     ['intel', '索敵・情報', ['stealth', 'detect', 'intel', 'reveal', 'conceal']],
     ['move', '撤退・追撃', ['escape', 'pin']],
-    ['camp', '陣営・魔力', ['territory', 'craft', 'resource', 'upkeep_down', 'upkeep_up', 'solo', 'uncontrolled']],
+    ['camp', '陣営・魔力', ['territory', 'ws_up', 'ws_break', 'craft', 'resource', 'upkeep_down', 'upkeep_up', 'solo', 'uncontrolled']],
     ['team', '同盟・マスター', ['rally', 'taunt', 'negotiate', 'anti_master', 'master_guard', 'master_buff']],
     ['other', 'その他', ['tag']],
   ];
@@ -137,7 +139,7 @@
   const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['hit', '攻撃を受ける直前に'], ['lose', '押し負けたとき'],
     ['pinch', '瀕死になったとき'], ['np', '宝具を使ったとき'], ['kill', '相手を倒したとき'], ['day', '毎朝（戦いの外）']];
   const TRIG_JA = Object.fromEntries(TRIGGERS);
-  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither'];
+  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither', 'ws_break'];
   // 自分にも掛けられる不利な効果（params.self）。デメリットや「日ごとに弱っていく」英霊に。自分に掛けた分は防げない
   const SELF_IDS = ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'poison', 'stun', 'confuse', 'seal'];
   // 効果の発動の場面（スキル）。'' は常時。自分に掛ける衰弱は既定で毎朝
@@ -254,6 +256,8 @@
     pin:          { who: 'enemy', fx: m => `相手の撤退の成功 ${m < 0 ? '+' : '−'}${pc(m * 0.8)}` },
     regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * ENG().regenHeal)}` },
     heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}。同盟を組んでいれば、毎朝、同盟相手の霊基 ${pm(m * ENG().allyHeal)}（特異点では、毎朝ほかの味方全員の霊基 ${pm(m * ((G.CONFIG.SING || {}).healOther || 0))}）` },
+    ws_up:        { who: 'self', fx: m => m < 0 ? `戦いの間だけ、陣地の段階 −${num(Math.abs(m))}（拠点では今の段階から引く）` : `戦いの間だけ、陣地の段階 +${num(m)}（拠点では今の段階に足す。拠点でなくても ${num(m)} 段階の陣地として戦い、陣地の戦闘力の上乗せを得る。最大5段階）` },
+    ws_break:     { who: 'enemy', fx: m => m < 0 ? `相手の陣地の段階 +${num(Math.abs(m))}（段階は最大5）` : `相手の陣地の段階を ${Math.round(m)} 下げる（0未満にはならない。下げた分は戦いのあとも戻らない）` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
     craft:        { who: 'self', fx: m => m < 0 ? less('工房を強化した日に道具を作る確率', m) : `工房を強化した日に ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）。工房の強化も選びやすい` },
     resource:     { who: 'master', fx: m => `毎日の魔力 ${pm(m * 10)}、工房の強化の成功 ${sg(m * 0.5)}` },
@@ -1186,9 +1190,11 @@
     if (PERSIST_WORDS.test(desc)) effects.forEach(e => { e.persistent = true; });
     // 宝具消費：条件の付いたもの（水辺でだけ重い、など）は使うときにエンジンが条件を見て足す（engine.js の npCostOf）
     const costMod = effects.filter(e => e.id === 'np_cost' && !(e.params && e.params.cond)).reduce((t, e) => t + e.mag, 0);
+    // 使える相手・場面の制限（手直し表の vs＝相手が持つ属性、cond＝場所・時間。condOk と同じ書き方）。「男性にしか使えない」など
+    const useIf = npo && (npo.vs || npo.cond) ? Object.assign({}, npo.vs ? { vs: npo.vs } : null, npo.cond ? { cond: npo.cond } : null) : null;
     return {
       attack, basis,
-      disabled,
+      disabled, useIf,
       power: attack ? Math.round(rk.score * T.power * 10) / 10 : 0,   // 攻撃宝具の威力（ステータススコアと同じ尺度）
       burst: rk.burst,
       cost: Math.round(Math.max(0.1, T.cost * rk.mult * (1 + costMod)) * 100) / 100, // 魔力消費（1.0=標準）

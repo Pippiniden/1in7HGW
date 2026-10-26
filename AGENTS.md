@@ -153,7 +153,7 @@ overrides merge in order; `masters` are JSON arrays of fixed-Master specs (each 
 | `global` → `SKILL_OVERRIDES` | `'skillName'` → `[[effectId, factor, params?], …]` (all servants) |
 | `servant` → `SERVANT_OVERRIDES` | `'trueName/skillOrNpName'` → specs (`[]` = no effects) |
 | `stats` → `STAT_OVERRIDES` | `'trueName'` → `{ str:'B', … }` |
-| `np` → `NP_OVERRIDES` | `'trueName/npName'` → `{ attack?: bool, mode?: ''｜always｜start｜win｜lose｜pinch｜lethal }` |
+| `np` → `NP_OVERRIDES` | `'trueName/npName'` → `{ attack?: bool, mode?: ''｜always｜start｜win｜lose｜pinch｜lethal, vs?: '男性', cond?: '夜' }` (`vs`/`cond` = the NP can only be used against an opponent with that tag / in that place or time, `condOk` rules; hand-written in the JSON, `np.useIf`, checked in `useNP`/`openingNP`/`autoNP`) |
 | `content` → `CONTENT_OVERRIDES` | `'wikiTrueName'` → `{ skills?, nps?, voice?, text?, profile?, relations?, identity?, base }` (4.5) |
 | `pages` → `PAGE_OVERRIDES` | `'trueName'` → kagemiya page name (when the title differs from the true name), **or an `http(s)://` URL** = a non-kagemiya link (`B.linkOf`); such servants, and lean servants with `manual: true` (made from scratch in roster's 「英霊を一から作る」, `leanFromSpec({ plain: true })`), are skipped by `kagemiya.js refresh` (`B.isManual`) |
 | `reviewed` → `REVIEWED` | `'trueName'` → review sigs the owner checked off; items whose `B.reviewSig` matches go to `sv.reviewDone` and are ignored by counts/filters; a changed rank/description/reason makes a new sig |
@@ -220,7 +220,7 @@ magnitude `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank
 | battle | `power`, `power_vs`(`params.tag`), `debuff`/`debuff_mind`/`debuff_body`, `wither`, `crit`, `pierce`, `sure_hit`, `dmg_plus`, `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt`, `anti_master`, `mental_guard`; ailments `poison stun confuse seal skill_seal` + `ail_guard`; instants `heal drain_hp mana_gain drain_mana strip cleanse self_strip` |
 | damage | `guard`, `magic_guard`, `dmg_cut`, `dodge`, `counter`, `weakness`, `master_guard` |
 | lethal / encounter / scout / retreat | `guts` / `stealth detect reveal conceal` / `intel` / `escape pin` |
-| day / upkeep / talk / master / passive | `regen heal_other territory craft resource uncontrolled` / `upkeep_down upkeep_up solo` / `negotiate` / `cs_resist master_buff` / `luck tag` |
+| day / upkeep / talk / master / passive | `regen heal_other territory craft resource uncontrolled`; workshop-stage effects `ws_up` (battle only: stage +n, and away from the base it still fights as an n-stage workshop; `wsStage`) / `ws_break` (instant: lowers the opponent's `workshop` by round(mag), permanent) / `upkeep_down upkeep_up solo` / `negotiate` / `cs_resist master_buff` / `luck tag` |
 | np | `np_boost np_charge np_cost backfire self_retire disabled` |
 
 `E.EFFECT_GROUPS`/`GROUP_OF` group them into genres for the editors. `test/effects.js` fails if a primitive is not read by engine/build or lacks an `EFFECT_INFO` description (`E.describe` text must also read correctly for a **negative** magnitude).
