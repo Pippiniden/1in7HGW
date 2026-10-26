@@ -61,4 +61,23 @@ delete E.CONTENT_OVERRIDES[name];
 const dup = B.importServant(wikiText.replace('*【保有スキル】', '*【保有スキル】\n**戦闘続行：B\n二重に書かれた同じスキル'), { noSource: true });
 assert.ok(dup.review.some(r => r.kind === 'skill' && r.target === '戦闘続行' && /複数/.test(r.why)));
 
+// 8) 基本情報（元ネタ・異名・特性・出典など）と武装
+{
+  const w = B.wikiOf(plain), f = B.contentOf(w, 'facts');
+  const nf = Object.assign({}, f, { origin: '手直しした元ネタ', aliases: ['異名A', '異名B'], traits: ['神性'], info: Object.assign({}, f.info, { 出典: '手直しした出典' }) });
+  E.CONTENT_OVERRIDES[name] = { facts: nf, weapons: [{ name: '手で足した武装', reading: '', desc: '説明' }], base: { facts: B.hashOf(f), weapons: B.hashOf(B.contentOf(w, 'weapons')) } };
+  const e = B.fromJSON(B.toLean(plain));
+  assert.strictEqual(e.origin, '手直しした元ネタ');
+  assert.deepStrictEqual(e.aliases, ['異名A', '異名B']);
+  assert.deepStrictEqual(e.traits, ['神性']);
+  assert.strictEqual(e.info['出典'], '手直しした出典');
+  assert.deepStrictEqual(e.weapons.map(x => x.name), ['手で足した武装']);
+  assert.deepStrictEqual(e.contentEdited.sort(), ['facts', 'weapons']);
+  assert.ok(!e.review.some(r => r.kind === 'content'));
+  const l = B.toLean(e);
+  assert.deepStrictEqual(B.contentOf(l, 'facts'), f, '公開用がWikiの値でない');
+  assert.deepStrictEqual(B.contentOf(l, 'weapons'), B.contentOf(w, 'weapons'));
+  delete E.CONTENT_OVERRIDES[name];
+}
+
 console.log('ok: 内容の手直し');

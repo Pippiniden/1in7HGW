@@ -242,7 +242,7 @@ details > .txt, details > .voice { margin-top: 6px; }
 
   // ---------- 詳しい内容 ----------
   // Wikiの【】の項目のうち、プロフィールとして出すもの（TRPG用の能力表や、ゲームでは別に決まるマスターは出さない）
-  const INFO_KEYS = ['出典', '原典', '地域', '年代', '身長・体重', '身長', 'スリーサイズ', '髪色', '瞳色', '肌色', '外見・容姿', '容姿'];
+  const INFO_KEYS = B.INFO_SHOWN;
   const PROFILE_JA = [['firstPerson', '一人称'], ['secondPerson', '二人称'], ['thirdPerson', '三人称'], ['imageColor', 'イメージカラー'], ['specialty', '特技'], ['likes', '好きなもの'], ['dislikes', '嫌いなもの'], ['nemesis', '天敵'], ['wish', '聖杯への願い']];
   const kv = rows => { const r = rows.filter(([, v]) => v != null && String(v).trim()); return r.length ? `<dl class="kv">${r.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''; };
   const para = t => `<p class="txt">${esc(t)}</p>`;
