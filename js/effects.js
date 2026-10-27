@@ -1191,10 +1191,12 @@
     // 宝具消費：条件の付いたもの（水辺でだけ重い、など）は使うときにエンジンが条件を見て足す（engine.js の npCostOf）
     const costMod = effects.filter(e => e.id === 'np_cost' && !(e.params && e.params.cond)).reduce((t, e) => t + e.mag, 0);
     // 使える相手・場面の制限（手直し表の vs＝相手が持つ属性、cond＝場所・時間。condOk と同じ書き方）。「男性にしか使えない」など
+    // 使える回数の制限（手直し表の perBattle＝1回の戦いに何回まで、perWar＝戦争全体で何回まで。engine.js の npUsable が数える）
+    const limit = npo && (npo.perBattle > 0 || npo.perWar > 0) ? Object.assign({}, npo.perBattle > 0 ? { battle: Math.floor(npo.perBattle) } : null, npo.perWar > 0 ? { war: Math.floor(npo.perWar) } : null) : null;
     const useIf = npo && (npo.vs || npo.cond) ? Object.assign({}, npo.vs ? { vs: npo.vs } : null, npo.cond ? { cond: npo.cond } : null) : null;
     return {
       attack, basis,
-      disabled, useIf,
+      disabled, useIf, limit,
       power: attack ? Math.round(rk.score * T.power * 10) / 10 : 0,   // 攻撃宝具の威力（ステータススコアと同じ尺度）
       burst: rk.burst,
       cost: Math.round(Math.max(0.1, T.cost * rk.mult * (1 + costMod)) * 100) / 100, // 魔力消費（1.0=標準）
