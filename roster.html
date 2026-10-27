@@ -522,6 +522,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <label class="hint"><input type="radio" name="atk" value="yes"> 攻撃宝具</label>
     <label class="hint"><input type="radio" name="atk" value="no"> 補助宝具</label>
     <label class="hint">発動のしかた <select id="edMode"></select></label>
+    <label class="hint">1回の戦いに <input id="edPerBattle" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
+    <label class="hint">戦争全体で <input id="edPerWar" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
   </div>
   <div class="row" style="margin-bottom:12px">
     <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
@@ -1599,6 +1601,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const auto = item.modeBasis === 'override' ? '' : E.NP_MODE_JA[item.mode] || 'AIが選んで使う';
       $('#edMode').innerHTML = `<option value="__auto">読み取りのまま（${esc(item.modeBasis === 'override' ? '説明文からは読み取りなし' : auto)}）</option>` + E.NP_MODES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('');
       $('#edMode').value = o && o.mode != null ? o.mode : '__auto';
+      $('#edPerBattle').value = o && o.perBattle > 0 ? o.perBattle : ''; $('#edPerWar').value = o && o.perWar > 0 ? o.perWar : '';
       for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r);
     }
     // 適用範囲は、いつも「このサーヴァントだけ」から始める（以前は、全員に効く手直し由来の効果を開くと「すべて」が選ばれていて、
@@ -1635,6 +1638,9 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const a = document.querySelector('input[name=atk]:checked').value, m = $('#edMode').value, o = {}, was = E.NP_OVERRIDES[k.servant] || {};
       if (a !== 'auto') o.attack = a === 'yes';
       if (m !== '__auto') o.mode = m;
+      const pb = Math.floor(+$('#edPerBattle').value), pw = Math.floor(+$('#edPerWar').value);
+      if (pb > 0) o.perBattle = pb;
+      if (pw > 0) o.perWar = pw;
       if (was.vs) o.vs = was.vs;     // 使う相手・場面の制限は、この画面では編集しないので引き継ぐ（overrides.json を直接書く）
       if (was.cond) o.cond = was.cond;
       if (Object.keys(o).length) E.NP_OVERRIDES[k.servant] = o; else delete E.NP_OVERRIDES[k.servant];

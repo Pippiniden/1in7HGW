@@ -207,7 +207,7 @@
     for (const np of sv.nps) {
       delete np.attack;
       const r = E.resolveNP(np, ctx);
-      Object.assign(np, { mode: r.mode, modeBasis: r.modeBasis, attackAuto: r.attack, attackBasis: r.basis, power: r.power, burst: r.burst, cost: r.cost, exposure: r.exposure, multi: r.multi, disabled: r.disabled, useIf: r.useIf, effects: r.effects, effectSource: r.source, matched: r.matched || null });
+      Object.assign(np, { mode: r.mode, modeBasis: r.modeBasis, attackAuto: r.attack, attackBasis: r.basis, power: r.power, burst: r.burst, cost: r.cost, exposure: r.exposure, multi: r.multi, disabled: r.disabled, useIf: r.useIf, limit: r.limit, effects: r.effects, effectSource: r.source, matched: r.matched || null });
       np.attackResolved = r.attack;
       if (r.disabled) review.push({ kind: 'np', target: np.name, why: '「今回の召喚では使えない」と読み取ったため使用不可' });
       else if (r.effects.some(e => e.id === 'self_retire')) { const p = E.retireP(r.effects.find(e => e.id === 'self_retire')); review.push({ kind: 'np', target: np.name, why: p >= 0.5 ? '使うと自分が脱落する宝具として扱い' : `使うと${Math.round(p * 100)}%の確率で自分が脱落する宝具として扱い` }); }
@@ -436,7 +436,7 @@
    */
   // mode・modeBasis（宝具の発動のしかた）も手直し表と説明文から毎回決まるので落とす。残すと、公開用のデータが手直し表しだいで変わり、
   // リストツールが変えていない騎を「未公開の変更」と数えて、書き出しで公開側の更新を上書きしていた
-  const ITEM_DERIVED = ['effects', 'effectSource', 'matched', 'group', 'attack', 'attackAuto', 'attackBasis', 'attackResolved', 'power', 'burst', 'cost', 'exposure', 'multi', 'disabled', 'useIf', 'mode', 'modeBasis'];
+  const ITEM_DERIVED = ['effects', 'effectSource', 'matched', 'group', 'attack', 'attackAuto', 'attackBasis', 'attackResolved', 'power', 'burst', 'cost', 'exposure', 'multi', 'disabled', 'useIf', 'limit', 'mode', 'modeBasis'];
   function toLean(sv) {
     const o = restoreWiki(JSON.parse(JSON.stringify(sv)));
     for (const k of DERIVED) delete o[k];

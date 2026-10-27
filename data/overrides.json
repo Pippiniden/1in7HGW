@@ -5818,7 +5818,8 @@
    "attack": false
   },
   "井伊直政/先駆け一槍": {
-   "attack": true
+   "attack": true,
+   "perBattle": 1
   },
   "オーギュスト・エスコフィエ/エスコフィエのおしゃべりクッキング": {
    "attack": false
@@ -5887,7 +5888,8 @@
    "attack": true
   },
   "フリッツ・デュケイン/黄金の仔豹": {
-   "attack": false
+   "attack": false,
+   "perWar": 1
   },
   "井上円了/虚怪解術・あやかしの証明": {
    "attack": false
@@ -6046,7 +6048,8 @@
    "attack": true
   },
   "葬球のハサン/理想散身": {
-   "attack": true
+   "attack": true,
+   "perWar": 3
   },
   "七楽のハサン/幻想七楽": {
    "mode": "always"
@@ -6111,6 +6114,21 @@
   },
   "ネコ1世/天機破綻す猫屋敷": {
    "attack": false
+  },
+  "羿/千白必矢": {
+   "perWar": 9
+  },
+  "羿/大羿射日": {
+   "perWar": 1
+  },
+  "新田義貞/龍神奉納・海を割る黄金太刀": {
+   "perWar": 1
+  },
+  "ヌメリアヌス(マルクス・アウレリウス・ヌメリウス・ヌメリアヌス)/ローマを継ぐ者": {
+   "perBattle": 1
+  },
+  "ダナイデス/褥を濡らすは花婿の紅": {
+   "perWar": 49
   }
  },
  "content": {

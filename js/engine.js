@@ -251,7 +251,9 @@
     // 陣地の段階（工房）。ws_up はその戦いの間だけ段階を上げ、拠点でなくても足した分の陣地として戦える。上限5（c.workshop は変えない）
     const wsUp = (c, T) => Math.round(eff(c, 'ws_up', T));
     const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, 5) : 0; };
-    const npUsable = (c, n, o, terrain) => !n.useIf || condOk(c, n.useIf, terrain, o);
+    // 使える回数に限りのある宝具（np.limit＝{ battle, war }）は、数え終えたら選ばれない。数えるのは fireNP（c.npBattle＝この戦い、c.npWar＝戦争全体）
+    const npLeft = (c, n) => !n.limit || ((!(n.limit.battle > 0) || ((c.npBattle || {})[n.name] || 0) < n.limit.battle) && (!(n.limit.war > 0) || ((c.npWar || {})[n.name] || 0) < n.limit.war));
+    const npUsable = (c, n, o, terrain) => npLeft(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
     // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
@@ -674,6 +676,7 @@
       const fx = npFx, cost = npCostOf(c, np) * (costMul || 1);
       const over = c.mana < cost;
       c.mana -= cost; c.npUses++;
+      if (np.limit) { (c.npBattle = c.npBattle || {})[np.name] = (c.npBattle[np.name] || 0) + 1; (c.npWar = c.npWar || {})[np.name] = (c.npWar[np.name] || 0) + 1; }
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
       if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; if (SG) c.lastNP.aoe = SG.aoeOf(c, np); }
       else c.usedSup.add(np.name);
@@ -747,7 +750,7 @@
       const side = x => [x].concat(help.get(x));
       const all = () => side(a).concat(side(b));
       for (const c of all()) {
-        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || []); c.carry = null; c.usedSup = new Set(); c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
+        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || []); c.carry = null; c.usedSup = new Set(); c.npBattle = {}; c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
         c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null;   // 発動する効果（fireTrig）の、この戦いの分
         c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }
