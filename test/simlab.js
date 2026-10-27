@@ -21,6 +21,12 @@ ok(t.wars === N && sv.wars === N, '回数が違う');
 ok(JSON.stringify(Object.entries(t.servants).sort()) === JSON.stringify(Object.entries(sv.servants).sort()), '英霊ごとの数が survival.js と違う');
 ok(t.ends.win + t.ends.wipe + t.ends.draw === N - t.errors, '決着の数が合わない：' + JSON.stringify(t.ends));
 
+// 1b) 公開用の集計の形（data/survival.json）。survival.js の runner が作るものと同じ
+{
+  const f = L.toSurvival(t, H.survival.fingerprint(roster));
+  ok(JSON.stringify(f) === JSON.stringify(sv), '公開用の集計の形が survival.js の runner と違う');
+}
+
 // 2) 分けて回して足す
 const a = L.emptyTally(30), b = L.emptyTally(30);
 for (let i = 0; i < N; i += 2) L.runOne(roster, i, a);

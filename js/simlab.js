@@ -41,6 +41,10 @@
     roster.errors = errors;
     return roster;
   }
+  /** 回した集計を、公開用の集計（data/survival.json）の形にする。fp は回したときのリスト（公開中の並び）の指紋 */
+  function toSurvival(t, fp) {
+    return { format: 'hgw-survival', version: 1, fp, wars: t.wars, days: t.days, seedBase: 'sv', servants: t.servants };
+  }
   function emptyTally(days) {
     return { format: 'hgw-lab', wars: 0, errors: 0, days: days || G.CONFIG.ENGINE.maxDays, ends: { win: 0, wipe: 0, draw: 0 }, len: [], battles: 0, nps: 0, servants: {} };
   }
@@ -148,7 +152,7 @@
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const KEY = 'hgw.lab.v1', LAST = 'hgw.lab.last', SAVED = 'hgw.lab.saved';
     const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, v == null ? '' : JSON.stringify(v)); if (v == null) localStorage.removeItem(k); return true; } catch (e) { return false; } } };
-    const st = Object.assign({ patch: {}, wars: 3000, cmp: 'pub', sort: 'rate', q: '', cls: '' }, store.get(KEY, {}));
+    const st = Object.assign({ patch: {}, wars: 10000, cmp: 'pub', sort: 'rate', q: '', cls: '' }, store.get(KEY, {}));
     const keep = () => store.set(KEY, { patch: st.patch, wars: st.wars, cmp: st.cmp, sort: st.sort });
     const GS = groups(), DEF = {};
     for (const g of GS) for (const p of g.paths) DEF[p] = getPath(p);
@@ -160,7 +164,7 @@
     el.innerHTML = `
 <section class="panel">
   <h2>聖杯戦争で試す <span class="hint" style="font-weight:400;letter-spacing:0">総合の優勝率</span></h2>
-  <p class="hint" style="margin:0 0 8px">このブラウザのリスト（未公開の追加・手直しも含む）と下の設定の数値で、全自動の聖杯戦争をたくさん回し、英霊ごとに聖杯を手にした割合（優勝率）と、半数が脱落する日を数えます。公開しなくても、調整した結果がここで分かります。リストを公開中の並びにそろえ、戦争の種も公開中の集計（data/survival.json：3000回）と同じにして回すので、3000回で何も変えていなければ公開中の数字とぴったりそろいます。回数が少ないと、登場の少ない英霊（エクストラクラスなど）ほど数字が大きく揺れます。</p>
+  <p class="hint" style="margin:0 0 8px">このブラウザのリスト（未公開の追加・手直しも含む）と下の設定の数値で、全自動の聖杯戦争をたくさん回し、英霊ごとに聖杯を手にした割合（優勝率）と、半数が脱落する日を数えます。公開しなくても、調整した結果がここで分かります。リストを公開中の並びにそろえ、戦争の種も公開中の集計（data/survival.json：10000回）と同じにして回すので、同じ回数で何も変えていなければ公開中の数字とぴったりそろいます。回数が少ないと、登場の少ない英霊（エクストラクラスなど）ほど数字が大きく揺れます。設定の数値を変えずに10000回回した結果は、下の「公開用の集計として保存」で data/survival.json にできます（Actions で作り直さなくてよくなります）。</p>
   <div class="row">
     <label class="hint">回数 <select id="labN"><option>300</option><option>1000</option><option>3000</option><option>10000</option></select></label>
     <button class="primary" id="labRun">回す</button>
@@ -185,6 +189,7 @@
   <div class="row" style="margin:8px 0">
     <label class="hint">比べる相手 <select id="labCmp"><option value="pub">公開中の集計</option><option value="saved">保存した結果</option><option value="">比べない</option></select></label>
     <button class="sm" id="labSave">この結果を比べる相手として保存</button>
+    <button class="sm" id="labSurv" title="設定の数値を変えずに回した結果を、公開用の生存曲線の集計（survival.json）として書き出します">公開用の集計として保存</button>
     <input type="search" id="labQ" placeholder="真名で探す" autocomplete="off" style="min-width:0;flex:1 1 140px">
     <select id="labCls" aria-label="クラスで絞る"></select>
   </div>
@@ -306,6 +311,17 @@
       saved = { at: last.at, patch: last.patch, rows: rowsOf(last.tally), sum: summaryOf(last.tally) };
       store.set(SAVED, saved); st.cmp = 'saved'; $('#labCmp').value = 'saved'; keep(); renderRes();
     });
+    $('#labSurv').addEventListener('click', () => {
+      const note = $('#labCmpNote');
+      if (!last) { note.textContent = 'まだ回していません。先に「回す」を押してください'; return; }
+      if (Object.keys(last.patch || {}).length) { note.textContent = '設定の数値を変えて回した結果は、公開用にできません（ゲームの動きと食い違います）。「すべて元に戻す」で数値を戻して回し直してください'; return; }
+      if (last.tally.errors) { note.textContent = `エラーが ${last.tally.errors}回 出た結果は、公開用にできません`; return; }
+      if (last.fp !== fpNow()) { note.textContent = '結果を出したあとでリストが変わっています。回し直してから保存してください'; return; }
+      const file = toSurvival(last.tally, last.runFp), json = JSON.stringify(file) + '\n';
+      const url = URL.createObjectURL(new Blob([json], { type: 'application/json' })), a = document.createElement('a');
+      a.href = url; a.download = 'survival.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+      note.textContent = `survival.json を保存しました（${file.wars}回）。data/survival.json に上書きするか、data/incoming/ にアップロードしてください${file.wars < 10000 ? `。公開中は10000回なので、${file.wars}回だと登場の少ない英霊の数字が粗くなります` : ''}`;
+    });
     $('#labQ').addEventListener('input', () => { st.q = $('#labQ').value; renderRes(); });
     $('#labCls').addEventListener('change', () => { st.cls = $('#labCls').value; renderRes(); });
     $('#labTbl').addEventListener('click', e => {
@@ -376,5 +392,5 @@
     return { refresh() { renderRes(); }, stop() { if (job) job.stop(); } };
   }
 
-  G.simLab = { getPath, applyConfig, buildRoster, orderLike, emptyTally, runOne, merge, rowsOf, summaryOf, groups, commentsOf, mount };
+  G.simLab = { toSurvival, getPath, applyConfig, buildRoster, orderLike, emptyTally, runOne, merge, rowsOf, summaryOf, groups, commentsOf, mount };
 })(globalThis.HGW = globalThis.HGW || {});

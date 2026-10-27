@@ -74,7 +74,7 @@ jobs:
 
       - name: 生存曲線の集計を作り直す
         if: steps.run.outputs.changed != '0'
-        run: node tools/survival.js 3000
+        run: node tools/survival.js 10000
 
       - name: 反映
         if: steps.run.outputs.changed != '0'
