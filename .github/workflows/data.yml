@@ -69,7 +69,7 @@ jobs:
         id: surv
         run: |
           if node tools/survival.js --check; then echo "rebuilt=0" >> "$GITHUB_OUTPUT"
-          else node tools/survival.js 3000; echo "rebuilt=1" >> "$GITHUB_OUTPUT"; fi
+          else node tools/survival.js 10000; echo "rebuilt=1" >> "$GITHUB_OUTPUT"; fi
 
       - name: 差分の報告
         env:
@@ -81,7 +81,7 @@ jobs:
             if [ -s "$RUNNER_TEMP/incoming.md" ]; then cat "$RUNNER_TEMP/incoming.md"; echo; fi
             echo "### 何が変わったか"; echo
             cat "$RUNNER_TEMP/diff.md"; echo
-            if [ "$REBUILT" = 1 ]; then echo "生存曲線の集計（data/survival.json）を作り直しました（3000回）。"; else echo "生存曲線の集計（data/survival.json）は今のリストと合っています。"; fi
+            if [ "$REBUILT" = 1 ]; then echo "生存曲線の集計（data/survival.json）を作り直しました（10000回）。"; else echo "生存曲線の集計（data/survival.json）は今のリストと合っています。"; fi
           } > "$RUNNER_TEMP/summary.md"
           cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
 

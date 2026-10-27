@@ -84,5 +84,20 @@ const [A, Bsv, C] = [published[0], published[1], published[2]];
   fs.rmSync(t, { recursive: true, force: true });
 }
 
+// --- 集計（hgw-survival）：リストの指紋が合うときだけ data/survival.json になり、合わないものは片付けられる
+{
+  require(path.join(ROOT, 'js', 'survival.js'));
+  const fpOf = t => require(path.join(ROOT, 'tools', 'datalib')) && globalThis.HGW.survival.fingerprint(require(path.join(ROOT, 'tools', 'datalib')).loadDir(path.join(t, 'data')).roster);
+  const t = sandbox(), fp = fpOf(t), surv = path.join(t, 'data', 'survival.json'), up = path.join(t, 'data', 'incoming', 'survival (1).json');
+  const file = fp2 => S({ format: 'hgw-survival', version: 1, fp: fp2, wars: 10000, days: 30, seedBase: 'sv', servants: { 'x:y': { n: 1, w: 0, d: [1] } } });
+  fs.writeFileSync(up, file('0:ずれている'));
+  let r = run(t);
+  ok(r.status === 0 && !fs.existsSync(up) && !fs.existsSync(surv) && /リストと合わない集計/.test(r.stdout), '指紋が合わない集計は使わず、片付ける');
+  fs.writeFileSync(up, file(fp));
+  r = run(t);
+  ok(r.status === 0 && !fs.existsSync(up) && fs.existsSync(surv) && JSON.parse(fs.readFileSync(surv, 'utf8')).wars === 10000, '指紋が合う集計は data/survival.json に置かれる');
+  fs.rmSync(t, { recursive: true, force: true });
+}
+
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

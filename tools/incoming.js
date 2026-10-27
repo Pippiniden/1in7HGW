@@ -11,7 +11,9 @@
  *       書き出しに残っていた手直し（効果・内容）は手直し表に引き継ぐ
  *   - 手直し表（format: 'hgw-overrides'）……リストツールの「手直し表を保存」。overrides.json をまるごと置き換える
  *   - Wikiのページのテキスト（.txt）……英霊を足す・置き換える（複数ページは ===== だけの行で区切る）
- *   - 申請（hgw-request）・記録（hgw-records）・集計（hgw-survival）などは反映せず、そのまま残して報告する
+ *   - 集計（format: 'hgw-survival'。リストツールの「公開用の集計として保存」）……反映したあとのリストの指紋が合えば data/survival.json に置く。
+ *       合わなければ使わずに片付ける（集計は「データの反映」が作り直す）
+ *   - 申請（hgw-request）・記録（hgw-records）などは反映せず、そのまま残して報告する
  * 反映したファイルは data/incoming/ から消す。GitHub Actions の「データの反映」（.github/workflows/data.yml）から使う。
  */
 'use strict';
@@ -35,6 +37,7 @@ function main() {
   const files = fs.existsSync(IN) ? fs.readdirSync(IN).filter(f => !/^readme/i.test(f) && !f.startsWith('.') && fs.statSync(path.join(IN, f)).isFile()).sort() : [];
   const notes = [], kept = [];
   let applied = 0;
+  const survFiles = [];
   if (files.length) {
     // 今のリストと手直し表（手直しはゲームと同じく読み込んだ状態から始める）
     L.clearOverrides();
@@ -85,6 +88,7 @@ function main() {
         } else {
           const d = JSON.parse(fs.readFileSync(p, 'utf8'));
           const fmt = d && !Array.isArray(d) ? d.format : null;
+          if (fmt === 'hgw-survival') { survFiles.push(f); continue; }   // 反映のあと、リストの指紋が合えば data/survival.json にする
           if (fmt === 'hgw-overrides' || (!fmt && d && (d.global || d.servant || d.content || d.stats || d.np || d.pages || d.reviewed) && !d.servants)) {
             if (f !== newestOv) { notes.push(`- ${label}${fmtAt(f) ? `（${fmtAt(f)}）` : ''}：より新しい手直し表「${newestOv}」があるので使わず、片付けました`); fs.unlinkSync(p); applied++; continue; }
             L.clearOverrides(); L.applyOverrides(d);
@@ -116,7 +120,7 @@ function main() {
             if (harvested) notes.push(`  - 書き出しに残っていた手直し ${harvested}件を手直し表に引き継ぎ`);
           } else {
             kept.push(f);
-            notes.push(`- ${label}：${{ 'hgw-request': '申請のファイル（リストツールの「取り込み」で読んでください）', 'hgw-records': '聖杯戦争の記録（ゲームの「記録を読み込む」用）', 'hgw-survival': '生存曲線の集計（自動で作り直すので不要）' }[fmt] || '何のファイルか分かりません'}。反映せずに残しました`);
+            notes.push(`- ${label}：${{ 'hgw-request': '申請のファイル（リストツールの「取り込み」で読んでください）', 'hgw-records': '聖杯戦争の記録（ゲームの「記録を読み込む」用）' }[fmt] || '何のファイルか分かりません'}。反映せずに残しました`);
             continue;
           }
         }
@@ -128,6 +132,22 @@ function main() {
       fs.writeFileSync(SV, JSON.stringify(pack, null, 1) + '\n');
       const ov = L.currentOverrides(); for (const k of Object.keys(ov)) if (ov[k] && typeof ov[k] === 'object' && !Object.keys(ov[k]).length && !['global', 'servant', 'stats', 'np'].includes(k)) delete ov[k];
       fs.writeFileSync(OV, JSON.stringify(ov, null, 1) + '\n');
+    }
+    // 集計（リストツールの「公開用の集計として保存」）：反映後のリストの指紋が合うときだけ data/survival.json にする。
+    // 合わないものは古い集計なので片付ける（そのあと「データの反映」が10000回で作り直す）。上げた順の最後のものだけを見る
+    if (survFiles.length) {
+      require(path.join(L.ROOT, 'js', 'survival.js'));
+      const fp = H.survival.fingerprint(L.loadDir(DATA).roster), newest = survFiles[survFiles.length - 1];
+      for (const f of survFiles) {
+        const p = path.join(IN, f), label = `「${f}」`;
+        try {
+          const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (f !== newest) notes.push(`- ${label}：より新しい集計「${newest}」があるので使わず、片付けました`);
+          else if (d.fp === fp && d.servants && d.wars > 0) { fs.writeFileSync(path.join(DATA, 'survival.json'), JSON.stringify(d) + '\n'); notes.push(`- ${label}：生存曲線の集計（${d.wars}回）を data/survival.json に置きました`); }
+          else notes.push(`- ${label}：リストと合わない集計でした（集計 ${d.fp} / リスト ${fp}）。使わず、片付けました。集計は自動で作り直します`);
+          fs.unlinkSync(p); applied++;
+        } catch (e) { kept.push(f); notes.push(`- ${label}：読めませんでした（${e.message}）。そのまま残しました`); }
+      }
     }
   }
   const md = files.length ? ['### アップロードされたファイル', ...notes].join('\n') : '';

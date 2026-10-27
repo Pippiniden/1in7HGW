@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* 生存曲線の集計（data/survival.json）を作る
  *
- *   node tools/survival.js            … 3000回（既定）の全自動の聖杯戦争から集計して data/survival.json に書く
+ *   node tools/survival.js            … 10000回（既定）の全自動の聖杯戦争から集計して data/survival.json に書く
  *   node tools/survival.js 1000       … 回数を指定
  *   node tools/survival.js --check    … 今のリストと data/survival.json の指紋が合っているかだけ確かめる
  *
@@ -34,7 +34,7 @@ globalThis.fetch = async url => {
     process.exitCode = ok ? 0 : 1;
     return;
   }
-  const n = +(args.find(a => /^\d+$/.test(a)) || 3000);
+  const n = +(args.find(a => /^\d+$/.test(a)) || 10000);
   const run = H.survival.runner(roster, { masters: res.masters });
   const t0 = Date.now();
   for (let done = 0; done < n; done += 100) {

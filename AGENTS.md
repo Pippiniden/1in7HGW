@@ -170,7 +170,7 @@ Overrides embedded in an exported servant JSON (`effectSource: 'override'|'serva
 pages (`=====` separates pages). A list exported by roster's 「公開用に保存」 carries `patch: { base, add, upd, del }` (the browser's own changes since its last sync, by wiki id): only those servants are
 added/replaced/removed and everything else stays as published, so servants imported by Actions after the browser synced are neither dropped nor reverted. Without `patch`, a list holding ≥ 80 % of the current ids **replaces** the list (missing servants are named in the report), otherwise it upserts by id; lean packs are taken
 verbatim, full exports go through `harvestOverrides` + `toLean(fromJSON())`. Within one kind files apply **in upload order** (`git log` time, fallback the browser's 「(N)」 number, numerically).
-Requests/records/survival files are left in place. The workflow then runs `test/sim.js 40` + `test/fgo.js`, rebuilds `survival.json` when `tools/survival.js --check` fails, and commits only the
+An `hgw-survival` file (roster 「聖杯戦争で試す」→「公開用の集計として保存」, `simLab.toSurvival`) becomes `data/survival.json` only if its `fp` matches the roster *after* the upload is applied, otherwise it is discarded and the workflow rebuilds it (10000 wars). Requests/records files are left in place. The workflow then runs `test/sim.js 40` + `test/fgo.js`, rebuilds `survival.json` when `tools/survival.js --check` fails, and commits only the
 rebuilt survival to main when data was replaced directly. `data-cleanup.yml` removes the files of an upload PR closed without merging. Details: `docs/DEVELOPER.md`.
 **The owner sometimes uploads `data/servants.json` directly to `main`; always branch from the latest `origin/main` and never overwrite data files you were not asked to change.**
 
@@ -418,7 +418,7 @@ node test/focus.js [N]          # is REC_FOCUS really the best constant focus pe
 node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
 node tools/fxcheck.js [--grep 名] [--weak]   # effect settings that never work, 特攻/条件 tags no servant has, (--weak) negligible effects
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON
-node tools/survival.js [N]      # rebuild data/survival.json (default 3000 wars); --check compares fingerprints
+node tools/survival.js [N]      # rebuild data/survival.json (default 10000 wars); --check compares fingerprints
 python3 -m http.server          # then open http://localhost:8000/
 ```
 Before opening a PR run `sim.js` and `interactive.js` (must be `errors 0`, `mismatch 0`) and the tests that cover what you touched. Compare balance against `origin/main` if you touch the engine or config (a `git worktree` of main is handy).
