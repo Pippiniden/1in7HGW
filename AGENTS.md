@@ -66,7 +66,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 
 ```
 index.html          Game (inline CSS + UI script)          ranking.html   Strength ranking (spoiler page)
-zukan.html          Servant encyclopedia (spoiler page): class tabs → wiki lore, skills, NPs, relations, voice; `#<id>` opens one; loads up to `data`
+zukan.html          Servant encyclopedia (spoiler page): class tabs → wiki lore, skills, NPs, relations, voice; `#<id>` opens one; a last 「ボス専用」 tab lists `bossOnly` servants (roster ones + `bosses.json` via `prepareBosses`); loads up to `singularity` (no `survival`)
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
 logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)

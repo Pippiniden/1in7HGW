@@ -195,6 +195,8 @@ details > .txt, details > .voice { margin-top: 6px; }
 <script src="js/personas.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/data.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/singularity.js"></script>
 <script>
 (function () {
   'use strict';
@@ -203,15 +205,20 @@ details > .txt, details > .voice { margin-top: 6px; }
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = s => String(s || '').normalize('NFKC').toLowerCase();
   let roster = [], groups = [], tab = '', openSv = null;
+  const BOSS_KEY = 'boss';
 
   // ---------- クラスの分け方 ----------
   // CLASS_DEFS の順に並べる。どのクラスにも当たらないもの（Wikiのクラス名のまま）は「その他のクラス」にまとめる
   function grouping() {
     const keys = Object.keys(H.CONFIG.CLASS_DEFS);
     const byKey = new Map();
-    for (const sv of roster) { const k = keys.includes(sv.class.key) ? sv.class.key : 'extra'; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(sv); }
+    for (const sv of roster) { if (sv.bossOnly) continue; const k = keys.includes(sv.class.key) ? sv.class.key : 'extra'; if (!byKey.has(k)) byKey.set(k, []); byKey.get(k).push(sv); }
     const order = keys.filter(k => k !== 'extra' && byKey.has(k)).concat(byKey.has('extra') ? ['extra'] : []);
-    return order.map(k => ({ key: k, label: k === 'extra' ? 'その他のクラス' : H.classDef(k).label, list: byKey.get(k).sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja')) }));
+    const gs = order.map(k => ({ key: k, label: k === 'extra' ? 'その他のクラス' : H.classDef(k).label, list: byKey.get(k).sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja')) }));
+    // ボス専用（特異点のボス）は最後に別枠でまとめる
+    const bs = roster.filter(sv => sv.bossOnly).sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja'));
+    if (bs.length) gs.push({ key: BOSS_KEY, label: 'ボス専用', list: bs });
+    return gs;
   }
 
   // ---------- 一覧 ----------
@@ -222,7 +229,7 @@ details > .txt, details > .voice { margin-top: 6px; }
   const matches = (sv, q) => !q || norm([sv.trueName, sv.class.label, sv.origin, (sv.aliases || []).join(' ')].join(' ')).includes(q);
   // クラスの見出しの下ではクラス名を繰り返さない（「その他のクラス」ではWikiのクラス名を出す）
   const card = (sv, g) => `<button class="card" data-id="${esc(sv.id)}"><span class="pic"><img src="${H.classIcon(sv.class.key)}" alt="" data-face="${esc(H.faceNameOf(sv))}"></span>`
-    + `<span class="tx"><span class="t" title="${esc(sv.trueName)}">${esc(sv.trueName || '（真名不明）')}</span><span class="s">${esc([g.key === 'extra' ? sv.class.label : '', sv.origin].filter(Boolean).join('・'))}</span></span></button>`;
+    + `<span class="tx"><span class="t" title="${esc(sv.trueName)}">${esc(sv.trueName || '（真名不明）')}</span><span class="s">${esc([g.key === 'extra' || g.key === BOSS_KEY ? sv.class.label : '', sv.origin].filter(Boolean).join('・'))}</span></span></button>`;
   function renderList() {
     const q = norm($('#q').value.trim());
     const gs = groups.filter(g => !tab || g.key === tab).map(g => ({ g, list: g.list.filter(sv => matches(sv, q)) })).filter(x => x.list.length);
@@ -375,7 +382,13 @@ details > .txt, details > .voice { margin-top: 6px; }
       if (qs.get('data') === 'local') { res = H.data.loadLocal(); label = 'リストツールで作ったリスト'; $('#rankLink').href = 'ranking.html?data=local'; }
       else if (/^https?:$/.test(location.protocol)) res = await H.data.loadPublished('data/');
       else { $('#status').textContent = 'ファイルを直接開いているため、データを読めません。サイトから開いてください。'; return; }
-      roster = res.servants.filter(s => !s.bossOnly);   // ボス専用の英霊は聖杯戦争に出ないので載せない
+      // ボス専用の英霊（名簿の属性「ボス専用」と bosses.json のボス）は、最後の「ボス専用」枠に載せる
+      const SG = H.singularity, bosses = SG.prepareBosses(res.bosses || []).bosses;
+      const inList = new Map(res.servants.filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+      const boss = bosses.map(x => inList.get(x.trueName) || x);
+      const have = new Set(boss.map(x => x.trueName));
+      for (const [tn, s] of inList) if (!have.has(tn)) boss.push(s);
+      roster = res.servants.filter(s => !s.bossOnly).concat(boss.map(s => (s.bossOnly = true, s)));
     } catch (e) { $('#status').textContent = 'データを読めませんでした：' + e.message; return; }
     if (!roster.length) { $('#status').textContent = '英霊がいません'; return; }
     groups = grouping();
