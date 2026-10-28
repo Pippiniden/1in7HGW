@@ -254,8 +254,8 @@ details > .txt, details > .voice { margin-top: 6px; }
   const kv = rows => { const r = rows.filter(([, v]) => v != null && String(v).trim()); return r.length ? `<dl class="kv">${r.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''; };
   const para = t => `<p class="txt">${esc(t)}</p>`;
   // 長い文は最初の部分だけ出して、続きは「続きを読む」で開く（最初の部分は繰り返さない）
-  function longText(text, limit) {
-    const l = B.loreLead(text, limit || 400);
+  function longText(text, limit, voice) {
+    const l = B.loreLead(text, limit || 400, voice);
     return l.head ? para(l.head) + (l.rest ? `<details><summary>続きを読む</summary>${para(l.rest)}</details>` : '') : '';
   }
   function skillItem(s) {
@@ -291,10 +291,10 @@ details > .txt, details > .voice { margin-top: 6px; }
       ['元ネタ', sv.origin], ['性別', sv.sex], ['属性', sv.alignment], ['天地人属性', sv.attribute], ['特性', (sv.traits || []).join('、')],
       ...INFO_KEYS.filter(k => info[k] && info[k] !== sv.origin).map(k => [k, info[k]]),
     ]);
-    const commentary = longText(B.loreText(t.commentary), 500), person = longText(B.loreText(t.personality), 400);
+    const commentary = longText(t.commentary, 500, sv.voice), person = longText(t.personality, 400, sv.voice);
     const prof = kv(PROFILE_JA.map(([k, l]) => [l, p[k]]));
     const cls = sv.classSkills || [], own = sv.skills || [], nps = sv.nps || [], ws = sv.weapons || [], rels = sv.relations || [];
-    const extra = [['comment', 'コメント'], ['other', 'その他']].map(([k, l]) => { const x = B.loreText(t[k]); return x ? `<details><summary>${l}</summary>${para(x)}</details>` : ''; }).join('');
+    const extra = [['comment', 'コメント'], ['other', 'その他']].map(([k, l]) => { const x = B.loreText(t[k], sv.voice); return x ? `<details><summary>${l}</summary>${para(x)}</details>` : ''; }).join('');
     // 同じクラスの中で前後の英霊へ
     const g = groups.find(x => x.list.includes(sv)), i = g ? g.list.indexOf(sv) : -1;
     const prev = g && g.list[i - 1], next = g && g.list[i + 1];

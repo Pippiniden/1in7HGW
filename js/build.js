@@ -491,23 +491,33 @@
    *   - ◆だけ・罫線だけの区切り行
    * 3行以上の空行は1つの空行にまとめる
    */
-  const VOICE_LINE = /^[^「」：\n]{1,14}：「.*」\s*$/;
-  function loreText(text) {
+  // 「見出し：「セリフ」」（半角コロン・空白・末尾の「ボイス」「(相手の名前)」も許す）
+  const VOICE_LINE = /^[^「」：:\n]{1,16}[：:]\s*「.*」[^「」。\n]{0,30}$/;
+  const VOICE_HEAD = /^(FGO風)?(セリフ|台詞|ボイス)(集|例|一覧)?\s*([（(].*[）)])?$/;
+  const VOICE_OPEN = /^[^「」：:\n]{1,16}[：:]\s*「[^」]*$/;      // 閉じる」が次の行以降にある（改行して続くセリフ）
+  const quoteOf = l => String(l).replace(/^[「『\s]+|[」』\s]+$/g, '').replace(/\s+/g, '');
+  /** voice = そのサーヴァントのセリフ欄（{見出し: [セリフ…]}）。渡すと、そこに載っているセリフを引用した行も外す */
+  function loreText(text, voice) {
+    const known = new Set();
+    for (const h in voice || {}) for (const l of voice[h] || []) { const q = quoteOf(l); if (q.length >= 4) known.add(q); }
+    const inVoice = t => { for (const m of t.matchAll(/「([^」]+)」/g)) if (known.has(quoteOf(m[1]))) return true; return false; };
     const lines = String(text || '').replace(/\r/g, '').split('\n'), out = [];
-    let skipping = false;
+    let skipping = false, open = false;
     for (let i = 0; i < lines.length; i++) {
       const t = lines[i].trim();
+      if (open) { if (t.includes('」')) open = false; continue; }
       if (/^TRPGキャラ(クター)?シート/.test(t)) break;
-      if (/^(セリフ集?|台詞集?|ボイス集?)$/.test(t) || VOICE_LINE.test(t)) { skipping = true; continue; }
-      if (skipping) { if (!t) continue; skipping = false; }
+      if (VOICE_HEAD.test(t) || VOICE_LINE.test(t) || (known.size && inVoice(t))) { skipping = true; continue; }
+      if (VOICE_OPEN.test(t)) { skipping = open = true; continue; }
+      if (skipping) { if (!t || /^CV[：:\s]?\S+$/.test(t)) continue; skipping = false; }
       if (t && /^[◆■□●○◎＊*・\-―─━=＝\s]+$/.test(t)) continue;
       out.push(lines[i].replace(/\s+$/, ''));
     }
     return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
   }
   /** 解説を「最初に出す部分」と「続き」に分ける（文や行の切れ目で limit 字まで。続きは最初の部分と重ならない） */
-  function loreLead(text, limit) {
-    const t = loreText(text);
+  function loreLead(text, limit, voice) {
+    const t = loreText(text, voice);
     let head = '', i = 0;
     const parts = t.split(/(?<=[。\n])/);
     for (; i < parts.length; i++) { if (head.trim() && (head + parts[i]).length > limit) break; head += parts[i]; }
