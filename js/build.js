@@ -33,7 +33,7 @@
   const linkOf = sv => extLinkOf(pageOf(sv));
   const isManual = sv => !!(sv && (sv.manual || linkOf(sv)));   // Wikiから取り直せない騎（手書き・外部リンク）
   /** Wiki での真名・id（真名・クラスを手直ししていても、取り込んだときのもの。内容の手直し表と公開中のリストとの突き合わせに使う） */
-  const wikiName = sv => (sv && sv._wiki && sv._wiki.trueName) || (sv && sv.trueName);
+  const wikiName = sv => (sv && sv._wiki && 'trueName' in sv._wiki) ? sv._wiki.trueName : (sv && sv.trueName);
   const wikiId = sv => (sv && sv._wiki && sv._wiki.id) || (sv && sv.id);
   /** 内容の手直し表（CONTENT_OVERRIDES）で引く名前：Wiki の真名（印 key があれば '#印' 付き） */
   const wikiKey = sv => !sv ? '' : wikiName(sv) + (sv.key ? '#' + sv.key : '');
