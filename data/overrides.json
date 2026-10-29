@@ -3925,10 +3925,11 @@
    ],
    [
     "debuff",
-    0,
+    2.5,
     {
-     "dmin": 14,
-     "grow": 0.25,
+     "grow": -0.1667,
+     "decay": -0.1,
+     "turn": 7,
      "self": true,
      "nocure": true
     }
