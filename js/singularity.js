@@ -855,7 +855,9 @@
   //   o: { roster, boss（ボス専用の英霊。名簿のものは bossFromRoster 済みでなくてもよい）, n, fresh（true：敵七騎を飛ばしてボス戦だけ／false：七騎を倒して消耗したままボスへ）, seedBase, sing, days, focus }
   function bossTrialOne(o, i) {
     const boss = o.boss.boss ? o.boss : bossFromRoster(JSON.parse(JSON.stringify(o.boss)));
-    const r = run({ roster: o.roster, bosses: [boss], seed: (o.seedBase || 'bt') + i, picks: { boss: boss.id }, skipFoes: !!o.fresh, sing: o.sing, days: o.days, focus: o.focus });
+    // 名簿の同じ英霊（ボスの設定が付いていない方）が優先されないよう、名簿側もボスの設定入りに差し替える
+    const roster = o.roster.map(s => s.id === boss.id ? boss : s);
+    const r = run({ roster, bosses: [boss], seed: (o.seedBase || 'bt') + i, picks: { boss: boss.id }, skipFoes: !!o.fresh, sing: o.sing, days: o.days, focus: o.focus });
     const alive = (r.party || []).filter(c => c.alive).length;
     return { ending: r.ending, stage: r.stage, days: r.days, slain: r.slain, alive, size: (r.party || []).length, gauges: r.boss ? r.boss.gauges : 0, gaugeMax: r.boss ? r.boss.gaugeMax : 0, cs: r.cs };
   }
