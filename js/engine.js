@@ -763,7 +763,9 @@
       for (const x of all()) x.bx.ctx = ctx;   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように
       // 並んで戦う味方どうしの効果：味方にも効く効果（params.team）と統率（rally）を、その戦いの間だけ分け合う（乱数は使わない）。
       //   加勢がいない一騎どうしの戦いでは何も起きない
-      for (const s of [side(a), side(b)]) if (s.length > 1) for (const x of s) for (const y of s) if (x !== y) shareTeam(y, x);
+      for (const s of [side(a), side(b)]) if (s.length > 1) for (const x of s) for (const y of s) if (x !== y) shareTeam(y, x, (ctx.teamK || 1) * weakK(y, ctx));
+      // 控えの支援（特異点）：戦いに加わらない控えの英霊も、味方にも効く効果と統率を前衛に貸す（ctx.supportA / supportB、倍率 ctx.supportK）
+      for (const [s, sup] of [[side(a), ctx.supportA], [side(b), ctx.supportB]]) if (sup && sup.length && ctx.supportK > 0) for (const y of sup) if (y.alive) for (const x of s) shareTeam(y, x, ctx.supportK * (ctx.teamK || 1) * weakK(y, ctx));
       const where = ctx.home ? `${mn(ctx.home)}の拠点「${ctx.place.name}」` : ctx.place.name;
       log('battle', line(LK('clash'), { where: (ctx.rain ? '雨の' : '') + where, A: nm(a), B: nm(b) }), [a.id, b.id], { quote: say(a, ['開始']), head: true, place: ctx.place.name, scene: ctx.place.scene });
       clue(a, b, 1); clue(b, a, 1);
@@ -980,15 +982,21 @@
     }
 
     // y の常時の効果のうち、味方にも効くもの（params.team）を x の c.temp へ（強さ×割合）。統率は x の戦闘力を 統率×rallyPower 上げる
-    function shareTeam(y, x) {
+    // 支援の効きは、支える側が弱いほど強く、強いほど弱い（ctx.weak = { ref, bonus, min, max }。特異点のみ）。強い英霊のバフが際限なく効くのを避ける
+    function weakK(y, ctx) {
+      const w = ctx.weak; if (!w || !(w.ref > 0)) return 1;
+      return Math.min(w.max, Math.max(w.min, 1 + w.bonus * (w.ref - y.sv.power) / w.ref));
+    }
+    function shareTeam(y, x, kk) {
+      const K = kk > 0 ? kk : 1;   // 倍率（特異点の味方への効果の強化・控えの支援。既定は1）
       for (const [k, e] of Object.entries(y.sv.effectSummary || {})) {
         const p = e.params;
         if (!p || !(p.team > 0) || e.on || !e.passive || isSelf(p) || !E.TEAM_IDS.includes(e.id)) continue;
         const q = Object.assign({}, p); delete q.team;
-        x.temp.push({ id: e.id, mag: e.passive * Math.min(1, p.team) * dm(p), params: Object.keys(q).length ? q : null, from: (e.from[0] || '').replace(/\(消滅後も持続\)$/, ''), src: '#team:' + y.id + ':' + k });
+        x.temp.push({ id: e.id, mag: e.passive * Math.min(1, p.team) * K * dm(p), params: Object.keys(q).length ? q : null, from: (e.from[0] || '').replace(/\(消滅後も持続\)$/, ''), src: '#team:' + y.id + ':' + k });
       }
       const r = eff(y, 'rally');
-      if (r > 0 && ENG.rallyPower) x.temp.push({ id: 'power', mag: r * ENG.rallyPower, params: null, from: '統率', src: '#rally:' + y.id });
+      if (r > 0 && ENG.rallyPower) x.temp.push({ id: 'power', mag: r * ENG.rallyPower * K, params: null, from: '統率', src: '#rally:' + y.id });
     }
 
     function* ambushMaster(h, t) {
