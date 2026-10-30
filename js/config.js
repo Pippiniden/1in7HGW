@@ -21,7 +21,7 @@
     assassin:   { label: 'アサシン',       aliases: ['アサシン', 'assassin'],            slot: 'standard', weights: { str: 0.9, end: 0.8, agi: 1.3, mag: 0.8, luk: 1.1 } },
     berserker:  { label: 'バーサーカー',   aliases: ['バーサーカー', 'berserker'],       slot: 'standard', weights: { str: 1.3, end: 1.2, mag: 0.6, luk: 0.6 }, upkeep: 1.4 },
     // ここから下はエクストラクラス
-    saver:      { label: 'セイヴァー',     aliases: ['セイヴァー', 'savior', 'saver'],   slot: 'extra' },
+    saver:      { label: 'セイヴァー',     aliases: ['セイヴァー', 'savior', 'saver'],   slot: 'extra', icon: 'extra' },
     ruler:      { label: 'ルーラー',       aliases: ['ルーラー', 'ruler'],               slot: 'extra', weights: { mag: 1.1, luk: 1.1 } },
     avenger:    { label: 'アヴェンジャー', aliases: ['アヴェンジャー', 'アベンジャー', 'avenger'], slot: 'extra', weights: { str: 1.1, end: 1.1 } },
     shielder:   { label: 'シールダー',     aliases: ['シールダー', 'shielder'],          slot: 'extra', weights: { end: 1.4, str: 0.9 } },
@@ -31,8 +31,9 @@
     pretender:  { label: 'プリテンダー',   aliases: ['プリテンダー', 'pretender'],       slot: 'extra' },
     beast:      { label: 'ビースト',       aliases: ['ビースト', 'beast'],               slot: 'extra', weights: { str: 1.2, end: 1.2 } },
     gunner:     { label: 'ガンナー',       aliases: ['ガンナー', 'gunner'],              slot: 'extra', weights: { agi: 1.1, luk: 1.2 } },
+    archenemy:  { label: 'アークエネミー', aliases: ['アークエネミー', 'arch enemy', 'archenemy'], slot: 'extra' },
     // どれにも当てはまらないクラス（例：ルーカンの「サーヴァント」）
-    extra:      { label: 'エクストラ',     aliases: [],                                  slot: 'extra' },
+    extra:      { label: 'エクストラ',     aliases: [],                                  slot: 'extra', icon: 'servant' },
   };
 
   G.CONFIG = {
@@ -276,7 +277,7 @@
   G.classWeights = key => Object.assign({ str: 1, end: 1, agi: 1, mag: 1, luk: 1 }, G.classDef(key).weights || {});
   // 補助：通常7騎の枠を持つクラスの一覧
   G.standardClasses = () => Object.keys(CLASS_DEFS).filter(k => CLASS_DEFS[k].slot === 'standard');
-  // クラスのアイコン（img/classes/{クラス}.webp）。七騎のクラス以外（ルーラーなどエクストラクラス）は星の印（extra.webp）
+  // クラスのアイコン（img/classes/{クラス}.webp）。CLASS_DEFS の icon があればその名前の絵（セイヴァーは星の印、どれにも当てはまらないクラスは servant）
   // 顔グラフィック：img/faces/<真名>.webp（.png・.jpg も可）。無い英霊がほとんどなので、見つかったときだけ表示する（UI が順に試す）
   G.FACE_DIR = 'img/faces/';
   G.FACE_EXT = ['webp', 'png', 'jpg'];
@@ -299,7 +300,7 @@
     faceSeen.set(n, p); if (onFound) p.then(u => u && onFound(u));
     return null;
   };
-  G.classIcon = key => 'img/classes/' + (CLASS_DEFS[key] && CLASS_DEFS[key].slot === 'standard' ? key : 'extra') + '.webp';
+  G.classIcon = key => { const d = CLASS_DEFS[key] || CLASS_DEFS.extra; return 'img/classes/' + (d.icon || key) + '.webp'; };
 
   // ---------- 評価（S〜E） ----------
   // 開戦時の評価・リストツール・申請フォーム・強さランキングで同じものを使う。リストの全騎と1対1で戦った平均勝率の順位が
