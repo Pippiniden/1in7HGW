@@ -204,7 +204,7 @@ body.watching .war { display: block; }
 .hud-mid { display: grid; gap: 5px; min-width: 0; }
 .hud-mid span { font-size: 12px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .prog { height: 4px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
-.prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); box-shadow: 0 0 10px var(--cyan); transition: width .3s; }
+.prog i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); box-shadow: 0 0 10px var(--cyan); }
 .ctl { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 .ctl .more, .ctl .sm { display: none; }
 .menu { display: none; position: absolute; right: 16px; top: 100%; z-index: 12; min-width: 200px; padding: 8px; }
@@ -2236,6 +2236,21 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       ${runTxt ? `<p class="focusrun">方針の移り変わり：${runTxt}</p>` : ''}</details>`;
   }
 
+  // 上部バー：目標値へ向けて常になめらかに近づき続ける（ログ1件ごとの階段状にならない）
+  function glideProg(el, pct) {
+    el._t = pct;
+    if (el._v == null || pct < el._v - 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) { el._v = pct; el.style.width = pct + '%'; return; }
+    if (el._raf) return;
+    let last = performance.now();
+    const f = now => {
+      const dt = Math.min(100, now - last); last = now;
+      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 1500));
+      if (Math.abs(el._t - el._v) < 0.02) { el._v = el._t; el._raf = 0; } else el._raf = requestAnimationFrame(f);
+      el.style.width = el._v + '%';
+    };
+    el._raf = requestAnimationFrame(f);
+  }
+
   function board(e) {
     if (!e || !e.snap) return;
     lastSnap = e.snap;
@@ -2246,7 +2261,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#hudSub').textContent = `${out.city} ・ ${PH[e.phase] || ''} ・ ${youNow ? 'マスター ' + youNow.master : '観測者'} ・ SEED ${seed}`;
     const dayEntries = out.entries.filter(x => x.day === curDay);
     const pos = out.entries.slice(0, idx).filter(x => x.day === curDay).length;
-    $('#prog').style.width = (fin ? 100 : Math.min(100, pos / Math.max(1, dayEntries.length) * 100)) + '%';
+    // 戦争全体の進み具合（日をまたいでも戻らず、ログが流れるたびに少しずつ伸びる）
+    glideProg($('#prog'), fin ? 100 : Math.min(100, ((Math.max(1, curDay) - 1) + pos / Math.max(1, dayEntries.length)) / maxDays * 100));
     // 情景：戦いの場所 → 自分の拠点 → 街
     const scene = e.scene || (youNow && youNow.scene) || H.SCENE_CONFIG.defaultScene;
     const place = e.place || (youNow ? `${youNow.base}（あなたの拠点）` : out.city);
