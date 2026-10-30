@@ -1601,6 +1601,7 @@
 
     // ---------- 結末 ----------
     phase = 'end';
+    for (const c of camps) pubName.add(c.id);   // 聖杯の降臨とともに真名は明かされる（結末の文に真名を出すため、ログより先に公開する）
     const left = active();
     let winner = null;
     let ending = left.length ? 'draw' : 'wipe';
@@ -1619,7 +1620,6 @@
     }
     if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
     else if (ending === 'draw') log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
-    for (const c of camps) pubName.add(c.id);
     for (const c of left) c.fate = { day, text: c === winner ? '勝者' : '生き残った' };
     log('end', '——聖杯戦争、終結。', [], { head: true });
 
