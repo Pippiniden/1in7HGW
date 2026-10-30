@@ -350,6 +350,12 @@
     }
     const hpOf = xs => mean(xs.map(c => c.hp));
 
+    // 支える側の弱さによる倍率（戦闘の支援と同じ式。engine の weakK）：平均より弱いほど大きく、強いほど小さい
+    function weakMult(c) {
+      const ref = mean(party.map(x => x.sv.power));
+      return ref > 0 ? clamp(1 + S.weakBonus * (ref - c.sv.power) / ref, S.weakMin, S.weakMax) : 1;
+    }
+
     // ---------- 朝 ----------
     function morning(cmds) {
       const day = A.day;
@@ -361,10 +367,10 @@
       const team = alive(party).concat(strayReady() ? [stray] : []);
       let healed = 0, healer = null;
       for (const h of alive(party)) {
-        const k = Math.max(0, A.eff(h, 'heal_other')); if (!(k > 0)) continue;
+        const k = Math.max(0, A.eff(h, 'heal_other')) * weakMult(h); if (!(k > 0)) continue;
         for (const x of team) if (x !== h && x.hp < 100) { const v = Math.min(100 - x.hp, k * S.healOther); x.hp += v; healed += v; }
         P.mhp = Math.min(P.mhpMax, P.mhp + k * S.healOther * 0.5);
-        if (!healer || k > A.eff(healer, 'heal_other')) healer = h;
+        if (!healer || k > A.eff(healer, 'heal_other') * weakMult(healer)) healer = h;
       }
       if (healer && healed >= 8 && !(P.healSaid > day - 3)) { P.healSaid = day; A.log('day', `${A.sn(healer)}が、仲間たちの傷を手当てした。`, [healer.id]); }
       // 毎朝の効果・毒・衰弱・ボスの力
@@ -518,10 +524,12 @@
         }
         const place = P.place;
         const home = how === 'raid' && (P.camp > 0 || F === 'defend') ? me : null;
+        const sup = reserveAlive().filter(x => !helpP.includes(x) && x !== me);
         const ctx = { place, home, terrain: A.tonight.rain ? '水辺' : place.terrain, rain: A.tonight.rain,
+          teamK: S.teamBoost, supportK: S.reserveSupport, weak: { ref: mean(party.map(c => c.sv.power)), bonus: S.weakBonus, min: S.weakMin, max: S.weakMax },
           lines: A.phase === 'night' ? null : { clash: 'sgClashDay', retreat: 'sgRetreatDay', dawn: 'sgDawnDay' } };
-        if (raid) yield* A.battle(foe, me, Object.assign(ctx, { helpA: helpF, helpB: helpP }));
-        else yield* A.battle(me, foe, Object.assign(ctx, { helpA: helpP, helpB: helpF }));
+        if (raid) yield* A.battle(foe, me, Object.assign(ctx, { helpA: helpF, helpB: helpP, supportB: sup }));
+        else yield* A.battle(me, foe, Object.assign(ctx, { helpA: helpP, helpB: helpF, supportA: sup }));
         for (const c of [me, foe].concat(helpP, helpF)) if (c.alive) c.fought = true;
         yield* checkWipe();
         if (over()) break;
@@ -832,7 +840,7 @@
     if (opts.skipFoes) lineup = Object.assign({}, lineup, { foes: [] });   // 敵七騎を飛ばして、最初からボス（ボスの試しなど）
     const plugin = makePlugin(opts, lineup);
     const S = Object.assign({}, G.CONFIG.SING, opts.sing || {});
-    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, playerName: opts.playerName, engine: { knowNameMult: S.knowNameMult } });
+    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, playerName: opts.playerName, engine: { knowNameMult: S.knowNameMult, rallyPower: S.rallyPower } });
   }
   /** 全自動で最後まで（方針は focus(day) か「おまかせ」、問いはすべておまかせ） */
   function run(opts) {
