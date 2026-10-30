@@ -1315,7 +1315,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     let last = performance.now();
     const f = now => {
       const dt = Math.min(100, now - last); last = now;
-      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 1500));
+      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 700));
       if (Math.abs(el._t - el._v) < 0.02) { el._v = el._t; el._raf = 0; } else el._raf = requestAnimationFrame(f);
       el.style.width = el._v + '%';
     };
@@ -1325,10 +1325,10 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const sn = e.snap; lastSnap = sn;
     const p = sn.p;
     $('#hudDay').textContent = `DAY ${e.day || 0} / ${maxDays}`;
-    // 日の途中も含めて、ログが流れるたびに少しずつ伸びる
+    // その日の進み具合（1日で満タン、翌日は0から。ログ件数ごとの階段にならないよう滑らかに追う）
     const dayEntries = out.entries.filter(x => x.day === e.day), pos = out.entries.slice(0, idx).filter(x => x.day === e.day).length;
     const fin = done && idx >= out.entries.length;
-    glideProg($('#hudProg'), fin ? 100 : Math.min(100, (Math.max(0, (e.day || 0) - 1) + pos / Math.max(1, dayEntries.length)) / maxDays * 100));
+    glideProg($('#hudProg'), fin ? 100 : Math.min(100, pos / Math.max(1, dayEntries.length) * 100));
     $('#hudInfo').textContent = `${p.stage === 'boss' ? '特異点の主と対峙' : `討伐 ${p.slain}/${CFG.foes}`}・方針 ${FOCUS[focus].label}`;
     const meta = out.meta[0] || {};
     $('#mName').textContent = meta.master ? meta.master.name : '';

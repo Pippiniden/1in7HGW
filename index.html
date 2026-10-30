@@ -2244,7 +2244,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     let last = performance.now();
     const f = now => {
       const dt = Math.min(100, now - last); last = now;
-      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 1500));
+      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 700));
       if (Math.abs(el._t - el._v) < 0.02) { el._v = el._t; el._raf = 0; } else el._raf = requestAnimationFrame(f);
       el.style.width = el._v + '%';
     };
@@ -2261,8 +2261,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#hudSub').textContent = `${out.city} ・ ${PH[e.phase] || ''} ・ ${youNow ? 'マスター ' + youNow.master : '観測者'} ・ SEED ${seed}`;
     const dayEntries = out.entries.filter(x => x.day === curDay);
     const pos = out.entries.slice(0, idx).filter(x => x.day === curDay).length;
-    // 戦争全体の進み具合（日をまたいでも戻らず、ログが流れるたびに少しずつ伸びる）
-    glideProg($('#prog'), fin ? 100 : Math.min(100, ((Math.max(1, curDay) - 1) + pos / Math.max(1, dayEntries.length)) / maxDays * 100));
+    // その日の進み具合（1日で満タン、翌日は0から。ログ件数ごとの階段にならないよう滑らかに追う）
+    glideProg($('#prog'), fin ? 100 : Math.min(100, pos / Math.max(1, dayEntries.length) * 100));
     // 情景：戦いの場所 → 自分の拠点 → 街
     const scene = e.scene || (youNow && youNow.scene) || H.SCENE_CONFIG.defaultScene;
     const place = e.place || (youNow ? `${youNow.base}（あなたの拠点）` : out.city);
