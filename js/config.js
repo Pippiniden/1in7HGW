@@ -32,8 +32,9 @@
     beast:      { label: 'ビースト',       aliases: ['ビースト', 'beast'],               slot: 'extra', weights: { str: 1.2, end: 1.2 } },
     gunner:     { label: 'ガンナー',       aliases: ['ガンナー', 'gunner'],              slot: 'extra', weights: { agi: 1.1, luk: 1.2 } },
     archenemy:  { label: 'アークエネミー', aliases: ['アークエネミー', 'arch enemy', 'archenemy'], slot: 'extra' },
-    // どれにも当てはまらないクラス（例：ルーカンの「サーヴァント」）
-    extra:      { label: 'エクストラ',     aliases: [],                                  slot: 'extra', icon: 'servant' },
+    servant:    { label: 'サーヴァント',   aliases: ['サーヴァント', 'servant'],         slot: 'extra' },   // 召使いのクラス（例：ルーカン）
+    // どれにも当てはまらないクラス
+    extra:      { label: 'エクストラ',     aliases: [],                                  slot: 'extra' },
   };
 
   G.CONFIG = {
@@ -277,7 +278,7 @@
   G.classWeights = key => Object.assign({ str: 1, end: 1, agi: 1, mag: 1, luk: 1 }, G.classDef(key).weights || {});
   // 補助：通常7騎の枠を持つクラスの一覧
   G.standardClasses = () => Object.keys(CLASS_DEFS).filter(k => CLASS_DEFS[k].slot === 'standard');
-  // クラスのアイコン（img/classes/{クラス}.webp）。CLASS_DEFS の icon があればその名前の絵（セイヴァーは星の印、どれにも当てはまらないクラスは servant）
+  // クラスのアイコン（img/classes/{クラス}.webp）。CLASS_DEFS の icon があればその名前の絵。絵の無いセイヴァーと、どれにも当てはまらないクラスは星の印（extra.webp）
   // 顔グラフィック：img/faces/<真名>.webp（.png・.jpg も可）。無い英霊がほとんどなので、見つかったときだけ表示する（UI が順に試す）
   G.FACE_DIR = 'img/faces/';
   G.FACE_EXT = ['webp', 'png', 'jpg'];
@@ -300,7 +301,7 @@
     faceSeen.set(n, p); if (onFound) p.then(u => u && onFound(u));
     return null;
   };
-  G.classIcon = key => { const d = CLASS_DEFS[key] || CLASS_DEFS.extra; return 'img/classes/' + (d.icon || key) + '.webp'; };
+  G.classIcon = key => 'img/classes/' + (CLASS_DEFS[key] ? CLASS_DEFS[key].icon || key : 'extra') + '.webp';
 
   // ---------- 評価（S〜E） ----------
   // 開戦時の評価・リストツール・申請フォーム・強さランキングで同じものを使う。リストの全騎と1対1で戦った平均勝率の順位が
