@@ -64,23 +64,59 @@ select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); }
 .rowsel .ico { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid var(--line-hi); transform: rotate(45deg); }
 .rowsel .ico::after { content: ""; width: 6px; height: 6px; background: var(--cyan); }
-.rowsel [aria-pressed="true"], .rowsel label:has(input:checked) { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.rowsel button:hover, .rowsel label:hover { box-shadow: inset 0 0 0 1px var(--cyan); }
+.rowsel [aria-pressed="true"], .rowsel label:has(input:checked) { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; box-shadow: 0 0 16px rgba(62, 230, 255, .45); }
+.rowsel [aria-pressed="true"] .ico, .rowsel label:has(input:checked) .ico { border-color: var(--sel-ink); }
 .rowsel [aria-pressed="true"] .ico::after, .rowsel label:has(input:checked) .ico::after { background: var(--sel-ink); }
+.rowsel label:has(input:checked)::before { content: ""; position: absolute; left: -2px; top: 50%; width: 8px; height: 8px; margin-top: -4px; background: var(--gold); transform: rotate(45deg); }
+.rowsel label:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
 .rowsel input { position: absolute; opacity: 0; pointer-events: none; }
 .choices4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 560px) { .choices4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 /* ---------- 開始前 ---------- */
-.intro { max-width: 760px; margin: 0 auto; padding: calc(6vh + var(--safe-t)) 16px 64px; display: grid; gap: 18px; }
-.title { padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; }
-.title h1 { font: 700 clamp(36px, 10vw, 64px)/1.15 var(--gothic); margin: 6px 0 0; letter-spacing: .08em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
-.title h1 small { font-size: .32em; letter-spacing: .2em; color: var(--mute); margin-left: 10px; font-weight: 500; }
-.lead { font: 500 15px/2 var(--mincho); margin: 0; }
-.field { display: grid; gap: 6px; margin-bottom: 14px; }
-.field .lbl { font-size: 12px; color: var(--mute); }
-.field input[type=text] { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 9px 12px; width: 100%; max-width: 280px; }
-.daysel { display: flex; align-items: center; gap: 12px; } .daysel input { flex: 1; max-width: 320px; accent-color: var(--cyan); }
+/* 聖杯戦争（index.html）の開戦前の画面とそろえる */
+.intro { max-width: 720px; margin: 0 auto; padding: calc(8vh + var(--safe-t)) 16px 64px; }
+.title { position: relative; padding: 0 0 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; text-shadow: 0 0 10px rgba(62, 230, 255, .6); }
+.title h1 { font: 700 clamp(44px, 12vw, 76px)/1.1 var(--gothic); margin: 6px 0 0; letter-spacing: .1em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
+.title h1 small { font-size: .3em; letter-spacing: .3em; color: var(--mute); margin-left: 10px; font-weight: 500; }
+.lead { font: 500 16px/2 var(--mincho); margin: 0 0 22px; color: var(--ice); }
+.intro > .panel + .panel { margin-top: 18px; }
+.form { padding: 4px 0 16px; }
+.form .body { display: grid; gap: 16px; }
+.field > .lbl { display: block; font-size: 12px; color: var(--mute); margin-bottom: 6px; }
+.field input[type=text] { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 10px 12px; font: 16px var(--gothic); width: 100%; max-width: 280px; }
+.choices2 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.go { justify-self: start; font: 700 18px var(--gothic); letter-spacing: .2em; padding: 12px 40px; min-height: 52px; --cut: 14px; }
+.data { font-size: 13px; color: var(--mute); margin: 0; }
+.data b { color: var(--cyan); font: 700 18px var(--en); }
+.over { margin: -6px 0 0; font-size: 12px; color: var(--mute); }
+.field .hint { margin: 6px 0 0; }
+.daysel { display: flex; align-items: center; gap: 14px; max-width: 420px; }
+.daysel input[type=range] { flex: 1; min-width: 0; accent-color: var(--cyan); height: 28px; }
+.daysel output { font: 700 20px var(--en); color: var(--cyan); min-width: 3.6em; text-align: right; }
+.install { margin-top: 18px; }
+.install .btn { min-height: 40px; padding: 8px 16px; }
+.install .note { font-size: 12px; color: var(--mute); margin: 0; }
+.resume .rinfo { margin: 0 0 12px; font: 500 15px/1.8 var(--mincho); }
+.resume .rinfo small { display: block; font: 12px var(--gothic); color: var(--mute); }
+.intro .acts .btn { min-height: 40px; padding: 8px 16px; display: inline-flex; align-items: center; }
+.records input[type=file] { display: none; }
+.records .note, .recempty { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+.recempty { margin: 0 0 12px; }
+.reclist { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.reclist li { padding: 10px 12px; background: linear-gradient(90deg, rgba(20, 70, 150, .45), rgba(10, 36, 86, .35)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+.reclist li.won { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px var(--line); }
+.reclist li.kept { box-shadow: inset 0 0 0 1px rgba(255, 216, 74, .55); }
+.reclist li.won.kept { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px rgba(255, 216, 74, .55); }
+.reclist .rt { font: 700 15px/1.5 var(--gothic); }
+.reclist .rm { font-size: 12px; color: var(--mute); }
+.reclist .ra { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.reclist .ra .btn { min-height: 34px; font-size: 12px; }
+.reclist .ra .del { margin-left: auto; }
+.reclist .ra .btn[data-act="keep"][aria-pressed="true"] { background: linear-gradient(90deg, var(--gold), #fff3c4); box-shadow: 0 0 10px rgba(255, 216, 74, .4); }
+.reclist .keepmark { display: inline-block; margin-left: 8px; padding: 0 8px; font: 500 11px/1.7 var(--gothic); color: var(--sel-ink); background: var(--gold); vertical-align: 2px; }
 .err { color: var(--seal); }
 .acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .sname { text-align: center; padding: 6px 0 12px; }
@@ -103,7 +139,7 @@ details.pick summary { cursor: pointer; padding: 6px 0; }
 .pickgrid { display: grid; gap: 6px; margin: 8px 0; }
 .pickgrid .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px; }
 .pickgrid label { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
-.foot { font-size: 12px; color: var(--mute); text-align: center; }
+.foot { margin-top: 28px; font-size: 12px; color: var(--mute); line-height: 1.9; }
 
 /* ---------- 観戦 ---------- */
 .war { display: none; }
@@ -197,22 +233,26 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .fic .face { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; border-radius: 3px; }
 .fic.has .ci { display: none; }
 .field input[type=text].wide { max-width: 420px; }
-.field .opt2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.cast { margin-top: 6px; font-size: 13px; }
-.cast summary { cursor: pointer; padding: 6px 0; color: var(--mute); }
-.cast-cls { margin: 8px 0; } .cast-hd { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; } .cast-hd .n { color: var(--mute); font-size: 12px; margin-right: auto; }
-.cast-hd .btn { min-height: 26px; padding: 2px 10px; font-size: 11px; --cut: 6px; }
-.cast-list { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 4px; }
-.cast-sv { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; font-size: 13px; } .cast-sv.off { opacity: .45; text-decoration: line-through; }
-#castSum.warn { color: var(--seal); }
+.field .rowsel + input[type=text] { margin-top: 8px; }
+.cast { margin-top: 10px; }
+.cast > summary { cursor: pointer; color: var(--mute); display: inline-block; }
+.cast > summary:hover, .cast > summary:focus-visible { color: var(--cyan); }
+.cast-in { margin-top: 8px; padding: 10px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); text-align: left; }
+.cast-in p { margin: 0 0 6px; }
+.cast-sum { color: var(--ice); }
+.cast-sum.warn { color: var(--seal); }
+.cast-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.cast .btn { min-height: 30px; padding: 2px 12px; font-size: 12px; --cut: 7px; }
+.cast-cls { margin: 0 0 12px; }
+.cast-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.cast-hd b { color: var(--ice); }
+.cast-hd .n { color: var(--mute); font: 12px var(--en); margin-right: auto; }
+.cast-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 10px; }
+.cast-sv { display: flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; font-size: 13px; color: var(--ice); }
+.cast-sv input { accent-color: var(--cyan); width: 16px; height: 16px; flex: none; margin: 0; }
+.cast-sv.off { color: var(--mute); text-decoration: line-through; }
 .card .gr { display: inline-block; min-width: 1.4em; text-align: center; margin-right: 6px; font: 700 12px var(--en); color: var(--sel-ink); background: var(--mute); }
 .gr.g-S { background: var(--gold); } .gr.g-A { background: var(--cyan); } .gr.g-B { background: #7ec8ff; }
-.recs { display: grid; gap: 6px; }
-.rec { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 7px 10px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); align-items: center; font-size: 13px; }
-.rec b { font-family: var(--mincho); } .rec small { color: var(--mute); display: block; }
-.rec .acts { margin: 0; } .rec .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; --cut: 6px; }
-.rec.keep { box-shadow: inset 0 0 0 1px var(--gold); }
-.recbar { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; } .recbar input { display: none; }
 .file { cursor: pointer; color: var(--cyan); text-decoration: underline; }
 .scene { padding: 0; overflow: hidden; }
 .view { position: relative; aspect-ratio: 3 / 1; background: #081530; overflow: hidden; }
@@ -388,18 +428,20 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     <h1 id="title">特異点攻略<small>テスト版</small></h1>
   </div>
   <p class="lead">人理を歪める特異点が観測された。あなたは六騎の英霊を率いてその地へ降り立ち、聖杯に呼ばれた七騎の敵サーヴァントを討ち、最後に現れる特異点の主を倒さなければならない。期限までに修復できなければ、人類史はそこで途絶える。あなたにできるのは、前衛の三騎を選び、日々の方針を決め、令呪を切ることだけだ。</p>
-
-  <section class="panel" id="recPanel" aria-label="中断・これまでの記録" hidden>
-    <div class="hd"><i class="chev"></i><span class="en">Records</span><span class="ja">続きから・これまでの記録</span></div>
-    <div class="body"><div id="recBox" class="recs"></div>
-      <div class="recbar"><button class="btn" id="recExport" type="button">記録を書き出す</button><label class="btn" for="recImport">記録を読み込む</label><input type="file" id="recImport" accept=".json,application/json"></div>
-      <p class="hint">記録には、シード・方針・決断だけを保存しています（本文は持たず、開くとその場で再現します）。「残す」にした記録は、古いものから消えません。</p></div>
+  <section class="panel resume" id="resumeBox" aria-label="中断中の特異点" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Continue</span><span class="ja">中断中の特異点</span></div>
+    <div class="body"><p class="rinfo" id="resumeInfo"></p>
+      <div class="acts"><button class="btn primary" id="resumeBtn" type="button">続きから</button><button class="btn" id="resumeDrop" type="button">破棄する</button></div>
+    </div>
   </section>
-
-  <section class="panel" aria-label="観測の準備">
+  <section class="panel form" aria-label="観測の準備">
     <div class="hd"><i class="chev"></i><span class="en">Observation</span><span class="ja">観測の準備</span></div>
     <div class="body">
-      <p id="data">サーヴァントのデータを読み込んでいます…</p>
+      <div class="data" id="data">サーヴァントのデータを読み込んでいます…</div>
+      <div class="field"><label class="lbl" for="pname">あなた（マスター）の名前</label>
+        <div class="namerow"><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>ランダムの名前に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></div>
+        <p class="hint">空欄なら、ランダムな名前になる。</p>
+      </div>
       <div class="field"><span class="lbl">進む速さ</span>
         <div class="rowsel choices4" role="radiogroup">
           <label><input type="radio" name="speed" value="1"><span class="ico"></span>ゆっくり</label>
@@ -407,33 +449,46 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
           <label><input type="radio" name="speed" value="4"><span class="ico"></span>はやい</label>
           <label><input type="radio" name="speed" value="8"><span class="ico"></span>とても速い</label>
         </div>
+        <p class="hint">観測中も上の 1×〜16× で変えられる。</p>
       </div>
-      <div class="field"><label class="lbl" for="pname">あなた（マスター）の名前（空欄なら、ランダム）</label>
-        <div class="namerow"><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>ランダムの名前に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></div></div>
-      <label class="field"><span class="lbl">結末に残す、あなたの一言（空欄でよい。リンクには入らず、このブラウザにだけ残る）</span><input type="text" id="pword" class="wide" maxlength="60" autocomplete="off" placeholder="空欄でよい"></label>
-      <div class="field"><span class="lbl">エクストラクラス</span>
-        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="extra" value="1" checked><span class="ico"></span>あり（ときどき混じる）</label><label><input type="radio" name="extra" value="0"><span class="ico"></span>なし</label></div></div>
-      <div class="field"><span class="lbl">七騎の選び方</span>
-        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎ずつ</label><label><input type="radio" name="pick" value="open"><span class="ico"></span>クラスを問わず選ぶ</label></div></div>
-      <div class="field"><span class="lbl">特異点のボスの抽選</span>
-        <div class="rowsel" role="radiogroup"><label><input type="radio" name="bmode" value="both" checked><span class="ico"></span>ボス専用と既存の英霊の両方（ボス専用が多め）</label><label><input type="radio" name="bmode" value="boss"><span class="ico"></span>ボス専用だけ</label><label><input type="radio" name="bmode" value="empower"><span class="ico"></span>既存の英霊だけ（超強化されて現れる）</label></div></div>
-      <div class="field"><span class="lbl">一言を結末に出す</span>
-        <div class="rowsel opt2" role="radiogroup"><label><input type="radio" name="words" value="1" checked><span class="ico"></span>出す</label><label><input type="radio" name="words" value="0"><span class="ico"></span>出さない</label></div></div>
-      <details class="cast" id="castBox" hidden>
-        <summary>参戦するサーヴァントを選ぶ（外した英霊は、味方にも敵にも呼ばれません）</summary>
-        <p class="hint" id="castSum"></p>
-        <div class="acts" style="margin:0 0 6px"><button class="btn" id="castAllOn" type="button">全員参戦</button><button class="btn" id="castAllOff" type="button">全員外す</button></div>
-        <div id="castList"></div>
-      </details>
+      <div class="field"><span class="lbl">一言を残す</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="words" value="1" checked><span class="ico"></span>結末に出す</label>
+          <label><input type="radio" name="words" value="0"><span class="ico"></span>出さない</label>
+        </div>
+        <input type="text" id="pword" class="wide" maxlength="60" autocomplete="off" placeholder="結末に残す、あなたの一言（空欄でよい）" aria-label="結末に残す、あなたの一言">
+        <p class="hint">残した言葉は結末に並ぶ。リンクには入らず、このブラウザにだけ残る。</p>
+      </div>
       <div class="field"><span class="lbl" id="daysLbl">修復の期限</span>
-        <div class="daysel"><input type="range" id="days" min="20" max="80" step="1" value="50" aria-labelledby="daysLbl"><output id="daysOut">50日</output></div>
-        <p class="hint">短いほど急がされる。長くすれば、休みながら確実に進められる。</p>
+        <div class="daysel"><input type="range" id="days" min="20" max="80" step="1" value="50" aria-labelledby="daysLbl" aria-describedby="daysNote"><output id="daysOut" for="days">50日</output></div>
+        <p class="hint" id="daysNote">短いほど急がされる。長くすれば、休みながら確実に進められる。</p>
       </div>
-      <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ編成・同じ選択なら、同じ特異点になる。空欄なら毎回ちがう）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
-      <div class="acts"><button class="btn primary" id="observe" disabled>特異点を観測する</button></div>
+      <div class="field"><span class="lbl">七騎の選び方</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="pick" value="class" checked><span class="ico"></span>クラスごとに一騎</label>
+          <label><input type="radio" name="pick" value="open"><span class="ico"></span>全騎から均等に</label>
+        </div>
+        <p class="hint">「全騎から均等に」では、クラスを気にせずリストの全員から同じ確率で、味方の六騎と敵の七騎が選ばれる。同じクラスが何騎も並ぶことがある。</p>
+      </div>
+      <div class="field"><span class="lbl">エクストラクラス</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="extra" value="1" checked><span class="ico"></span>ときどき加わる</label>
+          <label><input type="radio" name="extra" value="0"><span class="ico"></span>加えない</label>
+        </div>
+        <p class="hint">ルーラーなど七つのクラスの外の英霊が、味方や敵の席に紛れ込むことがある。加えないなら、代役としても呼ばれない。</p>
+      </div>
+      <div class="field"><span class="lbl">特異点の主（ボス）</span>
+        <div class="rowsel" role="radiogroup">
+          <label><input type="radio" name="bmode" value="both" checked><span class="ico"></span>ボス専用と既存の英霊の両方（ボス専用が多め）</label>
+          <label><input type="radio" name="bmode" value="boss"><span class="ico"></span>ボス専用だけ</label>
+          <label><input type="radio" name="bmode" value="empower"><span class="ico"></span>既存の英霊だけ（超強化されて現れる）</label>
+        </div>
+      </div>
+      <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ編成・同じ選択なら、同じ特異点になる。空欄なら毎回ちがう特異点）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+      <button class="btn primary go" id="observe" type="button" disabled>特異点を観測する</button>
+      <p class="over" id="overNote" hidden>新しくレイシフトすると、中断中の特異点は上書きされます。</p>
     </div>
   </section>
-
   <section class="panel" id="formation" aria-label="編成" hidden>
     <div class="hd"><i class="chev"></i><span class="en">Formation</span><span class="ja">編成</span></div>
     <div class="body">
@@ -453,14 +508,40 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       </details>
     </div>
   </section>
-  <p class="foot" id="installBox" hidden><button class="btn" id="installBtn" type="button" hidden>アプリとして追加</button></p>
+  <section class="panel records" aria-label="これまでの特異点">
+    <div class="hd"><i class="chev"></i><span class="en">Records</span><span class="ja">これまでの特異点</span></div>
+    <div class="body">
+      <ol class="reclist" id="recList"></ol>
+      <p class="recempty" id="recEmpty">まだ記録はありません。終わった特異点は、新しいものから<span id="recMax">10</span>件までここに残ります。</p>
+      <div class="acts">
+        <button class="btn" id="recExport" type="button">記録を書き出す</button>
+        <label class="btn" for="recImport">記録を読み込む</label><input type="file" id="recImport" accept=".json,application/json">
+      </div>
+      <p class="note">終わった特異点は新しいものから<span id="recMax2">10</span>件まで残ります。「保護する」を押した記録はこの数に含まれず、外すか消すまで残ります（<span id="keepMax">30</span>件まで）。記録にはシード・方針・決断だけを保存し、開くとその場で再現します。記録と中断中の特異点は、このブラウザにだけ保存されます。別の端末へ移すときは、書き出したファイルを移した先で読み込んでください。</p>
+    </div>
+  </section>
+  <div class="install" id="installBox" hidden>
+    <button class="btn" id="installBtn" type="button" hidden>アプリとして追加する</button>
+    <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
+  </div>
+  <p class="foot">特異点攻略はテスト中の機能です。登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作で、データは聖杯戦争と共有しています（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントリスト</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
   <nav class="modenav" aria-label="ほかの遊び方・資料">
     <a class="" href="index.html"><b>7分の1の聖杯戦争</b><small>七騎の戦いを見守る</small></a>
     <span class="cur " aria-current="page"><b>特異点攻略</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></span>
     <a class="spoil" href="zukan.html" id="zukanLink"><b>英霊図鑑</b><small>解説・スキル・宝具を読む</small></a>
     <a class="spoil" href="ranking.html" id="rankLink"><b>強さランキング</b><small>真名・強さ・優勝率を見比べる</small></a>
   </nav>
-  <p class="foot"><a href="index.html">7分の1の聖杯戦争へ戻る</a> ・ <a href="roster.html">サーヴァントリスト</a> ・ <a href="submit.html">申請フォーム</a> ・ <a href="logview.html">戦いのログビューア</a> ・ 特異点攻略はテスト中の機能です。サーヴァントのデータは聖杯戦争と共有しています。</p>
+  <p class="foot spoil">英霊図鑑と強さランキングには、すべての英霊の真名が載っています（戦いの中で推し量りたい人は開かないでください）。</p>
+  <details class="foot cast" id="castBox" hidden>
+    <summary>参戦サーヴァントの設定</summary>
+    <div class="cast-in">
+      <p>味方や敵として呼ばれるサーヴァントを絞れます。真名がすべて見えてしまうので、推し量る楽しみを残したい人は開かないでください。</p>
+      <p class="cast-sum" id="castSum" aria-live="polite"></p>
+      <div class="cast-acts"><button class="btn" id="castAllOn" type="button">全体を全選択</button><button class="btn" id="castAllOff" type="button">全体を全解除</button></div>
+      <div id="castList"></div>
+      <p>外したサーヴァントは、味方にも敵にも呼ばれません。設定はこのブラウザに残り、共有リンク（<code>ex=</code>）・中断中の特異点・これまでの記録にも、その特異点の分が一緒に保存されます。</p>
+    </div>
+  </details>
 </section>
 
 <section class="war">
@@ -1571,20 +1652,30 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   function renderIntroRecords() {
     const sv = store.get(SAVE_KEY), hist = loadHist();
     const END_JA = { clear: '人理修復 成功', wipe: '全滅', master: 'マスター死亡', timeout: '人理定礎崩壊' };
-    const rows = [];
-    if (sv && sv.q) rows.push(`<div class="rec"><div><b>中断：${esc(sv.name)}</b><small>${sv.day ? sv.day + '日目 / ' + sv.days + '日 ・ ' : ''}${esc(fmtAt(sv.at))}</small></div><div class="acts"><button class="btn primary" data-act="resume">続きから</button><button class="btn" data-act="drop">破棄</button></div></div>`);
-    hist.forEach((h, i) => rows.push(`<div class="rec${h.keep ? ' keep' : ''}"><div><b>${esc(h.name)}</b><small>${esc(END_JA[h.ending] || '終了')} ・ ${h.day}日目 ・ 討伐 ${h.slain}/${h.foes}${h.boss ? '・ボス' + (h.boss.alive ? '健在' : '撃破') : ''} ・ ${esc(fmtAt(h.at))}</small></div><div class="acts"><button class="btn" data-act="open" data-i="${i}">見返す</button><button class="btn" data-act="keep" data-i="${i}">${h.keep ? '残さない' : '残す'}</button><button class="btn" data-act="del" data-i="${i}">削除</button></div></div>`));
-    $('#recBox').innerHTML = rows.join('');
-    $('#recPanel').hidden = !rows.length;
+    const resumable = !!(sv && sv.q);
+    $('#resumeBox').hidden = !resumable; $('#overNote').hidden = !resumable;
+    if (resumable) $('#resumeInfo').innerHTML = `特異点「${esc(sv.name || '')}」、${sv.day ? esc(sv.day) + '日目 / ' + esc(sv.days) + '日' : 'レイシフト直後'}。<small>中断 ${esc(fmtAt(sv.at))}</small>`;
+    $('#recMax').textContent = $('#recMax2').textContent = HIST_MAX; $('#keepMax').textContent = KEEP_MAX;
+    $('#recEmpty').hidden = hist.length > 0;
+    $('#recExport').disabled = !hist.length && !resumable;
+    $('#recList').innerHTML = hist.map((h, i) => `<li class="${h.ending === 'clear' ? 'won' : ''}${h.keep ? ' kept' : ''}"><div class="rt">${esc(h.name)}${h.keep ? '<span class="keepmark">保護</span>' : ''}</div>
+      <div class="rm">${esc(fmtAt(h.at))} ・ ${esc(END_JA[h.ending] || '終了')} ・ ${h.day}日目 ・ 討伐 ${h.slain}/${h.foes}${h.boss ? ' ・ ボス' + (h.boss.alive ? '健在' : '撃破') : ''}</div>
+      <div class="ra"><button class="btn" type="button" data-act="open" data-i="${i}">見返す</button><button class="btn" type="button" data-act="keep" data-i="${i}" aria-pressed="${!!h.keep}" title="保護した記録は、新しい特異点が増えても消えずに残ります">${h.keep ? '★ 保護中' : '☆ 保護する'}</button><button class="btn del" type="button" data-act="del" data-i="${i}">消す</button></div></li>`).join('');
   }
-  $('#recBox').addEventListener('click', e => {
+  $('#resumeBtn').onclick = () => { const sv = store.get(SAVE_KEY); if (sv && sv.q) openRecord(sv.q, sv.fp); };
+  $('#resumeDrop').onclick = () => { if (confirm('中断中の特異点を破棄します。よろしいですか？')) { store.set(SAVE_KEY, null); renderIntroRecords(); } };
+  $('#recList').addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
-    const sv = store.get(SAVE_KEY), hist = loadHist(), h = hist[+b.dataset.i];
-    if (b.dataset.act === 'resume' && sv) openRecord(sv.q, sv.fp);
-    else if (b.dataset.act === 'drop') { store.set(SAVE_KEY, null); renderIntroRecords(); }
-    else if (b.dataset.act === 'open' && h) openRecord(h.q, h.fp);
-    else if (b.dataset.act === 'keep' && h) { if (!h.keep && hist.filter(x => x.keep).length >= KEEP_MAX) return toast(`残せるのは${KEEP_MAX}件までです`); h.keep = !h.keep; store.set(HIST_KEY, hist); renderIntroRecords(); }
-    else if (b.dataset.act === 'del' && h) { hist.splice(+b.dataset.i, 1); store.set(HIST_KEY, hist); renderIntroRecords(); }
+    const hist = loadHist(), h = hist[+b.dataset.i]; if (!h) return;
+    if (b.dataset.act === 'open') openRecord(h.q, h.fp);
+    else if (b.dataset.act === 'keep') {
+      if (!h.keep && hist.filter(x => x.keep).length >= KEEP_MAX) return toast(`保護できるのは${KEEP_MAX}件までです。ほかの記録の保護を外してください`);
+      h.keep = !h.keep; store.set(HIST_KEY, hist); renderIntroRecords();
+      toast(h.keep ? 'この記録を保護しました。新しい特異点が増えても消えません' : '保護を外しました。新しい特異点が増えると、古いものから消えます');
+    } else if (b.dataset.act === 'del') {
+      if (!confirm(`この記録を消します。元には戻せません。よろしいですか？\n\n${fmtAt(h.at)} ・ ${h.name}`)) return;
+      hist.splice(+b.dataset.i, 1); store.set(HIST_KEY, hist); renderIntroRecords(); toast('記録を1件消しました');
+    }
   });
   $('#recExport').onclick = () => {
     const blob = new Blob([JSON.stringify({ format: 'hgw-sing-records', version: 1, history: loadHist(), save: store.get(SAVE_KEY) })], { type: 'application/json' });
@@ -1895,10 +1986,14 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 
   // ---------- PWA ----------
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // 「アプリとして追加」：ブラウザが追加を勧められるとき（Chrome・Edge など）だけボタンを出す。iPhone・iPad は手順を案内
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   let installEv = null;
   addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('#installBox').hidden = false; $('#installBtn').hidden = false; });
-  $('#installBtn').onclick = async () => { if (!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch (e) { /* 閉じられた */ } installEv = null; $('#installBox').hidden = true; };
+  $('#installBtn').onclick = async () => { if (!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch (e) { /* 閉じられた */ } installEv = null; $('#installBtn').hidden = true; $('#installBox').hidden = $('#installIos').hidden; };
   addEventListener('appinstalled', () => { $('#installBox').hidden = true; toast('ホーム画面に追加しました'); });
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  if (ios && !standalone) { $('#installBox').hidden = false; $('#installIos').hidden = false; }
   function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
   load();
 })();
