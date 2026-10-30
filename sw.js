@@ -8,7 +8,7 @@
  * js/ にファイルを足したら PRECACHE にも足す。
  */
 'use strict';
-const VERSION = 'v10';
+const VERSION = 'v11';
 const CACHE = 'hgw-' + VERSION;
 const FONT_CACHE = 'hgw-fonts';
 const PRECACHE = [
@@ -20,6 +20,8 @@ const PRECACHE = [
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
   'img/classes/saber.webp', 'img/classes/archer.webp', 'img/classes/lancer.webp', 'img/classes/rider.webp', 'img/classes/caster.webp',
   'img/classes/assassin.webp', 'img/classes/berserker.webp', 'img/classes/extra.webp',
+  'img/classes/ruler.webp', 'img/classes/avenger.webp', 'img/classes/shielder.webp', 'img/classes/mooncancer.webp', 'img/classes/alterego.webp',
+  'img/classes/foreigner.webp', 'img/classes/pretender.webp', 'img/classes/beast.webp', 'img/classes/gunner.webp', 'img/classes/archenemy.webp', 'img/classes/servant.webp',
 ];
 const NET_TIMEOUT = 6000; // これ以上かかったら保存しておいたものを先に出す
 
