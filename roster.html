@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>サーヴァントリスト</title>
+<title>サーヴァントエディタ</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -235,6 +235,7 @@ th { font-size: 11px; color: var(--sub); font-weight: 600; border-top: none; whi
 .box.err { background: var(--err-bg); color: var(--err-ink); }
 .box ul { margin: 2px 0 0; padding-left: 18px; }
 details.more { margin-top: 10px; font-size: 13px; }
+.chk { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; cursor: pointer; }
 details.more summary { cursor: pointer; color: var(--sub); }
 dialog { border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(660px, calc(100vw - 32px)); padding: 16px; }
 dialog::backdrop { background: rgba(0,0,0,.35); }
@@ -345,7 +346,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </head>
 <body>
 <header>
-  <h1>サーヴァントリスト <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">7分の1の聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a><a href="logview.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">戦いのログビューア →</a><a href="singularity.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">特異点攻略 →</a><a href="ranking.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">強さランキング →</a><a href="zukan.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">英霊図鑑 →</a></h1>
+  <h1>サーヴァントエディタ <a href="index.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:8px">7分の1の聖杯戦争へ →</a><a href="submit.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">申請フォーム →</a><a href="logview.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">戦いのログビューア →</a><a href="singularity.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">特異点攻略 →</a><a href="ranking.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">強さランキング →</a><a href="zukan.html" style="font-size:13px;font-weight:400;color:var(--accent);margin-left:12px">英霊図鑑 →</a></h1>
   <p>開くと公開中のリストを読み込みます。左の一覧で選んだ騎の中身が右に出ます。Wikiのページは「取り込み」から足せます。リストと手直しはこのブラウザに残り、すべてこの端末の中で処理します。</p>
 </header>
 <nav class="views" id="views" role="tablist" aria-label="画面">
@@ -480,6 +481,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button id="saveCsv" title="真名・クラス・強さランク（S〜E）などの一覧を、Excelなどで開けるCSVにします">一覧をCSVで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
+      <details class="more" id="csvCols">
+        <summary>CSVに入れる項目を選ぶ</summary>
+        <p class="hint" style="margin:4px 0">「一覧をCSVで保存」に入れる項目です。はじめは、すべてにチェックが入っています（これまでと同じ出力）。選んだ内容はこのブラウザに残ります。</p>
+        <div class="row" id="csvColList"></div>
+        <div class="row" style="margin-top:6px"><button class="sm" id="csvColAll" type="button">すべて選ぶ</button><button class="sm" id="csvColNone" type="button">すべて外す</button></div>
+      </details>
       <div class="gh">
         <h4>公開する（GitHub）</h4>
         <ol class="hint steps">
@@ -1469,17 +1476,43 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   // 一覧のCSV（Excel で文字化けしないよう BOM を付ける）。いまのリストの全騎を、クラス順・名前順に。強さランクは一覧と同じ S〜E（ボス専用は評価しない）
+  // 入れる項目は選べる（はじめは全項目＝これまでと同じ出力。選んだ内容は hgw.roster.csvcols に残す）
+  const CSV_COLS = [
+    { key: 'name', label: '真名', get: s => s.trueName },
+    { key: 'cls', label: 'クラス', get: s => s.class.label },
+    { key: 'grade', label: '強さランク', get: s => s.bossOnly ? '' : gradeOf(s) },
+    { key: 'rate', label: '平均勝率(%)', get: s => s.bossOnly ? '' : Math.round(rateOf(s) * 100) },
+    { key: 'power', label: '戦闘力', get: s => s.power },
+    { key: 'np', label: '宝具の威力', get: s => s.npPeak || '' },
+    { key: 'attrs', label: '属性', get: s => (s.attrs || []).join('・') }
+  ];
+  // 保存済みの選択（知らないキーは捨てる）。保存が無い・壊れているときは全項目
+  const csvChosen = () => {
+    const sv = store.get('hgw.roster.csvcols', null), ok = new Set(CSV_COLS.map(c => c.key));
+    return Array.isArray(sv) ? new Set(sv.filter(k => ok.has(k))) : new Set(ok);
+  };
+  const csvSaveChosen = () => store.set('hgw.roster.csvcols', CSV_COLS.map(c => c.key).filter(k => $('#csvColList').querySelector(`input[data-col="${k}"]`).checked));
+  (() => {
+    const on = csvChosen();
+    $('#csvColList').innerHTML = CSV_COLS.map(c => `<label class="chk"><input type="checkbox" data-col="${c.key}"${on.has(c.key) ? ' checked' : ''}> ${esc(c.label)}</label>`).join('');
+    $('#csvColList').onchange = csvSaveChosen;
+    const setAll = v => { $('#csvColList').querySelectorAll('input').forEach(i => { i.checked = v; }); csvSaveChosen(); };
+    $('#csvColAll').onclick = () => setAll(true);
+    $('#csvColNone').onclick = () => setAll(false);
+  })();
   $('#saveCsv').onclick = () => {
     if (!roster.length) { status('リストが空です'); return; }
+    const on = csvChosen(), cols = CSV_COLS.filter(c => on.has(c.key));
+    if (!cols.length) { status('CSVに入れる項目が1つもありません。「CSVに入れる項目を選ぶ」で選んでください'); $('#csvCols').open = true; return; }
     const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
     const list = roster.slice().sort((a, b) => order(a) - order(b) || a.trueName.localeCompare(b.trueName, 'ja'));
-    const rows = [['真名', 'クラス', '強さランク', '平均勝率(%)', '戦闘力', '宝具の威力', '属性']];
-    for (const s of list) rows.push([s.trueName, s.class.label, s.bossOnly ? '' : gradeOf(s), s.bossOnly ? '' : Math.round(rateOf(s) * 100), s.power, s.npPeak || '', (s.attrs || []).join('・')]);
+    const rows = [cols.map(c => c.label)];
+    for (const s of list) rows.push(cols.map(c => c.get(s)));
     const d = new Date(), stamp = d.getFullYear() + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['\uFEFF' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n'], { type: 'text/csv;charset=utf-8' }));
-    a.download = `サーヴァントリスト_${stamp}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-    status(`${list.length}騎を、CSVで保存しました`);
+    a.download = `サーヴァントエディタ_${stamp}.csv`; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    status(`${list.length}騎を、${cols.length}項目でCSVに保存しました`);
   };
   $('#saveJson').onclick = () => { if (roster.length) download('servants.json', { format: 'hgw-servants', version: 2, at: new Date().toISOString(), servants: roster }); };
   // 公開用の書き出しには、このブラウザでした変更（最後にそろえたときから）の一覧 patch を付ける。データの反映（incoming.js）は
