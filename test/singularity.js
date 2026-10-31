@@ -32,6 +32,22 @@ const focusFn = fixFocus ? () => fixFocus : undefined;
   for (let i = 0; i < 30; i++) { const w = H.engine.runWar({ roster: mix, seed: 'bossfree' + i }); if (w.camps.some(c => bosses.some(b => b.id === c.servantId))) { console.error('ボスが聖杯戦争に呼ばれた'); process.exitCode = 1; break; } }
 }
 
+// 味方にも効く（params.team）：発動する回復・弱体解除・強化が、並んで戦う味方にも届く。付けなければ届かない
+{
+  const me = roster.find(s => !s.bossOnly && s.allSkills.length), sk = me.allSkills[0], key = E.okey(me) + '/' + E.normName(sk.name);
+  const spec = t => [['heal', 2, Object.assign({ on: 'round' }, t)], ['cleanse', 1, Object.assign({ on: 'start' }, t)], ['power', 1, Object.assign({ on: 'start' }, t)], ['heal', 1, Object.assign({ on: 'day' }, t)]];
+  const count = t => {
+    E.SERVANT_OVERRIDES[key] = spec(t);
+    const list = roster.map(s => s === me ? H.build.fromJSON(H.build.toLean(me)) : s);
+    delete E.SERVANT_OVERRIDES[key];
+    const c = { heal: 0, buff: 0 }, re = new RegExp('『' + sk.name.replace(/[.*+?^${}()|[]\]/g, '\$&') + '』が、');
+    for (let i = 0; i < 40; i++) for (const e of H.singularity.run({ roster: list, bosses, seed: 'team' + i, picks: { party: [me.id, null, null, null, null, null] } }).entries) if (re.test(e.text)) { if (/が、.+の傷ついた霊基/.test(e.text)) c.heal++; if (/にも力を及ぼした/.test(e.text)) c.buff++; }
+    return c;
+  };
+  const on = count({ team: 1 }), off = count({});
+  if (!(on.heal > 0 && on.buff > 0) || off.heal || off.buff) { console.error('味方にも効く効果が届いていない', on, off); process.exitCode = 1; }
+}
+
 if (show) {
   const r = H.singularity.run({ roster, bosses, seed: show, sing, focus: focusFn });
   for (const e of r.entries) console.log(`[${e.day}${e.phase[0]}] ${e.kind.padEnd(8)} ${e.you ? '★' : ' '} ${e.text}${e.quote ? '  「' + e.quote.text + '」' : ''}`);

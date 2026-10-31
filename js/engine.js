@@ -357,21 +357,22 @@
         if (p.chance != null && p.chance < 1 && !chance(Math.max(0, p.chance))) continue;
         if (p.cost > 0) c.mana -= p.cost;
         if (U) U[k] = used + 1;
-        applyTrig(c, o, k, id, m, p, from, on, T);
+        applyTrig(c, o, k, id, m, p, from, on, T); shareTrig(c, k, id, m, p, from, on, T);
       }
     }
     // 発動した効果を働かせる。記録は、その戦いで（毎朝のものはその戦争で）その効果が初めて発動したときだけ
-    function applyTrig(c, o, k, id, mag, p, from, on, T) {
-      const src = from ? `『${from}』` : 'スキル';
+    //   by：味方の効果を分けてもらったときの、効果の持ち主（shareTrig。記録の文だけが変わる）
+    function applyTrig(c, o, k, id, mag, p, from, on, T, by) {
+      const src = from ? `『${from}』` : 'スキル', who = by ? `${sn(by)}の${src}が、${sn(c)}の` : `${sn(c)}の${src}が、`;
       const say = txt => {
         if (on === 'day') { if (!c.you || (c.dLog && c.dLog.has(k))) return; (c.dLog = c.dLog || new Set()).add(k); log('day', txt, [c.id]); return; }
         if (c.tLog && c.tLog.has(k)) return;
         if (c.tLog) c.tLog.add(k);
         log('battle', txt, [c.id].concat(o ? [o.id] : []));
       };
-      if (id === 'heal') { const v = Math.min(mag, 100 - c.hp); if (v > 0) { c.hp += v; say(`${sn(c)}の${src}が、傷ついた霊基を癒やした。`); } return; }
+      if (id === 'heal') { const v = Math.min(mag, 100 - c.hp); if (v > 0) { c.hp += v; say(`${who}傷ついた霊基を癒やした。`); } return; }
       if (id === 'drain_hp') { if (!o || !o.alive) return; const v = Math.min(mag, Math.max(0, o.hp - 1)); if (v > 0) { o.hp -= v; c.hp = Math.min(100, c.hp + v); say(`${sn(c)}の${src}が、${sn(o)}の霊基を吸い上げた。`); } return; }
-      if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${sn(c)}の${src}が、魔力を満たした。`); } return; }
+      if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${who}魔力を満たした。`); } return; }
       if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
         if (!o || o.workshop == null) return;
         const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, 5);
@@ -410,7 +411,7 @@
         c.wither = 0; c.witherSelf = 0; if (c.ail) { for (const a of ['stun', 'confuse', 'seal']) if (cure(a)) c.ail[a] = false; c.ail.skseal = false; }
         if (o && o.temp) o.temp = o.temp.filter(e => !isHex(e));
         if (on !== 'day') c.cleanse = clamp(Math.max(c.cleanse || 0, mag), 0, 1);
-        if (had) say(`${sn(c)}の${src}が、身を蝕むものを祓った。`); return;   // 消すものが無ければ記録しない（守りは掛かっている）
+        if (had) say(`${who}身を蝕むものを祓った。`); return;   // 消すものが無ければ記録しない（守りは掛かっている）
       }
       if (id === 'self_strip') {
         // tag＝止めるスキル・宝具の名前、eff＝止める効果（どちらか、または両方）。どちらも無ければ、その戦いで得た強化を消す
@@ -433,7 +434,16 @@
       if (on === 'day') { c.dayTemp = (c.dayTemp || []).filter(x => x.src !== k); c.dayTemp.push(e); }
       else if (on === 'kill') { c.carry = (c.carry || []).filter(x => x.src !== k); c.carry.push(e); }   // 相手を倒したときの強化：次の戦いの終わりまで
       else { if (!c.temp || c.temp.some(x => x.src === k)) return; c.temp.push(e); }
-      say(`${sn(c)}の${src}が発動した。`);
+      say(by ? `${sn(by)}の${src}が、${sn(c)}にも力を及ぼした。` : `${sn(c)}の${src}が発動した。`);
+    }
+    // 味方にも効く効果（params.team）の、発動したときの分：戦いの中は並んで戦う味方に、毎朝のものは同盟相手（特異点では仲間全員）に、強さ×割合で働く（乱数は使わない）
+    function shareTrig(c, k, id, mag, p, from, on, T) {
+      if (!(p.team > 0) || !E.TEAM_IDS.includes(id)) return;
+      if (id === 'mana_gain' && c.party) return;   // 特異点の魔力は一行で共有なので、重ねて増やさない
+      const ctx = c.bx && c.bx.ctx, q = Object.assign({}, p); delete q.team;
+      const K = Math.min(1, p.team) * (ctx ? (ctx.teamK || 1) * weakK(c, ctx) : 1);
+      const mates = on === 'day' ? (c.party ? camps.filter(x => x.party && x.alive) : allies(c)) : c.bx && c.bx.mates ? c.bx.mates() : [];
+      for (const x of mates) if (x !== c && x.alive) applyTrig(x, x.bx ? x.bx.opp : null, k + '#team:' + c.id, id, mag * K, q, from, on, T, c);
     }
 
     // ステータスの役割（config.js の STAT_FX）。sd：サーヴァントの偏差、md：マスターの偏差（C相当を0、A相当を約+1）
@@ -683,13 +693,13 @@
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
         && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
-        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) c.temp.push(e);   // 発動確率のある効果は、使ったときに判定
+        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
       // 発動のしかたのある効果は、この戦いの残りでその場面のたびに発動する（c.armed）
       (np.effects || []).forEach((e, i) => {
         const p = e.params || {};
         if (p.on) { const k = 'np:' + np.name + ':' + i; if (c.armed && !c.armed.some(a => a.k === k)) c.armed.push({ k, on: p.on, id: e.id, mag: e.mag, params: p, from: np.name }); }
-        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain);
+        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) { applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); shareTrig(c, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); }
       });
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (np.exposure >= 1) pubName.add(c.id);
@@ -760,7 +770,7 @@
       const pinch = () => { for (const x of all()) if (x.alive && !x.pinched && x.hp > 0 && x.hp < ENG.pinchAt) { x.pinched = true; fireTrig(x, opp(x), 'pinch', ctx.terrain); autoNP(x, opp(x), 'pinch', ctx); } };
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
-      for (const x of all()) x.bx.ctx = ctx;   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように
+      for (const x of all()) { x.bx.ctx = ctx; x.bx.mates = () => side(side(a).includes(x) ? a : b); }   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように／味方にも効く効果（shareTrig）の相手
       // 並んで戦う味方どうしの効果：味方にも効く効果（params.team）と統率（rally）を、その戦いの間だけ分け合う（乱数は使わない）。
       //   加勢がいない一騎どうしの戦いでは何も起きない
       for (const s of [side(a), side(b)]) if (s.length > 1) for (const x of s) for (const y of s) if (x !== y) shareTeam(y, x, (ctx.teamK || 1) * weakK(y, ctx));
@@ -1291,13 +1301,14 @@
       // 作戦会議（大きな決断）。数日ごと
       if (you && you.alive && you.masterAlive && day - lastCouncil >= ENG.councilEvery) { lastCouncil = day; yield* council(); }
 
+      for (const c of alive) c.dayTemp = null;   // 先に消す（毎朝の効果を味方から分けてもらった分を消さないように）
       for (const c of shuffle(alive)) {
         c.hunting = c.hidden = c.wander = c.fought = false;
         bondUp(c, 0.5);
         // 毎朝発動する効果（回復・魔力回復・解除はその場で、強化はその日の夜の戦いまで）。昨夜の「相手を倒したとき」の強化はここで切れる
         // 相手から受けた衰弱は、毎朝一定の確率で抜ける（休んだ翌朝は抜けやすい）。自分に掛けた衰弱は残る
         if (c.wither > 0 && chance(clamp(ENG.witherFade * (c.rested === day - 1 ? 2 : 1), 0, 1))) { c.wither = 0; if (c.you) log('day', `${sn(c)}を蝕んでいた衰えが、ようやく抜けた。`, [c.id]); }
-        c.dayTemp = null; fireTrig(c, null, 'day', null);
+        fireTrig(c, null, 'day', null);
         // 昨夜の毒：もう一度霊基を削って抜ける（毒では倒れない）
         if (c.poison && c.poison.day < day) { c.hp = Math.max(1, c.hp - ENG.poisonDay); if (c.you) log('day', ailText('ailPoisonDay', 'poison', c.poison.p, null, c), [c.id]); c.poison = null; }
         if (c.warned > 0 && day % 3 === 0) c.warned = Math.max(0, c.warned - 1);

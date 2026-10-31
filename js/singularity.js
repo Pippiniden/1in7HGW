@@ -374,11 +374,12 @@
       }
       if (healer && healed >= 8 && !(P.healSaid > day - 3)) { P.healSaid = day; A.log('day', `${A.sn(healer)}が、仲間たちの傷を手当てした。`, [healer.id]); }
       // 毎朝の効果・毒・衰弱・ボスの力
+      for (const c of camps) c.dayTemp = null;   // 先に消す（毎朝の効果を味方から分けてもらった分を消さないように）
       for (const c of camps) {
         if (!c.alive || (c === stray && !P.strayJoined) || (c.boss && P.stage !== 'boss')) continue;
         c.fought = false;
         if (c.wither > 0 && A.chance(clamp(A.ENG.witherFade * (c.rested === day - 1 ? 2 : 1), 0, 1))) { c.wither = 0; if (c.party) A.log('day', `${A.sn(c)}を蝕んでいた衰えが、ようやく抜けた。`, [c.id]); }
-        c.dayTemp = null; A.fireTrig(c, null, 'day', null);
+        A.fireTrig(c, null, 'day', null);
         if (c.poison && c.poison.day < day) { c.hp = Math.max(1, c.hp - A.ENG.poisonDay); if (c.party) A.log('day', A.ailText('ailPoisonDay', 'poison', c.poison.p, null, c), [c.id]); c.poison = null; }
         const buff = [];
         if (c.foe && S.foePower) buff.push({ id: 'power', mag: S.foePower, params: null, src: '#foe', from: '聖杯の加護' });
