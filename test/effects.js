@@ -22,6 +22,10 @@ for (const [id, d] of Object.entries(E.EFFECTS)) {
 }
 ok(/相手/.test(E.describe({ id: 'debuff', mag: 0.1 }).whoJa) && E.describe({ id: 'upkeep_up', mag: 0.3 }).bad && !E.describe({ id: 'guard', mag: 0.1 }).bad && E.describe({ id: 'guard', mag: -0.1 }).bad, '有利・不利の見分けが違う');
 
+// 味方にも効く：回復・弱体解除・発動する強化でも選べて、説明に出る
+ok(['heal', 'cleanse', 'mana_gain'].every(id => E.fieldsFor(id, false, '').team && E.fieldsFor(id, false, 'start').team) && E.fieldsFor('power', false, 'win').team && !E.fieldsFor('strip', false, '').team, '味方にも効く欄が出ない');
+ok(!E.deadParams('cleanse', { on: 'start', team: 0.5 }, false).length && /並んで戦う味方にも、50%/.test(E.describe({ id: 'cleanse', mag: 0.5, params: { team: 0.5 } }).text) && /同盟相手/.test(E.describe({ id: 'heal', mag: 10, params: { on: 'day', team: 1 } }).text), '味方にも効くの説明が合わない');
+
 // 3) 宝具の効果の働く場面
 const np = { id: 'territory', mag: 0.2 }, np2 = { id: 'instakill', mag: 0.1 };
 ok(!E.npOnUse(np) && E.npOnUse(np2) && E.npOnUse({ id: 'np_boost', mag: 0.1 }) && E.npOnUse({ id: 'uncontrolled', mag: 0.1 }), '宝具の効果の働く場面の分け方が違う');
@@ -112,17 +116,18 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[key];
   const foe = roster.find(s => s.id !== base.id);
   ok(B.battleOdds(me, foe, { np: true }).a > B.battleOdds(base, foe, { np: true }).a && B.battleOdds(me, foe, {}).a === B.battleOdds(base, foe, {}).a, '宝具の先手が見積もり（宝具あり）に効いていない');
-  const ros = roster.filter(s => s.id !== base.id).concat([me]);
+  const ros = roster.filter(s => s.id !== base.id && !s.bossOnly).slice(0, 7).concat([me]);   // 8騎に絞る（全員から引くと、英霊が増えるほど me が呼ばれなくなる）
   let opened = 0, fired = 0, errs = 0;
   for (let i = 0; i < 60; i++) {
-    let r; try { r = H.engine.runWar({ roster: ros, seed: 'open' + i }); } catch (e) { errs++; console.error(e); continue; }
+    let r; try { r = H.engine.runWar({ roster: ros, seed: 'open' + i, war: { pick: 'open' } }); } catch (e) { errs++; console.error(e); continue; }
     const es = r.entries;
     es.forEach((e, j) => {
       if (!e.text.includes(`宝具『${np.name}』で先手を取った`)) return;
       if (es.slice(j + 1, j + 3).some(x => /刃を交えずに退いた/.test(x.text))) return;   // 相手が打ち合いの前に退いた戦いは数えない
       opened++;
-      const next = es.slice(j + 1).find(x => x.kind === 'np' || x.kind === 'death' || x.head);
-      if (next && next.kind === 'np' && next.ids[0] === e.ids[0] && next.text.includes(np.name)) fired++;
+      // 1回目の打ち合いの結果より前に放っていればよい（相手の宝具が先に記録されることはある）
+      const end = es.slice(j + 1).findIndex(x => x.kind === 'death' || x.head || (x.kind === 'battle' && /押し勝ち/.test(x.text)));
+      if (es.slice(j + 1, end < 0 ? undefined : j + 1 + end).some(x => x.kind === 'np' && x.ids[0] === e.ids[0] && x.text.includes(np.name))) fired++;
     });
   }
   ok(!errs, '先手の宝具を持つ英霊で戦争がエラーになった');
@@ -261,13 +266,23 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   const k = base.trueName + '/' + E.normName(base.allSkills[0].name);
   const mk = specs => { E.SERVANT_OVERRIDES[k] = specs; const me = B.fromJSON(B.toLean(base)); delete E.SERVANT_OVERRIDES[k]; return me; };
   const others = roster.filter(s => s.id !== base.id).slice(0, 7);
-  const tally = me => { let n = 0, battles = 0, wins = 0; for (let i = 0; i < 120; i++) { const r = H.engine.runWar({ roster: others.concat([me]), seed: 'when' + i, player: 'none', war: { pick: 'open' } }); const c = r.camps.find(x => x.servantId === me.id); if (!c) continue; n++; battles += c.battles; if (r.winner === c.id) wins++; } return { n, b: battles / n, w: wins / n }; };
-  const plain = tally(mk([['power', 0]])), killer = tally(mk([['power', 6, { on: 'kill' }]]));
   // 毎朝の情報収集：自陣営で毎日「偵察」を続けたとき、拠点を突き止める回数が常時のものと同じだけ増える
   const scouts = me => { let n = 0, f = 0; for (let i = 0; i < 80; i++) { const rs = [me].concat(others.slice(0, 6)); const r0 = H.engine.runWar({ roster: rs, seed: 'when' + i, player: 'none', war: { pick: 'open' } }); const c0 = r0.camps.find(x => x.servantId === me.id); if (!c0) continue; const r = H.engine.runWar({ roster: rs, seed: 'when' + i, player: c0.id, war: { pick: 'open' }, focus: () => 'scout' }); n++; f += r.entries.filter(e => e.kind === 'scout' && /見つけた|突き止め|だった/.test(e.text)).length; } return f / n; };
   const s0 = scouts(mk([['power', 0]])), sDay = scouts(mk([['intel', 3, { on: 'day' }]])), sAll = scouts(mk([['intel', 3]]));
   ok(sDay > s0 * 1.4 && Math.abs(sDay - sAll) < s0 * 0.3, `毎朝の情報収集が昼の偵察に効いていない（拠点を突き止めた回数 ${s0.toFixed(2)} → 毎朝 ${sDay.toFixed(2)}／常時 ${sAll.toFixed(2)}）`);
-  ok(killer.w > plain.w, `相手を倒したときの強化が次の戦いに効いていない（優勝 ${plain.w.toFixed(2)} → ${killer.w.toFixed(2)}）`);
+  // 相手を倒したときの強化：効くのは倒した次の一戦だけで、優勝率では誤差に埋もれるので、次の戦いで倒された割合を比べる
+  const nextLoss = me => {
+    let next = 0, lose = 0;
+    for (let i = 0; i < 1000; i++) {
+      const r = H.engine.runWar({ roster: others.concat([me]), seed: 'kill' + i, player: 'none', war: { pick: 'open' } }), c = r.camps.find(x => x.servantId === me.id); if (!c) continue;
+      const es = r.entries, heads = es.map((e, j) => (e.kind === 'battle' && e.head ? j : -1)).filter(j => j >= 0), mine = heads.filter(j => es[j].ids.includes(c.id));
+      const deaths = h => es.slice(h, heads.find(j => j > h) || es.length).filter(e => e.kind === 'death' && e.fin);
+      mine.forEach((h, n) => { if (mine[n + 1] != null && deaths(h).some(e => e.fin.by === c.id && e.ids[0] !== c.id)) { next++; if (deaths(mine[n + 1]).some(e => e.ids[0] === c.id)) lose++; } });
+    }
+    return lose / next;
+  };
+  const lossPlain = nextLoss(mk([['power', 0]])), lossKiller = nextLoss(mk([['power', 6, { on: 'kill' }]]));
+  ok(lossKiller < lossPlain * 0.85, `相手を倒したときの強化が次の戦いに効いていない（次の戦いで倒された割合 ${lossPlain.toFixed(3)} → ${lossKiller.toFixed(3)}）`);
 }
 
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る

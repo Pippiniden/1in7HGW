@@ -171,8 +171,8 @@
   // 自分に掛ける欄（SELF_IDS の不利な効果だけ）
   const readSelf = (q, id, p) => { if (SELF_IDS.includes(id) && q('self') && q('self').checked) p.self = true; };
   // 味方にも効く欄（params.team：0〜1）。並んで戦う味方（同盟の加勢・特異点の前衛）にも、その戦いの間 強さ×この割合 が働く。
-  // 常時の強化だけ（発動のしかたのある効果・自分に掛ける効果は分けない）。エンジンは engine.js の battle で分ける
-  const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative'];
+  // 常時の効果は engine.js の shareTeam、発動する効果・宝具を使ったときの効果（回復・魔力回復・弱体解除も）は shareTrig で分ける。自分に掛ける効果は分けない
+  const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative', 'heal', 'mana_gain', 'cleanse'];
   const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
   const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
@@ -342,6 +342,10 @@
     confuse: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.confuse, m))} の確率で自分が${ailName(p, 'confuse')}し、戦闘力 −${pc(1 - ENG().confusePower)}（防げない）`,
     seal: (m, p) => `打ち合いごとに ${pc(Math.min(AIL_CAP.seal, m))} の確率で自分の宝具が封じられ（${ailName(p, 'seal')}）、その戦いの間は使えない（防げない）`,
   };
+  const teamText = (id, p, fired) => {
+    const n = Math.round(p.team * 100), to = p.on === 'day' ? '同盟相手（特異点では仲間全員）' : '並んで戦う味方';
+    return (fired ? `。${to}にも、${n}% の強さで同じように働く` : `。${to}にも、その戦いの間 ${n}% の強さで働く`) + (id === 'mana_gain' ? '（特異点の魔力は共有なので増えない）' : '');
+  };
   function describe(e, ctx) {
     ctx = ctx || {};
     const def = EFFECTS[e.id], inf0 = EFFECT_INFO[e.id];
@@ -364,7 +368,7 @@
       condText(p, e.id)].filter(Boolean).join('・');
     let text = inf.fx(m, p);
     if (e.id === 'disabled' && !ctx.np) text = 'このスキルの効果は働かない';
-    if (p && p.team > 0 && TEAM_IDS.includes(e.id)) text += `。並んで戦う味方にも、その戦いの間 ${Math.round(p.team * 100)}% の強さで働く`;
+    if (p && p.team > 0 && TEAM_IDS.includes(e.id)) text += teamText(e.id, p, inst || !!tt || !!ctx.np);
     if (p && p.self && p.nocure) text += '。弱体解除・強化解除では消えない';
     // 付けても働かない設定（戦いの外で読む効果に戦いの中の発動・相手の属性、など。fieldsFor）
     const dead = deadParams(e.id, p, !!ctx.np);
@@ -396,7 +400,7 @@
     // 戦いの外では拠点に居るので「拠点」は決まって当たる。昼にしか読まない効果に「夜」は来ない
     const conds = COND_OPTS.map(([k]) => k).filter(k => (k !== '拠点' || inB) && (k !== '夜' || opp));
     return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true,
-      self: SELF_IDS.includes(id), team: TEAM_IDS.includes(id) && !on, strip: STRIP_IDS.includes(id), ail: !!AILMENTS[id] };
+      self: SELF_IDS.includes(id), team: TEAM_IDS.includes(id), strip: STRIP_IDS.includes(id), ail: !!AILMENTS[id] };
   }
   /** 付けても働かない設定の名前の並び（編集画面の注意・点検ツール tools/fxcheck.js） */
   function deadParams(id, p, np) {
