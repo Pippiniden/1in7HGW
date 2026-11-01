@@ -50,5 +50,17 @@ const n1 = S.normalize({ color: 'red"/><x', vb: ['"', 0, 1, 1], paths: [{ k: 9, 
 ok(n1 && n1.color === '' && n1.vb[0] === 0 && n1.paths[0].k === 0 && n1.paths[0].r === 'nonzero', '保存データの値を正す');
 ok(JSON.stringify(S.normalize(JSON.parse(JSON.stringify(s)))) === JSON.stringify(s), '保存して戻しても同じ');
 
+// 既定の紋様
+require('../js/sealdata.js');
+const D = globalThis.HGW.SEAL_DEFAULTS;
+ok(D.length === 8, '既定の紋様は8種: ' + D.length);
+D.forEach((x, i) => {
+  ok(S.normalize(x) && JSON.stringify(S.normalize(x)) === JSON.stringify(x), `既定の紋様${i + 1}は検査を通る`);
+  ok([1, 2, 3].every(k => x.paths.some(p => p.k === k)), `既定の紋様${i + 1}に三画そろっている`);
+});
+ok(S.defaultFor('abc') === S.defaultFor('abc'), '同じシードなら同じ紋様');
+const seen = new Set(); for (let i = 0; i < 400; i++) seen.add(S.defaultFor('seed' + i));
+ok(seen.size === 8, 'どの紋様も選ばれる: ' + seen.size);
+
 console.log(fail ? `失敗 ${fail}件` : 'sealmark: ok');
 process.exit(fail ? 1 : 0);

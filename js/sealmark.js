@@ -98,5 +98,13 @@
       + '</svg>';
   }
 
-  G.sealmark = { parse, normalize, tagged, markup };
+  // シードから既定の紋様を選ぶ。戦争の rnd() を使わないので、展開は変わらず、同じシードなら同じ紋様になる
+  function defaultFor(seed) {
+    const list = G.SEAL_DEFAULTS || [];
+    let h = 2166136261;
+    for (const ch of String(seed)) { h ^= ch.codePointAt(0); h = Math.imul(h, 16777619); }
+    return list[(h >>> 0) % list.length] || null;
+  }
+
+  G.sealmark = { parse, normalize, tagged, markup, defaultFor };
 })(globalThis.HGW = globalThis.HGW || {});
