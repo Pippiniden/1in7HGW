@@ -52,7 +52,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
    `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`.
-   When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
+   `sealmark` is UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
    `rnd()` calls changes every seed's outcome (acceptable, but old shared links replay differently). Never iterate `Set`/object keys in
@@ -91,6 +91,7 @@ js/
   survival.js       Survival curves: many auto wars → per-servant elimination days; roster fingerprint
   singdata.js       Singularity text: name words (3 lists), CITY_TEXT (one region per line), places, mobs, sg* LINES
   singularity.js    Singularity mode: compose (name + lineup), engine plugin, prepareBoss (§7.11)
+  sealmark.js       Player's command-seal emblem: reads a command-spell-maker SVG (`data-kaku` = stroke) into validated paths and redraws it; never inserts the SVG itself
   simlab.js, simworker.js, voiceedit.js   roster.html "聖杯戦争で試す" core + worker; per-scene voice editor
 tools/              servant.js (per-servant CLI), fxcheck.js (effects whose settings do nothing / tags nobody has), kagemiya.js (fetch pages), incoming.js (apply uploads), datadiff.js, survival.js, datalib.js, chaldea.js
 .github/workflows/  kagemiya.yml (import by name → PR), data.yml (apply uploads, check, rebuild survival, diff PR), data-cleanup.yml
@@ -392,7 +393,7 @@ Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are register
   (S–E, `H.gradeOfPct`, `G.GRADES`) is the mean `battleOdds` against the roster, and the recommended first focus `REC_FOCUS[grade]` must be re-measured with `node test/focus.js` after balance changes.
 - **War settings** (length `d`, pick `p`, extra `x`, excluded servants `ex`) change the war, so they live in the URL, in the save and in records (part of `recordSig`); the player's name (`n`), sex (`sx`) and age (`ag`) (all in the URL) and 一言 (`w`, never in the URL) do not change the war and are not part of `recordSig`.
 - **URL state**: `?seed=&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>[&data=local][&d=][&p=open][&x=0][&ex=][&n=][&sx=m|f][&ag=<age>]`; the same seed + same data replays the identical war.
-- **localStorage keys**: `hgw.save.v1` (one suspended war), `hgw.history.v1` (finished wars; `HIST_MAX`, protected `KEEP_MAX`), `hgw.settings` (war settings, last name, and the last-chosen log speed and 決断をおまかせ, which carry over to the next war; `hgw.sing.settings` likewise), `hgw.exclude.v1`, `hgw.survival.v1`, `hgw.roster.v2` (**lean** servants), `hgw.overrides.v1`, `hgw.roster.base/view/sel`, `hgw.roster.csvcols` (keys of the CSV columns chosen in roster.html; absent = all), `hgw.lab.*`.
+- **localStorage keys**: `hgw.save.v1` (one suspended war), `hgw.history.v1` (finished wars; `HIST_MAX`, protected `KEEP_MAX`), `hgw.settings` (war settings, last name, and the last-chosen log speed and 決断をおまかせ, which carry over to the next war; `hgw.sing.settings` likewise), `hgw.exclude.v1`, `hgw.seal.v1` (the player's command-seal emblem, display only, not in the URL or records), `hgw.survival.v1`, `hgw.roster.v2` (**lean** servants), `hgw.overrides.v1`, `hgw.roster.base/view/sel`, `hgw.roster.csvcols` (keys of the CSV columns chosen in roster.html; absent = all), `hgw.lab.*`.
   Only seeds, decisions and focus codes are stored for wars; they are rebuilt on resume/replay (a roster fingerprint mismatch asks first). Export file: `{ format:'hgw-records', version:1, history, save }`.
 - **Lore dialog** (index/singularity): shows `B.loreLead(text.commentary, 160)` — the commentary with Wiki-page leftovers removed for display only (`B.loreText`: セリフ集 blocks, `TRPGキャラシート` onward, divider lines) — and puts the remainder (never repeating the shown part) behind 「続きを読む」; the link button is 「設定元リンク」 (kagemiya page or the external URL of `B.linkOf`).
 - **Spoilers**: servant lore (`canLore`), face portraits and class icons only show servants the player may know; `ranking.html` reveals everything and is linked only from the intro's last paragraph.
@@ -414,7 +415,7 @@ node test/sim.js 500            # 500 auto wars: errors, decided/draw ratio, med
 node test/interactive.js 200    # random focus/answers through the generator; replays and checks mismatch
 node test/servant.js            # tools/servant.js: core view, add round trip, new servant, refusal (works on a temp copy of data/)
 node test/incoming.js           # tools/incoming.js: a roster export with `patch` changes only the browser's servants; old exports still replace (temp copy)
-node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js
+node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js | sealmark.js
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
 node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
 node tools/fxcheck.js [--grep 名] [--weak]   # effect settings that never work, 特攻/条件 tags no servant has, (--weak) negligible effects

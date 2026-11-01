@@ -528,6 +528,19 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 [data-tip] > span:first-child, dt[data-tip] { text-decoration: underline dotted rgba(141, 174, 212, .7); text-underline-offset: 3px; }
 .ranks [data-tip]:hover, .bars [data-tip]:hover, .opstats [data-tip]:hover, .meters [data-tip]:hover { box-shadow: inset 0 0 0 1px var(--cyan); }
 .bars [data-tip], .opstats [data-tip], .meters [data-tip] { padding: 2px 4px; margin: -2px -4px; }
+.sealcol { display: grid; gap: 6px; align-content: start; justify-items: center; }
+.id.hasseal { grid-template-columns: 96px minmax(0, 1fr); }
+.id.hasseal .sealmark { width: 96px; height: 96px; }
+.sealmark { position: relative; }
+.sealmark .more { position: absolute; right: 4px; bottom: 2px; font: 700 12px var(--en); color: var(--seal); }
+.sealzoom { padding: 3px 10px; font-size: 12px; }
+.sealfield input[type=file] { display: none; }
+.sealfield .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.sealfield .sealmark { flex: none; width: 96px; height: 96px; }
+.sealfield .sealname { flex: 1 1 100%; font-size: 13px; }
+.sealbig { display: grid; place-items: center; padding: 8px 16px; }
+.sealbig svg { width: min(360px, 100%); height: auto; }
+.opseal { display: grid; place-items: center; margin: 6px 0; }
 .sealmark[data-tip]:hover { box-shadow: inset 0 0 0 1px var(--seal); }
 .tipop { position: fixed; z-index: 35; padding: 10px 14px 12px; font-size: 13px; line-height: 1.75; background: linear-gradient(180deg, rgba(10, 34, 82, .98), rgba(5, 16, 44, .98)); box-shadow: inset 0 0 0 1px var(--line-hi), 0 8px 28px rgba(0, 0, 0, .55); }
 .tipop[hidden] { display: none; }
@@ -653,6 +666,15 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         </div>
         <p class="hint">観戦中も上の 1×〜16× で変えられる。</p>
       </div>
+      <div class="field sealfield"><span class="lbl">令呪の紋様</span>
+        <div class="row">
+          <div class="sealmark" id="sealPreview"></div>
+          <label class="btn" for="sealFile">SVGを読み込む</label><input type="file" id="sealFile" accept=".svg,image/svg+xml">
+          <button class="btn" id="sealReset" type="button" hidden>元の紋様に戻す</button>
+          <span class="sealname" id="sealName"></span>
+        </div>
+        <p class="hint"><a href="https://pippiniden.github.io/command-spell-maker/" target="_blank" rel="noopener">令呪デザイナー</a>で書き出したSVGを、あなたの令呪として手の甲に刻める。見た目だけで、戦争の展開は変わらない。</p>
+      </div>
       <div class="field"><span class="lbl">一言を残す</span>
         <div class="rowsel choices2" role="radiogroup">
           <label><input type="radio" name="words" value="1" checked><span class="ico"></span>節目で聞く</label>
@@ -748,7 +770,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <div class="col-left">
       <section class="panel" aria-label="あなたのマスター">
         <div class="idtop"><span class="en">Master</span><span id="idCity"></span></div>
-        <div class="id"><div class="sealmark" id="sealMark" data-tip="st.cs" tabindex="0" aria-label="令呪の解説"></div><div><div class="nm" id="mName"></div><dl class="kv" id="mKv"></dl></div></div>
+        <div class="id"><div class="sealcol"><div class="sealmark" id="sealMark" data-tip="st.cs" tabindex="0" aria-label="令呪の解説"></div><button class="btn sealzoom" id="sealZoom" type="button" hidden>拡大</button></div><div><div class="nm" id="mName"></div><dl class="kv" id="mKv"></dl></div></div>
       </section>
       <section class="panel" aria-label="あなたのサーヴァント">
         <div class="hd"><i class="chev"></i><span class="en">Servant</span><span class="ja" id="svClass"></span></div>
@@ -858,6 +880,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <div class="dlg-foot"><button class="btn" id="wordOff">これからは聞かない</button><button class="btn" id="wordSkip">やめておく</button><button class="btn primary" id="wordOk">残す</button></div>
   </section>
 </div>
+<div class="dlg opening" id="sealDlg" role="dialog" aria-modal="true" aria-labelledby="sealDlgTitle">
+  <section class="dlg-in panel">
+    <div class="dlg-head"><i class="chev"></i><span class="en">Command Seal</span></div>
+    <div class="band" id="sealDlgTitle">令呪</div>
+    <div class="opbody"><div class="sealbig" id="sealBig"></div></div>
+    <div class="dlg-foot"><button class="btn" id="sealClose">閉じる</button></div>
+  </section>
+</div>
 <div class="dlg opening imgdlg" id="imgDlg" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
   <section class="dlg-in panel">
     <div class="dlg-head"><i class="chev"></i><span class="en">Image</span><span class="step" id="imgSub"></span></div>
@@ -886,6 +916,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 <script src="js/engine.js"></script>
 <script src="js/data.js"></script>
 <script src="js/survival.js"></script>
+<script src="js/sealmark.js"></script>
 <script>
 (function () {
   'use strict';
@@ -995,6 +1026,39 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   if (qs.get('seed')) $('#seed').value = qs.get('seed');
   if (qs.get('view')) { const el = document.querySelector(`input[name=view][value="${qs.get('view')}"]`); if (el) el.checked = true; }
   // 戦争の長さとエクストラクラス：前回選んだものを覚えておく（共有リンクに書いてあればそちらが優先）
+  // 令呪の紋様（令呪デザイナーのSVG）。見た目だけなので、URL・保存した戦争・記録には入らない
+  const SEAL_KEY = 'hgw.seal.v1';
+  let mySeal = null, sealRev = 0, sealMarkKey = '', sealN = 3;
+  try { mySeal = H.sealmark.normalize(JSON.parse(localStorage.getItem(SEAL_KEY) || 'null')); } catch (e) { /* 読めなければ元の紋様 */ }
+  function setSeal(seal) {
+    mySeal = seal; sealRev++;
+    try { if (seal) localStorage.setItem(SEAL_KEY, JSON.stringify(seal)); else localStorage.removeItem(SEAL_KEY); }
+    catch (e) { toast('令呪を保存できませんでした（この画面を閉じると元に戻ります）'); }
+    renderSealField();
+  }
+  function renderSealField() {
+    $('#sealPreview').innerHTML = sealSvg(3);
+    $('#sealReset').hidden = !mySeal;
+    $('#sealName').textContent = !mySeal ? '' : (mySeal.name || 'あなたの令呪') + (H.sealmark.tagged(mySeal) ? '' : '（画の区別がないSVGなので、全画を使い切ると消える）');
+    $('#sealZoom').hidden = !mySeal;
+    $('#sealMark').closest('.id').classList.toggle('hasseal', !!mySeal);
+  }
+  const renderSealBig = () => { $('#sealBig').innerHTML = mySeal ? H.sealmark.markup(mySeal, sealN, 360) : ''; $('#sealDlgTitle').textContent = `${mySeal && mySeal.name || '令呪'}（残り${sealN}画）`; };
+  const closeSealDlg = () => $('#sealDlg').classList.remove('on');
+  $('#sealFile').onchange = async e => {
+    const file = e.target.files[0]; e.target.value = '';
+    if (!file) return;
+    const seal = H.sealmark.parse(await file.text(), file.name.replace(/\.svg$/i, ''));
+    if (seal.error) return toast(seal.error);
+    setSeal(seal);
+    toast('令呪を刻みました');
+  };
+  $('#sealReset').onclick = () => setSeal(null);
+  $('#sealZoom').onclick = () => { renderSealBig(); $('#sealDlg').classList.add('on'); };
+  $('#sealClose').onclick = closeSealDlg;
+  $('#sealDlg').addEventListener('click', e => { if (e.target.id === 'sealDlg') closeSealDlg(); });
+  renderSealField();
+
   const SET_KEY = 'hgw.settings';
   const clampDays = v => Math.max(MIN_DAYS, Math.min(MAX_DAYS, Math.round(+v) || DEF_DAYS));
   const formDays = () => clampDays($('#days').value);
@@ -1239,6 +1303,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); rememberCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea')) return;
+    if ($('#sealDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeSealDlg(); } return; }
     if ($('#imgDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeImg(); } return; }
     if ($('#wordDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeWord(''); } return; }
     if ($('#lore').classList.contains('on')) { if (e.key === 'Escape' || e.key === 'Enter') { e.preventDefault(); closeLore(); } return; }
@@ -1401,6 +1466,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
             <label class="lbl" for="opAge">年齢</label><input type="number" id="opAge" min="10" max="99" step="1" inputmode="numeric" value="${playerAge || ''}" placeholder="ランダム">
             ${playerSex || playerAge ? '<button class="btn" id="opProfReset" type="button">性別・年齢をランダムに戻す</button>' : ''}</div>
           <p class="hint2">名前・性別・年齢を決めても、戦争の展開は変わらない（年齢は10〜99歳、空欄ならランダム）。</p></div>
+        ${mySeal ? `<div class="opseal">${H.sealmark.markup(mySeal, 3, 120)}</div>` : ''}
         <p class="say">${esc(out.city)}。${esc(meta.base)}を拠点に、あなたは聖杯戦争に臨む。手の甲には三画の令呪が刻まれている。</p>
         <dl class="opkv">
           <dt>素性</dt><dd>${esc([m.sex, m.age ? m.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
@@ -2272,7 +2338,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (youNow) {
       $('#idCity').textContent = out.city;
       $('#mName').textContent = youNow.master;
-      $('#sealMark').innerHTML = sealSvg(youNow.cs);
+      sealN = youNow.cs;
+      const sealKey = sealN + '|' + sealRev; // 細かい紋様を毎回描き直さない
+      if (sealKey !== sealMarkKey) { sealMarkKey = sealKey; $('#sealMark').innerHTML = sealSvg(sealN); if ($('#sealDlg').classList.contains('on')) renderSealBig(); }
       const meta = metaOf(youNow.id);
       $('#mKv').innerHTML = `<dt>出自</dt><dd>${esc(youNow.origin)}</dd>${youNow.persona ? `<dt>性格</dt><dd>${esc(youNow.persona)}</dd>` : ''}<dt${tipAttr('st.cs')}>令呪</dt><dd>残り${youNow.cs}画</dd><dt>状態</dt><dd>${youNow.masterAlive ? '健在' : '死亡'}</dd><dt>願い</dt><dd>${esc(youNow.wish)}</dd>`;
       $('#svClass').innerHTML = ci(keyOf(youNow.id)) + esc(youNow.label); $('#svLore').hidden = !canLore(youNow.id);
@@ -2307,6 +2375,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const sealsInline = n => `<span class="seals-inline" aria-label="令呪 残り${n}画">${[0, 1, 2].map(i => `<i class="${i < n ? '' : 'used'}"></i>`).join('')}${n > 3 ? '+' + (n - 3) : ''}</span>`;
   // 令呪の紋様（残りの画数だけ光る）
   function sealSvg(n) {
+    if (mySeal) return H.sealmark.markup(mySeal, n, 84) + (n > 3 ? `<span class="more">+${n - 3}</span>` : '');
     const on = i => i < n ? 'var(--seal)' : 'rgba(255,255,255,.14)';
     const glow = i => i < n ? 'filter:drop-shadow(0 0 3px #ff4f72)' : '';
     return `<svg width="48" height="60" viewBox="0 0 48 60" aria-label="令呪 残り${n}画">
