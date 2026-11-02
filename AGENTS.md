@@ -70,6 +70,7 @@ zukan.html          Servant encyclopedia (spoiler page): class tabs → wiki lor
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
 logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)
+taisen.html         Great Holy Grail War (test feature, §7.13): a mirror of index.html with its own storage keys; same scripts as index.html
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/
   manifest.json     Which data files to load
@@ -343,6 +344,7 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 | `fallen` | player's servant died | `watch`, `skip`, `stray:<id>`, `steal` |
 | `gameover` | player's Master died | `watch`, `skip` |
 | `intrude` | boss intrusion (§7.12), player is the camp outside the pact | `join`, `solo` |
+| `gwshift` | Great War decided with 2+ survivors (§7.13), also asked of observers and fallen players | `shift`, `end` |
 
 `<id>` is the **camp index** (0–6). Option keys are persisted in the URL for replay — **never rename existing keys; add new ones.** The church **never** reveals true names (owner's design decision): names are learned by deduction, NPs, scouting, battle insight, relations, alliance or conversation.
 
@@ -357,7 +359,7 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 
 Entry: `{ day, phase, kind, text, ids, you, quote?, big?, head?, place?, scene?, weather?, fin?, q?, dk?, auto?, snap }`; kinds: `prologue summon dayhead day night battle np cs death event world life scout ally council choice quiet end`.
 `fin` (battle deaths): `{ by, how: 'np'|'np-earlier'|'instakill'|'blow', np }`. `snap` is a per-camp snapshot from the **player's knowledge view** (unknown names/personas are null) and is copied into every entry — keep it small and JSON-serialisable.
-`out.meta[campId]` holds static display info (filled without `rnd()`). Result: `{ seed, city, days, you, winner, winners, ending ('win'|'wipe'|'draw'|'purge'|'scorched'), camps:[…], entries, youTaken? }` (`winners`/`purge`/`scorched`: §7.12).
+`out.meta[campId]` holds static display info (filled without `rnd()`). Result: `{ seed, city, days, you, winner, winners, ending ('win'|'wipe'|'draw'|'purge'|'scorched'|'side'), camps:[…], entries, youTaken?, colors?, sideWinner?, shiftDay? }` (`winners`/`purge`/`scorched`: §7.12; `side`/`colors`/`sideWinner`/`shiftDay`: §7.13).
 
 ### 7.9 Survival curves (`survival.js`)
 
@@ -373,6 +375,18 @@ A polluted Servant may join the war late. Trigger: on a morning (before pacts di
 - **Pact lock.** `pactLock` stops dissolving, AI betrayal and the council 'betray' option. The unpaired camp chooses `join`/`solo` (`ask('intrude')`, NPC by persona `ally`/`betray`/`hunt`).
 - **Ending.** Boss down with survivors → `ending: 'purge'`, `winners` = all survivors (no wish granted); boss down, nobody left → `'wipe'`; humans all dead or time out with the boss alive → `'scorched'`. `over()` replaces the ≤ 1 alive check.
 - Text: `G.LINES` `intrude*`/`purge*`/`scorched*`. Test: `node test/intrude.js [N] [seed0] [--force] [--set=boss.power:v] [--log=seed]` (occurrence rate, boss clear rate — target ≈ 50 % of intruded wars; `chance` is provisional).
+
+### 7.13 Great Holy Grail War (test feature: `warGen({ greatWar: true })`, `taisen.html`, `CONFIG.GREAT_WAR`)
+
+Two colours of 7 camps each plus an overseer Ruler. Every hook is behind `GW`/`gwStage`, so without `greatWar` a war is byte-for-byte the old one (verify by hashing logs against `origin/main`).
+- **Compose.** `composeWar` runs twice over the roster minus `ruler` (no servant twice). The colour pair and the Ruler are picked by `hashU`, not `rnd()`. Labels are `<colour>の<class>`. With no Ruler in the roster, the war has no overseer.
+- **Colours are pacts.** `c.side` (0/1) and `c.pact` = side + 1; `canPact` is false and pacts never dissolve while `gwStage`. Names, bases and personas are shared inside a colour from the start. Strays recontract and the player's `stray`/`steal` work within the colour only.
+- **Ruler.** Camp id 14, flag `overseer` (`noMaster`; not in `active()`; snaps/results expose `overseer`). It never hunts. It fights only when raided (`rulerRaid` + persona `betray`, per hunter and night) or to judge a turncoat (`rulerJudge`). It may die; the war goes on.
+- **Betrayal.** `turncoat(c)`: the camp moves to the other colour (label `…（寝返り）`, once per war) and assaults a former ally. AI: only from the outnumbered colour, `perv betray × betray` per day. Player: council key `betray`. Alliances across colours do not exist.
+- **Ending.** `over()` = one colour has no camp left. Time out with both colours → `draw`; both gone → `wipe`; one survivor → ordinary `win`. Otherwise decision `gwshift`, yielded directly (not through `ask`) so observers and fallen players are asked too; `ask:'never'` or an unknown answer means `shift`. `end` → `ending:'side'`, `winners` = survivors.
+- **Shift** (`gwToWar`): pacts cleared, survivors healed (HP, mana, Master HP), command seals and knowledge kept, `ENG.maxDays = warDays`, `day` restarts at 1, ordinary alliance rules apply. Same generator and city. Boss intrusion is off for the whole war. Ticks carry `abs` (running day count); the page indexes its focus log by it because `day` repeats. The log entry at the shift has `shift: true`.
+- **Prescribed days.** `GREAT_WAR.days` = the shortest of 30/40/50 days whose decided rate exceeds 80 %; re-measure with `node test/greatwar.js 500` after balance changes.
+- **Page.** `taisen.html` is a copy of index.html: keys `hgw.gw.save.v1`, `hgw.gw.history.v1`, `hgw.gw.settings`, `hgw.gw.exclude.v1`; export format `hgw-gw-records`; same URL parameters except that `bj`/`bf` have no effect; `ask:'big'` for observers too. Great Wars are not part of survival tallies or rankings.
 
 ### 7.11 Singularity mode (test feature: `singularity.js`, `singularity.html`)
 
@@ -431,6 +445,7 @@ node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | 
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
 node test/intrude.js 1500       # boss intrusion: occurrence rate, boss clear rate (--force to raise the sample)
 node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
+node test/greatwar.js 500       # Great War: decided rate at 30/40/50 days (--days=, --log=seed), errors, replay mismatch 0
 node tools/fxcheck.js [--grep 名] [--weak]   # effect settings that never work, 特攻/条件 tags no servant has, (--weak) negligible effects
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON
 node tools/survival.js [N]      # rebuild data/survival.json (default 10000 wars); --check compares fingerprints

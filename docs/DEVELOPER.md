@@ -1,5 +1,7 @@
 # 開発者マニュアル
 
+> 聖杯大戦（`taisen.html`）は `index.html` をもとにした別ページです。`index.html` の画面を直したら、同じ直しが要るかを `taisen.html` でも確かめてください。規定日数は `node test/greatwar.js 500` で測り、終結率が8割を超える最短の日数を `CONFIG.GREAT_WAR.days` に書きます。
+
 7分の1の聖杯戦争の**管理者・開発者向け**の説明です。遊び方（プレイヤー向けの説明）は [README.md](../README.md) にあります。AIエージェント向けの英語の仕様書は [AGENTS.md](../AGENTS.md) にあります（構造・データ形式・エンジンの規則・決断のキー・確認手順）。仕組みを変えたら、この文書とAGENTS.mdも更新してください（遊び方が変わるときは README.md も）。
 
 - `index.html` … 観戦（ゲーム本体）

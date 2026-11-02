@@ -70,7 +70,10 @@
     // ボス乱入（聖杯戦争のみ）：opts.intrude = { on（既定は CONFIG.INTRUDE.on）, force（条件を満たせば必ず乱入）, bosses（ボス専用の英霊。組み立て済み） }
     //   抽選は rnd() ではなく seed のハッシュで引くので、乱入しなかった戦争の展開は変わらない
     const IO = opts.intrude || {}, INTR = G.CONFIG.INTRUDE || {};
-    const intrudeOn = !SG && (IO.on != null ? !!IO.on : INTR.on !== false);
+    // 聖杯大戦：opts.greatWar が真なら、七騎ずつの二つの色と監督役のルーラーで戦う。無ければ、ここから下の動きは何も変わらない
+    const GW = !SG && opts.greatWar ? Object.assign({}, G.CONFIG.GREAT_WAR, opts.greatWar === true ? {} : opts.greatWar) : null;
+    let gwStage = !!GW, gwWinner = null, gwShift = null, rulerC = null, rulerCase = null;   // 大戦の最中か／勝った色／移行した日／監督役／今夜裁かれる寝返り
+    const intrudeOn = !SG && !GW && (IO.on != null ? !!IO.on : INTR.on !== false);
     let bossC = null, intrudeDone = false, pactLock = false;   // 乱入したボスの陣営／抽選を済ませたか／同盟が解けなくなったか
     const hashU = key => { let h = 2166136261; const t = seed + ':' + key; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
 
@@ -78,7 +81,17 @@
     const W = G.WORLD, N = G.NAMES;
     const city = SG ? sInit.city : opts.city || pick(W.cities);
     const places = SG ? sInit.places : shuffle(W.places);
-    const comp = SG ? [] : G.war.composeWar(roster, rnd, opts.war).filter(x => x.servant);
+    const gwColors = GW ? GW.colors[Math.floor(hashU('色') * GW.colors.length)] : null;
+    // 大戦の編成：ルーラーは陣営に呼ばれず、監督役に就く。二つの色に、重ならないように七騎ずつ
+    const composeGW = () => {
+      const pool = roster.filter(s => s.class.key !== 'ruler');
+      const a = G.war.composeWar(pool, rnd, opts.war).filter(x => x.servant);
+      const used = new Set(a.map(x => x.servant.id));
+      const b = G.war.composeWar(pool.filter(s => !used.has(s.id)), rnd, opts.war).filter(x => x.servant);
+      a.forEach(x => { x.side = 0; }); b.forEach(x => { x.side = 1; });
+      return a.concat(b);
+    };
+    const comp = SG ? [] : GW ? composeGW() : G.war.composeWar(roster, rnd, opts.war).filter(x => x.servant);
     const labelCount = {};
     const masterPool = (opts.masters || []).slice();
     const camps = SG ? sInit.camps : comp.map((x, i) => {
@@ -86,7 +99,7 @@
       for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd, G.CONFIG.STAT_SCORE); sv.score[k] = sv.ranks[k].score; }
       sv.power = B.combatPower(sv);
       const def = G.classDef(sv.class.key);
-      const base = sv.class.key === 'extra' ? sv.class.label : def.label;
+      const base = (GW ? gwColors[x.side].name + 'の' : '') + (sv.class.key === 'extra' ? sv.class.label : def.label);
       labelCount[base] = (labelCount[base] || 0) + 1;
       const preset = masterPool.length && chance(0.5) ? masterPool.splice(Math.floor(rnd() * masterPool.length), 1)[0] : null;
       const m = G.master.createMaster(preset || {}, rnd);
@@ -109,6 +122,7 @@
       c.mhpMax = c.mhp = Math.round(50 + m.stats.body * 0.8);
       c.manaMax = Math.round(ENG.manaBase + m.stats.mana);
       c.mana = c.manaMax;
+      if (GW) { c.side = x.side; c.pact = x.side + 1; }
       for (const e of Object.values(sv.effectSummary || {})) if (e.id === 'master_buff' && e.params && e.params.stat && e.passive) m.stats[e.params.stat] = (m.stats[e.params.stat] || 0) + e.passive;
       return c;
     });
@@ -135,6 +149,28 @@
       }
     }
     const pubName = new Set();
+    if (GW) {
+      // 同じ色の中では、最初から真名も拠点も知らせ合っている
+      for (const a of camps) for (const b of camps) if (a.side === b.side) { a.knowName.add(b.id); a.knowLoc.add(b.id); a.knowPersona.add(b.id); }
+      // 監督役のルーラー（抽選は種のハッシュ。名簿にいなければ監督役は不在のまま）
+      const rulers = roster.filter(s => s.class.key === 'ruler');
+      if (rulers.length) {
+        const sv = JSON.parse(JSON.stringify(rulers[Math.floor(hashU('監督役') * rulers.length)]));
+        for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd, G.CONFIG.STAT_SCORE); sv.score[k] = sv.ranks[k].score; }
+        sv.power = B.combatPower(sv);
+        const id = camps.length;
+        rulerC = {
+          id, overseer: true, noMaster: true, slot: 'ruler', sv, master: { name: '聖杯', stats: { mana: 32, craft: 32, body: 32, mind: 32, luck: 32 }, originLabel: '', wish: '', origin: 'custom', commandSpells: 0 },
+          labelBase: '監督役', label: '監督役の' + sv.class.label, hp: 100, mhp: 1, mhpMax: 1, mana: GW.rulerMana, manaMax: GW.rulerMana, cs: 0,
+          alive: true, masterAlive: true, out: false, fate: null, soloLeft: null, inChurch: false, merged: false,
+          base: { name: W.church, scene: 'church', terrain: null }, workshop: 0, items: 0, pact: null, op: null,
+          knowName: new Set(camps.map(x => x.id).concat([id])), knowLoc: new Set(camps.map(x => x.id).concat([id])), temp: [], npBoost: 0, kills: [], npUses: 0, battles: 0,
+          hunting: false, hidden: false, wander: false, fought: false, stance: null, usedSup: new Set(), bond: 0, policy: 'defensive', plan: null, warned: 0,
+          bounty: false, dreams: 0, lifeSeen: new Set(), knowPersona: new Set([id]), clues: {},
+        };
+        camps.push(rulerC); pubName.add(id);
+      }
+    }
     // 因縁：Wikiの「因縁キャラ」に、この戦争にいる別のサーヴァントの名前があるか
     const rel = {};
     for (const a of camps) for (const r of a.sv.relations || []) for (const b of camps) {
@@ -159,6 +195,7 @@
     const out = opts.out || {};
     const entries = out.entries = [];
     out.seed = seed; out.city = city; out.camps = camps.map(c => ({ id: c.id, label: c.label }));
+    if (GW) out.colors = gwColors;
     // 画面に出す固定の情報（ステータス・スキル・宝具の名前）
     out.meta = camps.map(c => ({
       id: c.id, trueName: c.sv.trueName, cls: c.sv.class.label,
@@ -177,7 +214,7 @@
       id: c.id, label: c.label, name: known(c) ? c.sv.trueName : null, cls: c.sv.class.label,
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.pact == null ? null : (allies(c)[0] || { id: null }).id, allies: c.pact == null ? [] : allies(c).map(x => x.id), workshop: c.workshop, you: !!c.you, out: c.out,
-      fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty, boss: c.intruder || undefined,
+      fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty, boss: c.intruder || undefined, side: gwStage ? c.side : undefined, overseer: c.overseer,
       origin: c.master.originLabel, wish: c.master.wish, base: c.base.name, scene: c.base.scene,
       persona: !you || c.you || you.knowPersona.has(c.id) ? (PER(c).label || null) : null,
       clues: you && !c.you && !known(c) ? (you.clues[c.id] || 0) : 0,
@@ -464,16 +501,16 @@
       for (const e of n.effects || []) if (e.id === 'np_cost' && e.params && e.params.cond && condOk(c, e.params)) mod += e.mag * dm(e.params);
       return n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag')) * (mod ? Math.max(0.3, 1 + mod) : 1);
     };
-    const active = () => camps.filter(c => c.alive && !c.intruder);   // 生きている陣営（乱入したボスは数えない。ボスは bossC で別に扱う）
+    const active = () => camps.filter(c => c.alive && !c.intruder && !c.overseer);   // 生きている陣営（乱入したボスは数えない。ボスは bossC で別に扱う）
     // ---------- 同盟（c.pact：同じ番号の陣営どうしが同盟。最大 ENG.allianceMax 騎）----------
-    let pactSeq = 0, leader = null, leaderSeen = new Set();
+    let pactSeq = GW ? 2 : 0, leader = null, leaderSeen = new Set();
     const supLog = {};   // 支え合いの記録は、種類ごとに3日に一度まで
     const allies = c => c.pact == null ? [] : camps.filter(x => x !== c && x.alive && x.pact === c.pact);
     const isAlly = (a, b) => a !== b && a.pact != null && a.pact === b.pact;
     const pactOf = c => c.pact == null ? [c] : camps.filter(x => x.alive && x.pact === c.pact);
     const pactNames = list => list.map(x => nm(x)).join('と');
     // 手を組めるか：どちらかが同盟の外で、合わせて上限以内、同盟の外に2騎以上残る（残りが少なくなったら組まない）
-    const canPact = (a, b, alive) => a !== b && a.alive && b.alive && a.masterAlive && b.masterAlive && !isAlly(a, b) && (a.pact == null || b.pact == null)
+    const canPact = (a, b, alive) => !gwStage && a !== b && a.alive && b.alive && a.masterAlive && b.masterAlive && !isAlly(a, b) && (a.pact == null || b.pact == null)
       && alive.length > ENG.allianceBreakAt + 1 && pactOf(a).length + pactOf(b).length <= ENG.allianceMax && alive.length - pactOf(a).length - pactOf(b).length >= 2;
     // 手を組む（一方が同盟にいれば、もう一方がそこに加わる）。同盟の中では互いの真名を知らせ合う
     function formPact(a, b) {
@@ -486,6 +523,7 @@
     function leavePact(c) {
       const id = c.pact; if (id == null) return; c.pact = null;
       const rest = camps.filter(x => x.pact === id && x.alive);
+      if (gwStage) return;   // 色は最後の一騎になっても色のまま
       if (rest.length <= 1) for (const x of rest) x.pact = null;
     }
     // 裏切るなら、いちばん討ちやすい同盟相手を
@@ -508,7 +546,7 @@
     // マスターが倒れそうなら令呪一画を魔力に換えてしのぐ。令呪も無ければマスターが力尽きる
     function drain(c) {
       if (c.mana >= 0) return;
-      if (c.intruder) { c.mana = 0; return; }   // 乱入したボスにマスターはいない（魔力が尽きても誰も削られない）
+      if (c.intruder || c.overseer) { c.mana = 0; return; }   // 乱入したボスにマスターはいない（魔力が尽きても誰も削られない）
       if (SG) return SG.hooks.drain(c);   // 特異点：魔力の蓄えは六騎で共有。足りない分はマスターではなく英霊の霊基が削れる
       const short = -c.mana; c.mana = 0;
       if (!c.masterAlive) return;
@@ -566,6 +604,11 @@
       c.alive = false; c.out = true; c.hp = 0;
       c.fate = { day, text };
       if (c.intruder) return bossDown(c, by, fin);   // 乱入したボスの最期（聖杯の破壊）
+      if (c.overseer) {
+        if (by) by.kills.push(c.id);
+        log('death', line('gwRulerDown', { R: nm(c), by: by ? nm(by) : '' }), [c.id].concat(by ? [by.id] : []), { big: true, quote: say(c, ['戦闘不能']) });
+        return;
+      }
       if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive && !by.intruder) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       leavePact(c);
       // 消えた英霊の真名は、まだ知られていなくても記録に残す（あとでログだけ読んでも誰だったか分かるように）
@@ -789,7 +832,7 @@
       clue(a, b, 1); clue(b, a, 1);
       for (const [x, o] of [[a, b], [b, a]]) for (const y of help.get(x)) {
         y.stance = 'careful'; clue(y, o, 1); clue(o, y, 1); y.knowName.add(x.id);
-        if (!SG) log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、${'一二三四五六七'[help.get(x).length]}騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
+        if (!SG) log('ally', `${gwStage ? '味方の' : '同盟を結ぶ'}${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、${'一二三四五六七'[help.get(x).length]}騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
       }
       if (SG) SG.hooks.lineup(a, b, help.get(a), help.get(b));
       const rt = related(a, b);
@@ -1193,8 +1236,9 @@
       if (!you.fallenPending) return;
       you.fallenPending = false;
       const c = you;
-      const strays = camps.filter(t => t.alive && !t.masterAlive);
-      const targets = camps.filter(t => t !== c && t.alive && t.masterAlive && !t.intruder);
+      const sameSide = t => !gwStage || t.side === c.side;   // 大戦の最中は、同じ色の中でしか契約し直せない
+      const strays = camps.filter(t => t.alive && !t.masterAlive && sameSide(t));
+      const targets = camps.filter(t => t !== c && t.alive && t.masterAlive && !t.intruder && !t.overseer && sameSide(t));
       const k = yield* ask(c, 'fallen', {
         title: `${c.label}を失った`,
         body: `${sn(c)}は消滅した。マスター${mn(c)}はまだ生きている。令呪は残り${c.cs}画。`,
@@ -1250,7 +1294,8 @@
         if (t) cand.push({ w: coalition(c, t) ? 3 : 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}${t.pact != null ? 'たちの同盟に加わる' : c.pact != null ? 'を同盟に誘う' : 'に同盟を申し込む'}`,
           sub: (coalition(c, t) ? `勝ちすぎている${leader.label}への包囲網。` : '') + '残り3騎になるまで互いを襲わず、共に戦い、魔力や手当てを分け合う' } });
       }
-      if (c.pact != null && !pactLock && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
+      if (c.pact != null && !pactLock && !gwStage && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
+      if (gwStage && !c.turned && allies(c).length) { const t = betrayTarget(c), o = gwColors[1 - c.side].name; cand.push({ w: 0.6, o: { k: 'betray', label: `${o}の陣営に寝返り、${t.label}に奇襲をかける`, sub: `今夜、油断した味方を討つ（戦闘力+20%）。監督役の裁定を受けることがある` } }); }
       // 真名は手がかりから推理する。手がかりの多い相手ほど当たりやすい
       const unk = enemies.filter(t => !c.knowName.has(t.id));
       if (unk.length) {
@@ -1275,7 +1320,8 @@
         const t = camps[+k.split(':')[1]];
         if (canPact(c, t, active()) && chance(clamp(0.25 + effO(c, 'negotiate', t) + effO(t, 'negotiate', c) * 0.5 + (t.policy === 'diplomacy' ? 0.15 : 0) + (coalition(c, t) ? ENG.coalitionAlly : 0), 0, 0.85))) { const m = formPact(c, t); log('ally', `${mn(t)}は申し出を受けた。${pactNames(m)}の同盟だ。`, m.map(x => x.id), { big: true }); }
         else log('council', `${mn(t)}は申し出を断った。`, [c.id, t.id]);
-      } else if (k === 'betray') { const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
+      } else if (k === 'betray' && gwStage) { turncoat(c); bondUp(c, -5); }
+      else if (k === 'betray') { const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true; bondUp(c, -5); log('council', `${mn(c)}は同盟を破ることに決めた。今夜、${t.label}を討つ。`, [c.id, t.id], { big: true }); }
       else if (k.startsWith('deduce:')) {
         const t = camps[+k.split(':')[1]];
         if (chance(deduceP(c, t))) { c.knowName.add(t.id); log('scout', `これまでの手がかりを突き合わせ、${mn(c)}は${t.label}の真名にたどり着いた——「${t.sv.trueName}」。`, [c.id, t.id], { big: true }); }
@@ -1351,6 +1397,53 @@
     // 同盟の面々がそろってボスに挑む（動ける者全員）
     const bossHelp = x => allies(x).filter(y => !y.fought && y.alive && y.hp >= 25 && !y.retired && !(focusOf(y) && focusOf(y).night === false));
 
+    // ---------- 聖杯大戦 ----------
+    const sideOf = n => active().filter(c => c.side === n);
+    // 寝返り：もう一方の色に移り、今夜かつての味方を襲う。監督役はこれを違反とみなし、裁定に動くことがある
+    function turncoat(c) {
+      const t = betrayTarget(c), side = 1 - c.side;
+      log('ally', line('gwTurn', { M: mn(c), S: nm(c), C: gwColors[side].name, T: t.label }), [c.id, t.id], { big: true });
+      c.side = side; c.pact = side + 1; c.turned = true; c.assault = t.id; c.betray = true;
+      c.label = gwColors[side].name + 'の' + c.labelBase.replace(/^.*?の/, '') + '（寝返り）';
+      for (const x of sideOf(side)) if (x !== c) { x.knowName.add(c.id); x.knowLoc.add(c.id); c.knowName.add(x.id); c.knowLoc.add(x.id); }
+      if (rulerC && rulerC.alive && chance(GW.rulerJudge)) rulerCase = c;
+    }
+    // 大戦の決着：片方の色が消えたあと、どう終えるかを決める。'shift' なら通常の聖杯戦争へ
+    function* gwSettle() {
+      const left = active(), w0 = sideOf(0).length, w1 = sideOf(1).length;
+      if (w0 && w1) return 'end';                  // 期限切れ（引き分け）
+      if (!left.length) return 'end';              // 全滅
+      gwWinner = w0 ? 0 : 1;
+      const color = gwColors[gwWinner].name;
+      log('event', line('gwSideWin', { C: color, L: gwColors[1 - gwWinner].name, N: left.map(nm).join('、') }), left.map(c => c.id), { big: true });
+      if (left.length === 1) return 'end';         // 一騎なら、そのまま優勝者
+      const options = [
+        { k: 'shift', label: '聖杯戦争を始める', sub: `生き残った${left.length}騎で、最後の一騎まで戦う。霊基と魔力は癒え、1日目から数え直す` },
+        { k: 'end', label: 'ここで戦いを終える', sub: `${color}の陣営の勝利として幕を閉じる` },
+      ];
+      if (askLevel === 'never') return 'shift';
+      const title = '聖杯は一つ', body = `${color}の陣営が勝利した。だが聖杯に願いを託せるのは、本来ただ一組だけだ。生き残りは${left.map(nm).join('、')}。`;
+      const ans = yield { type: 'decision', kind: 'gwshift', day, phase, title, body, note: '', options, camp: you ? you.id : null };
+      const o = options.find(x => x.k === ans), k = o ? o.k : 'shift';
+      log('choice', `${o ? '' : 'おまかせ：'}${options.find(x => x.k === k).label}`, you ? [you.id] : [], { q: title, dk: 'gwshift', auto: !o });
+      return k;
+    }
+    // 通常の聖杯戦争へ：色は解け、生き残りは癒え、日数は1日目に戻る。令呪と知識は引き継ぐ
+    function gwToWar() {
+      const left = active();
+      gwStage = false; gwShift = day; pactLock = false; leader = null; leaderSeen = new Set(); lastCouncil = 0; rulerCase = null;
+      for (const k in supLog) delete supLog[k];
+      for (const c of left) {
+        c.pact = null; c.op = null; c.assault = null; c.betray = false; c.targetPref = null; c.bounty = false; c.warned = 0;
+        c.hp = 100; c.mana = c.manaMax; if (c.masterAlive) c.mhp = c.mhpMax;
+        c.wither = 0; c.poison = null; c.boostUntil = null; c.rested = null; c.hunting = c.hidden = c.wander = c.fought = false;
+      }
+      phase = 'prologue';
+      log('world', line('gwShift', { city, n: left.length, N: left.map(nm).join('、') }), left.map(c => c.id), { big: true, shift: true });
+      if (rulerC && rulerC.alive) log('event', line('gwRulerStay', { R: nm(rulerC) }), [rulerC.id]);
+      ENG.maxDays = GW.warDays;
+    }
+
     function* dayPhase() {
       phase = 'day';
       tonight = {};
@@ -1363,18 +1456,21 @@
         }
       }
       if (bossC && bossC.alive) { bossC.hp = Math.min(100, bossC.hp + (bossC.bs.heal || 0)); bossC.mana = Math.min(bossC.manaMax, bossC.mana + (bossC.bs.regen || 0)); bossC.fought = false; bossC.hunting = true; }
-      if (!pactLock && alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.pact != null) {
+      if (rulerC && rulerC.alive) { rulerC.hp = Math.min(100, rulerC.hp + GW.rulerHeal); rulerC.mana = rulerC.manaMax; rulerC.fought = false; }
+      // 大戦の寝返り：味方の数で押されている色から、性格しだいで敵に走る者が出る
+      if (gwStage) for (const c of alive) if (!c.you && c.masterAlive && !c.turned && allies(c).length && sideOf(c.side).length < sideOf(1 - c.side).length && chance(perv(c, 'betray') * GW.betray)) turncoat(c);
+      if (!pactLock && !gwStage && alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.pact != null) {
         const m = pactOf(c); for (const x of m) x.pact = null;
         log('ally', `残りが${alive.length}騎となり、${pactNames(m)}の同盟は解消された。`, m.map(x => x.id));
       }
       // 終盤、同盟を破る陣営（性格による）
-      if (!pactLock && alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.pact != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
+      if (!pactLock && !gwStage && alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.pact != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
         const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true;
         log('ally', `${mn(c)}が同盟を破った。今夜、${t.label}を討つつもりだ。`, [c.id, t.id], { big: true });
       }
       // 包囲網：勝ちすぎている陣営が現れると、ほかの陣営は手を組んでそれを狙いやすくなる
       leader = leaderOf(alive);
-      if (leader && !leaderSeen.has(leader.id) && alive.length > ENG.allianceBreakAt + 1) { leaderSeen.add(leader.id); log('world', `${nm(leader)}の勝ちすぎを警戒し、ほかの陣営が手を結ぼうと動き始めた。`, [leader.id]); }
+      if (!gwStage && leader && !leaderSeen.has(leader.id) && alive.length > ENG.allianceBreakAt + 1) { leaderSeen.add(leader.id); log('world', `${nm(leader)}の勝ちすぎを警戒し、ほかの陣営が手を結ぼうと動き始めた。`, [leader.id]); }
       // 同盟の支え合い：魔力を分け、治療の心得のある英霊が味方を手当てし、作った道具を回す（乱数は使わない）
       pactSupport(alive);
       if (chance(ENG.eventChance)) yield* worldEvent();
@@ -1395,7 +1491,7 @@
         if (c.warned > 0 && day % 3 === 0) c.warned = Math.max(0, c.warned - 1);
         // はぐれサーヴァント
         if (!c.masterAlive) {
-          const free = camps.filter(m => !m.alive && m.masterAlive && !m.merged && m.cs > 0 && !m.retired);
+          const free = camps.filter(m => !m.alive && m.masterAlive && !m.merged && m.cs > 0 && !m.retired && !m.overseer && (!gwStage || m.side === c.side));
           let m = null;
           if (free.length) {
             const yours = free.find(f => f.you);
@@ -1454,7 +1550,7 @@
 
     function* doAct(c, act, alive) {
       if (act === 'scout') {
-        const t = pick(alive.filter(x => x !== c && x.alive)); if (!t) return;
+        const t = pick(alive.filter(x => x !== c && x.alive && !(gwStage && isAlly(x, c)))); if (!t) return;
         if (chance(clamp(0.35 + effO(c, 'intel', t) + effO(c, 'detect', t) * 0.5 - effO(t, 'stealth', c) * 0.6 + FX.mCraftScout * md(c, 'craft'), 0.05, 0.9))) {
           const newLoc = !c.knowLoc.has(t.id); learnLoc(c, t);
           const nameHit = !c.knowName.has(t.id) && chance(clamp(0.08 + effO(c, 'reveal', t) + effO(c, 'intel', t) * 0.3 - effO(t, 'conceal', c) * 0.6, 0, 0.7));
@@ -1521,6 +1617,16 @@
       const avg = alive.reduce((t, c) => t + c.sv.power, 0) / alive.length;
       const finale = day > ENG.maxDays - ENG.finaleDays;
       yield* pactOps(alive);
+      // 監督役の裁定：寝返った陣営の前に、ルーラーが立ちはだかる
+      if (rulerCase) {
+        const c = rulerCase; rulerCase = null;
+        if (c.alive && rulerC.alive) {
+          log('event', line('gwRulerJudge', { R: nm(rulerC), S: nm(c) }), [rulerC.id, c.id], { big: true });
+          rulerC.fought = c.fought = true; c.assault = null; c.betray = false;
+          yield* battle(rulerC, c, { place: c.base, home: null, terrain: tonight.rain ? '水辺' : c.base.terrain, rain: tonight.rain, helpA: null, helpB: null });
+          yield* checkFallen();
+        }
+      }
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
         let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
@@ -1537,6 +1643,14 @@
       for (const h of shuffle(field)) {
         if (bossC && !bossC.alive) break;   // ボスが倒れた夜は、もう戦いは続かない
         if (!h.alive || !h.hunting || h.fought) continue;
+        // 監督役を襲う者：ごくまれに、裁定そのものを邪魔に思う陣営が教会へ押し入る
+        if (gwStage && rulerC && rulerC.alive && !rulerC.fought && !h.you && h.masterAlive && chance(GW.rulerRaid + perv(h, 'betray') * 0.02)) {
+          h.fought = rulerC.fought = true; h.warned += 2; any = true;
+          log('event', line('gwRulerRaid', { S: nm(h), R: nm(rulerC) }), [h.id, rulerC.id], { big: true, place: W.church, scene: 'church' });
+          yield* battle(h, rulerC, { place: rulerC.base, home: rulerC, terrain: null, rain: tonight.rain, helpA: null, helpB: null });
+          yield* checkFallen();
+          continue;
+        }
         const targets = field.filter(t => t.alive && t !== h && !t.fought && !isAlly(t, h));
         if (!targets.length) continue;
         let t = null;
@@ -1608,11 +1722,11 @@
           const g = m.filter(x => x !== r && x.mana > x.manaMax * 0.6).sort((a, b) => b.mana / b.manaMax - a.mana / a.manaMax)[0];
           if (!g) continue;
           const v = Math.min(ENG.allyManaShare, g.mana - g.manaMax * 0.5, r.manaMax - r.mana);
-          if (v > 0) { g.mana -= v; r.mana += v; if (g.you || r.you) say('mana', `${mn(g)}が、同盟を組む${mn(r)}に魔力を分けた。`, [g.id, r.id]); }
+          if (v > 0) { g.mana -= v; r.mana += v; if (g.you || r.you) say('mana', `${mn(g)}が、${gwStage ? '味方の' : '同盟を組む'}${mn(r)}に魔力を分けた。`, [g.id, r.id]); }
         }
         for (const hl of m) {
           const k = eff(hl, 'heal_other'); if (!(k > 0)) continue;
-          for (const r of m) if (r !== hl && r.alive && r.hp < 80) { const v = Math.min(100 - r.hp, k * ENG.allyHeal); if (v > 0) { r.hp += v; if (hl.you || r.you) say('heal', `${sn(hl)}が、同盟を組む${sn(r)}の傷を手当てした。`, [hl.id, r.id]); } }
+          for (const r of m) if (r !== hl && r.alive && r.hp < 80) { const v = Math.min(100 - r.hp, k * ENG.allyHeal); if (v > 0) { r.hp += v; if (hl.you || r.you) say('heal', `${sn(hl)}が、${gwStage ? '味方の' : '同盟を組む'}${sn(r)}の傷を手当てした。`, [hl.id, r.id]); } }
         }
         for (const r of m) if (r.items === 0) { const g = m.find(x => x !== r && x.items >= 2); if (g) { g.items--; r.items++; if (g.you || r.you) say('item', `${mn(g)}が、作っておいた道具を${mn(r)}に分けた。`, [g.id, r.id]); } }
       }
@@ -1634,9 +1748,12 @@
     });
 
     // ---------- 開幕 ----------
-    log('prologue', `${city}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });
+    log('prologue', GW ? line('gwOpen', { city, A: gwColors[0].name, B: gwColors[1].name }) : `${city}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });
+    if (rulerC) log('summon', line('gwRuler', { R: nm(rulerC) }), [rulerC.id], { quote: say(rulerC, ['召喚']) });
+    else if (GW) log('prologue', line('gwNoRuler', {}), []);
     if (opts.war && opts.war.pick === 'open') log('prologue', '今回の聖杯戦争では、七つのクラスの決まりが働いていない。同じクラスの英霊が並び立つこともある。', []);
     for (const c of camps) {
+      if (c.overseer) continue;
       const who = `${mn(c)}（${c.master.originLabel}）`;
       const sub = c.extra ? `本来は${G.classDef(c.slot).label}の枠に、${c.sv.class.label}が割り込んだ。` : c.substitute ? `${G.classDef(c.slot).label}の枠に、${c.sv.class.label}のサーヴァントが応えた。` : '';
       log('summon', `${who}が${c.label}を召喚した。${sub}${c.you ? 'これが、あなたの陣営だ。' : ''}`, [c.id], { quote: c.you ? say(c, ['召喚']) : null });
@@ -1649,7 +1766,7 @@
       diplomacy: 0.4 + Math.max(0, eff(c, 'negotiate')) * 3,
       balanced: 1.5,
     }; for (const k in w) w[k] *= pw[k] || 1; return wpick(w); };
-    for (const c of camps) if (!c.you) c.policy = autoPolicy(c);
+    for (const c of camps) if (!c.you && !c.overseer) c.policy = autoPolicy(c);
     if (you) {
       log('summon', `あなたの${you.label}の真名は「${you.sv.trueName}」。${you.sv.profile && you.sv.profile.wish ? '聖杯に託す願いは「' + you.sv.profile.wish + '」。' : ''}マスター${mn(you)}の願いは「${you.master.wish}」。`, [you.id]);
       you.policy = autoPolicy(you);
@@ -1672,15 +1789,16 @@
 
     // ---------- 本編 ----------
     // 戦争が決着したか：ふつうは生き残りが一騎以下。ボスが乱入していれば、ボスが倒れたか、人間側の陣営が尽きたとき
-    const over = () => bossC ? !bossC.alive || active().length === 0 : active().length <= 1;
+    const over = () => gwStage ? !sideOf(0).length || !sideOf(1).length : bossC ? !bossC.alive || active().length === 0 : active().length <= 1;
     let finaleAnnounced = false, quietFrom = null;
+    warLoop: while (true) {
     for (day = 1; day <= ENG.maxDays; day++) {
       if (over()) { day--; break; }
       phase = 'day';
       // 1日ごとに呼び出し元へ戻り、プレイヤーの今の方針を受け取る（止まらない）
-      const f = yield { type: 'tick', day };
+      const f = yield { type: 'tick', day, abs: day + (gwShift || 0) };   // abs：通しの日数（聖杯大戦は移行で day が1に戻る）
       if (you && FOCUS[f]) you.focus = f;
-      const head = log('dayhead', `${day}日目`, [], { head: true }), n0 = entries.length;
+      const head = log('dayhead', `${gwShift != null ? '聖杯戦争 ' : ''}${day}日目`, [], { head: true }), n0 = entries.length;
       if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', line('finale'), [], { big: true }); }
       yield* dayPhase();
       yield* checkFallen();
@@ -1697,6 +1815,13 @@
     }
     if (quietFrom != null) entries.push({ day: quietFrom, phase: 'day', kind: 'quiet', text: `${quietFrom}日目から先は、表立った動きはなかった。`, ids: [], you: false, snap: snap() });
     day = Math.min(day, ENG.maxDays);
+    if (gwStage) {
+      phase = 'end';
+      if ((yield* gwSettle()) === 'shift') { quietFrom = null; finaleAnnounced = false; gwToWar(); continue warLoop; }
+      gwStage = false;
+    }
+    break;
+    }
 
     // ---------- 結末 ----------
     phase = 'end';
@@ -1718,6 +1843,11 @@
         log('end', left.length ? line('scorchedLeft', { N: names, B: nm(bossC), city }) : line('scorchedEnd', { B: nm(bossC), city }), left.map(c => c.id), { big: true });
       }
     }
+    // 聖杯大戦が色の勝利のまま幕を閉じた
+    else if (GW && gwWinner != null && gwShift == null && left.length > 1) {
+      ending = 'side'; winners = left.map(c => c.id);
+      log('end', line('gwSideEnd', { C: gwColors[gwWinner].name, N: left.map(nm).join('、'), city }), winners, { big: true, quote: say(left[0], ['勝利']) });
+    }
     // マスターを失い、単独行動でも現界を保てない最後の一騎は、聖杯の降臨を待たずに消える（全滅）
     else if (left.length === 1 && !left[0].masterAlive && !(left[0].soloLeft > 0)) {
       const c = left[0];
@@ -1734,8 +1864,9 @@
     if (bossC) { /* 結末の文は上で書いた */ }
     else if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
     else if (ending === 'draw') log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
-    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : ending === 'purge' ? '汚染された聖杯を砕いた' : ending === 'scorched' ? '焦土の中で生き延びた' : '生き残った' };
-    log('end', '——聖杯戦争、終結。', [], { head: true });
+    if (rulerC && rulerC.alive) rulerC.fate = { day, text: '監督役として戦いを見届けた' };
+    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : ending === 'purge' ? '汚染された聖杯を砕いた' : ending === 'side' ? '色の勝利を手にした' : ending === 'scorched' ? '焦土の中で生き延びた' : '生き残った' };
+    log('end', GW && gwShift == null ? '——聖杯大戦、終結。' : '——聖杯戦争、終結。', [], { head: true });
 
     const result = {
       seed, city, days: day,
@@ -1743,12 +1874,13 @@
       youTaken,   // あなたのマスターは死に、サーヴァントは他のマスターと再契約した（その陣営が勝っても、あなたの勝ちではない）
       winner: winner ? winner.id : null,
       winners,   // ボスを倒したときの、生き残り全員（暫定の勝者）の陣営番号。それ以外は null
-      ending,   // 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）/ 'purge'（乱入したボスを倒し、汚染された聖杯を砕いた）/ 'scorched'（ボスに敗れ、舞台が焦土と化した）
+      colors: GW ? gwColors : undefined, sideWinner: gwWinner != null ? gwWinner : undefined, shiftDay: gwShift != null ? gwShift : undefined,   // 聖杯大戦のみ
+      ending,   // 'side'（聖杯大戦：色の勝利で終幕）/ 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）/ 'purge'（乱入したボスを倒し、汚染された聖杯を砕いた）/ 'scorched'（ボスに敗れ、舞台が焦土と化した）
       camps: camps.map(c => ({
         id: c.id, label: c.label, slot: c.slot, trueName: c.sv.trueName, cls: c.sv.class.label, servantId: c.sv.id,
         master: c.master.name, origin: c.master.originLabel, wish: c.master.wish, alive: c.alive, masterAlive: c.masterAlive,
         fate: c.fate, kills: c.kills.map(i => camps[i].sv.trueName), npUses: c.npUses, battles: c.battles, power: r1(c.sv.power), you: !!c.you, bond: Math.round(c.bond), policy: c.policy,
-        persona: PER(c).label || null, boss: c.intruder || undefined,
+        persona: PER(c).label || null, boss: c.intruder || undefined, side: c.side, overseer: c.overseer,
       })),
       entries,
     };
