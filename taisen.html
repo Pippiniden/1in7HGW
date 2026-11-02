@@ -722,7 +722,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     <button class="btn" id="installBtn" hidden>アプリとして追加する</button>
     <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
   </div>
-  <p class="foot">登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作です（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントエディタ</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
+  <p class="foot">登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作です（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントエディタ</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。</p>
   <details class="foot cast" id="castBox" hidden>
     <summary>参戦サーヴァントの設定</summary>
     <div class="cast-in">
@@ -933,8 +933,6 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯大戦に呼ばれない（乱入するボスにはなる）
     bossPool = H.build.bossesOf(res).bosses;
     initExcluded();
-    const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
-    const zl = $('#zukanLink'); if (zl) zl.href = label === 'local' ? 'zukan.html?data=local' : 'zukan.html';
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
     const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
     const pub = label === 'local' ? ` ・ <a href="#" id="usePub">公開データに戻す</a>` : '';
