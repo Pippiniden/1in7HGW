@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>特異点攻略（テスト）</title>
+<title>46億分の1の特異点（テスト）</title>
 <meta name="description" content="六騎の英霊を率いて特異点の敵サーヴァント七騎とボスを倒し、人理を修復する。7分の1の聖杯戦争のテスト機能。">
 <meta name="theme-color" content="#050d22">
 <link rel="manifest" href="manifest.webmanifest">
@@ -425,7 +425,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 <section class="intro" aria-labelledby="title">
   <div class="title">
     <span class="en">Singularity ／ Test</span>
-    <h1 id="title">特異点攻略<small>テスト版</small></h1>
+    <h1 id="title">46億分の1の特異点<small>テスト版</small></h1>
   </div>
   <p class="lead">人理を歪める特異点が観測された。あなたは六騎の英霊を率いてその地へ降り立ち、聖杯に呼ばれた七騎の敵サーヴァントを討ち、最後に現れる特異点の主を倒さなければならない。期限までに修復できなければ、人類史はそこで途絶える。あなたにできるのは、前衛の三騎を選び、日々の方針を決め、令呪を切ることだけだ。</p>
   <section class="panel resume" id="resumeBox" aria-label="中断中の特異点" hidden>
@@ -528,7 +528,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   <nav class="modenav" aria-label="ほかの遊び方・資料">
     <a class="" href="index.html"><b>7分の1の聖杯戦争</b><small>七騎の戦いを見守る</small></a>
     <a class="" href="taisen.html"><b>聖杯大戦</b><small>二色に分かれた十四騎の戦い（テスト中）</small></a>
-    <span class="cur " aria-current="page"><b>特異点攻略</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></span>
+    <span class="cur " aria-current="page"><b>46億分の1の特異点</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></span>
     <a class="spoil" href="zukan.html" id="zukanLink"><b>英霊図鑑</b><small>解説・スキル・宝具を読む</small></a>
     <a class="spoil" href="ranking.html" id="rankLink"><b>強さランキング</b><small>真名・強さ・優勝率を見比べる</small></a>
   </nav>
@@ -1815,7 +1815,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
     setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute; ctx.textAlign = 'left'; ctx.fillText(left, P, y + 34);
     spacing(ctx, 0); setFont(ctx, 500, 18, CF.go); ctx.textAlign = 'right';
-    ctx.fillText('特異点攻略（テスト版）' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/[^/]*$/, '') : ''), W - P, y + 34);
+    ctx.fillText('46億分の1の特異点（テスト版）' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/[^/]*$/, '') : ''), W - P, y + 34);
     ctx.textAlign = 'left';
     return y + 56;
   }
@@ -1851,7 +1851,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   function drawResultCard(ctx, o) {
     o = o || {};
     const { W, P } = CV, r = result, endT = (END[r.ending] || ['終了'])[0];
-    let y = cardHead(ctx, 'SINGULARITY ／ RESULT', `${placeOf()} ・ ${r.days}日目`, '特異点攻略 記録');
+    let y = cardHead(ctx, 'SINGULARITY ／ RESULT', `${placeOf()} ・ ${r.days}日目`, '46億分の1の特異点 記録');
     setFont(ctx, 700, 34, CF.go); ctx.fillStyle = r.ending === 'clear' ? CC.gold : CC.seal; ctx.shadowColor = r.ending === 'clear' ? 'rgba(255, 216, 74, .35)' : 'rgba(255, 79, 114, .35)'; ctx.shadowBlur = 12;
     y = para(ctx, `${r.name}　${endT}`, P, y, W - P * 2, 48) + 6;
     ctx.shadowBlur = 0;
@@ -1944,7 +1944,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     await loadCardIcons();
     const q = lastWord(result);
     await cardFonts(JSON.stringify([result.name, result.master, result.party, result.enemies, result.boss, result.stray, out.meta.map(m => m.ranks)]) + lineup.name + placeOf() + words + (q ? q.who + q.text : '') + Object.values(GRADE_JA).join('')
-      + '特異点攻略記録結末のまとめ人理修復成功全滅マスター死亡人理定礎崩壊日目倒した敵騎ボス健在撃破には至らず残りの令呪画全滅から度復帰下した決断回最後に、から一言あなたの一言率いた英霊開戦時の評価前衛控え生存消滅討伐はぐれ共闘評価はリストの全騎と対で戦った平均勝率の順位敵との相性や編成での連携は含みません');
+      + '46億分の1の特異点記録結末のまとめ人理修復成功全滅マスター死亡人理定礎崩壊日目倒した敵騎ボス健在撃破には至らず残りの令呪画全滅から度復帰下した決断回最後に、から一言あなたの一言率いた英霊開戦時の評価前衛控え生存消滅討伐はぐれ共闘評価はリストの全騎と対で戦った平均勝率の順位敵との相性や編成での連携は含みません');
     for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
     cards = {};
     try { for (const k of kinds) cards[k] = await makeCard(k); }
@@ -1981,7 +1981,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   };
   $('#imgShare').onclick = async () => {
     if (!imgCur) return;
-    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '特異点攻略 記録' }); }
+    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '46億分の1の特異点 記録' }); }
     catch (e) { if (e && e.name !== 'AbortError') toast('共有できませんでした。「保存する」を使ってください'); }
   };
 
