@@ -72,7 +72,7 @@
     const IO = opts.intrude || {}, INTR = G.CONFIG.INTRUDE || {};
     // 聖杯大戦：opts.greatWar が真なら、七騎ずつの二つの色と監督役のルーラーで戦う。無ければ、ここから下の動きは何も変わらない
     const GW = !SG && opts.greatWar ? Object.assign({}, G.CONFIG.GREAT_WAR, opts.greatWar === true ? {} : opts.greatWar) : null;
-    let gwStage = !!GW, gwWinner = null, gwShift = null, rulerC = null, rulerCase = null;   // 大戦の最中か／勝った色／移行した日／監督役／今夜裁かれる寝返り
+    let gwStage = !!GW, gwWinner = null, gwShift = null, rulerC = null;   // 大戦の最中か／勝った色／移行した日／監督役
     const intrudeOn = !SG && !GW && (IO.on != null ? !!IO.on : INTR.on !== false);
     let bossC = null, intrudeDone = false, pactLock = false;   // 乱入したボスの陣営／抽選を済ませたか／同盟が解けなくなったか
     const hashU = key => { let h = 2166136261; const t = seed + ':' + key; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
@@ -1296,7 +1296,7 @@
           sub: (coalition(c, t) ? `勝ちすぎている${leader.label}への包囲網。` : '') + '残り3騎になるまで互いを襲わず、共に戦い、魔力や手当てを分け合う' } });
       }
       if (c.pact != null && !pactLock && !gwStage && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
-      if (gwStage && !c.turned && allies(c).length) { const t = betrayTarget(c), o = gwColors[1 - c.side].name; cand.push({ w: 0.6, o: { k: 'betray', label: `${o}の陣営に寝返り、${t.label}に奇襲をかける`, sub: `今夜、油断した味方を討つ（戦闘力+20%）。監督役の裁定を受けることがある` } }); }
+      if (gwStage && !c.turned && allies(c).length) { const t = betrayTarget(c), o = gwColors[1 - c.side].name; cand.push({ w: 0.6, o: { k: 'betray', label: `${o}の陣営に寝返り、${t.label}に奇襲をかける`, sub: `今夜、油断した味方を討つ（戦闘力+20%）` } }); }
       // 真名は手がかりから推理する。手がかりの多い相手ほど当たりやすい
       const unk = enemies.filter(t => !c.knowName.has(t.id));
       if (unk.length) {
@@ -1400,14 +1400,13 @@
 
     // ---------- 聖杯大戦 ----------
     const sideOf = n => active().filter(c => c.side === n);
-    // 寝返り：もう一方の色に移り、今夜かつての味方を襲う。監督役はこれを違反とみなし、裁定に動くことがある
+    // 寝返り：もう一方の色に移り、今夜かつての味方を襲う
     function turncoat(c) {
       const t = betrayTarget(c), side = 1 - c.side;
       log('ally', line('gwTurn', { M: mn(c), S: nm(c), C: gwColors[side].name, T: t.label }), [c.id, t.id], { big: true });
       c.side = side; c.pact = side + 1; c.turned = true; c.assault = t.id; c.betray = true;
       c.label = gwColors[side].name + 'の' + c.labelBase.replace(/^.*?の/, '') + '（寝返り）';
       for (const x of sideOf(side)) if (x !== c) { x.knowName.add(c.id); x.knowLoc.add(c.id); c.knowName.add(x.id); c.knowLoc.add(x.id); }
-      if (rulerC && rulerC.alive && chance(GW.rulerJudge)) rulerCase = c;
     }
     // 大戦の決着：片方の色が消えたあと、どう終えるかを決める。'shift' なら通常の聖杯戦争へ
     function* gwSettle() {
@@ -1434,7 +1433,7 @@
     // 通常の聖杯戦争へ：色は解け、生き残りは癒え、日数は1日目に戻る。令呪と知識は引き継ぐ
     function gwToWar() {
       const left = active();
-      gwStage = false; gwShift = day; pactLock = false; leader = null; leaderSeen = new Set(); lastCouncil = 0; rulerCase = null;
+      gwStage = false; gwShift = day; pactLock = false; leader = null; leaderSeen = new Set(); lastCouncil = 0;
       for (const k in supLog) delete supLog[k];
       for (const c of left) {
         c.pact = null; c.op = null; c.assault = null; c.betray = false; c.targetPref = null; c.bounty = false; c.warned = 0;
@@ -1621,16 +1620,6 @@
       const avg = alive.reduce((t, c) => t + c.sv.power, 0) / alive.length;
       const finale = day > ENG.maxDays - ENG.finaleDays;
       yield* pactOps(alive);
-      // 監督役の裁定：寝返った陣営の前に、ルーラーが立ちはだかる
-      if (rulerCase) {
-        const c = rulerCase; rulerCase = null;
-        if (c.alive && rulerC.alive) {
-          log('event', line('gwRulerJudge', { R: nm(rulerC), S: nm(c) }), [rulerC.id, c.id], { big: true });
-          rulerC.fought = c.fought = true; c.assault = null; c.betray = false;
-          yield* battle(rulerC, c, { place: c.base, home: null, terrain: tonight.rain ? '水辺' : c.base.terrain, rain: tonight.rain, helpA: null, helpB: null });
-          yield* checkFallen();
-        }
-      }
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
         let p = ENG.huntBase + (gwStage ? GW.huntAdj : 0) + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
