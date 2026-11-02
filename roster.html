@@ -478,12 +478,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
         <button id="saveLean">公開用に保存（data/servants.json）</button>
         <button id="saveOv">手直し表を保存（data/overrides.json）</button>
         <button id="saveJson">リストをJSONで保存</button>
-        <button id="saveCsv" title="真名・クラス・強さランク（S〜E）などの一覧を、Excelなどで開けるCSVにします">一覧をCSVで保存</button>
+        <button id="saveCsv" title="真名・クラス・強さランク（S〜E）・ステータス・出典・Wikiの記事名などの一覧を、Excelなどで開けるCSVにします">一覧をCSVで保存</button>
         <label class="btn" for="ovFile">手直し表を読む</label><input type="file" id="ovFile" accept=".json">
       </div>
       <details class="more" id="csvCols">
         <summary>CSVに入れる項目を選ぶ</summary>
-        <p class="hint" style="margin:4px 0">「一覧をCSVで保存」に入れる項目です。はじめは、すべてにチェックが入っています（これまでと同じ出力）。選んだ内容はこのブラウザに残ります。</p>
+        <p class="hint" style="margin:4px 0">「一覧をCSVで保存」に入れる項目です。スキルと宝具は入りません。はじめは、すべてにチェックが入っています（あとから増えた項目も、はじめは入ります）。選んだ内容はこのブラウザに残ります。</p>
         <div class="row" id="csvColList"></div>
         <div class="row" style="margin-top:6px"><button class="sm" id="csvColAll" type="button">すべて選ぶ</button><button class="sm" id="csvColNone" type="button">すべて外す</button></div>
       </details>
@@ -1476,22 +1476,43 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
   // 一覧のCSV（Excel で文字化けしないよう BOM を付ける）。いまのリストの全騎を、クラス順・名前順に。強さランクは一覧と同じ S〜E（ボス専用は評価しない）
-  // 入れる項目は選べる（はじめは全項目＝これまでと同じ出力。選んだ内容は hgw.roster.csvcols に残す）
+  // 入れる項目は選べる（はじめは全項目。選んだ内容は hgw.roster.csvcols に残す）。スキル・宝具は入れない
+  // ステータスは手直しを反映したもの（一覧・詳細と同じ表記）
+  const csvStat = k => ({ key: 'st_' + k, label: B.STAT_JA[k], get: s => s.ranks && s.ranks[k] ? R.label(s.ranks[k]) : '' });
   const CSV_COLS = [
     { key: 'name', label: '真名', get: s => s.trueName },
+    { key: 'skey', label: '印', get: s => s.key || '' },
+    { key: 'aliases', label: '別名', get: s => (s.aliases || []).join('・') },
     { key: 'cls', label: 'クラス', get: s => s.class.label },
+    { key: 'clsRaw', label: 'Wikiのクラス表記', get: s => s.class.raw || '' },
     { key: 'grade', label: '強さランク', get: s => s.bossOnly ? '' : gradeOf(s) },
     { key: 'rate', label: '平均勝率(%)', get: s => s.bossOnly ? '' : Math.round(rateOf(s) * 100) },
     { key: 'power', label: '戦闘力', get: s => s.power },
     { key: 'np', label: '宝具の威力', get: s => s.npPeak || '' },
-    { key: 'attrs', label: '属性', get: s => (s.attrs || []).join('・') }
+    ...B.STAT_KEYS.map(csvStat),
+    { key: 'origin', label: '出典', get: s => s.origin || '' },
+    { key: 'sex', label: '性別', get: s => s.sex || '' },
+    { key: 'align', label: '秩序・善悪', get: s => s.alignment || '' },
+    { key: 'tenchi', label: '天地人', get: s => s.attribute || '' },
+    { key: 'attrs', label: '属性', get: s => (s.attrs || []).join('・') },
+    { key: 'page', label: 'Wikiの記事名', get: s => B.linkOf(s) ? '' : (s.manual ? '' : B.pageOf(s) || s.trueName) },
+    { key: 'url', label: '設定元リンク', get: s => wikiUrl(s) },
+    { key: 'review', label: '要確認の数', get: s => (s.review || []).length }
   ];
-  // 保存済みの選択（知らないキーは捨てる）。保存が無い・壊れているときは全項目
+  // これまでの保存（選んだキーの配列）が知っていた項目。その後に増えた項目は、はじめは入れる
+  const CSV_OLD = ['name', 'cls', 'grade', 'rate', 'power', 'np', 'attrs'];
+  // 保存済みの選択 { on, seen }（知らないキーは捨てる）。保存が無い・壊れているときは全項目
   const csvChosen = () => {
-    const sv = store.get('hgw.roster.csvcols', null), ok = new Set(CSV_COLS.map(c => c.key));
-    return Array.isArray(sv) ? new Set(sv.filter(k => ok.has(k))) : new Set(ok);
+    const sv = store.get('hgw.roster.csvcols', null), all = CSV_COLS.map(c => c.key);
+    const on = Array.isArray(sv) ? sv : sv && Array.isArray(sv.on) ? sv.on : null;
+    if (!on) return new Set(all);
+    const seen = new Set(Array.isArray(sv) ? CSV_OLD : Array.isArray(sv.seen) ? sv.seen : CSV_OLD);
+    return new Set(all.filter(k => on.includes(k) || !seen.has(k)));
   };
-  const csvSaveChosen = () => store.set('hgw.roster.csvcols', CSV_COLS.map(c => c.key).filter(k => $('#csvColList').querySelector(`input[data-col="${k}"]`).checked));
+  const csvSaveChosen = () => store.set('hgw.roster.csvcols', {
+    on: CSV_COLS.map(c => c.key).filter(k => $('#csvColList').querySelector(`input[data-col="${k}"]`).checked),
+    seen: CSV_COLS.map(c => c.key)
+  });
   (() => {
     const on = csvChosen();
     $('#csvColList').innerHTML = CSV_COLS.map(c => `<label class="chk"><input type="checkbox" data-col="${c.key}"${on.has(c.key) ? ' checked' : ''}> ${esc(c.label)}</label>`).join('');
