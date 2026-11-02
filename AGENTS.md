@@ -342,6 +342,7 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 | `event` | bounty / enemy Master spotted / rumor | `join`,`ignore` / `talk`,`follow`,`ignore` / `chase`,`ignore` |
 | `fallen` | player's servant died | `watch`, `skip`, `stray:<id>`, `steal` |
 | `gameover` | player's Master died | `watch`, `skip` |
+| `intrude` | boss intrusion (§7.12), player is the camp outside the pact | `join`, `solo` |
 
 `<id>` is the **camp index** (0–6). Option keys are persisted in the URL for replay — **never rename existing keys; add new ones.** The church **never** reveals true names (owner's design decision): names are learned by deduction, NPs, scouting, battle insight, relations, alliance or conversation.
 
@@ -356,12 +357,22 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 
 Entry: `{ day, phase, kind, text, ids, you, quote?, big?, head?, place?, scene?, weather?, fin?, q?, dk?, auto?, snap }`; kinds: `prologue summon dayhead day night battle np cs death event world life scout ally council choice quiet end`.
 `fin` (battle deaths): `{ by, how: 'np'|'np-earlier'|'instakill'|'blow', np }`. `snap` is a per-camp snapshot from the **player's knowledge view** (unknown names/personas are null) and is copied into every entry — keep it small and JSON-serialisable.
-`out.meta[campId]` holds static display info (filled without `rnd()`). Result: `{ seed, city, days, you, winner, ending ('win'|'wipe'|'draw'), camps:[…], entries, youTaken? }`.
+`out.meta[campId]` holds static display info (filled without `rnd()`). Result: `{ seed, city, days, you, winner, winners, ending ('win'|'wipe'|'draw'|'purge'|'scorched'), camps:[…], entries, youTaken? }` (`winners`/`purge`/`scorched`: §7.12).
 
 ### 7.9 Survival curves (`survival.js`)
 
 `HGW.survival = { fingerprint, empty, tally, runner, curveOf, overall, median }`. `runner` runs auto wars (`player:'none'`, default settings, seeds `sv0, sv1, …`) and counts each camp's elimination day (first snapshot with `alive:false`).
 Format `{ format:'hgw-survival', version:1, fp, wars, days, seedBase, servants:{ '<class>:<trueName>': { n, w, d:[…] } } }`. `fingerprint(roster)` (hash of ids, power, npPeak in roster order) must equal the UI's `rosterFp()`.
+
+### 7.12 Boss intrusion (Holy Grail War only: `intrude()` in `engine.js`, `CONFIG.INTRUDE`)
+
+A polluted Servant may join the war late. Trigger: on a morning (before pacts dissolve) with day ≤ round(`maxDays` × `dayFrac`) when exactly 3 camps are alive and they are either one 3-pact or one 2-pact + one unpaired camp; rolled **once per war** (`chance`, or always with `intrude.force`).
+- **Options.** `warGen({ intrude: { on, force, bosses } })`; `on` defaults to `CONFIG.INTRUDE.on`, `bosses` = prepared boss-only Servants (`B.bossesOf(publishedData).bosses`, built in `build.js`; singularity.js re-exports the same functions). Survival tallies and roster's lab pass `{ on: false }`.
+- **Determinism.** The roll and the pick use `hashU(seed:key)`, not `rnd()`, so wars that do not intrude are identical to before (verify by hashing logs against `origin/main` with `intrude: { on: false }`). Boss = a boss-only Servant (`bossOnlyChance`) or a roster Servant **not among the seven camps**; no break gauges, no command seals, strengthened only by `INTR.boss` (`power`/`guard` as passive `effectSummary` entries, `mana`/`regen`/`heal`/`find`).
+- **Camp.** Appended as camp id 7 with flag `intruder` (**not** `boss`: singularity camps already use `boss`; snaps/results expose `boss: true`). `active()` never includes it; `bossC` is separate. It hunts every night, never retreats, takes all pact members as helpers (`bossHelp`), is public by name, and `drain` never hurts anyone.
+- **Pact lock.** `pactLock` stops dissolving, AI betrayal and the council 'betray' option. The unpaired camp chooses `join`/`solo` (`ask('intrude')`, NPC by persona `ally`/`betray`/`hunt`).
+- **Ending.** Boss down with survivors → `ending: 'purge'`, `winners` = all survivors (no wish granted); boss down, nobody left → `'wipe'`; humans all dead or time out with the boss alive → `'scorched'`. `over()` replaces the ≤ 1 alive check.
+- Text: `G.LINES` `intrude*`/`purge*`/`scorched*`. Test: `node test/intrude.js [N] [seed0] [--force] [--set=boss.power:v] [--log=seed]` (occurrence rate, boss clear rate — target ≈ 50 % of intruded wars; `chance` is provisional).
 
 ### 7.11 Singularity mode (test feature: `singularity.js`, `singularity.html`)
 
@@ -392,8 +403,8 @@ Tuning: `CONFIG.SING`. Text and name material: `singdata.js` (lines are register
 - **Data loading**: `HGW.data.loadPublished` reads `data/manifest.json`; `?data=local` uses the roster tool's browser storage; on `file://` the user picks JSON files.
 - **index.html** (briefing → watching, `body.watching`): the generator runs ahead and `out.entries` are replayed with per-kind delays divided by speed. The **opening** (Master intro, servant rating, first focus) runs before day 1 for new wars; the servant rating
   (S–E, `H.gradeOfPct`, `G.GRADES`) is the mean `battleOdds` against the roster, and the recommended first focus `REC_FOCUS[grade]` must be re-measured with `node test/focus.js` after balance changes.
-- **War settings** (length `d`, pick `p`, extra `x`, excluded servants `ex`) change the war, so they live in the URL, in the save and in records (part of `recordSig`); the player's name (`n`), sex (`sx`) and age (`ag`) (all in the URL) and 一言 (`w`, never in the URL) do not change the war and are not part of `recordSig`.
-- **URL state**: `?seed=&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>[&data=local][&d=][&p=open][&x=0][&ex=][&n=][&sx=m|f][&ag=<age>]`; the same seed + same data replays the identical war.
+- **War settings** (length `d`, pick `p`, extra `x`, boss intrusion off `bj=0`, forced intrusion `bf=1`, excluded servants `ex`) change the war, so they live in the URL, in the save and in records (part of `recordSig`); the player's name (`n`), sex (`sx`) and age (`ag`) (all in the URL) and 一言 (`w`, never in the URL) do not change the war and are not part of `recordSig`.
+- **URL state**: `?seed=&view=you|all&c=<answers joined by '.'>&f=<focus codes per day>[&data=local][&d=][&p=open][&x=0][&bj=0][&bf=1][&ex=][&n=][&sx=m|f][&ag=<age>]`; the same seed + same data replays the identical war.
 - **localStorage keys**: `hgw.save.v1` (one suspended war), `hgw.history.v1` (finished wars; `HIST_MAX`, protected `KEEP_MAX`), `hgw.settings` (war settings, last name, and the last-chosen log speed and 決断をおまかせ, which carry over to the next war; `hgw.sing.settings` likewise), `hgw.exclude.v1`, `hgw.seal.v1` (the player's command-seal emblem, display only, not in the URL or records), `hgw.survival.v1`, `hgw.roster.v2` (**lean** servants), `hgw.overrides.v1`, `hgw.roster.base/view/sel`, `hgw.roster.csvcols` (keys of the CSV columns chosen in roster.html; absent = all), `hgw.lab.*`.
   Only seeds, decisions and focus codes are stored for wars; they are rebuilt on resume/replay (a roster fingerprint mismatch asks first). Export file: `{ format:'hgw-records', version:1, history, save }`.
 - **Lore dialog** (index/singularity): shows `B.loreLead(text.commentary, 160)` — the commentary with Wiki-page leftovers removed for display only (`B.loreText`: セリフ集 blocks, `TRPGキャラシート` onward, divider lines) — and puts the remainder (never repeating the shown part) behind 「続きを読む」; the link button is 「設定元リンク」 (kagemiya page or the external URL of `B.linkOf`).
@@ -418,6 +429,7 @@ node test/servant.js            # tools/servant.js: core view, add round trip, n
 node test/incoming.js           # tools/incoming.js: a roster export with `patch` changes only the browser's servants; old exports still replace (temp copy)
 node test/skills.js | content.js | voice.js | effects.js | markup.js | fgo.js | kagemiya.js | survival.js | simlab.js | taken.js | sealmark.js
 node test/focus.js [N]          # is REC_FOCUS really the best constant focus per grade? (~40 s)
+node test/intrude.js 1500       # boss intrusion: occurrence rate, boss clear rate (--force to raise the sample)
 node test/singularity.js 300    # singularity mode: errors, clear rate (target ≈20% under おまかせ), replay mismatch 0
 node tools/fxcheck.js [--grep 名] [--weak]   # effect settings that never work, 特攻/条件 tags no servant has, (--weak) negligible effects
 node test/run.js test/lucan.txt # parse a wiki .txt and show what was read;  node test/rebuild.js <dir> [out.json] rebuilds exported JSON
