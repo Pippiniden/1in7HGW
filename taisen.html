@@ -1097,7 +1097,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (st && st.words === false) document.querySelector('input[name=words][value="0"]').checked = true;
     // 最後に選んだ速さと「決断をおまかせ」は、別の聖杯大戦に移っても引き継ぐ
     const sp = document.querySelector(`input[name=speed][value="${+(st && st.speed)}"]`); if (sp) sp.checked = true;
-    const d = qs.get('d') || (st && st.days) || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
+    const d = qs.get('d') || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : (st && st.pick) || 'class';
     const ib = qs.has('seed') ? qs.get('bj') !== '0' : !(st && st.intr === false), fc = qs.has('seed') ? qs.get('bf') === '1' : !!(st && st.force);
     setForm(d, x, pk, ib, fc);

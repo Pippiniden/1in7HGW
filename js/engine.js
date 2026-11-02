@@ -1632,7 +1632,7 @@
       }
       for (const c of alive) {
         const P = POLICIES[c.policy] || POLICIES.balanced;
-        let p = ENG.huntBase + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
+        let p = ENG.huntBase + (gwStage ? GW.huntAdj : 0) + (c.sv.power - avg) / 60 + (isBerserk(c) ? 0.2 : 0) + (c.hp < 40 ? -0.3 : 0) + (finale ? 0.4 : 0) + (!c.masterAlive ? 0.2 : 0) + (c.hidden ? -0.2 : 0) + P.hunt + perv(c, 'hunt') + (tonight.moon ? 0.2 : 0) + (tonight.stir ? 0.12 : 0) - (tonight.patrol ? 0.15 : 0) - c.warned * 0.15 + (c.targetPref != null ? 0.15 : 0) - (c.masterAlive && c.mana < c.manaMax * 0.2 && !isBerserk(c) ? 0.15 : 0);
         if (c.op != null) p += ENG.jointHunt;   // 共同作戦の夜
         p = clamp(p, 0.05, 0.95);
         const F = focusOf(c);
