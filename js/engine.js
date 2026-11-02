@@ -1418,7 +1418,7 @@
       log('event', line('gwSideWin', { C: color, L: gwColors[1 - gwWinner].name, N: left.map(nm).join('、') }), left.map(c => c.id), { big: true });
       if (left.length === 1) return 'end';         // 一騎なら、そのまま優勝者
       const options = [
-        { k: 'shift', label: '通常の聖杯戦争へ進む', sub: `生き残った${left.length}騎で、最後の一騎まで戦う。霊基と魔力は癒え、1日目から数え直す` },
+        { k: 'shift', label: '通常の聖杯戦争へ進む', sub: '勝利した陣営で聖杯戦争を続ける場合、霊基と魔力は回復します' },
         { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利で結末を見る` },
       ];
       if (askLevel === 'never') return 'shift';
