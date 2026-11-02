@@ -1418,15 +1418,17 @@
       log('event', line('gwSideWin', { C: color, L: gwColors[1 - gwWinner].name, N: left.map(nm).join('、') }), left.map(c => c.id), { big: true });
       if (left.length === 1) return 'end';         // 一騎なら、そのまま優勝者
       const options = [
-        { k: 'shift', label: '聖杯戦争を始める', sub: `生き残った${left.length}騎で、最後の一騎まで戦う。霊基と魔力は癒え、1日目から数え直す` },
-        { k: 'end', label: 'ここで戦いを終える', sub: `${color}の陣営の勝利として幕を閉じる` },
+        { k: 'shift', label: '通常の聖杯戦争へ進む', sub: `生き残った${left.length}騎で、最後の一騎まで戦う。霊基と魔力は癒え、1日目から数え直す` },
+        { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利で結末を見る` },
       ];
       if (askLevel === 'never') return 'shift';
-      const title = '聖杯は一つ', body = `${color}の陣営が勝利した。だが聖杯に願いを託せるのは、本来ただ一組だけだ。生き残りは${left.map(nm).join('、')}。`;
-      const ans = yield { type: 'decision', kind: 'gwshift', day, phase, title, body, note: '', options, camp: you ? you.id : null };
-      const o = options.find(x => x.k === ans), k = o ? o.k : 'shift';
-      log('choice', `${o ? '' : 'おまかせ：'}${options.find(x => x.k === k).label}`, you ? [you.id] : [], { q: title, dk: 'gwshift', auto: !o });
-      return k;
+      // 物語の中の決断ではなく、進行の選択（system）。画面は大戦の結果を見せてから聞くので、その材料も渡す。決断の記録には残さない
+      const ans = yield {
+        type: 'decision', kind: 'gwshift', system: true, day, phase, title: '聖杯大戦の終結', body: '', note: '', options, camp: you ? you.id : null,
+        sideWinner: gwWinner, colors: gwColors,
+        camps: camps.map(c => ({ id: c.id, label: c.label, trueName: c.sv.trueName, master: c.overseer ? '' : c.master.name, alive: c.alive, fate: c.fate ? c.fate.text : null, side: c.side, overseer: c.overseer, you: !!c.you, kills: c.kills.map(i => camps[i].sv.trueName) })),
+      };
+      return options.some(x => x.k === ans) ? ans : 'shift';
     }
     // 通常の聖杯戦争へ：色は解け、生き残りは癒え、日数は1日目に戻る。令呪と知識は引き継ぐ
     function gwToWar() {
@@ -1438,6 +1440,7 @@
         c.hp = 100; c.mana = c.manaMax; if (c.masterAlive) c.mhp = c.mhpMax;
         c.wither = 0; c.poison = null; c.boostUntil = null; c.rested = null; c.hunting = c.hidden = c.wander = c.fought = false;
       }
+      log('end', '——聖杯大戦、終結。', [], { head: true });
       phase = 'prologue';
       log('world', line('gwShift', { city, n: left.length, N: left.map(nm).join('、') }), left.map(c => c.id), { big: true, shift: true });
       if (rulerC && rulerC.alive) log('event', line('gwRulerStay', { R: nm(rulerC) }), [rulerC.id]);

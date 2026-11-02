@@ -1295,6 +1295,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function present(q) {
     clearTimeout(timer);
     if (replay.length) return answer(replay.shift(), true);
+    if (q.system) return presentGWEnd(q);   // 進行の選択は決断ではないので、おまかせでも必ず止まる
     if (autoAll) return answer('auto', true);
     $('#dlgWhen').textContent = `${q.day ? 'DAY ' + q.day + ' ・ ' : '開戦前 ・ '}${{ day: '昼', night: '夜', prologue: '' }[q.phase] || ''}`;
     $('#dlgTitle').textContent = q.title;
@@ -1303,20 +1304,43 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#dlg').classList.remove('min'); $('#dlg').classList.add('on'); $('#dlgMin').textContent = 'いったん下ろす ▾';
     const first = $('#dlgOpts button'); if (first) first.focus({ preventScroll: true });
   }
+  // 聖杯大戦の結果を出してから、この先の進め方を選んでもらう
+  function presentGWEnd(q) {
+    const c = q.colors[q.sideWinner], me = q.camps.find(x => x.you), left = q.camps.filter(x => x.alive && !x.overseer);
+    const mine = me ? (me.alive && me.side === q.sideWinner ? 'あなたの陣営は生き残り、勝利を手にした。' : 'あなたの戦いは、ここまでに終わっていた。') : '';
+    $('#result').innerHTML = `<section class="panel result" aria-label="聖杯大戦の結果"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">聖杯大戦の結果・${q.day}日間</span></div><div class="body">
+      <h4>${esc(c.name)}の陣営が聖杯大戦を制した</h4>
+      <p>${esc(mine)}生き残りは${left.length}騎。</p>
+      <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
+        ${q.camps.map(x => `<tr class="${x.alive && x.side === q.sideWinner ? 'win' : ''}"><td>${esc(x.label)}</td><td>${esc(x.trueName)}</td><td>${esc(x.master)}</td><td>${esc(x.overseer ? (x.alive ? '監督役' : x.fate || '') : x.alive ? '生き残った' : x.fate || '')}${x.kills.length ? `<br><small>倒した相手：${esc(x.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+      </table>
+      <p>この先の進め方を選んでください。${esc(q.options[0].sub)}。</p>
+      <div class="acts">${q.options.map((o, i) => `<button class="btn${i ? '' : ' primary'}" data-gw="${esc(o.k)}">${esc(o.label)}</button>`).join('')}</div>
+    </div></section>`;
+    $('#result').querySelectorAll('[data-gw]').forEach(b => b.onclick = () => { $('#result').innerHTML = ''; window.scrollTo(0, 0); answer(b.dataset.gw); });
+    $('#result').scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
   function hideDlg() { $('#dlg').classList.remove('on', 'min'); }
   function answer(k, silent) {
     hideDlg();
     choices.push(k); updateURL();
     pump(k); saveProgress();
-    if (k === 'skip') return fastForward();
+    if (k === 'skip' || (forwarding && !silent)) return fastForward();
     timer = setTimeout(step, silent ? 30 : 250);
   }
   // 聖杯大戦から降りたとき：結末まで一気に進める（残りの決断はおまかせ）
+  let forwarding = false;   // 早送りの途中で大戦の結果に止まっても、選んだあとは早送りを続ける
   function fastForward() {
     clearTimeout(timer);
+    forwarding = true;
     let guard = 0;
     while (!done && guard++ < 20000) {
       if (pending && pending.type === 'tick') advanceTick();
+      else if (pending && pending.type === 'decision' && pending.system && !replay.length) {
+        while (idx < out.entries.length) show(out.entries[idx++], true);
+        board(out.entries[idx - 1]); syncLog(); updateURL();
+        return presentGWEnd(pending);
+      }
       else if (pending && pending.type === 'decision') { const k = replay.length ? replay.shift() : 'auto'; choices.push(k); pump(k); }
     }
     while (idx < out.entries.length) show(out.entries[idx++], true);
@@ -2079,7 +2103,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         city: result.city, days: result.days,
         winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending, winners: wins || undefined, boss: hasBoss(result) ? result.camps.find(c => c.boss).trueName : undefined,
         you: y ? { label: y.label, name: y.trueName, master: y.master, won: isWin(y.id) && !result.youTaken, fate: y.fate ? y.fate.text : '', taken: result.youTaken ? { master: result.youTaken.master, won: isWin(y.id) } : undefined } : null,
-        decided: choices.filter(k => k !== 'auto').length,
+        decided: choices.filter(k => k !== 'auto' && k !== 'shift' && k !== 'end').length,
       },
     };
     const list = loadHistory();
@@ -2438,7 +2462,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const you = result.you != null ? result.camps[result.you] : null;
     const head = endHead(result), purge = result.ending === 'purge', burnt = result.ending === 'scorched';
     const yours = you ? (result.ending === 'side' && isWin(you.id) ? 'あなたの陣営は、色の勝利とともに戦いを終えた。' : purge && isWin(you.id) ? `あなたの陣営は、同盟の仲間とともに汚染された聖杯を砕き、生き残った。` : burnt ? `あなたの${you.label}「${you.trueName}」は、${you.alive ? '焦土の中で生き延びた。' : (you.fate ? you.fate.text : '焦土に消えた') + '。'}` : result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
-    const decided = choices.filter(k => k !== 'auto').length;
+    const decided = choices.filter(k => k !== 'auto' && k !== 'shift' && k !== 'end').length;
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">結末・${result.shiftDay != null ? `大戦${result.shiftDay}日＋聖杯戦争${result.days}日` : result.days + "日間"}</span></div><div class="body">
       <h4>${esc(head)}</h4>
       <p>${esc(yours)}${decided ? `あなたが下した大きな決断は${decided}回。` : ''}</p>
@@ -2613,7 +2637,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     setFont(ctx, 700, 34, CF.go); ctx.fillStyle = CC.gold; ctx.shadowColor = 'rgba(255, 216, 74, .35)'; ctx.shadowBlur = 12;
     y = para(ctx, endHead(result), P, y, W - P * 2, 48) + 6;
     ctx.shadowBlur = 0;
-    const decided = choices.filter(k => k !== 'auto').length;
+    const decided = choices.filter(k => k !== 'auto' && k !== 'shift' && k !== 'end').length;
     // 呼んだサーヴァント（再契約や令呪を奪って陣営が移っていれば、最後に契約していたサーヴァントも）
     const first = youId != null ? result.camps[youId] : null, moved = you && first && first.id !== you.id;
     const tail = you ? (result.youTaken ? (you.id === result.winner ? 'は勝ち残り、聖杯を手にした。' : `は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : you.id === result.winner ? '最後まで勝ち残った。' : `${moved ? `${you.label}「${you.trueName}」` : ''}は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
