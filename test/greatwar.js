@@ -22,7 +22,7 @@ if (opt('log')) {
 const med = a => { a = a.slice().sort((x, y) => x - y); return a.length ? a[a.length >> 1] : 0; };
 let errors = 0;
 for (const d of (opt('days') || '30,40,50').split(',').map(Number)) {
-  const end = {}, settled = [], left = [], ruler = { judge: 0, raid: 0, dead: 0 }, sides = [0, 0];
+  const end = {}, settled = [], left = [], ruler = { raid: 0, dead: 0 }, sides = [0, 0];
   let decided = 0, turn = 0;
   for (let i = 0; i < N; i++) {
     try {
@@ -36,14 +36,13 @@ for (const d of (opt('days') || '30,40,50').split(',').map(Number)) {
       else if (r.ending === 'wipe') decided++;
       for (const e of r.entries) {
         if (e.kind === 'ally' && /色を捨て|味方を裏切/.test(e.text)) turn++;
-        if (e.kind === 'event' && /裁定が下|秩序を乱す/.test(e.text)) ruler.judge++;
         if (e.kind === 'event' && /教会へ押し入|裁定者を邪魔/.test(e.text)) ruler.raid++;
         if (e.kind === 'world' && /騎の聖杯戦争が始まる/.test(e.text)) left.push(+e.text.match(/(\d+)騎の聖杯戦争/)[1]);
       }
       if (r.camps.some(c => c.overseer && !c.alive)) ruler.dead++;
     } catch (e) { errors++; console.log('error', seed0 + i, e.stack); }
   }
-  console.log(`${d}日: 終結率 ${(decided / N * 100).toFixed(1)}%（決着日の中央値 ${med(settled)}）色の勝ち ${sides.join(':')} 移行時の生き残り中央値 ${med(left)} 結末 ${JSON.stringify(end)} 寝返り/戦 ${(turn / N).toFixed(2)} 裁定 ${ruler.judge} 襲撃 ${ruler.raid} 監督役討死 ${ruler.dead}`);
+  console.log(`${d}日: 終結率 ${(decided / N * 100).toFixed(1)}%（決着日の中央値 ${med(settled)}）色の勝ち ${sides.join(':')} 移行時の生き残り中央値 ${med(left)} 結末 ${JSON.stringify(end)} 寝返り/戦 ${(turn / N).toFixed(2)} 襲撃 ${ruler.raid} 監督役討死 ${ruler.dead}`);
 }
 // 再現性：同じ決断と方針で同じ戦争になるか
 let mismatch = 0;
