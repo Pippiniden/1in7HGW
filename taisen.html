@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>聖杯大戦</title>
+<title>14分の1の聖杯大戦</title>
 <meta name="description" content="十四騎のサーヴァントとマスターが、ひとつの街で最後の一騎になるまで戦う聖杯大戦の二次創作シミュレーション。">
 <meta name="theme-color" content="#050d22">
 <!-- PWA（ホーム画面に追加・オフライン）。アイコンは icons/ に。差し替え方は icons/README.md -->
@@ -13,7 +13,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="聖杯大戦">
+<meta name="apple-mobile-web-app-title" content="14分の1の聖杯大戦">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
@@ -642,7 +642,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 <section class="intro" aria-labelledby="title">
   <div class="title">
     <span class="en">Holy Grail War ／ Chronicle</span>
-    <h1 id="title">聖杯大戦<small>観戦記</small></h1>
+    <h1 id="title">14分の1の聖杯大戦</h1>
   </div>
   <p class="lead">二つの色に分かれた七騎ずつの英霊が、ひとつの街で、どちらかの色が潰えるまで戦う。監督役のルーラーはどちらにも与しない。あなたはその一陣営のマスターとして、味方とともに終わりまで戦う。生き残りが複数なら、聖杯をかけた通常の聖杯戦争に移るかを選ぶ。</p>
   <section class="panel resume" id="resumeBox" aria-label="中断中の聖杯大戦" hidden>
@@ -736,8 +736,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   <p class="foot">登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作です（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントエディタ</a>から。新しい英霊の申請や、英霊の強さ・読み取りの調整の希望は<a href="submit.html">申請フォーム</a>から。書き出した記録のCSVは<a href="logview.html">戦いのログビューア</a>で読み返せます。</p>
   <nav class="modenav" aria-label="ほかの遊び方・資料">
     <a class="" href="index.html"><b>7分の1の聖杯戦争</b><small>七騎の戦いを見守る</small></a>
-    <span class="cur " aria-current="page"><b>聖杯大戦</b><small>二色に分かれた十四騎の戦い（テスト中）</small></span>
-    <a class="" href="singularity.html"><b>特異点攻略</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></a>
+    <span class="cur " aria-current="page"><b>14分の1の聖杯大戦</b><small>二色に分かれた十四騎の戦い（テスト中）</small></span>
+    <a class="" href="singularity.html"><b>46億分の1の特異点</b><small>六騎を率いて敵とボスに挑む（テスト中）</small></a>
     <a class="spoil" href="zukan.html" id="zukanLink"><b>英霊図鑑</b><small>解説・スキル・宝具を読む</small></a>
     <a class="spoil" href="ranking.html" id="rankLink"><b>強さランキング</b><small>真名・強さ・優勝率を見比べる</small></a>
   </nav>
@@ -2604,7 +2604,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
     setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute; ctx.textAlign = 'left'; ctx.fillText(left, P, y + 34);
     spacing(ctx, 0); setFont(ctx, 500, 18, CF.go); ctx.textAlign = 'right';
-    ctx.fillText('聖杯大戦 観戦記' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/index\.html$/, '') : ''), W - P, y + 34);
+    ctx.fillText('14分の1の聖杯大戦' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/index\.html$/, '') : ''), W - P, y + 34);
     ctx.textAlign = 'left';
     return y + 56;
   }
@@ -2634,7 +2634,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     o = o || {};
     const { W, P } = CV;
     const w = result.winner != null ? result.camps[result.winner] : null, you = result.you != null ? result.camps[result.you] : null;
-    let y = cardHead(ctx, 'HOLY GRAIL WAR ／ RESULT', `${out.city} ・ ${result.days}日間`, '聖杯大戦 観戦記');
+    let y = cardHead(ctx, 'HOLY GRAIL WAR ／ RESULT', `${out.city} ・ ${result.days}日間`, '14分の1の聖杯大戦');
     setFont(ctx, 700, 34, CF.go); ctx.fillStyle = CC.gold; ctx.shadowColor = 'rgba(255, 216, 74, .35)'; ctx.shadowBlur = 12;
     y = para(ctx, endHead(result), P, y, W - P * 2, 48) + 6;
     ctx.shadowBlur = 0;
@@ -2798,7 +2798,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const sv = youId != null ? servantOf(youId) : null, ev = sv ? evaluate(sv) : null;
     await cardFonts(JSON.stringify(out.meta) + JSON.stringify(result.camps) + words.map(w => w.text).join('') + (finalQuote() || { text: '' }).text
       + (ev ? ev.good.join('') + ev.bad.join('') : '') + Object.values(GRADE).join('')
-      + '聖杯大戦観戦記呼んだサーヴァント開戦時の評価リスト騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として十四騎の戦いを見届けたすべてを知る観測者下した大きな決断は回のちにと契約した失い');
+      + '14分の1の聖杯大戦呼んだサーヴァント開戦時の評価リスト騎と1対1で戦った場合の平均勝率位基礎戦闘力宝具の威力生存曲線半数が脱落するのは日目まで残る聖杯を手にする点線全体の平均最後に、から一言あなたの一言絆開戦時最も深まったとき結末として十四騎の戦いを見届けたすべてを知る観測者下した大きな決断は回のちにと契約した失い');
     for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
     cards = {};
     try { for (const k of kinds) cards[k] = await makeCard(k); }
@@ -2836,7 +2836,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   };
   $('#imgShare').onclick = async () => {
     if (!imgCur) return;
-    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '聖杯大戦 観戦記' }); }
+    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '14分の1の聖杯大戦' }); }
     catch (e) { if (e && e.name !== 'AbortError') toast('共有できませんでした。「保存する」を使ってください'); }
   };
 
