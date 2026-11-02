@@ -341,6 +341,10 @@ body.watching .war { display: block; }
 .camps .down .st { color: var(--seal); }
 .camps .win { box-shadow: inset 0 0 0 1px var(--gold), 0 0 16px rgba(255, 216, 74, .3); }
 .camps .win .st { color: var(--gold); }
+.camps .boss { box-shadow: inset 0 0 0 1px #8b2fc9, 0 0 14px rgba(139, 47, 201, .35); }
+.camps .boss .st { color: #c58bff; }
+.cast-force { display: block; margin: 12px 0 4px; font-size: 13px; line-height: 1.6; }
+.cast-force input { margin-right: 6px; }
 .camps .hpb { height: 3px; background: var(--inset); margin-top: 5px; }
 .camps .hpb i { display: block; height: 100%; background: var(--hp); box-shadow: 0 0 6px var(--hp); }
 
@@ -698,6 +702,13 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
         </div>
         <p class="hint">ルーラーなど七つのクラスの外の英霊が、どこかの席に紛れ込むことがある。加えないなら、代役としても呼ばれない。</p>
       </div>
+      <div class="field"><span class="lbl">ボス乱入</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="intr" value="1" checked><span class="ico"></span>起こりうる</label>
+          <label><input type="radio" name="intr" value="0"><span class="ico"></span>起こらない</label>
+        </div>
+        <p class="hint">終盤、生き残りが三陣営になり、三者同盟（または二者同盟と同盟の外の一陣営）になっていると、まれに聖杯が汚染されていて、汚染された英霊が現れる。起こるのは戦争の長さの2/3の日まで。</p>
+      </div>
       <label class="field"><span class="lbl">シード（同じシード・同じデータ・同じ選択なら、同じ戦争になる。空欄なら毎回ちがう戦争）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
       <button class="btn primary go" id="go" disabled>開戦する</button>
       <p class="over" id="overNote" hidden>新しく開戦すると、中断中の聖杯戦争は上書きされます。</p>
@@ -735,6 +746,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       <p class="cast-sum" id="castSum" aria-live="polite"></p>
       <div class="cast-acts"><button class="btn" id="castAllOn" type="button">全体を全選択</button><button class="btn" id="castAllOff" type="button">全体を全解除</button></div>
       <div id="castList"></div>
+      <label class="cast-force"><input type="checkbox" id="intrForce"> ボス乱入の条件（生き残りが三陣営で同盟が組まれている）を満たしたら、必ずボス戦を発生させる</label>
       <p>外したサーヴァントは、七騎の抽選にも、クラスの代役にも呼ばれません。クラスの全員を外すと、その席は別のクラスの英霊が代役で埋めます。設定はこのブラウザに残り、共有リンク（<code>ex=</code>）・中断中の戦争・これまでの記録にも、その戦争の分が一緒に保存されます。</p>
     </div>
   </details>
@@ -925,6 +937,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const DEF_DAYS = H.CONFIG.ENGINE.maxDays, MIN_DAYS = 10, MAX_DAYS = 100;
   let maxDays = DEF_DAYS, extraOn = true, pickMode = 'class'; // この戦争の長さ、エクストラクラスを加えるか、七騎の選び方（class / open）
   let castEx = [];                                            // この戦争で参戦から外したサーヴァントの id
+  let intrOn = true, intrForce = false, bossPool = [];        // ボス乱入を起こすか／条件を満たしたら必ず起こすか／乱入しうるボス専用の英霊
   let excluded = new Set(), exInited = false;                 // 最初の画面で参戦から外している id（設定）と、URL の ex を読んだか
   const FOCUS = H.engine.FOCUS, FOCUS_BY_CODE = Object.fromEntries(Object.entries(FOCUS).map(([k, v]) => [v.code, k]));
   const qs = new URLSearchParams(location.search);
@@ -933,7 +946,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 
   // ---------- データ ----------
   function dataReady(res, label) {
-    roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯戦争に出ない
+    roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯戦争に呼ばれない（乱入するボスにはなる）
+    bossPool = H.build.bossesOf(res).bosses;
     initExcluded();
     const rl = $('#rankLink'); if (rl) rl.href = label === 'local' ? 'ranking.html?data=local' : 'ranking.html';
     const zl = $('#zukanLink'); if (zl) zl.href = label === 'local' ? 'zukan.html?data=local' : 'zukan.html';
@@ -1064,7 +1078,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const formExtra = () => document.querySelector('input[name=extra]:checked').value !== '0';
   const formPick = () => document.querySelector('input[name=pick]:checked').value === 'open' ? 'open' : 'class';
   const formWords = () => document.querySelector('input[name=words]:checked').value !== '0';
-  function setForm(days, extra, pick) {
+  const formIntr = () => document.querySelector('input[name=intr]:checked').value !== '0';
+  const formForce = () => $('#intrForce').checked;
+  function setForm(days, extra, pick, intr, force) {
+    const ie = document.querySelector(`input[name=intr][value="${intr === false ? 0 : 1}"]`); if (ie) ie.checked = true;
+    $('#intrForce').checked = force === true;
     $('#days').value = clampDays(days); $('#daysOut').textContent = clampDays(days) + '日';
     const el = document.querySelector(`input[name=extra][value="${extra === false ? 0 : 1}"]`); if (el) el.checked = true;
     const pe = document.querySelector(`input[name=pick][value="${pick === 'open' ? 'open' : 'class'}"]`); if (pe) pe.checked = true;
@@ -1078,13 +1096,14 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const sp = document.querySelector(`input[name=speed][value="${+(st && st.speed)}"]`); if (sp) sp.checked = true;
     const d = qs.get('d') || (st && st.days) || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : (st && st.pick) || 'class';
-    setForm(d, x, pk);
+    const ib = qs.has('seed') ? qs.get('bj') !== '0' : !(st && st.intr === false), fc = qs.has('seed') ? qs.get('bf') === '1' : !!(st && st.force);
+    setForm(d, x, pk, ib, fc);
   })();
   // 一言を聞くか・前回つけた名前も一緒に覚えておく（どちらも戦争の展開は変えない）
-  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), words: formWords(), name: settings0.name || undefined, speed: settings0.speed, auto: settings0.auto || undefined })); } catch (e) { /* 保存できなくても動く */ } };
+  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), intr: formIntr(), force: formForce() || undefined, words: formWords(), name: settings0.name || undefined, speed: settings0.speed, auto: settings0.auto || undefined })); } catch (e) { /* 保存できなくても動く */ } };
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
-  document.querySelectorAll('input[name=extra], input[name=pick], input[name=words]').forEach(r => r.addEventListener('change', saveSettings));
+  document.querySelectorAll('input[name=extra], input[name=pick], input[name=words], input[name=intr], #intrForce').forEach(r => r.addEventListener('change', saveSettings));
 
   // ---------- 進行 ----------
   // エンジンは1日ごと（tick）と大きな決断（decision）で戻ってくる。
@@ -1111,7 +1130,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // 戦争を組み立てる（名前を付け直すときも、同じシードで組み直す。名前は乱数を使わないので展開は変わらない）
   function makeGen() {
     out = {};
-    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerName: playerName || undefined });
+    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: view === 'all' ? 'never' : 'big', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), intrude: { on: intrOn, force: intrForce, bosses: bossPool }, playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerName: playerName || undefined });
     pump();
   }
   // o: { seed, view, speed, days: 戦争の長さ, extra: エクストラクラスを加えるか, c: 決断の列, f: 方針の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode,
@@ -1130,6 +1149,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     maxDays = clampDays(o.days || formDays());
     extraOn = o.extra != null ? o.extra !== false : formExtra();
     pickMode = o.pick ? (o.pick === 'open' ? 'open' : 'class') : formPick();
+    intrOn = o.intr != null ? o.intr !== false : formIntr();
+    intrForce = o.force != null ? o.force === true : formForce();
     replay = (o.c || []).filter(Boolean);
     replayFocus = o.f || '';
     $('#pause').disabled = false; $('#skip').disabled = false;
@@ -1192,6 +1213,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (maxDays !== DEF_DAYS) url.searchParams.set('d', maxDays); else url.searchParams.delete('d');
     if (!extraOn) url.searchParams.set('x', '0'); else url.searchParams.delete('x');
     if (pickMode === 'open') url.searchParams.set('p', 'open'); else url.searchParams.delete('p');
+    if (!intrOn) url.searchParams.set('bj', '0'); else url.searchParams.delete('bj');
+    if (intrOn && intrForce) url.searchParams.set('bf', '1'); else url.searchParams.delete('bf');
     if (castEx.length) url.searchParams.set('ex', exParam(castEx)); else url.searchParams.delete('ex');
     if (playerName) url.searchParams.set('n', playerName); else url.searchParams.delete('n');
     if (playerSex) url.searchParams.set('sx', playerSex === '女' ? 'f' : 'm'); else url.searchParams.delete('sx');
@@ -1768,7 +1791,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   // ---------- サーヴァントの解説 ----------
   // 自分のサーヴァントと、真名が分かったサーヴァントだけ見られる（まだ知らない真名は出さない）
   let lastSnap = [];
-  const servantOf = id => roster.find(s => s.id === metaOf(id).servantId) || null;
+  const servantOf = id => roster.find(s => s.id === metaOf(id).servantId) || bossPool.find(s => s.id === metaOf(id).servantId) || null;
   const canLore = id => { const c = lastSnap[id]; return !!c && (!!c.name || c.you) && !!servantOf(id); };
   // kagemiya のURL（ページ名は EUC-JP でパーセント符号化する）。対応表は初回に作る
   let eucMap = null;
@@ -2008,7 +2031,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   const recDays = r => clampDays(r.days || DEF_DAYS), recExtra = r => r.extra !== false, recPick = r => r.pick === 'open' ? 'open' : 'class';
   // 参戦から外したサーヴァントの id（無い古い記録は、外していないものとして扱う）
   const recEx = r => Array.isArray(r.ex) ? r.ex.filter(x => typeof x === 'string') : [];
-  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : []).join('|');
+  // ボス乱入の設定（無い古い記録は、起こりうる・必ずではない として扱う）
+  const recIntr = r => r.intr !== false, recForce = r => r.intr !== false && r.force === true;
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recIntr(r) ? [] : ['nobj'], recForce(r) ? ['bf'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : []).join('|');
   const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
   // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
@@ -2017,7 +2042,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (op && !idx) return false; // 開戦の案内の途中は、まだ始まっていない
     const me = lastSnap.find(c => c.you);
     return store.set(SAVE_KEY, {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
       idx, focus, auto: autoAll, speed, name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, w: words.length ? words : undefined,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
@@ -2027,21 +2052,29 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
 
   // 結末の見出し。勝者あり（マスターを失って単独で勝ち残った場合も）／全滅（相討ちなど）／期限切れ
+  // ボス乱入でボスを倒したときの勝者は、生き残り全員（暫定）。聖杯は壊れたので、願いは叶わない
+  const isWin = id => !!result && (id === result.winner || (result.winners || []).includes(id));
+  const hasBoss = r => !!r && r.camps.some(c => c.boss);
+  const winText = () => result && result.ending === 'purge' ? '汚染された聖杯を砕いた' : '聖杯を手にした';
   function endHead(r) {
     const w = r.winner != null ? r.camps[r.winner] : null;
+    if (r.ending === 'purge') return `汚染された聖杯は砕かれた。${r.camps.filter(c => (r.winners || []).includes(c.id)).map(c => `${c.cls}「${c.trueName}」`).join('、')}が、街を災厄から救った`;
+    if (r.ending === 'scorched') return '汚染された聖杯の力が街を焼き尽くした。舞台は焦土と化した';
+    if (r.ending === 'wipe' && hasBoss(r)) return '汚染された聖杯は砕かれたが、生き残った者はいなかった';
     if (w) return w.masterAlive === false ? `${w.cls}「${w.trueName}」が、マスターを失いながらもただ一騎で聖杯を手にした` : `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした`;
     return r.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった' : '聖杯を手にした者はいなかった';
   }
   // 終わった戦争を記録に足す（同じ戦争の再生なら足さない）
   function addHistory() {
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
+    const wins = result.winners ? result.winners.map(i => result.camps[i]).filter(Boolean).map(c => ({ label: c.label, name: c.trueName })) : null;
     const rec = {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
       name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
-        winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending,
-        you: y ? { label: y.label, name: y.trueName, master: y.master, won: y.id === result.winner && !result.youTaken, fate: y.fate ? y.fate.text : '', taken: result.youTaken ? { master: result.youTaken.master, won: y.id === result.winner } : undefined } : null,
+        winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending, winners: wins || undefined, boss: hasBoss(result) ? result.camps.find(c => c.boss).trueName : undefined,
+        you: y ? { label: y.label, name: y.trueName, master: y.master, won: isWin(y.id) && !result.youTaken, fate: y.fate ? y.fate.text : '', taken: result.youTaken ? { master: result.youTaken.master, won: isWin(y.id) } : undefined } : null,
         decided: choices.filter(k => k !== 'auto').length,
       },
     };
@@ -2069,11 +2102,11 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, words: s.w });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), intr: recIntr(s), force: recForce(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, words: s.w });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, words: r.w });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), intr: recIntr(r), force: recForce(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, words: r.w });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
@@ -2086,6 +2119,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (recDays(r) !== DEF_DAYS) u.searchParams.set('d', recDays(r));
     if (!recExtra(r)) u.searchParams.set('x', '0');
     if (recPick(r) === 'open') u.searchParams.set('p', 'open');
+    if (!recIntr(r)) u.searchParams.set('bj', '0');
+    if (recForce(r)) u.searchParams.set('bf', '1');
     if (recEx(r).length) u.searchParams.set('ex', exParam(recEx(r)));
     if (r.name) u.searchParams.set('n', r.name);
     if (r.sex) u.searchParams.set('sx', r.sex === '女' ? 'f' : 'm');
@@ -2108,7 +2143,9 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     $('#recList').innerHTML = list.map((r, i) => {
       const y = r.sum.you, w = r.sum.winner;
       const title = y ? `${y.label}「${y.name}」のマスター、${y.taken ? y.taken.master : y.master}` : 'すべてを知る観測者として';
-      const res = y ? (y.taken ? (y.taken.won ? `マスターは命を落としたが、再契約した${y.label}「${y.name}」が聖杯を手にした。` : `マスターは命を落とした。再契約した${y.label}「${y.name}」は、${y.fate || '最後まで生き残った'}。`) : y.won ? '聖杯を手にした。' : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won && !(y.taken && y.taken.won) ? `勝者は${w.label}「${w.name}」。` : !w ? '聖杯を手にした者はいなかった。' : '')
+      const res = y ? (y.taken ? (y.taken.won ? `マスターは命を落としたが、再契約した${y.label}「${y.name}」が聖杯を手にした。` : `マスターは命を落とした。再契約した${y.label}「${y.name}」は、${y.fate || '最後まで生き残った'}。`) : y.won ? (r.sum.ending === 'purge' ? '汚染された聖杯を砕いた。' : '聖杯を手にした。') : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won && !(y.taken && y.taken.won) ? `勝者は${w.label}「${w.name}」。` : !w ? (r.sum.ending === 'purge' ? '' : '聖杯を手にした者はいなかった。') : '')
+        : r.sum.ending === 'purge' ? `汚染された聖杯を砕き、${(r.sum.winners || []).map(x => `${x.label}「${x.name}」`).join('、')}が生き残った。`
+        : r.sum.ending === 'scorched' ? `汚染された聖杯の力に敗れ、舞台は焦土と化した。`
         : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
@@ -2187,7 +2224,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function purposeSection() {
     const youEver = new Set();
     for (const e of out.entries) if (e.snap) for (const c of e.snap) if (c.you) youEver.add(c.id);
-    const camps = result.camps.filter(c => !youEver.has(c.id));
+    const camps = result.camps.filter(c => !youEver.has(c.id) && !c.boss);   // 乱入したボスは、陣営ではない
     if (!camps.length) return '';
     const PL = H.engine.POLICIES;
     const items = camps.map(c => {
@@ -2201,8 +2238,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       // 歩み：この陣営が主役の大きな出来事（自分の令呪・同盟・とどめを刺した相手・自分の脱落など）。古い順に、終わりに近い4つ
       const moments = out.entries.filter(e => e.ids && hlCheck(e) && e.kind !== 'end'
         && (e.ids[0] === c.id || (e.kind === 'ally' && e.ids.includes(c.id)) || (e.fin && e.fin.by === c.id))).slice(-4);
-      const won = c.id === result.winner;
-      const st = won ? '聖杯を手にした' : c.alive ? '生き残った' : c.fate ? c.fate.day + '日目に脱落' : '脱落';
+      const won = isWin(c.id);
+      const st = won ? winText() : c.alive ? '生き残った' : c.fate ? c.fate.day + '日目に脱落' : '脱落';
       return `<li class="${won ? 'win' : c.alive ? 'alive' : ''}">
         <div class="ph"><span>${ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}「${esc(c.trueName)}」</span><span class="st">${esc(st)}</span></div>
         <dl>
@@ -2353,15 +2390,15 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       $('#bars').innerHTML = bars.map(([k, v, c, t]) => `<div${tipAttr(t)}><span>${k}</span><span class="bar"><i style="width:${v}%;background:${c};color:${c}"></i></span><span>${k === '工房' ? youNow.workshop : v}</span></div>`).join('');
       $('#stripBars').innerHTML = bars.slice(0, 3).map(([k, v, c, t]) => `<span class="s"${tipAttr(t)}><span>${k}<b>${v}</b></span><span class="bar"><i style="width:${v}%;background:${c};color:${c}"></i></span></span>`).join('') + `<span class="s"${tipAttr('st.cs')}><span>令呪</span>${sealsInline(youNow.cs)}</span>`;
     }
-    const alive = e.snap.filter(c => c.alive).length;
-    $('#aliveCount').textContent = `残り ${alive} 騎`;
+    const alive = e.snap.filter(c => c.alive && !c.boss).length, bossUp = e.snap.some(c => c.boss && c.alive);
+    $('#aliveCount').textContent = `残り ${alive} 騎${bossUp ? '＋汚染' : ''}`;
     $('#camps').innerHTML = e.snap.map(c => {
-      const win = fin && result && result.winner === c.id;
-      const st = win ? '聖杯を手にした' : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
+      const win = fin && result && isWin(c.id);
+      const st = win ? winText() : c.boss ? (c.alive ? '汚染された英霊' : '討たれた') : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
       const can = canLore(c.id);
-      return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
+      return `<li class="${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${c.boss ? ' boss' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
         <div class="row1"><b>${can ? fic(faceOf(c.id), keyOf(c.id)) : ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
-        <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${(() => { const al = (c.allies && c.allies.length ? c.allies : c.ally != null ? [c.ally] : []).filter(i => e.snap[i]); return al.length ? ' ・ ' + al.map(i => esc(e.snap[i].label)).join('・') + 'と同盟' : ''; })()} ${sealsInline(c.cs)}</div>
+        <div class="sub">${esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${(() => { const al = (c.allies && c.allies.length ? c.allies : c.ally != null ? [c.ally] : []).filter(i => e.snap[i]); return al.length ? ' ・ ' + al.map(i => esc(e.snap[i].label)).join('・') + 'と同盟' : ''; })()} ${c.boss ? '' : sealsInline(c.cs)}</div>
         ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
       </li>`;
     }).join('');
@@ -2388,15 +2425,15 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (wordsOn && youId != null && !wordAsked.has('end')) { wordArm = []; return askWord('end'); }
     const w = result.winner != null ? result.camps[result.winner] : null;
     const you = result.you != null ? result.camps[result.you] : null;
-    const head = endHead(result);
-    const yours = you ? (result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
+    const head = endHead(result), purge = result.ending === 'purge', burnt = result.ending === 'scorched';
+    const yours = you ? (purge && isWin(you.id) ? `あなたの陣営は、同盟の仲間とともに汚染された聖杯を砕き、生き残った。` : burnt ? `あなたの${you.label}「${you.trueName}」は、${you.alive ? '焦土の中で生き延びた。' : (you.fate ? you.fate.text : '焦土に消えた') + '。'}` : result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
     const decided = choices.filter(k => k !== 'auto').length;
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">結末・${result.days}日間</span></div><div class="body">
       <h4>${esc(head)}</h4>
       <p>${esc(yours)}${decided ? `あなたが下した大きな決断は${decided}回。` : ''}</p>
       ${lastWordHtml()}
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
-        ${result.camps.map(c => `<tr class="${c.id === result.winner ? 'win' : ''}"><td>${canLore(c.id) ? fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || '').split(':')[0]) : ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(c.id === result.winner ? '聖杯を手にした' : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+        ${result.camps.map(c => `<tr class="${isWin(c.id) ? 'win' : ''}"><td>${canLore(c.id) ? fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || '').split(':')[0]) : ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(isWin(c.id) ? winText() : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
       ${purposeSection()}
       ${bondSection()}
@@ -2427,7 +2464,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const me = lastSnap.find(c => c.you) || (result.youTaken ? lastSnap[result.you] : null); if (!me) return null;
     const sv = servantOf(me.id); if (!sv || !sv.voice) return null;
     // 場面の名前は config.js の VOICE_SLOTS（戦闘不能には消滅も含む）
-    const keys = result.winner === me.id ? ['勝利', '聖杯について', '絆'] : me.alive ? ['絆', '聖杯について', '会話'] : ['戦闘不能', '敗北', '絆'];
+    const keys = isWin(me.id) ? ['勝利', '聖杯について', '絆'] : me.alive ? ['絆', '聖杯について', '会話'] : ['戦闘不能', '敗北', '絆'];
     for (const k of keys) {
       const lines = H.voiceLines(sv, k); if (!lines.length) continue;
       let h = 2166136261; const t = seed + ':last:' + k; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
@@ -2590,8 +2627,8 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     ['CLASS', '真名', 'MASTER', '結末'].forEach((t, i) => ctx.fillText(t, cols[i], y + 18)); spacing(ctx, 0);
     y += 30;
     for (const c of result.camps) {
-      const won = c.id === result.winner, mine = !!(lastSnap[c.id] && lastSnap[c.id].you) || c.id === youId;
-      const fate = won ? '聖杯を手にした' : c.fate ? c.fate.text : '';
+      const won = isWin(c.id), mine = !!(lastSnap[c.id] && lastSnap[c.id].you) || c.id === youId;
+      const fate = won ? winText() : c.fate ? c.fate.text : '';
       setFont(ctx, 500, 22, CF.go);
       const icon = cardIcons.get(String(c.servantId || '').split(':')[0]), iw = icon ? 34 : 0;
       const cells = [c.label, c.trueName, c.master, fate].map((t, i) => { const max = i === 3 ? 4 : 2, l = wrapText(ctx, t, widths[i] - (i ? 0 : iw)); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });

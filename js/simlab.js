@@ -51,7 +51,7 @@
   /** i 回目の戦争を回して集計に足す（観測者として・固定のマスターなし） */
   function runOne(roster, i, t, seedBase) {
     let res;
-    try { res = G.engine.runWar({ roster, seed: (seedBase || 'sv') + i, player: 'none', masters: [], engine: { maxDays: t.days } }); }
+    try { res = G.engine.runWar({ roster, seed: (seedBase || 'sv') + i, player: 'none', masters: [], engine: { maxDays: t.days }, intrude: { on: false } }); }
     catch (e) { t.wars++; t.errors++; return null; }
     G.survival.tally(t, res);
     t.ends[res.ending] = (t.ends[res.ending] || 0) + 1;

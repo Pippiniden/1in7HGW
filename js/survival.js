@@ -56,7 +56,7 @@
         for (let i = 0; i < k; i++) {
           const seed = stats.seedBase + stats.wars;
           let res;
-          try { res = G.engine.runWar({ roster, seed, player: 'none', masters: masters.slice(), engine: { maxDays: stats.days } }); }
+          try { res = G.engine.runWar({ roster, seed, player: 'none', masters: masters.slice(), engine: { maxDays: stats.days }, intrude: { on: false } }); }
           catch (e) { stats.wars++; continue; }
           tally(stats, res);
         }

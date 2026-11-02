@@ -67,6 +67,12 @@
     // 特異点（singularity.js）：舞台・陣営・進行を差し替える。聖杯戦争では null で、ここから下の動きは何も変わらない
     const SG = opts.sing || null;
     const sInit = SG ? SG.init({ rnd, chance, pick, wpick, shuffle, ENG, seed, roster }) : null;
+    // ボス乱入（聖杯戦争のみ）：opts.intrude = { on（既定は CONFIG.INTRUDE.on）, force（条件を満たせば必ず乱入）, bosses（ボス専用の英霊。組み立て済み） }
+    //   抽選は rnd() ではなく seed のハッシュで引くので、乱入しなかった戦争の展開は変わらない
+    const IO = opts.intrude || {}, INTR = G.CONFIG.INTRUDE || {};
+    const intrudeOn = !SG && (IO.on != null ? !!IO.on : INTR.on !== false);
+    let bossC = null, intrudeDone = false, pactLock = false;   // 乱入したボスの陣営／抽選を済ませたか／同盟が解けなくなったか
+    const hashU = key => { let h = 2166136261; const t = seed + ':' + key; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; };
 
     // ---------- 舞台と陣営 ----------
     const W = G.WORLD, N = G.NAMES;
@@ -171,7 +177,7 @@
       id: c.id, label: c.label, name: known(c) ? c.sv.trueName : null, cls: c.sv.class.label,
       hp: Math.max(0, Math.round(c.hp)), mhp: Math.max(0, Math.round(c.mhp / c.mhpMax * 100)), mana: Math.round(c.mana / c.manaMax * 100),
       alive: c.alive, masterAlive: c.masterAlive, master: mn(c), cs: c.cs, ally: c.pact == null ? null : (allies(c)[0] || { id: null }).id, allies: c.pact == null ? [] : allies(c).map(x => x.id), workshop: c.workshop, you: !!c.you, out: c.out,
-      fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty,
+      fate: c.fate ? c.fate.text : null, soloLeft: c.soloLeft, bond: Math.round(c.bond), bounty: c.bounty, boss: c.intruder || undefined,
       origin: c.master.originLabel, wish: c.master.wish, base: c.base.name, scene: c.base.scene,
       persona: !you || c.you || you.knowPersona.has(c.id) ? (PER(c).label || null) : null,
       clues: you && !c.you && !known(c) ? (you.clues[c.id] || 0) : 0,
@@ -458,7 +464,7 @@
       for (const e of n.effects || []) if (e.id === 'np_cost' && e.params && e.params.cond && condOk(c, e.params)) mod += e.mag * dm(e.params);
       return n.cost * ENG.npCost * Math.max(0.5, 1 - FX.magCost * sd(c, 'mag')) * (mod ? Math.max(0.3, 1 + mod) : 1);
     };
-    const active = () => camps.filter(c => c.alive);
+    const active = () => camps.filter(c => c.alive && !c.intruder);   // 生きている陣営（乱入したボスは数えない。ボスは bossC で別に扱う）
     // ---------- 同盟（c.pact：同じ番号の陣営どうしが同盟。最大 ENG.allianceMax 騎）----------
     let pactSeq = 0, leader = null, leaderSeen = new Set();
     const supLog = {};   // 支え合いの記録は、種類ごとに3日に一度まで
@@ -502,6 +508,7 @@
     // マスターが倒れそうなら令呪一画を魔力に換えてしのぐ。令呪も無ければマスターが力尽きる
     function drain(c) {
       if (c.mana >= 0) return;
+      if (c.intruder) { c.mana = 0; return; }   // 乱入したボスにマスターはいない（魔力が尽きても誰も削られない）
       if (SG) return SG.hooks.drain(c);   // 特異点：魔力の蓄えは六騎で共有。足りない分はマスターではなく英霊の霊基が削れる
       const short = -c.mana; c.mana = 0;
       if (!c.masterAlive) return;
@@ -558,7 +565,8 @@
     function servantDown(c, text, by, fin) {
       c.alive = false; c.out = true; c.hp = 0;
       c.fate = { day, text };
-      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
+      if (c.intruder) return bossDown(c, by, fin);   // 乱入したボスの最期（聖杯の破壊）
+      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive && !by.intruder) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       leavePact(c);
       // 消えた英霊の真名は、まだ知られていなくても記録に残す（あとでログだけ読んでも誰だったか分かるように）
       const dn = nm(c) === c.label ? `${c.label}（${c.sv.trueName}）` : nm(c);
@@ -781,7 +789,7 @@
       clue(a, b, 1); clue(b, a, 1);
       for (const [x, o] of [[a, b], [b, a]]) for (const y of help.get(x)) {
         y.stance = 'careful'; clue(y, o, 1); clue(o, y, 1); y.knowName.add(x.id);
-        if (!SG) log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、二騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
+        if (!SG) log('ally', `同盟を結ぶ${nm(y)}が加勢に現れた。${sn(x)}と${sn(y)}、${'一二三四五六七'[help.get(x).length]}騎がかりで${sn(o)}に挑む。`, [y.id, x.id, o.id], { big: true });
       }
       if (SG) SG.hooks.lineup(a, b, help.get(a), help.get(b));
       const rt = related(a, b);
@@ -795,6 +803,7 @@
         const F = focusOf(c);
         c.stance = F && F.stance ? F.stance : c.hp < 25 && chance(0.5) ? 'retreat' : wpick({ all: c.policy === 'aggressive' ? 2.5 : 1.5, careful: c.policy === 'defensive' ? 1.5 : 1 });
         if (c.stance === 'retreat' && c.hp > 60 && !c.you) c.stance = 'careful';
+        if (c.intruder) c.stance = 'all';   // 汚染された英霊は退かない
       }
       // 戦いのための魔力（霊基を全力で動かす分。燃費の悪い英霊ほど重い）
       for (const c of all()) if (c.masterAlive) { c.mana -= ENG.battleMana * upk(c); drain(c); }
@@ -968,7 +977,7 @@
         // 撤退（加勢がいれば一緒に退く）
         const weaker = a.hp < b.hp ? a : b, other = weaker === a ? b : a;
         const threshold = (weaker.stance === 'careful' ? ENG.retreatAt + 10 : weaker.stance === 'all' ? ENG.retreatAt - 15 : ENG.retreatAt) + perv(weaker, 'retreat') * 30;
-        if (weaker.hp < threshold || (weaker === l && p < 0.3 && weaker.hp < 60) || weaker.stance === 'retreat') {
+        if (!weaker.intruder && (weaker.hp < threshold || (weaker === l && p < 0.3 && weaker.hp < 60) || weaker.stance === 'retreat')) {
           const ctrl = isBerserk(weaker) && chance(0.5) ? -0.2 : 0;
           const agi = sd(weaker, 'agi') - sd(other, 'agi');
           if (chance(clamp(ENG.retreatBase + eff(weaker, 'escape', ctx.terrain) + eff(weaker, 'luck') * 0.3 - eff(other, 'pin', ctx.terrain) * 0.8 + ctrl + weaker.bond / 500 + (weaker.stance === 'careful' ? 0.1 : 0) + perv(weaker, 'retreat') * 0.5 + FX.agiRetreat * agi, 0.05, 0.9))) {
@@ -1185,7 +1194,7 @@
       you.fallenPending = false;
       const c = you;
       const strays = camps.filter(t => t.alive && !t.masterAlive);
-      const targets = camps.filter(t => t !== c && t.alive && t.masterAlive);
+      const targets = camps.filter(t => t !== c && t.alive && t.masterAlive && !t.intruder);
       const k = yield* ask(c, 'fallen', {
         title: `${c.label}を失った`,
         body: `${sn(c)}は消滅した。マスター${mn(c)}はまだ生きている。令呪は残り${c.cs}画。`,
@@ -1241,7 +1250,7 @@
         if (t) cand.push({ w: coalition(c, t) ? 3 : 2, o: { k: 'ally:' + t.id, label: `${t.label}${known(t) ? '「' + t.sv.trueName + '」' : ''}${t.pact != null ? 'たちの同盟に加わる' : c.pact != null ? 'を同盟に誘う' : 'に同盟を申し込む'}`,
           sub: (coalition(c, t) ? `勝ちすぎている${leader.label}への包囲網。` : '') + '残り3騎になるまで互いを襲わず、共に戦い、魔力や手当てを分け合う' } });
       }
-      if (c.pact != null && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
+      if (c.pact != null && !pactLock && alive.length <= ENG.allianceBreakAt + 1) { const t = betrayTarget(c); cand.push({ w: 3, o: { k: 'betray', label: `同盟を破り、${t.label}に奇襲をかける`, sub: '今夜、油断した同盟相手を討つ（戦闘力+20%）' } }); }
       // 真名は手がかりから推理する。手がかりの多い相手ほど当たりやすい
       const unk = enemies.filter(t => !c.knowName.has(t.id));
       if (unk.length) {
@@ -1278,16 +1287,88 @@
         else log('council', '使い魔は手がかりを持ち帰れなかった。', [c.id]);
       } else if (k === 'recover') { c.mana = c.manaMax; c.hp = Math.min(100, c.hp + 30); c.restNight = true; log('council', `${sn(c)}は霊脈の上で力を蓄えた。`, [c.id]); }
     }
+    // ---------- ボス乱入 ----------
+    // 生き残りが三陣営で、三者同盟か「二者同盟＋同盟の外の一陣営」になった朝（設定日数の 2/3 の日まで）に、同盟が解ける前に一度だけ抽選する。
+    // 当たると聖杯は汚染されていたことになり、汚染された英霊（ボス専用の英霊か、この戦争に呼ばれていない名簿の英霊）が一騎現れる。
+    // 同盟は戦いの終わりまで解けず、同盟の外の一陣営は同盟に加わるか単独で動くかを選ぶ。ボスを倒せば聖杯は壊れ、生き残りは全員が勝者。
+    // 期限までに倒せなければ、舞台は焦土と化す。ボスに令呪・ブレイクゲージは無い
+    function* intrude(alive) {
+      const members = alive.filter(c => c.pact != null), other = alive.find(c => c.pact == null) || null;
+      const bosses = (IO.bosses || []).filter(s => s && s.score);
+      const used = new Set(camps.map(c => c.sv.id));
+      const outs = roster.filter(s => !used.has(s.id));
+      const kind = bosses.length && outs.length ? (hashU('乱入種') < (INTR.bossOnlyChance != null ? INTR.bossOnlyChance : 0.5) ? 'boss' : 'outsider') : bosses.length ? 'boss' : outs.length ? 'outsider' : null;
+      if (!kind) return;
+      const list = kind === 'boss' ? bosses : outs;
+      const sv = JSON.parse(JSON.stringify(list[Math.floor(hashU('乱入者') * list.length)]));
+      for (const k of B.STAT_KEYS) if (sv.ranks[k] && sv.ranks[k].range) { sv.ranks[k] = R.rollRange(sv.ranks[k], rnd, G.CONFIG.STAT_SCORE); sv.score[k] = sv.ranks[k].score; }
+      const bs = Object.assign({}, INTR.boss);
+      // 聖杯の汚染による強化（特異点ほどは強くない）。常時の効果として足す
+      sv.effectSummary = Object.assign({}, sv.effectSummary);
+      for (const id of ['power', 'guard']) if (bs[id]) sv.effectSummary[id + '#乱入'] = { id, name: E.EFFECTS[id].name, params: null, passive: bs[id], onNP: 0, from: ['聖杯の汚染'] };
+      sv.power = B.combatPower(sv);
+      const id = camps.length, cls = sv.class.key === 'extra' ? sv.class.label : G.classDef(sv.class.key).label;
+      const c = {
+        id, intruder: true, noMaster: true, bs, sv, master: { name: '汚染された聖杯', stats: { mana: 32, craft: 32, body: 32, mind: 32, luck: 32 }, originLabel: '', wish: '', origin: 'custom', commandSpells: 0 },
+        labelBase: cls, label: '汚染された' + cls, hp: 100, mhp: 1, mhpMax: 1, mana: bs.mana, manaMax: bs.mana, cs: 0,
+        alive: true, masterAlive: true, out: false, fate: null, soloLeft: null, inChurch: false, merged: false,
+        base: places[(day + 3) % places.length], workshop: 0, items: 0, pact: null, op: null,
+        knowName: new Set([id]), knowLoc: new Set(camps.map(x => x.id).concat([id])), temp: [], npBoost: 0, kills: [], npUses: 0, battles: 0,
+        hunting: true, hidden: false, wander: false, fought: false, stance: 'all', usedSup: new Set(), bond: 0, policy: 'aggressive', plan: null, warned: 0,
+        bounty: false, dreams: 0, lifeSeen: new Set(), knowPersona: new Set([id]), clues: {},
+      };
+      delete c.mhpMax0;
+      camps.push(c); bossC = c; pubName.add(id); pactLock = true;
+      out.camps.push({ id, label: c.label });
+      out.meta.push({
+        id, trueName: sv.trueName, cls: sv.class.label, boss: true,
+        ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], R.label(sv.ranks[k])]),
+        skills: (sv.allSkills || []).map(x => x.name).join('、'), nps: (sv.nps || []).map(n => '『' + n.name + '』').join(' '),
+        servantId: sv.id, policy: 'aggressive', policyLabel: (POLICIES.aggressive || {}).label || '', base: c.base.name,
+        master: { name: c.master.name, sex: '', age: 0, origin: 'custom', originLabel: '', persona: null, personaDesc: null, stats: {}, skills: [], traits: [], catalyst: false, wish: '', cs: 0, hpMax: 1, manaMax: Math.round(bs.mana) },
+      });
+      log('world', line('intrudeSign', { city }), [], { big: true });
+      log('event', line('intrudeAppear', { B: nm(c) }) + (kind === 'boss' ? '' : line('intrudeOutsider', { S: sv.trueName })), [c.id].concat(members.map(x => x.id)), { big: true, quote: say(c, ['召喚']) });
+      if (other) {
+        const jp = clamp((INTR.join != null ? INTR.join : 0.55) + perv(other, 'ally') - perv(other, 'betray') * 0.8 - perv(other, 'hunt') * 0.5, 0.1, 0.95);
+        const a = yield* ask(other, 'intrude', {
+          title: '聖杯の異変',
+          body: `聖杯は汚染されていた。${pactNames(members)}は、戦いが終わるまで解けない同盟のもとで、汚染された${sn(c)}に挑もうとしている。`,
+          options: [
+            { k: 'join', label: `${pactNames(members)}の同盟に加わる`, sub: '三者で汚染された英霊に挑む。同盟は戦いの終わりまで解けない' },
+            { k: 'solo', label: '誰とも組まずに動く', sub: '同盟とも汚染された英霊とも、敵対したまま戦う' },
+          ],
+        }, () => chance(jp) ? 'join' : 'solo');
+        if (a === 'join') { const m = formPact(other, members[0]); log('ally', line('intrudeJoin', { M: mn(other), P: pactNames(m.filter(x => x !== other)) }), m.map(x => x.id), { big: true }); }
+        else log('ally', line('intrudeSolo', { M: mn(other), S: sn(other) }), [other.id]);
+      }
+    }
+    // ボスが倒れた：聖杯は壊れた。勝敗の文は結末で書く
+    function bossDown(c, by, fin) {
+      if (by) by.kills.push(c.id);
+      log('death', line('intrudeDown', { B: nm(c), by: by ? nm(by) : '' }) + (fin && fin.np ? `決め手は、『${fin.np}』だった。` : ''), [c.id].concat(by ? [by.id] : []), { big: true, quote: say(c, ['戦闘不能']), fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
+    }
+    // 同盟の面々がそろってボスに挑む（動ける者全員）
+    const bossHelp = x => allies(x).filter(y => !y.fought && y.alive && y.hp >= 25 && !y.retired && !(focusOf(y) && focusOf(y).night === false));
+
     function* dayPhase() {
       phase = 'day';
       tonight = {};
       const alive = active();
-      if (alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.pact != null) {
+      if (intrudeOn && !intrudeDone && !bossC && alive.length === 3 && day <= Math.round(ENG.maxDays * (INTR.dayFrac || 2 / 3))) {
+        const pm = alive.filter(c => c.pact != null);
+        if (pm.length === 3 ? pm.every(c => c.pact === pm[0].pact) : pm.length === 2 && pm[0].pact === pm[1].pact) {
+          intrudeDone = true;
+          if (IO.force || hashU('乱入') < INTR.chance) yield* intrude(alive);
+        }
+      }
+      if (bossC && bossC.alive) { bossC.hp = Math.min(100, bossC.hp + (bossC.bs.heal || 0)); bossC.mana = Math.min(bossC.manaMax, bossC.mana + (bossC.bs.regen || 0)); bossC.fought = false; bossC.hunting = true; }
+      if (!pactLock && alive.length <= ENG.allianceBreakAt) for (const c of alive) if (c.pact != null) {
         const m = pactOf(c); for (const x of m) x.pact = null;
         log('ally', `残りが${alive.length}騎となり、${pactNames(m)}の同盟は解消された。`, m.map(x => x.id));
       }
       // 終盤、同盟を破る陣営（性格による）
-      if (alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.pact != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
+      if (!pactLock && alive.length <= ENG.allianceBreakAt + 1) for (const c of alive) if (c.pact != null && !c.you && c.masterAlive && chance(perv(c, 'betray') * 0.5)) {
         const t = betrayTarget(c); leavePact(c); c.assault = t.id; c.betray = true;
         log('ally', `${mn(c)}が同盟を破った。今夜、${t.label}を討つつもりだ。`, [c.id, t.id], { big: true });
       }
@@ -1434,7 +1515,8 @@
     function* nightPhase() {
       phase = 'night';
       const alive = active();
-      if (alive.length <= 1) return;
+      const field = bossC && bossC.alive ? alive.concat([bossC]) : alive;   // ボスも夜に動く（狙うのも、狙われるのも）
+      if (field.length <= 1) return;
       if (tonight.calm) return;
       const avg = alive.reduce((t, c) => t + c.sv.power, 0) / alive.length;
       const finale = day > ENG.maxDays - ENG.finaleDays;
@@ -1452,29 +1534,30 @@
         else c.hunting = chance(p);
       }
       let any = false;
-      for (const h of shuffle(alive)) {
+      for (const h of shuffle(field)) {
+        if (bossC && !bossC.alive) break;   // ボスが倒れた夜は、もう戦いは続かない
         if (!h.alive || !h.hunting || h.fought) continue;
-        const targets = active().filter(t => t !== h && !t.fought && !isAlly(t, h));
+        const targets = field.filter(t => t.alive && t !== h && !t.fought && !isAlly(t, h));
         if (!targets.length) continue;
         let t = null;
         const fixed = h.assault != null ? camps[h.assault] : h.op != null ? camps[h.op] : h.targetPref != null ? camps[h.targetPref] : null;
         if (fixed && targets.includes(fixed)) t = fixed;
         else {
           const tw = {};
-          for (const x of targets) tw[x.id] = 1 + (h.knowLoc.has(x.id) ? 2 : 0) + clamp(h.sv.power / Math.max(5, x.sv.power) - 1, -0.5, 1.5) + (x.hp < 50 ? 0.5 : 0) + (related(h, x) ? 2 : 0) + (x.bounty ? 1.5 : 0) + (leader === x && !isAlly(h, x) ? (h.pact != null ? ENG.coalitionTarget : ENG.coalitionTarget * 0.25) : 0);
+          for (const x of targets) tw[x.id] = 1 + (h.knowLoc.has(x.id) ? 2 : 0) + clamp(h.sv.power / Math.max(5, x.sv.power) - 1, -0.5, 1.5) + (x.hp < 50 ? 0.5 : 0) + (related(h, x) ? 2 : 0) + (x.bounty ? 1.5 : 0) + (leader === x && !isAlly(h, x) ? (h.pact != null ? ENG.coalitionTarget : ENG.coalitionTarget * 0.25) : 0) + (x.intruder ? 3 : 0);
           t = camps[+wpick(tw)];
         }
         if (h.targetPref != null && !camps[h.targetPref].alive) h.targetPref = null;
         const assault = h.assault != null && t.id === h.assault;
         h.assault = null;
-        const pf = assault ? 0.95 : clamp(ENG.findBase + effO(h, 'detect', t) * ENG.detectFind + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - effO(t, 'stealth', h) * 0.7 - Math.max(0, effO(t, 'detect', h)) * ENG.detectWary - (t.hidden ? 0.2 : 0)
-          + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck') - (tonight.fog ? 0.15 : 0), 0.05, 0.95);
+        const pf = assault ? 0.95 : h.intruder ? h.bs.find : clamp(ENG.findBase + effO(h, 'detect', t) * ENG.detectFind + (h.knowLoc.has(t.id) ? 0.3 : 0) + (t.hunting ? 0.15 : 0) + (t.wander ? 0.2 : 0) - effO(t, 'stealth', h) * 0.7 - Math.max(0, effO(t, 'detect', h)) * ENG.detectWary - (t.hidden ? 0.2 : 0)
+          + FX.agiFind * (sd(h, 'agi') - sd(t, 'agi')) - FX.mLuckHide * md(t, 'luck') - (tonight.fog ? 0.15 : 0) + (t.intruder ? 0.4 : 0), 0.05, 0.95);
         if (!chance(pf)) { if (h.you) log('night', line('huntMiss', { S: sn(h) }), [h.id]); continue; }
         any = true;
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
         if (!home) learnLoc(t, h);
-        if (home && t.masterAlive && chance(Math.min(0.6, effO(h, 'anti_master', t) * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
+        if (home && t.masterAlive && !t.noMaster && chance(Math.min(0.6, effO(h, 'anti_master', t) * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
           h.fought = t.fought = true;
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
@@ -1482,7 +1565,8 @@
         // 索敵：先に相手を見つけたぶん、有利な形で仕掛けられる（相手の索敵が高ければ打ち消される）
         else { const dt = effO(h, 'detect', t) - effO(t, 'detect', h) * 0.5; if (dt > 0) h.surprise = (h.surprise || 0) + Math.min(ENG.detectEdgeCap, dt * ENG.detectEdge); }
         // 同盟相手が加勢に来ることがある（拠点を守る戦いや、同じ夜に出ている味方ほど来やすい。統率で上がる）
-        const helpA = joinAlly(h, t, home), helpB = joinAlly(t, h, home);
+        // ボスとの戦いには、同盟の動ける面々がそろって挑む
+        const helpA = t.intruder ? bossHelp(h) : h.intruder ? [] : joinAlly(h, t, home), helpB = h.intruder ? bossHelp(t) : t.intruder ? [] : joinAlly(t, h, home);
         yield* battle(h, t, { place, home, terrain: tonight.rain ? '水辺' : place.terrain, rain: tonight.rain, helpA, helpB });
         yield* checkFallen();
       }
@@ -1499,9 +1583,11 @@
         const m = pactOf(c).filter(x => x.masterAlive && !x.retired);
         if (m.length < 2) continue;
         const outs = alive.filter(x => !m.includes(x) && !isAlly(x, c));
+        const hasBoss = bossC && bossC.alive;
+        if (hasBoss) outs.push(bossC);
         if (!outs.length) continue;
-        if (!chance(clamp(ENG.jointOp + m.reduce((t, x) => t + Math.max(0, eff(x, 'rally')), 0) + (leader && outs.includes(leader) ? 0.15 : 0), 0, 0.9))) continue;
-        const t = leader && outs.includes(leader) ? leader : outs.reduce((a, b) => (a.kills.length * 10 + a.sv.power >= b.kills.length * 10 + b.sv.power ? a : b));
+        if (!chance(clamp(ENG.jointOp + m.reduce((t, x) => t + Math.max(0, eff(x, 'rally')), 0) + (leader && outs.includes(leader) ? 0.15 : 0) + (hasBoss ? 0.5 : 0), 0, 0.95))) continue;
+        const t = hasBoss ? bossC : leader && outs.includes(leader) ? leader : outs.reduce((a, b) => (a.kills.length * 10 + a.sv.power >= b.kills.length * 10 + b.sv.power ? a : b));
         const knew = m.some(x => x.knowLoc.has(t.id));
         for (const x of m) { x.op = t.id; if (knew) x.knowLoc.add(t.id); }
         if (m.some(x => x.you)) log('ally', `${pactNames(m)}は、今夜そろって${nm(t)}を討つと決めた。`, m.map(x => x.id).concat([t.id]));
@@ -1585,9 +1671,11 @@
     }
 
     // ---------- 本編 ----------
+    // 戦争が決着したか：ふつうは生き残りが一騎以下。ボスが乱入していれば、ボスが倒れたか、人間側の陣営が尽きたとき
+    const over = () => bossC ? !bossC.alive || active().length === 0 : active().length <= 1;
     let finaleAnnounced = false, quietFrom = null;
     for (day = 1; day <= ENG.maxDays; day++) {
-      if (active().length <= 1) { day--; break; }
+      if (over()) { day--; break; }
       phase = 'day';
       // 1日ごとに呼び出し元へ戻り、プレイヤーの今の方針を受け取る（止まらない）
       const f = yield { type: 'tick', day };
@@ -1596,7 +1684,7 @@
       if (!finaleAnnounced && day > ENG.maxDays - ENG.finaleDays) { finaleAnnounced = true; log('event', line('finale'), [], { big: true }); }
       yield* dayPhase();
       yield* checkFallen();
-      if (active().length > 1) yield* nightPhase();
+      if (!over()) yield* nightPhase();
       yield* checkFallen();
       for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
@@ -1605,7 +1693,7 @@
         const q = { day: quietFrom, phase: 'day', kind: 'quiet', text: quietFrom === day - 1 ? `${quietFrom}日目は静かに過ぎた。` : `${quietFrom}日目から${day - 1}日目までは、表立った動きはなかった。`, ids: [], you: false, snap: head.snap };
         entries.splice(entries.indexOf(head), 0, q); quietFrom = null;
       }
-      if (active().length <= 1) break;
+      if (over()) break;
     }
     if (quietFrom != null) entries.push({ day: quietFrom, phase: 'day', kind: 'quiet', text: `${quietFrom}日目から先は、表立った動きはなかった。`, ids: [], you: false, snap: snap() });
     day = Math.min(day, ENG.maxDays);
@@ -1615,9 +1703,23 @@
     for (const c of camps) pubName.add(c.id);   // 聖杯の降臨とともに真名は明かされる（結末の文に真名を出すため、ログより先に公開する）
     const left = active();
     let winner = null;
-    let ending = left.length ? 'draw' : 'wipe';
+    let ending = left.length ? 'draw' : 'wipe', winners = null;
+    // ボスが乱入した戦争：ボスを倒せば聖杯は壊れ、生き残り全員が勝者。倒せなければ（全滅か期限切れ）舞台は焦土と化す
+    if (bossC) {
+      const names = left.map(nm).join('、');
+      if (!bossC.alive && left.length) {
+        ending = 'purge'; winners = left.map(c => c.id);
+        log('end', line('purgeEnd', { N: names, B: nm(bossC), city }), winners, { big: true, quote: say(left[0], ['聖杯について', '勝利']) });
+      } else if (!bossC.alive) {
+        ending = 'wipe';
+        log('end', line('purgeWipe', { B: nm(bossC), city }), [], { big: true });
+      } else {
+        ending = 'scorched';
+        log('end', left.length ? line('scorchedLeft', { N: names, B: nm(bossC), city }) : line('scorchedEnd', { B: nm(bossC), city }), left.map(c => c.id), { big: true });
+      }
+    }
     // マスターを失い、単独行動でも現界を保てない最後の一騎は、聖杯の降臨を待たずに消える（全滅）
-    if (left.length === 1 && !left[0].masterAlive && !(left[0].soloLeft > 0)) {
+    else if (left.length === 1 && !left[0].masterAlive && !(left[0].soloLeft > 0)) {
       const c = left[0];
       c.alive = false; c.out = true; c.hp = 0; c.fate = { day, text: 'マスターを失い、聖杯の降臨を待たずに消えた' };
       log('end', `${day}日目。最後に残ったのは${nm(c)}だった。だが主を失った霊基は、聖杯の降臨を待たずにほどけていった。聖杯を手にする者はいなかった。`, [c.id], { big: true, quote: say(c, ['戦闘不能', '敗北']) });
@@ -1629,9 +1731,10 @@
         : `${day}日目。最後に残ったのは${nm(winner)}だった。マスターを失いながらも単独で現界を保ち、ただ一騎で聖杯の降臨を迎える。`, [winner.id], { big: true, quote: say(winner, ['聖杯について', '勝利']) });
       log('end', (winner.masterAlive ? `${mn(winner)}の願いは「${winner.master.wish}」。` : '') + (wish ? `${nm(winner)}の願いは「${wish}」。` : ''), [winner.id]);
     }
-    if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
+    if (bossC) { /* 結末の文は上で書いた */ }
+    else if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
     else if (ending === 'draw') log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
-    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : '生き残った' };
+    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : ending === 'purge' ? '汚染された聖杯を砕いた' : ending === 'scorched' ? '焦土の中で生き延びた' : '生き残った' };
     log('end', '——聖杯戦争、終結。', [], { head: true });
 
     const result = {
@@ -1639,12 +1742,13 @@
       you: you ? you.id : null,
       youTaken,   // あなたのマスターは死に、サーヴァントは他のマスターと再契約した（その陣営が勝っても、あなたの勝ちではない）
       winner: winner ? winner.id : null,
-      ending,   // 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）
+      winners,   // ボスを倒したときの、生き残り全員（暫定の勝者）の陣営番号。それ以外は null
+      ending,   // 'win'（勝者あり）/ 'wipe'（全滅：相討ち、マスターを失った最後の一騎の消滅など）/ 'draw'（期限切れ）/ 'purge'（乱入したボスを倒し、汚染された聖杯を砕いた）/ 'scorched'（ボスに敗れ、舞台が焦土と化した）
       camps: camps.map(c => ({
         id: c.id, label: c.label, slot: c.slot, trueName: c.sv.trueName, cls: c.sv.class.label, servantId: c.sv.id,
         master: c.master.name, origin: c.master.originLabel, wish: c.master.wish, alive: c.alive, masterAlive: c.masterAlive,
         fate: c.fate, kills: c.kills.map(i => camps[i].sv.trueName), npUses: c.npUses, battles: c.battles, power: r1(c.sv.power), you: !!c.you, bond: Math.round(c.bond), policy: c.policy,
-        persona: PER(c).label || null,
+        persona: PER(c).label || null, boss: c.intruder || undefined,
       })),
       entries,
     };

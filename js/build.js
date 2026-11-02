@@ -523,6 +523,48 @@
     for (; i < parts.length; i++) { if (head.trim() && (head + parts[i]).length > limit) break; head += parts[i]; }
     return { head: head.trim(), rest: parts.slice(i).join('').trim() };
   }
-  G.build = { loreText, loreLead, leanFromSpec, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  // ---------- ボスのデータ（特異点のボスと、聖杯戦争に乱入するボスで共有） ----------
+  // data/bosses.json（{ format: 'hgw-bosses', bosses: [...] }）の1騎を、ゲームのサーヴァントに組み立てる。
+  // ランクは文字列のままでよい。スキル・宝具に effects（効果の配列）を書けば、そのボスだけの手直しとして登録する。
+  // 宝具の attack（攻撃宝具か）・mode（発動のしかた）・aoe（全体攻撃の広がり）もここで決められる。
+  // 組み立てたボスには bossOnly（ボス専用）が付き、聖杯戦争には呼ばれない（engine.js が roster から外す）。
+  function prepareBoss(spec) {
+    if (!spec || !spec.trueName || !spec.stats) throw new Error('ボスには trueName と stats が要ります');
+    const r = leanFromSpec(spec);
+    Object.assign(E.SERVANT_OVERRIDES, r.servantOv);
+    Object.assign(E.NP_OVERRIDES, r.npOv);
+    const sv = fromJSON(r.lean);
+    sv.bossOnly = true;
+    sv.boss = Object.assign({}, spec.boss || {});
+    sv.boss.aoe = r.aoe;
+    return sv;
+  }
+  // 名簿（servants.json）にいるボス専用の英霊を、ボスとして使えるようにする：手直し表 boss（BOSS_PARAMS）の設定を sv.boss にする。
+  // 設定の無い項目は CONFIG.SING.boss の既定が使われる。宝具の全体攻撃の広がり（aoe）は、書いた宝具だけ。
+  function bossFromRoster(sv) {
+    const p = E.BOSS_PARAMS[E.okey(sv)] || {};
+    sv.bossOnly = true;
+    sv.boss = Object.assign({}, p);
+    sv.boss.aoe = {};
+    for (const [n, v] of Object.entries(p.aoe || {})) sv.boss.aoe[E.normName(n)] = +v;
+    return sv;
+  }
+  // 読み込んだボスのデータ（{ bosses: [...] } か配列）を組み立てる。読めなかったものは errors に
+  function prepareBosses(d) {
+    const list = Array.isArray(d) ? d : (d && d.bosses) || [], out = [], errors = [];
+    for (const s of list) { try { out.push(prepareBoss(s)); } catch (e) { errors.push((s && s.trueName || '?') + '：' + e.message); } }
+    return { bosses: out, errors };
+  }
+  // 公開データ（loadPublished などの結果）から、使えるボスの一覧を作る：bosses.json のボスに、名簿にいるボス専用の英霊を加える。
+  // 同じ真名が両方にあれば名簿の方を使い、bosses.json の同じ場所に入れ替える。名簿のボスは bosses.json のボスの後ろに、名簿の順で並べる
+  function bossesOf(res) {
+    const b = prepareBosses(res.bosses || []);
+    const inList = new Map((res.servants || []).filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+    let list = b.bosses.map(x => inList.has(x.trueName) ? bossFromRoster(inList.get(x.trueName)) : x);
+    const have = new Set(list.map(x => x.trueName));
+    for (const [tn, s] of inList) if (!have.has(tn)) list.push(bossFromRoster(s));
+    return { bosses: list, errors: b.errors };
+  }
+  G.build = { loreText, loreLead, leanFromSpec, prepareBoss, bossFromRoster, prepareBosses, bossesOf, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, INFO_SHOWN, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});
