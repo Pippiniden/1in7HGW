@@ -1419,7 +1419,7 @@
       if (left.length === 1) return 'end';         // 一騎なら、そのまま優勝者
       const options = [
         { k: 'shift', label: '通常の聖杯戦争へ進む', sub: '勝利した陣営で聖杯戦争を続ける場合、霊基と魔力は回復します' },
-        { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利で結末を見る` },
+        { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利として、ここまでの記録を結末とする` },
       ];
       if (askLevel === 'never') return 'shift';
       // 物語の中の決断ではなく、進行の選択（system）。画面は大戦の結果を見せてから聞くので、その材料も渡す。決断の記録には残さない
@@ -1858,7 +1858,7 @@
     else if (ending === 'wipe' && !entries.some(e => e.kind === 'end' && e.big)) log('end', lastMutual === day ? `${day}日目。最後の二騎は相討ちとなり、聖杯を手にする者はいなかった。` : `${day}日目。最後の一騎までが斃れ、聖杯を手にする者はいなかった。`, [], { big: true });
     else if (ending === 'draw') log('end', `${ENG.maxDays}日が過ぎても決着はつかなかった。${left.map(nm).join('、')}を残したまま、聖杯は姿を消した。`, left.map(c => c.id), { big: true });
     if (rulerC && rulerC.alive) rulerC.fate = { day, text: '監督役として戦いを見届けた' };
-    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : ending === 'purge' ? '汚染された聖杯を砕いた' : ending === 'side' ? '色の勝利を手にした' : ending === 'scorched' ? '焦土の中で生き延びた' : '生き残った' };
+    for (const c of left) c.fate = { day, text: c === winner ? '勝者' : ending === 'purge' ? '汚染された聖杯を砕いた' : ending === 'side' ? '聖杯大戦を生き残った' : ending === 'scorched' ? '焦土の中で生き延びた' : '生き残った' };
     log('end', GW && gwShift == null ? '——聖杯大戦、終結。' : '——聖杯戦争、終結。', [], { head: true });
 
     const result = {
