@@ -1419,7 +1419,7 @@
       if (left.length === 1) return 'end';         // 一騎なら、そのまま優勝者
       const options = [
         { k: 'shift', label: '通常の聖杯戦争へ進む', sub: '勝利した陣営で聖杯戦争を続ける場合、霊基と魔力は回復します' },
-        { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利として、ここまでの記録を結末とする` },
+        { k: 'end', label: 'ここで終える', sub: `${color}の陣営の勝利で結末を見る` },
       ];
       if (askLevel === 'never') return 'shift';
       // 物語の中の決断ではなく、進行の選択（system）。画面は大戦の結果を見せてから聞くので、その材料も渡す。決断の記録には残さない

@@ -2087,7 +2087,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   function endHead(r) {
     const w = r.winner != null ? r.camps[r.winner] : null;
     if (r.ending === 'purge') return `汚染された聖杯は砕かれた。${r.camps.filter(c => (r.winners || []).includes(c.id)).map(c => `${c.cls}「${c.trueName}」`).join('、')}が、街を災厄から救った`;
-    if (r.ending === 'side') return `${r.colors[r.sideWinner].name}の陣営が聖杯大戦を制した。${r.camps.filter(c => (r.winners || []).includes(c.id)).map(c => `${c.cls}「${c.trueName}」`).join('、')}が生き残った。記録はここで幕を閉じ、その先は描かれない`;
+    if (r.ending === 'side') return `${r.colors[r.sideWinner].name}の陣営が聖杯大戦を制した。${r.camps.filter(c => (r.winners || []).includes(c.id)).map(c => `${c.cls}「${c.trueName}」`).join('、')}が生き残った`;
     if (r.ending === 'scorched') return '汚染された聖杯の力が街を焼き尽くした。舞台は焦土と化した';
     if (r.ending === 'wipe' && hasBoss(r)) return '汚染された聖杯は砕かれたが、生き残った者はいなかった';
     if (w) return w.masterAlive === false ? `${w.cls}「${w.trueName}」が、マスターを失いながらもただ一騎で聖杯を手にした` : `${w.cls}「${w.trueName}」とマスター${w.master}が聖杯を手にした`;
@@ -2174,7 +2174,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       const title = y ? `${y.label}「${y.name}」のマスター、${y.taken ? y.taken.master : y.master}` : 'すべてを知る観測者として';
       const res = y ? (y.taken ? (y.taken.won ? `マスターは命を落としたが、再契約した${y.label}「${y.name}」が聖杯を手にした。` : `マスターは命を落とした。再契約した${y.label}「${y.name}」は、${y.fate || '最後まで生き残った'}。`) : y.won ? (r.sum.ending === 'purge' ? '汚染された聖杯を砕いた。' : '聖杯を手にした。') : `${y.fate || '最後まで生き残った'}。`) + (w && !y.won && !(y.taken && y.taken.won) ? `勝者は${w.label}「${w.name}」。` : !w ? (r.sum.ending === 'purge' ? '' : '聖杯を手にした者はいなかった。') : '')
         : r.sum.ending === 'purge' ? `汚染された聖杯を砕き、${(r.sum.winners || []).map(x => `${x.label}「${x.name}」`).join('、')}が生き残った。`
-        : r.sum.ending === 'side' ? `${(r.sum.winners || []).map(x => `${x.label}「${x.name}」`).join('、')}が、聖杯大戦を生き残った。その先は描かれない。`
+        : r.sum.ending === 'side' ? `${(r.sum.winners || []).map(x => `${x.label}「${x.name}」`).join('、')}が、聖杯大戦を生き残った。`
         : r.sum.ending === 'scorched' ? `汚染された聖杯の力に敗れ、舞台は焦土と化した。`
         : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
@@ -2462,7 +2462,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const w = result.winner != null ? result.camps[result.winner] : null;
     const you = result.you != null ? result.camps[result.you] : null;
     const head = endHead(result), purge = result.ending === 'purge', burnt = result.ending === 'scorched';
-    const yours = you ? (result.ending === 'side' && isWin(you.id) ? 'あなたの陣営は、聖杯大戦を勝ち残った。その先は描かれない。' : purge && isWin(you.id) ? `あなたの陣営は、同盟の仲間とともに汚染された聖杯を砕き、生き残った。` : burnt ? `あなたの${you.label}「${you.trueName}」は、${you.alive ? '焦土の中で生き延びた。' : (you.fate ? you.fate.text : '焦土に消えた') + '。'}` : result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
+    const yours = you ? (result.ending === 'side' && isWin(you.id) ? 'あなたの陣営は、聖杯大戦を勝ち残った。' : purge && isWin(you.id) ? `あなたの陣営は、同盟の仲間とともに汚染された聖杯を砕き、生き残った。` : burnt ? `あなたの${you.label}「${you.trueName}」は、${you.alive ? '焦土の中で生き延びた。' : (you.fate ? you.fate.text : '焦土に消えた') + '。'}` : result.youTaken ? `あなたは命を落としたが、再契約した${you.label}「${you.trueName}」は${you.id === result.winner ? '勝ち残り、聖杯を手にした。' : `、${you.fate ? you.fate.text : '最後まで生き残った'}。`}` : you.id === result.winner ? 'あなたの陣営が勝ち残った。' : `あなたの${you.label}「${you.trueName}」は、${you.fate ? you.fate.text : '最後まで生き残った'}。`) : '';
     const decided = choices.filter(k => k !== 'auto' && k !== 'shift' && k !== 'end').length;
     $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">結末・${result.shiftDay != null ? `大戦${result.shiftDay}日＋聖杯戦争${result.days}日` : result.days + "日間"}</span></div><div class="body">
       <h4>${esc(head)}</h4>
