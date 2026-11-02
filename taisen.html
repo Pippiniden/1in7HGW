@@ -1312,11 +1312,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
       <h4>${esc(c.name)}の陣営が聖杯大戦を制した</h4>
       <p>${esc(mine)}生き残りは${left.length}騎。</p>
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
-        ${q.camps.map(x => `<tr class="${x.alive && x.side === q.sideWinner ? 'win' : ''}"><td>${esc(x.label)}</td><td>${esc(x.trueName)}</td><td>${esc(x.master)}</td><td>${esc(x.overseer ? (x.alive ? '監督役' : x.fate || '') : x.alive ? '生き残った' : x.fate || '')}${x.kills.length ? `<br><small>倒した相手：${esc(x.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
+        ${q.camps.map(x => `<tr class="${x.alive && x.side === q.sideWinner ? 'win' : ''}"><td>${esc(x.label)}</td><td>${canLore(x.id) ? `<button class="namebtn" data-lore="${x.id}" title="解説を見る">${esc(x.trueName)}</button>` : esc(x.trueName)}</td><td>${esc(x.master)}</td><td>${esc(x.overseer ? (x.alive ? '監督役' : x.fate || '') : x.alive ? '生き残った' : x.fate || '')}${x.kills.length ? `<br><small>倒した相手：${esc(x.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
       <p>この先の進め方を選んでください。${esc(q.options[0].sub)}。</p>
       <div class="acts">${q.options.map((o, i) => `<button class="btn${i ? '' : ' primary'}" data-gw="${esc(o.k)}">${esc(o.label)}</button>`).join('')}</div>
     </div></section>`;
+    $('#result').querySelectorAll('[data-lore]').forEach(b => b.onclick = () => openLore(+b.dataset.lore));
     $('#result').querySelectorAll('[data-gw]').forEach(b => b.onclick = () => { $('#result').innerHTML = ''; window.scrollTo(0, 0); answer(b.dataset.gw); });
     $('#result').scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
