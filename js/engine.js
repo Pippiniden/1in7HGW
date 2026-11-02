@@ -79,7 +79,11 @@
 
     // ---------- 舞台と陣営 ----------
     const W = G.WORLD, N = G.NAMES;
-    const city = SG ? sInit.city : opts.city || pick(W.cities);
+    // 舞台：地の文の {city} は街の名前だけ、画面に出す out.city / result.city は「国 街」（G.cityLabel）。選ぶのは rnd() 一回
+    //   opts.city は文字列（国なし）か { country, city }
+    const stage = SG ? { city: sInit.city } : opts.city ? (typeof opts.city === 'string' ? { city: opts.city } : opts.city) : pick(W.cities);
+    const city = stage.city, country = stage.country || '';
+    const cityLabel = SG ? city : (G.cityLabel ? G.cityLabel(country, city) : city);
     const places = SG ? sInit.places : shuffle(W.places);
     const gwColors = GW ? GW.colors[Math.floor(hashU('色') * GW.colors.length)] : null;
     // 大戦の編成：ルーラーは陣営に呼ばれず、監督役に就く。二つの色に、重ならないように七騎ずつ
@@ -194,7 +198,7 @@
     // ---------- 記録 ----------
     const out = opts.out || {};
     const entries = out.entries = [];
-    out.seed = seed; out.city = city; out.camps = camps.map(c => ({ id: c.id, label: c.label }));
+    out.seed = seed; out.city = cityLabel; out.country = country; out.camps = camps.map(c => ({ id: c.id, label: c.label }));
     if (GW) out.colors = gwColors;
     // 画面に出す固定の情報（ステータス・スキル・宝具の名前）
     out.meta = camps.map(c => ({
@@ -1741,7 +1745,7 @@
     });
 
     // ---------- 開幕 ----------
-    log('prologue', GW ? line('gwOpen', { city, A: gwColors[0].name, B: gwColors[1].name }) : `${city}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });
+    log('prologue', GW ? line('gwOpen', { city: cityLabel, A: gwColors[0].name, B: gwColors[1].name }) : `${cityLabel}。七騎の英霊が呼ばれ、聖杯戦争が始まる。`, [], { head: true });
     if (rulerC) log('summon', line('gwRuler', { R: nm(rulerC) }), [rulerC.id], { quote: say(rulerC, ['召喚']) });
     else if (GW) log('prologue', line('gwNoRuler', {}), []);
     if (opts.war && opts.war.pick === 'open') log('prologue', '今回の聖杯戦争では、七つのクラスの決まりが働いていない。同じクラスの英霊が並び立つこともある。', []);
@@ -1862,7 +1866,7 @@
     log('end', GW && gwShift == null ? '——聖杯大戦、終結。' : '——聖杯戦争、終結。', [], { head: true });
 
     const result = {
-      seed, city, days: day,
+      seed, city: cityLabel, country, days: day,
       you: you ? you.id : null,
       youTaken,   // あなたのマスターは死に、サーヴァントは他のマスターと再契約した（その陣営が勝っても、あなたの勝ちではない）
       winner: winner ? winner.id : null,
