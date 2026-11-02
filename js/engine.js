@@ -590,6 +590,7 @@
       if (!c.masterAlive) p *= 0.9;
       else p *= 1 + FX.mCraftPower * md(c, 'craft');
       if (c.mana < 10 && !wildOf(c)) p *= 0.85;   // 魔力切れで鈍る（狂った英霊は鈍らない。代わりにマスターが削られる）
+      if (gwStage && c.side != null && o.side != null) p *= 1 + Math.min(GW.underdogCap, Math.max(0, sideOf(1 - c.side).length - sideOf(c.side).length) * GW.underdog);   // 背水：味方の数で押されている色は、その差のぶん奮い立つ
       if (c.stance === 'all') p *= 1.05;
       if (c.boostUntil != null && c.boostUntil >= day) p *= 1 + 0.2 * (1 + FX.mMindCs * md(c, 'mind'));
       if (c.surprise) p *= 1 + c.surprise * (1 - clamp(eff(o, 'mental_guard', T) * ENG.mentalSurprise, 0, 1));
