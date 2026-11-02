@@ -472,7 +472,7 @@ For UI changes check at desktop width and **390px** (no horizontal overflow).
 | New effect primitive | `EFFECTS` (+ genre in `EFFECT_GROUPS`, description in `EFFECT_INFO`), read it in `engine.js` via `eff(c, id, terrain)`/`effVs`; unread primitives do nothing. Instants also go in `E.INSTANT` (with `trig`) and `applyTrig`. |
 | New persona / focus / decision / event | `G.PERSONAS` (keep magnitudes small) / `FOCUS` (unique one-char `code`) / `yield* ask(camp, kind, {title, body, options}, autoFn)` + the §7.6 table / weighted key in `worldEvent`/`lifeEvent`. |
 | New voice use | Add a slot (or alias) in `VOICE_SLOTS` and a `say(c, ['key'])` call. |
-| More narration | Add strings to the key's array in `G.LINES`; outcomes are unaffected. New places go in `WORLD.places` (`terrain` must match effect conds or be null; changes outcomes) with a scene in `scenes.js`. |
+| More narration | Add strings to the key's array in `G.LINES`; outcomes are unaffected. Cities: per country in `COUNTRIES` (`names.js`); `G.WORLD.cities` is the flat `{ country, city }` list picked with one `rnd()` call, `{city}` in lines is the bare city, `out.city`/`result.city` is `G.cityLabel(country, city)` (`out.country`/`result.country` hold the country); adding cities never changes outcomes. New places go in `WORLD.places` (`terrain` must match effect conds or be null; changes outcomes) with a scene in `scenes.js`. |
 | Master wishes / fixed masters | `G.WISHES_BY_ORIGIN/COMMON/BY_PERSONA` in `names.js`; fixed masters: a JSON array file listed under `masters` in `manifest.json`. |
 | Data changed by hand | `data.yml` rebuilds `survival.json` on push; locally `node tools/survival.js` (the game recomputes in the browser while it does not match). |
 
