@@ -108,6 +108,7 @@
       const preset = masterPool.length && chance(0.5) ? masterPool.splice(Math.floor(rnd() * masterPool.length), 1)[0] : null;
       const m = G.master.createMaster(preset || {}, rnd);
       if (!m.name) m.name = makeName(m);
+      m.align = G.master.ALIGN.clean(m.align) || G.master.ALIGN.pick(hashU('属性秩序:' + i), hashU('属性善悪:' + i));   // 属性は種のハッシュで決める（rnd() は使わない）
       // 性格：設定があればそれ、無ければ出自に合わせて抽選
       m.persona = preset && preset.persona && G.PERSONAS[preset.persona] ? preset.persona
         : wpick(Object.fromEntries(Object.entries(G.PERSONAS).map(([k, p]) => [k, (p.origins && p.origins[m.origin]) || 1])));
@@ -138,6 +139,8 @@
     // プレイヤーが付けた名前（乱数は使わない。名前は文面にしか出ないので、展開は変わらない）
     const pName = opts.playerName ? String(opts.playerName).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20) : '';
     if (you && pName) { you.master.name = pName; you.master.named = true; }
+    // プレイヤーが決めた属性（特異点など、陣営の組み立てが別のときも、あなたのマスターには必ず属性を付ける。乱数は使わない）
+    if (you) you.master.align = G.master.ALIGN.clean(opts.playerAlign) || G.master.ALIGN.clean(you.master.align) || G.master.ALIGN.pick(hashU('属性秩序:you'), hashU('属性善悪:you'));
     // プレイヤーが決めた性別・年齢（これも乱数は使わない。性別を変えて名前を付けていないときは、名前の下の名を種から決め直す）
     if (you) {
       const m = you.master, sx = opts.playerSex === '男' || opts.playerSex === '女' ? opts.playerSex : '', ag = Math.round(Number(opts.playerAge));
@@ -1794,7 +1797,7 @@
       Object.assign(out.meta[c.id], {
         servantId: c.sv.id, policy: c.policy, policyLabel: (POLICIES[c.policy] || {}).label || '', base: c.base.name,
         master: {
-          name: m.name, sex: m.sex, age: m.age, origin: m.origin, originLabel: m.originLabel,
+          name: m.name, sex: m.sex, age: m.age, origin: m.origin, originLabel: m.originLabel, align: m.align || null,
           persona: P.label || null, personaDesc: P.desc || null,
           stats: Object.fromEntries(Object.entries(m.stats).map(([k, v]) => [k, Math.round(v)])),
           skills: (m.skills || []).map(x => x.name + (x.rankRaw ? '：' + x.rankRaw : '')), traits: m.traits || [],
