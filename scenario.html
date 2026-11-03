@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>シナリオエディタ（オリジナル特異点）</title>
+<meta name="description" content="オリジナル特異点のシナリオを書く。節・敵・ボス・はぐれサーヴァント・出来事・文面を決め、整合性を確かめてJSONで保存する。">
+<meta name="theme-color" content="#050d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と文字は index.html・original.html と同じ */
+:root {
+  --void: #050d22; --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85); --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4;
+  --gold: #ffd84a; --seal: #ff4f72; --hp: #4fd2ff; --mana: #4ef0c0; --foe: #ff9a6b; --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif; --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --cut: 10px; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ice); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere;
+  background: repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #3a1a5c 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%), var(--void);
+  background-attachment: fixed; }
+a { color: var(--cyan); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.en { font-family: var(--en); letter-spacing: .14em; text-transform: uppercase; }
+[hidden] { display: none !important; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); box-shadow: inset 0 0 28px rgba(62, 230, 255, .06), 0 6px 24px rgba(0, 0, 0, .35); min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; cursor: pointer; list-style: none; }
+.hd::-webkit-details-marker { display: none; }
+.chev { flex: none; width: 22px; height: 16px; background: var(--gold); clip-path: polygon(0 0, 30% 0, 62% 50%, 30% 100%, 0 100%, 32% 50%, 38% 0, 68% 0, 100% 50%, 68% 100%, 38% 100%, 70% 50%); transition: transform .2s; }
+details:not([open]) > .hd .chev { transform: rotate(0); opacity: .7; }
+details[open] > .hd .chev { transform: rotate(90deg); }
+.hd .en { font-size: 18px; font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(62, 230, 255, .55); line-height: 1; white-space: nowrap; }
+.hd .ja { margin-left: auto; font-size: 12px; background: linear-gradient(90deg, rgba(62, 230, 255, .02), rgba(62, 230, 255, .18)); padding: 3px 12px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.body { padding: 0 16px 16px; }
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; white-space: nowrap; text-decoration: none; color: var(--ice);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn.primary { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.btn.del { box-shadow: inset 0 0 0 1px var(--seal); }
+.btn.sm { min-height: 28px; padding: 3px 10px; font-size: 12px; --cut: 7px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.hint { font-size: 12px; color: var(--mute); margin: 4px 0 0; line-height: 1.6; }
+input[type=text], input[type=number], textarea, select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 7px 10px; font-size: 14px; width: 100%; min-height: 36px; min-width: 0; }
+textarea { min-height: 64px; resize: vertical; line-height: 1.6; font-family: var(--gothic); }
+input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
+
+.wrap { max-width: 980px; margin: 0 auto; padding: calc(4vh + var(--safe-t)) 16px calc(64px + var(--safe-b)); }
+.title { padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; text-shadow: 0 0 10px rgba(62, 230, 255, .6); }
+.title h1 { font: 700 clamp(30px, 8vw, 52px)/1.2 var(--gothic); margin: 4px 0 0; letter-spacing: .08em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
+.lead { font: 500 15px/1.9 var(--mincho); margin: 0 0 16px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status { font-size: 12px; color: var(--mute); margin: 8px 0 0; }
+.wrap > .panel, .wrap > details.panel { margin-top: 14px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; }
+.grid .full { grid-column: 1 / -1; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--mute); }
+.f > span:first-child { color: var(--mute); }
+.chk-row { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--ice); cursor: pointer; }
+.card { margin-top: 12px; padding: 12px; background: rgba(3, 14, 38, .45); box-shadow: inset 0 0 0 1px var(--line); }
+.card.foe { box-shadow: inset 3px 0 0 var(--foe), inset 0 0 0 1px var(--line); }
+.card.boss { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px var(--line); }
+.card.ev { box-shadow: inset 3px 0 0 var(--mana), inset 0 0 0 1px var(--line); }
+.card .ch { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.card .ch b { font-size: 14px; margin-right: auto; min-width: 0; }
+.stage { margin-top: 14px; }
+.stage > summary { font: 700 16px var(--mincho); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 10px; font-size: 13px; background: rgba(62, 230, 255, .12); box-shadow: inset 0 0 0 1px var(--line); color: var(--ice); }
+.chip.bad { box-shadow: inset 0 0 0 1px var(--seal); color: var(--seal); }
+.chip button { border: 0; background: none; cursor: pointer; color: var(--mute); padding: 0 6px; font-size: 14px; }
+.chipin { display: flex; gap: 6px; margin-top: 6px; }
+.chipin input { flex: 1; }
+.clss { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.clss label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--ice); }
+.eff { display: grid; grid-template-columns: minmax(130px, 1.4fr) repeat(3, minmax(90px, 1fr)) auto; gap: 6px; align-items: center; margin-top: 6px; }
+.eff .note { grid-column: 1 / -1; font-size: 11px; color: var(--mute); margin-top: -2px; }
+@media (max-width: 640px) { .eff { grid-template-columns: 1fr 1fr; } .eff .btn { justify-self: start; } }
+.choice { margin-top: 10px; padding: 10px; box-shadow: inset 0 0 0 1px rgba(78, 240, 192, .35); }
+.chk { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.chk li { padding: 4px 8px; background: var(--inset); cursor: pointer; }
+.chk li.e { color: var(--seal); box-shadow: inset 3px 0 0 var(--seal); }
+.chk li.w { color: var(--gold); box-shadow: inset 3px 0 0 var(--gold); }
+.chk-ok { color: var(--mana); font-size: 14px; margin: 0; }
+.checkp { position: sticky; top: 0; z-index: 5; }
+.checkp .body { max-height: 32vh; overflow: auto; }
+@media (max-width: 820px) { .checkp { position: relative; } }
+.lgrp { margin-top: 12px; }
+.lgrp > summary { font-weight: 700; cursor: pointer; }
+.lrow { margin-top: 10px; padding: 10px; background: rgba(3, 14, 38, .45); box-shadow: inset 0 0 0 1px var(--line); }
+.lrow.on { box-shadow: inset 3px 0 0 var(--cyan), inset 0 0 0 1px var(--line); }
+.lrow .lh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.lrow .lh b { font-size: 14px; }
+.lrow .lh code, .vars code { font-size: 11px; color: var(--mute); }
+.lrow .lh select { width: auto; margin-left: auto; }
+.lrow textarea { margin-top: 6px; }
+.lrow details { margin-top: 6px; font-size: 12px; color: var(--mute); }
+.lrow details li { margin: 2px 0; }
+.vars { font-size: 11px; color: var(--mute); }
+.sim { font-size: 13px; }
+.sim b { color: var(--cyan); }
+.foot { margin-top: 24px; font-size: 12px; color: var(--mute); line-height: 1.8; }
+.flash { animation: flash 1.2s; }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 2px var(--gold); } 100% { box-shadow: inset 0 0 0 1px var(--line-hi); } }
+.toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translate(-50%, 20px); opacity: 0; transition: .25s; background: var(--panel-a); box-shadow: inset 0 0 0 1px var(--line-hi); padding: 10px 18px; font-size: 13px; pointer-events: none; z-index: 50; max-width: calc(100vw - 32px); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.err { color: var(--seal); }
+</style>
+</head>
+<body>
+<script src="js/topnav.js"></script>
+<div class="wrap">
+  <div class="title">
+    <span class="en">Scenario Editor ／ Original Singularity</span>
+    <h1>シナリオエディタ</h1>
+  </div>
+  <p class="lead">オリジナル特異点のシナリオを書く。節ごとの敵とボス、はぐれサーヴァント、日々の出来事、語られる言葉を決め、整合性を確かめてから JSON で保存する。書いたシナリオは、<a href="original.html">オリジナル特異点</a>のページで読み込んで遊べる。</p>
+  <div class="tools">
+    <button class="btn" id="newBtn" type="button">新しく作る</button>
+    <label class="btn" for="fileIn">ファイルを読み込む</label><input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <button class="btn" id="sampleBtn" type="button">サンプルを読み込む</button>
+    <button class="btn primary" id="saveBtn" type="button">JSONで保存</button>
+    <button class="btn" id="playBtn" type="button">遊ぶページで試す</button>
+  </div>
+  <p class="status" id="status">サーヴァントのデータを読み込んでいます…</p>
+
+  <section class="panel checkp" aria-label="整合性チェック">
+    <div class="hd" style="cursor:default"><i class="chev"></i><span class="en">Check</span><span class="ja" id="chkSum">整合性チェック</span></div>
+    <div class="body" id="chk"></div>
+  </section>
+
+  <div id="form"></div>
+
+  <details class="panel" id="simBox">
+    <summary class="hd"><i class="chev"></i><span class="en">Trial</span><span class="ja">全自動で試す</span></summary>
+    <div class="body sim">
+      <p class="hint" style="margin-top:0">味方をランダムに選び、方針も決断もおまかせで何度も回して、結末の割合を見る（難しさの目安）。マスターはシナリオの既定。</p>
+      <div class="tools" style="margin-top:8px"><select id="simN" style="width:auto"><option value="20">20回</option><option value="50" selected>50回</option><option value="100">100回</option></select><button class="btn" id="simBtn" type="button">試す</button></div>
+      <div id="simOut" style="margin-top:8px"></div>
+    </div>
+  </details>
+
+  <details class="panel" id="jsonBox">
+    <summary class="hd"><i class="chev"></i><span class="en">JSON</span><span class="ja">JSON を直接見る・直す</span></summary>
+    <div class="body">
+      <textarea id="jsonTxt" spellcheck="false" style="min-height:280px;font:12px/1.5 ui-monospace,Consolas,monospace"></textarea>
+      <div class="tools" style="margin-top:8px"><button class="btn" id="jsonApply" type="button">この JSON を反映する</button><button class="btn" id="jsonCopy" type="button">コピー</button></div>
+    </div>
+  </details>
+  <p class="foot">編集中のシナリオは、このブラウザに自動で残ります（「遊ぶページで試す」もこれを使う）。人に渡すときや、別の端末で続きを書くときは「JSONで保存」してください。サーヴァントの指定は、真名（同じ真名が何騎もいれば「クラス:真名」の id）で書きます。敵・ボス・はぐれに指定できるのは、サーヴァントのリストにいる英霊と、公開しているボスだけです。</p>
+</div>
+<datalist id="svList"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script src="js/names.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/data.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/original.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, SC = H.scenario, OG = H.original;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const qs = new URLSearchParams(location.search);
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  };
+  const EDIT_KEY = 'hgw.orig.edit';   // original.html の「シナリオエディタで編集中」もこれを読む
+  const toast = t => { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); };
+  const arr = v => Array.isArray(v) ? v : [];
+
+  // ---------- データ（整合性チェックとサーヴァントの候補） ----------
+  let roster = [], bosses = [], dataLoaded = false;
+  async function load() {
+    try {
+      let res;
+      if (qs.get('data') === 'local' && H.data.hasLocal()) { res = H.data.loadLocal(); if (!(res.bosses && res.bosses.length)) res.bosses = (await H.data.loadPublished('data/')).bosses || []; }
+      else res = await H.data.loadPublished('data/');
+      roster = res.servants.filter(s => !s.bossOnly);
+      const b = H.build.prepareBosses(res.bosses || []);
+      const inList = new Map(res.servants.filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+      bosses = b.bosses.map(x => inList.has(x.trueName) ? H.build.bossFromRoster(inList.get(x.trueName)) : x);
+      const have = new Set(bosses.map(x => x.trueName));
+      for (const [tn, s] of inList) if (!have.has(tn)) bosses.push(H.build.bossFromRoster(s));
+      dataLoaded = true;
+      const local = H.data.hasLocal() ? (qs.get('data') === 'local' ? ' ・ <a href="?">公開データで確かめる</a>' : ` ・ <a href="?data=local">リストツールのリスト（${H.data.hasLocal()}騎）で確かめる</a>`) : '';
+      setStatus(`サーヴァント ${roster.length}騎・ボス ${bosses.length}騎（${qs.get('data') === 'local' ? 'このブラウザのリスト' : '公開データ'}）で確かめます。${local}`, true);
+      fillSvList(); render(); check();
+    } catch (e) {
+      setStatus('サーヴァントのデータを読めませんでした（' + e.message + '）。整合性チェックはできませんが、編集はできます。', true);
+      render(); check();
+    }
+  }
+  let statusBase = '';
+  function setStatus(t, base) { if (base) statusBase = t; $('#status').innerHTML = base ? t : statusBase + (t ? ' ・ ' + esc(t) : ''); }
+  // 同じ真名が何騎もいる英霊は id で、そうでなければ真名で候補に出す
+  function refOf(s) { const all = roster.concat(bosses); return all.filter(x => x.trueName === s.trueName).length > 1 ? s.id : s.trueName; }
+  function fillSvList() {
+    const seen = new Set();
+    $('#svList').innerHTML = roster.concat(bosses.filter(b => !roster.some(s => s.id === b.id))).map(s => { const v = refOf(s); if (seen.has(v)) return ''; seen.add(v); return `<option value="${esc(v)}">${esc(s.class.label)}${s.bossOnly ? '（ボス専用）' : ''}</option>`; }).join('');
+  }
+  const okRef = v => !dataLoaded || !!SC.resolve(v, roster, bosses).sv;
+
+  // ---------- 編集中のシナリオ ----------
+  // S は生のシナリオ（JSON に書き出す形そのまま）。画面に必要な欄だけ、ここで形をそろえる（空の欄を消したりはしない）
+  let S = null;
+  const ENEMY = () => ({ key: '', pick: 'random', servant: '', from: [], classes: [], count: 1, meet: 'mixed', day: null, label: '', revealed: false, power: null, intro: [], defeat: [] });
+  const BOSS = () => ({ pick: 'fixed', servant: '', from: [], label: '', revealed: true, intro: [], defeat: [] });
+  const STAGE = n => ({ name: '第' + n + '節', days: null, intro: [], clear: [], places: [], enemies: [], boss: null });
+  const STRAY = () => ({ pick: 'random', servant: '', from: [], appear: 'random', day: null, after: null, label: '', intro: [] });
+  const EVENT = () => ({ id: '', title: '', day: null, from: null, to: null, stage: null, after: '', chance: null, weight: 1, once: true, text: [], effects: [], choices: [], auto: 0 });
+  const EFFECT = () => ({ type: 'heal', amount: 20, target: 'all', enemy: '', name: '' });
+  const CHOICE = () => ({ label: '', sub: '', text: [], effects: [] });
+  const PLACE = () => ({ name: '', terrain: null, scene: 'city' });
+  function prep(raw) {
+    const b = SC.blank(), s = Object.assign({}, b, JSON.parse(JSON.stringify(raw || {})));
+    s.format = SC.FORMAT; s.version = SC.VERSION;
+    s.master = Object.assign({}, b.master, s.master || {}); s.master.stats = Object.assign({}, b.master.stats, (raw && raw.master && raw.master.stats) || {});
+    s.party = Object.assign({}, b.party, s.party || {}); s.party.from = arr(s.party.from); s.party.exclude = arr(s.party.exclude);
+    s.settings = s.settings && typeof s.settings === 'object' ? s.settings : {};
+    s.places = arr(s.places).map(p => Object.assign(PLACE(), p));
+    s.stages = arr(s.stages).map((st, i) => {
+      st = Object.assign(STAGE(i + 1), st || {});
+      for (const k of ['intro', 'clear', 'places']) st[k] = arr(st[k]);
+      st.places = st.places.map(p => Object.assign(PLACE(), p));
+      st.enemies = arr(st.enemies).map(e => { e = Object.assign(ENEMY(), e); for (const k of ['from', 'classes', 'intro', 'defeat']) e[k] = arr(e[k]); return e; });
+      if (st.boss) { st.boss = Object.assign(BOSS(), st.boss); for (const k of ['from', 'intro', 'defeat']) st.boss[k] = arr(st.boss[k]); }
+      return st;
+    });
+    if (s.stray) { s.stray = Object.assign(STRAY(), s.stray); for (const k of ['from', 'intro']) s.stray[k] = arr(s.stray[k]); }
+    const ev = s.events && typeof s.events === 'object' ? s.events : {};
+    s.events = { defaults: ev.defaults !== false, list: arr(ev.list).map(e => { e = Object.assign(EVENT(), e); e.text = arr(e.text); e.effects = arr(e.effects).map(x => Object.assign(EFFECT(), x)); e.choices = arr(e.choices).map(c => { c = Object.assign(CHOICE(), c); c.text = arr(c.text); c.effects = arr(c.effects).map(x => Object.assign(EFFECT(), x)); return c; }); return e; }) };
+    s.lines = s.lines && typeof s.lines === 'object' ? s.lines : {};
+    fixKeys(s);
+    return s;
+  }
+  // 敵の key・出来事の id が無いか重なっていれば、重ならない名前を付ける（出来事の「倒した後」などが指す名前）
+  function fixKeys(s) {
+    const used = new Set();
+    s.stages.forEach((st, i) => st.enemies.forEach((e, j) => { let k = String(e.key || '').trim(); if (!k || used.has(k)) { let n = 1; do k = 's' + (i + 1) + 'e' + (j + n++); while (used.has(k)); } e.key = k; used.add(k); }));
+    const ids = new Set();
+    s.events.list.forEach((e, i) => { let k = String(e.id || '').trim(); if (!k || ids.has(k)) { let n = i + 1; do k = 'ev' + n++; while (ids.has(k)); } e.id = k; ids.add(k); });
+  }
+  const at = (p, root) => p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), root || S);
+  function setAt(p, v) { const ks = p.split('.'), last = ks.pop(), o = at(ks.join('.')) || S; if (ks.length && o === S) return; o[last] = v; }
+
+  // ---------- 保存 ----------
+  let saveT = null;
+  function changed(structural) {
+    if (structural) render();
+    clearTimeout(saveT);
+    saveT = setTimeout(() => { if (store.set(EDIT_KEY, { at: Date.now(), scn: S })) setStatus('このブラウザに自動で保存しました'); else setStatus('このブラウザに保存できませんでした（容量が足りないかもしれません）'); }, 400);
+    clearTimeout(checkT); checkT = setTimeout(check, 250);
+    if ($('#jsonBox').open) syncJson();
+  }
+  function useScenario(raw, msg) { S = prep(raw); render(); check(); changed(false); syncJson(); if (msg) toast(msg); }
+
+  // ---------- 整合性チェック ----------
+  let checkT = null, lastChk = null;
+  const dotPath = p => String(p || '').replace(/\[(\d+)\]/g, '.$1');
+  function check() {
+    if (!S) return;
+    const r = SC.check(S, { roster, bosses });
+    lastChk = r;
+    if (!dataLoaded) r.errors = r.errors.filter(e => !/サーヴァントリストにいません|足りません|候補が一騎も/.test(e.msg));
+    const n = r.errors.length, w = r.warnings.length;
+    $('#chkSum').textContent = n ? `誤り ${n}件${w ? '・注意 ' + w + '件' : ''}` : w ? `注意 ${w}件` : '問題なし';
+    $('#chk').innerHTML = n + w ? `<ul class="chk">${r.errors.map(e => `<li class="e" data-go="${esc(dotPath(e.path))}">誤り：${esc(e.msg)}</li>`).join('')}${r.warnings.map(x => `<li class="w" data-go="${esc(dotPath(x.path))}">注意：${esc(x.msg)}</li>`).join('')}</ul><p class="hint">押すと、その欄へ移ります。誤りがあるシナリオは遊べません。</p>`
+      : `<p class="chk-ok">整合性チェック：問題ありません。${dataLoaded ? '' : '（サーヴァントのデータを読めていないので、英霊の指定は確かめていません）'}</p>`;
+    // 英霊の指定の欄（チップ）を、見つからないものだけ赤くする
+    document.querySelectorAll('.chip[data-ref]').forEach(c => c.classList.toggle('bad', !okRef(c.dataset.ref)));
+  }
+  $('#chk').addEventListener('click', e => {
+    const li = e.target.closest('[data-go]'); if (!li) return;
+    let p = li.dataset.go, el = null;
+    while (p && !(el = document.querySelector(`[data-p="${CSS.escape(p)}"], [data-box="${CSS.escape(p)}"]`))) p = p.includes('.') ? p.slice(0, p.lastIndexOf('.')) : '';
+    if (!el) return;
+    for (let d = el.closest('details'); d; d = d.parentElement && d.parentElement.closest('details')) d.open = true;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+    if (el.focus) el.focus({ preventScroll: true });
+  });
+
+  // ---------- 入力欄を作る ----------
+  // data-p＝シナリオの中の場所、data-t＝値の種類（text / num / int / bool / lines（一行に一つ）/ sel）
+  const val = p => at(p);
+  const txt = (p, label, o) => { o = o || {}; return `<label class="f${o.full ? ' full' : ''}"><span>${esc(label)}</span><input type="text" data-p="${p}" data-t="text" value="${esc(val(p) == null ? '' : val(p))}"${o.ph ? ` placeholder="${esc(o.ph)}"` : ''}${o.list ? ` list="${o.list}"` : ''}${o.max ? ` maxlength="${o.max}"` : ''}></label>`; };
+  const num = (p, label, o) => { o = o || {}; const v = val(p); return `<label class="f${o.full ? ' full' : ''}"><span>${esc(label)}</span><input type="number" data-p="${p}" data-t="${o.int ? 'int' : 'num'}" value="${v == null || v === '' ? '' : esc(v)}"${o.min != null ? ` min="${o.min}"` : ''}${o.max != null ? ` max="${o.max}"` : ''}${o.step ? ` step="${o.step}"` : ''}${o.ph != null ? ` placeholder="${esc(o.ph)}"` : ''}></label>`; };
+  const sel = (p, label, opts, o) => { o = o || {}; const v = val(p) == null ? '' : String(val(p)); return `<label class="f${o.full ? ' full' : ''}"><span>${esc(label)}</span><select data-p="${p}" data-t="${o.t || 'sel'}"${o.rerender ? ' data-r="1"' : ''}>${opts.map(([k, l]) => `<option value="${esc(k)}"${String(k) === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`; };
+  const bool = (p, label, o) => `<label class="chk-row${o && o.full ? ' full' : ''}"><input type="checkbox" data-p="${p}" data-t="bool"${val(p) ? ' checked' : ''}${o && o.rerender ? ' data-r="1"' : ''}>${esc(label)}</label>`;
+  const lines = (p, label, vars, o) => { o = o || {}; return `<label class="f full"><span>${esc(label)}${vars ? ` <span class="vars">使える記号：${vars.length ? vars.map(v => `<code>{${esc(v)}}</code>`).join(' ') : 'なし'}</span>` : ''}</span><textarea data-p="${p}" data-t="lines" rows="${o.rows || 2}" placeholder="${esc(o.ph || '一行に一つ。いくつも書けば、そのつど一つが選ばれる')}">${esc(arr(val(p)).join('\n'))}</textarea></label>`; };
+  // 英霊の一覧（チップ）。押して外す・下の欄から足す
+  const chips = (p, label, hint) => `<div class="f full" data-box="${p}"><span>${esc(label)}</span><div class="chips">${arr(val(p)).map((v, i) => `<span class="chip${okRef(v) ? '' : ' bad'}" data-ref="${esc(v)}">${esc(v)}<button type="button" data-a="chip-del" data-p="${p}" data-i="${i}" aria-label="${esc(v)}を外す">×</button></span>`).join('') || '<span class="hint" style="margin:0">（なし）</span>'}</div>
+    <div class="chipin"><input type="text" list="svList" placeholder="真名を入れて追加" data-chip="${p}"><button class="btn sm" type="button" data-a="chip-add" data-p="${p}">追加</button></div>${hint ? `<p class="hint">${esc(hint)}</p>` : ''}</div>`;
+  const btn = (a, p, label, cls, extra) => `<button class="btn sm${cls ? ' ' + cls : ''}" type="button" data-a="${a}" data-p="${p}"${extra || ''}>${esc(label)}</button>`;
+  const moveBtns = (p, i, n) => btn('up', p, '↑', '', i ? '' : ' disabled') + btn('down', p, '↓', '', i < n - 1 ? '' : ' disabled') + btn('del', p, '消す', 'del');
+  const CLASS_OPTS = () => Object.entries(H.CONFIG.CLASS_DEFS).filter(([k]) => k !== 'extra').map(([k, d]) => [k, d.label]);
+  const RANKS = ['', 'EX', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E+', 'E'];
+  const SCENE_OPTS = () => Object.entries(H.SCENES || {}).map(([k, v]) => [k, v.label]);
+  const TERRAIN_OPTS = [['', 'なし'], ['水辺', '水辺'], ['森', '森'], ['山', '山'], ['夜', '夜']];
+  const enemyKeys = () => S.stages.flatMap((st, i) => st.enemies.map(e => [e.key, `${st.name}：${e.label || (e.pick === 'fixed' ? e.servant || '（未指定）' : 'ランダム' + (e.count > 1 ? '×' + e.count : ''))}（${e.key}）`]));
+
+  function placesBox(p, label) {
+    const list = arr(val(p));
+    return `<div class="f full" data-box="${p}"><span>${esc(label)}</span>${list.map((pl, i) => `<div class="grid" style="margin-top:6px;align-items:end">${txt(`${p}.${i}.name`, '場所の名前')}${sel(`${p}.${i}.terrain`, '地形（効果の条件）', TERRAIN_OPTS)}${sel(`${p}.${i}.scene`, '情景の画像', SCENE_OPTS())}<div>${btn('del', `${p}.${i}`, '消す', 'del')}</div></div>`).join('')}
+      <div style="margin-top:6px">${btn('add', p, '場所を足す', '', ' data-k="place"')}</div></div>`;
+  }
+  function enemyCard(si, j, e, n) {
+    const p = `stages.${si}.enemies.${j}`;
+    const meetOpts = Object.entries(SC.MEET).map(([k, l]) => [k, l]);
+    return `<div class="card foe" data-box="${p}"><div class="ch"><b>敵 ${j + 1}　<code class="vars">key：${esc(e.key)}</code></b>${moveBtns(p, j, n)}</div>
+      <div class="grid">
+        ${sel(`${p}.pick`, '選び方', [['fixed', '英霊を決める'], ['random', '候補からランダム']], { rerender: true })}
+        ${e.pick === 'fixed' ? txt(`${p}.servant`, '英霊（真名）', { list: 'svList', ph: '真名' }) : num(`${p}.count`, '人数（この設定で何騎出すか）', { int: true, min: 1, max: 20 })}
+        ${txt(`${p}.key`, 'key（出来事から指す名前）', { max: 24 })}
+        ${sel(`${p}.meet`, '出会い方', meetOpts, { rerender: true })}
+        ${e.meet === 'day' ? num(`${p}.day`, '現れる日（全体の何日目）', { int: true, min: 1, max: S.days }) : ''}
+        ${txt(`${p}.label`, '真名が分からないときの呼び名', { ph: '空欄なら『○○のセイバー』' })}
+        ${num(`${p}.power`, 'この敵の強さの上乗せ', { step: 0.05, ph: '空欄なら全体の設定' })}
+        ${bool(`${p}.revealed`, '最初から真名が分かっている')}
+        ${e.pick === 'random' ? chips(`${p}.from`, '候補（空なら全員）') + `<div class="f full"><span>クラスで絞る（どれも選ばなければ全クラス）</span><div class="clss">${CLASS_OPTS().map(([k, l]) => `<label><input type="checkbox" data-a="cls" data-p="${p}.classes" value="${k}"${e.classes.includes(k) ? ' checked' : ''}>${esc(l)}</label>`).join('')}</div></div>` : ''}
+        ${lines(`${p}.intro`, '名乗り（初めて出会ったとき。空欄なら既定の文）', SC.ITEM_VARS.enemy)}
+        ${lines(`${p}.defeat`, '倒れたときの文（空欄なら無し）', SC.ITEM_VARS.enemy)}
+      </div></div>`;
+  }
+  function bossCard(si, bo) {
+    const p = `stages.${si}.boss`;
+    return `<div class="card boss" data-box="${p}"><div class="ch"><b>この節のボス</b>${btn('boss-off', `stages.${si}`, 'ボスをなくす', 'del')}</div>
+      <div class="grid">
+        ${sel(`${p}.pick`, '選び方', [['fixed', '英霊を決める'], ['random', '候補からランダム']], { rerender: true })}
+        ${bo.pick === 'fixed' ? txt(`${p}.servant`, '英霊（真名。ボス専用も可）', { list: 'svList' }) : ''}
+        ${txt(`${p}.label`, '呼び名', { ph: '空欄なら『超越した○○』など' })}
+        ${bool(`${p}.revealed`, '現れたときに真名が明かされる')}
+        ${Object.entries(SC.BOSS_KEYS).map(([k, l]) => num(`${p}.${k}`, l, { step: k === 'gauges' ? 1 : k === 'mana' || k === 'regen' || k === 'heal' ? 1 : 0.05, ph: H.CONFIG.SING.boss[k] != null ? '既定 ' + H.CONFIG.SING.boss[k] : '' })).join('')}
+        ${bo.pick === 'random' ? chips(`${p}.from`, '候補（空なら全員とボス専用）') : ''}
+        ${lines(`${p}.intro`, '名乗り（現れたとき）', SC.ITEM_VARS.boss)}
+        ${lines(`${p}.defeat`, '倒れたときの文', SC.ITEM_VARS.boss)}
+      </div></div>`;
+  }
+  function stageBox(si, st) {
+    const p = `stages.${si}`, n = S.stages.length;
+    return `<details class="panel stage" open data-box="${p}"><summary class="hd"><i class="chev"></i><span class="en">Stage ${si + 1}</span><span class="ja">${esc(st.name || '第' + (si + 1) + '節')}</span></summary><div class="body">
+      <div class="ch" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">${moveBtns(p, si, n)}</div>
+      <div class="grid">
+        ${txt(`${p}.name`, '節の名前')}
+        ${num(`${p}.days`, 'この節の期限（入った日から何日。空欄なら無し）', { int: true, min: 1, max: S.days })}
+        ${lines(`${p}.intro`, '節の始まりの文', SC.ITEM_VARS.stage)}
+        ${lines(`${p}.clear`, '節を越えたときの文（空欄なら既定の文）', SC.ITEM_VARS.stage)}
+        ${placesBox(`${p}.places`, 'この節の場所（空ならシナリオ全体の場所）')}
+      </div>
+      ${st.enemies.map((e, j) => enemyCard(si, j, e, st.enemies.length)).join('')}
+      <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">${btn('add', `${p}.enemies`, '敵を足す', '', ' data-k="enemy"')}${st.boss ? '' : btn('boss-on', p, 'ボスを置く')}</div>
+      ${st.boss ? bossCard(si, st.boss) : ''}
+    </div></details>`;
+  }
+  function effectRow(p, i, x) {
+    const q = `${p}.${i}`, d = SC.EFFECTS[x.type] || { fields: [] }, f = d.fields;
+    return `<div class="eff" data-box="${q}">${sel(`${q}.type`, '効果', Object.entries(SC.EFFECTS).map(([k, v]) => [k, v.label]), { rerender: true })}
+      ${f.includes('amount') ? num(`${q}.amount`, '量', { step: x.type === 'power' ? 0.05 : 1 }) : '<span></span>'}
+      ${f.includes('target') ? sel(`${q}.target`, '誰に', Object.entries(SC.TARGETS)) : f.includes('enemy') ? sel(`${q}.enemy`, 'どの敵', [['', 'ランダム']].concat(enemyKeys())) : f.includes('name') ? txt(`${q}.name`, '雑魚の名前', { ph: '空欄ならランダム' }) : '<span></span>'}
+      ${f.includes('target') && f.includes('enemy') ? sel(`${q}.enemy`, 'どの敵', [['', 'ランダム']].concat(enemyKeys())) : '<span></span>'}
+      ${btn('del', q, '消す', 'del')}${d.note ? `<span class="note">${esc(d.note)}</span>` : ''}</div>`;
+  }
+  function effectsBox(p, label) {
+    return `<div class="f full" data-box="${p}"><span>${esc(label)}</span>${arr(val(p)).map((x, i) => effectRow(p, i, x)).join('')}<div style="margin-top:6px">${btn('add', p, '効果を足す', '', ' data-k="effect"')}</div></div>`;
+  }
+  function eventCard(i, ev, n) {
+    const p = `events.list.${i}`;
+    return `<div class="card ev" data-box="${p}"><div class="ch"><b>${esc(ev.title || '出来事 ' + (i + 1))}　<code class="vars">id：${esc(ev.id)}</code></b>${moveBtns(p, i, n)}</div>
+      <div class="grid">
+        ${txt(`${p}.title`, '題（選択肢があるときの見出し）')}
+        ${txt(`${p}.id`, 'id', { max: 24 })}
+        ${num(`${p}.day`, '起きる日（決めると、その日の朝に起きる）', { int: true, min: 1, max: S.days, ph: '空欄なら道中でランダム' })}
+        ${ev.day != null && ev.day !== '' ? num(`${p}.chance`, '起きる確率（0〜1）', { step: 0.05, min: 0, max: 1, ph: '空欄なら必ず' }) : num(`${p}.weight`, '起きやすさ（重み。良い出来事の全体が1）', { step: 0.1, min: 0 })}
+        ${num(`${p}.from`, '何日目から', { int: true, min: 1, max: S.days })}
+        ${num(`${p}.to`, '何日目まで', { int: true, min: 1, max: S.days })}
+        ${sel(`${p}.stage`, 'どの節で', [['', 'どの節でも']].concat(S.stages.map((st, k) => [String(k + 1), `${k + 1}：${st.name}`])), { t: 'int' })}
+        ${sel(`${p}.after`, 'この敵を倒した後で', [['', '条件なし']].concat(enemyKeys()))}
+        ${bool(`${p}.once`, '一度だけ起きる')}
+        ${lines(`${p}.text`, '文', SC.ITEM_VARS.event, { rows: 3 })}
+        ${effectsBox(`${p}.effects`, '効果（すぐに働く）')}
+      </div>
+      ${ev.choices.map((c, k) => `<div class="choice" data-box="${p}.choices.${k}"><div class="ch" style="display:flex;gap:6px;align-items:center;margin-bottom:6px"><b style="margin-right:auto">選択肢 ${k + 1}</b>${btn('del', `${p}.choices.${k}`, '消す', 'del')}</div><div class="grid">
+        ${txt(`${p}.choices.${k}.label`, '選択肢の文')}${txt(`${p}.choices.${k}.sub`, '補足')}
+        ${lines(`${p}.choices.${k}.text`, '選んだあとの文', SC.ITEM_VARS.event)}
+        ${effectsBox(`${p}.choices.${k}.effects`, '選んだときの効果')}</div></div>`).join('')}
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">${ev.choices.length < 3 ? btn('add', `${p}.choices`, '選択肢を足す', '', ' data-k="choice"') : ''}
+        ${ev.choices.length ? `<div style="min-width:200px">${sel(`${p}.auto`, 'おまかせのときに選ぶもの', ev.choices.map((c, k) => [String(k), `${k + 1}：${c.label || '（無題）'}`]), { t: 'int' })}</div>` : ''}</div>
+    </div>`;
+  }
+  // 文面：既定のまま／置き換え／既定に追加
+  function lineRow(d) {
+    const v = S.lines[d.key], mode = Array.isArray(v) ? 'replace' : v && Array.isArray(v.add) ? 'add' : '';
+    const list = mode === 'replace' ? v : mode === 'add' ? v.add : [];
+    const def = SC.defaultLines(d.key);
+    return `<div class="lrow${mode ? ' on' : ''}" data-box="lines.${esc(d.key)}"><div class="lh"><b>${esc(d.label)}</b><code>${esc(d.key)}</code>
+      <select data-a="line-mode" data-key="${esc(d.key)}" aria-label="${esc(d.label)}の扱い"><option value=""${mode ? '' : ' selected'}>既定のまま</option><option value="replace"${mode === 'replace' ? ' selected' : ''}>置き換える</option><option value="add"${mode === 'add' ? ' selected' : ''}>既定に足す</option></select></div>
+      <div class="vars">使える記号：${d.vars.length ? d.vars.map(x => `<code>{${esc(x)}}</code>`).join(' ') : 'なし'}</div>
+      ${mode ? `<textarea data-a="line-text" data-key="${esc(d.key)}" rows="3" placeholder="一行に一つ。いくつも書けば、そのつど一つが選ばれる">${esc(list.join('\n'))}</textarea>` : ''}
+      ${def.length ? `<details><summary>既定の文（${def.length}）</summary><ul>${def.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}</div>`;
+  }
+
+  // ---------- 画面全体 ----------
+  function render() {
+    if (!S) return;
+    const openSet = new Set([...document.querySelectorAll('#form details[data-sec]')].filter(d => d.open).map(d => d.dataset.sec));
+    const opened = k => (document.querySelector('#form details[data-sec]') ? openSet.has(k) : ['basic', 'stages'].includes(k)) ? ' open' : '';
+    const st = H.CONFIG.SING;
+    const sec = (k, en, ja, body) => `<details class="panel" data-sec="${k}"${opened(k)}><summary class="hd"><i class="chev"></i><span class="en">${en}</span><span class="ja">${esc(ja)}</span></summary><div class="body">${body}</div></details>`;
+    const groups = [...new Set(SC.LINE_DEFS.map(d => d.group))];
+    const nLines = Object.keys(S.lines).filter(k => SC.LINE_DEFS.some(d => d.key === k)).length;
+    $('#form').innerHTML =
+      sec('basic', 'Basic', '基本', `<div class="grid">
+        ${txt('title', '特異点の名前', { full: true, max: 60 })}
+        ${txt('author', '作者', { max: 40 })}
+        ${txt('city', '舞台（文中の {city}）', { ph: '空欄なら特異点の名前', max: 30 })}
+        ${txt('tag', '敵の呼び名に付ける言葉', { ph: '『○○のセイバー』の○○。空欄なら舞台', max: 20 })}
+        ${num('days', '期限（日）', { int: true, min: 1, max: 365 })}
+        <label class="f full"><span>紹介文（遊ぶページの一覧に出る）</span><textarea data-p="description" data-t="text" rows="3">${esc(S.description || '')}</textarea></label>
+      </div>`)
+      + sec('master', 'Master', 'マスターの既定', `<p class="hint" style="margin-top:0">遊ぶ人が自分で決めていない項目は、ここの値になります（空欄ならランダム）。</p><div class="grid">
+        ${txt('master.name', '名前', { max: 20, ph: '空欄ならランダム' })}
+        ${sel('master.sex', '性別', [['', 'ランダム'], ['男', '男'], ['女', '女']])}
+        ${num('master.age', '年齢', { int: true, min: 10, max: 99, ph: 'ランダム' })}
+        ${txt('master.originLabel', '出自の呼び名', { max: 30 })}
+        ${txt('master.wish', '願い', { max: 60 })}
+        ${[['mana', '魔力'], ['craft', '魔術'], ['body', '体'], ['mind', '精神'], ['luck', '運']].map(([k, l]) => sel('master.stats.' + k, l, RANKS.map(r => [r, r || 'ランダム']))).join('')}
+      </div>`)
+      + sec('party', 'Party', '味方', `<p class="hint" style="margin-top:0">味方はシードからランダムに選ばれます（クラスがなるべく重ならないように）。敵・ボス・はぐれに名前を挙げた英霊は味方になりません。</p><div class="grid">
+        ${num('party.size', '味方の数', { int: true, min: 1, max: 6 })}
+        ${num('party.front', '前衛の数', { int: true, min: 1, max: 6 })}
+        ${chips('party.from', '候補（空ならリストの全員）')}
+        ${chips('party.exclude', '味方にしない英霊')}
+      </div>`)
+      + sec('settings', 'Balance', '数値の上書き', `<p class="hint" style="margin-top:0">空欄は既定の値（薄い字）。</p><div class="grid">${SC.SETTINGS.map(d => num('settings.' + d.k, d.label + (d.note ? `（${d.note}）` : ''), { step: d.step, min: d.min, max: d.max, ph: st[d.k] != null ? String(st[d.k]) : '' })).join('')}</div>`)
+      + sec('places', 'Places', '場所', `<p class="hint" style="margin-top:0">一行が探索で巡る場所。空なら特異点攻略と同じ場所を使います。地形は効果の条件（水辺・森・山・夜）に、情景は背景の画像になります。</p>${placesBox('places', '')}`)
+      + `<details class="panel" data-sec="stages"${opened('stages')}><summary class="hd"><i class="chev"></i><span class="en">Stages</span><span class="ja">節と敵（${S.stages.length}節）</span></summary><div class="body"><p class="hint" style="margin-top:0">節を順に越えていきます。節の敵をすべて倒すとその節のボスが現れ、ボスを倒せば次の節へ。最後の節を越えれば人理修復は成功です。</p>
+        ${S.stages.map((s2, i) => stageBox(i, s2)).join('')}<div style="margin-top:12px">${btn('add', 'stages', '節を足す', '', ' data-k="stage"')}</div></div></details>`
+      + sec('stray', 'Stray', 'はぐれサーヴァント', S.stray ? `<div class="grid" data-box="stray">
+        ${sel('stray.pick', '選び方', [['fixed', '英霊を決める'], ['random', '候補からランダム']], { rerender: true })}
+        ${S.stray.pick === 'fixed' ? txt('stray.servant', '英霊（真名）', { list: 'svList' }) : chips('stray.from', '候補（空なら全員）')}
+        ${sel('stray.appear', '現れ方', Object.entries(SC.STRAY_APPEAR), { rerender: true })}
+        ${S.stray.appear === 'day' ? num('stray.day', '現れる日', { int: true, min: 1, max: S.days }) : S.stray.appear === 'random' ? num('stray.after', 'この日より後に現れうる', { int: true, min: 0, max: S.days, ph: '既定 ' + st.strayAfter }) : ''}
+        ${txt('stray.label', '呼び名', { ph: '空欄なら『はぐれの○○』' })}
+        ${lines('stray.intro', '現れたときの文（空欄なら既定の文）', SC.ITEM_VARS.stray)}
+      </div><div style="margin-top:10px">${btn('stray-off', 'stray', 'はぐれサーヴァントをなくす', 'del')}</div>` : `<p class="hint" style="margin-top:0">一行とは別に、共に戦ってくれる英霊が一騎現れることがあります（魔力を使わない、控えめな加勢）。</p>${btn('stray-on', 'stray', 'はぐれサーヴァントを置く')}`)
+      + sec('events', 'Events', `出来事（${S.events.list.length}）`, `${bool('events.defaults', '既定の出来事（霊脈・罠・雑魚・待ち伏せなど）も起こす', { rerender: true })}
+        <p class="hint">日を決めた出来事はその日の朝に、決めない出来事は探索の日に重みにしたがってランダムに起きます。選択肢を足すと、遊ぶ人に問います（三つまで）。</p>
+        ${S.events.list.map((ev, i) => eventCard(i, ev, S.events.list.length)).join('')}<div style="margin-top:12px">${btn('add', 'events.list', '出来事を足す', '', ' data-k="event"')}</div>`)
+      + sec('lines', 'Lines', `文面（差し替え ${nLines}）`, `<p class="hint" style="margin-top:0">あらゆる定型文を差し替えられます。「置き換える」はシナリオの文だけを、「既定に足す」は既定の文と混ぜて使います。{…} は遊ぶときに名前などに置き換わります。敵・ボス・節・出来事ごとの文は、それぞれの欄で書きます。</p>
+        ${groups.map(g => `<details class="lgrp"${SC.LINE_DEFS.some(d => d.group === g && S.lines[d.key]) ? ' open' : ''}><summary>${esc(g)}（${SC.LINE_DEFS.filter(d => d.group === g).length}）</summary>${SC.LINE_DEFS.filter(d => d.group === g).map(lineRow).join('')}</details>`).join('')}`);
+  }
+
+  // ---------- 入力 ----------
+  function readInput(el) {
+    const t = el.dataset.t, p = el.dataset.p;
+    let v;
+    if (t === 'bool') v = el.checked;
+    else if (t === 'num' || t === 'int') { v = el.value.trim() === '' ? null : +el.value; if (v != null && !isFinite(v)) v = null; if (v != null && t === 'int') v = Math.round(v); }
+    else if (t === 'lines') v = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+    else v = el.value;
+    // 数値の上書きは、空欄なら書かない（既定の値を使う）
+    if (p.startsWith('settings.')) { const k = p.slice(9); if (v == null) delete S.settings[k]; else S.settings[k] = v; return; }
+    if (p.startsWith('master.stats.')) { S.master.stats[p.slice(13)] = v; return; }
+    setAt(p, v);
+  }
+  $('#form').addEventListener('input', e => {
+    const el = e.target;
+    if (el.dataset.p && el.dataset.t && el.tagName !== 'SELECT' && el.type !== 'checkbox') { readInput(el); changed(false); }
+    else if (el.dataset.a === 'line-text') { const v = S.lines[el.dataset.key], list = el.value.split('\n').map(x => x.trim()).filter(Boolean); if (Array.isArray(v)) S.lines[el.dataset.key] = list; else S.lines[el.dataset.key] = { add: list }; changed(false); }
+  });
+  $('#form').addEventListener('change', e => {
+    const el = e.target;
+    if (el.dataset.a === 'line-mode') {
+      const k = el.dataset.key, cur = S.lines[k], list = Array.isArray(cur) ? cur : cur && cur.add ? cur.add : [];
+      if (!el.value) delete S.lines[k];
+      else if (el.value === 'replace') S.lines[k] = list.length ? list : SC.defaultLines(k);
+      else S.lines[k] = { add: list };
+      return changed(true);
+    }
+    if (el.dataset.a === 'cls') { const p = el.dataset.p, l = arr(at(p)).filter(x => x !== el.value); if (el.checked) l.push(el.value); setAt(p, l); return changed(false); }
+    if (el.dataset.p && el.dataset.t && (el.tagName === 'SELECT' || el.type === 'checkbox')) {
+      readInput(el);
+      // 敵の key・出来事の id を変えたら、重なりを直す（指していた出来事の条件はそのまま）
+      const structural = el.dataset.r === '1';
+      return changed(structural);
+    }
+    if (el.dataset.p && /\.(key|id)$/.test(el.dataset.p)) { fixKeys(S); changed(true); }
+  });
+  $('#form').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.dataset.chip) { e.preventDefault(); addChip(e.target.dataset.chip); } });
+  function addChip(p) {
+    const inp = document.querySelector(`[data-chip="${CSS.escape(p)}"]`), v = inp ? inp.value.trim() : '';
+    if (!v) return;
+    const l = arr(at(p)); if (!l.includes(v)) l.push(v); setAt(p, l);
+    if (!okRef(v)) toast(`「${v}」はサーヴァントリストにいません`);
+    changed(true);
+    const again = document.querySelector(`[data-chip="${CSS.escape(p)}"]`); if (again) again.focus();
+  }
+  $('#form').addEventListener('click', e => {
+    const b = e.target.closest('[data-a]'); if (!b || b.tagName === 'SELECT' || b.tagName === 'TEXTAREA' || b.type === 'checkbox') return;
+    const a = b.dataset.a, p = b.dataset.p;
+    if (a === 'chip-add') return addChip(p);
+    if (a === 'chip-del') { const l = arr(at(p)); l.splice(+b.dataset.i, 1); return changed(true); }
+    if (a === 'add') {
+      const l = at(p), k = b.dataset.k;
+      l.push(k === 'enemy' ? ENEMY() : k === 'stage' ? STAGE(l.length + 1) : k === 'event' ? EVENT() : k === 'effect' ? EFFECT() : k === 'choice' ? CHOICE() : PLACE());
+      fixKeys(S); return changed(true);
+    }
+    const parent = p.includes('.') ? p.slice(0, p.lastIndexOf('.')) : '', i = +p.slice(p.lastIndexOf('.') + 1), l = parent ? at(parent) : null;
+    if (a === 'del' && Array.isArray(l)) {
+      if (parent === 'stages' && l.length <= 1) return toast('節は一つ以上必要です');
+      if ((parent === 'stages' || /enemies$|events\.list$/.test(parent)) && !confirm('消します。よろしいですか？')) return;
+      l.splice(i, 1); return changed(true);
+    }
+    if ((a === 'up' || a === 'down') && Array.isArray(l)) { const j = a === 'up' ? i - 1 : i + 1; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; return changed(true); }
+    if (a === 'boss-on') { at(p).boss = BOSS(); return changed(true); }
+    if (a === 'boss-off') { if (!confirm('この節のボスをなくします。よろしいですか？')) return; at(p).boss = null; return changed(true); }
+    if (a === 'stray-on') { S.stray = STRAY(); return changed(true); }
+    if (a === 'stray-off') { S.stray = null; return changed(true); }
+  });
+
+  // ---------- 読み込み・保存・試す ----------
+  function readText(text, name) {
+    let j; try { j = JSON.parse(text); } catch (e) { toast('JSON として読めませんでした：' + e.message); return; }
+    if (!j || typeof j !== 'object' || (j.format && j.format !== SC.FORMAT)) { toast('オリジナル特異点のシナリオではありません'); return; }
+    useScenario(j, `「${SC.normalize(j).title}」を読み込みました${name ? '（' + name + '）' : ''}`);
+  }
+  $('#fileIn').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) readText(await f.text(), f.name); };
+  $('#newBtn').onclick = () => { if (S && !confirm('いま編集中のシナリオを消して、新しく作ります。保存していなければ「JSONで保存」を先に。よろしいですか？')) return; useScenario(SC.blank(), '新しいシナリオを作りました'); };
+  $('#sampleBtn').onclick = async () => {
+    if (S && !confirm('いま編集中のシナリオを、サンプルに置き換えます。よろしいですか？')) return;
+    try { const r = await fetch('data/scenarios/sample.json', { cache: 'no-cache' }); if (!r.ok) throw new Error(r.status); readText(await r.text()); } catch (e) { toast('サンプルを読めませんでした：' + e.message); }
+  };
+  const fileName = () => (String(S.title || 'scenario').replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || 'scenario') + '.json';
+  $('#saveBtn').onclick = () => {
+    if (lastChk && lastChk.errors.length && !confirm(`誤りが${lastChk.errors.length}件あります。このままでは遊べませんが、保存しますか？`)) return;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(S, null, 2) + '\n'], { type: 'application/json' }));
+    a.download = fileName(); document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`${fileName()} を保存しました`);
+  };
+  $('#playBtn').onclick = () => {
+    store.set(EDIT_KEY, { at: Date.now(), scn: S });
+    if (lastChk && lastChk.errors.length) toast('誤りがあるので、遊ぶページでは始められません（チェックの結果は向こうでも見られます）');
+    window.open('original.html?edit=1' + (qs.get('data') === 'local' ? '&data=local' : ''), '_blank', 'noopener');
+  };
+
+  // ---------- 全自動で試す ----------
+  $('#simBtn').onclick = () => {
+    if (!dataLoaded) return toast('サーヴァントのデータを読めていません');
+    if (lastChk && lastChk.errors.length) return toast('誤りを直してから試してください');
+    const N = +$('#simN').value, scn = JSON.parse(JSON.stringify(S)), t = { clear: 0, wipe: 0, master: 0, timeout: 0 }, days = [], stg = [], slain = [];
+    let i = 0, err = 0, errMsg = '';
+    $('#simBtn').disabled = true;
+    const tick = () => {
+      const end = Math.min(N, i + 3);
+      for (; i < end; i++) {
+        try { const r = OG.run({ scenario: scn, roster, bosses, seed: 'ed' + i }); t[r.ending]++; days.push(r.days); stg.push(r.stageReached); slain.push(r.slain); }
+        catch (e) { err++; errMsg = e.message; }
+      }
+      $('#simOut').textContent = `${i} / ${N} 回…`;
+      if (i < N) return setTimeout(tick, 0);
+      $('#simBtn').disabled = false;
+      const ok = Math.max(1, N - err), pct = x => Math.round(x / ok * 100) + '%';
+      days.sort((a, b) => a - b);
+      $('#simOut').innerHTML = `${N}回：<b>人理修復 ${pct(t.clear)}</b> ・ 全滅 ${pct(t.wipe)} ・ マスター死亡 ${pct(t.master)} ・ 期限切れ ${pct(t.timeout)}<br>日数の中央値 ${days[days.length >> 1] || 0}日 ・ 平均 ${(stg.reduce((a, b) => a + b, 0) / ok).toFixed(1)} / ${S.stages.length}節まで ・ 倒した敵の平均 ${(slain.reduce((a, b) => a + b, 0) / ok).toFixed(1)}騎${err ? `<br><span class="err">エラー ${err}回：${esc(errMsg)}</span>` : ''}<p class="hint">特異点攻略はおまかせで2割ほどの成功を目安にしています。考えて動けば、もう少し上がります。</p>`;
+    };
+    tick();
+  };
+
+  // ---------- JSON ----------
+  function syncJson() { if (S) $('#jsonTxt').value = JSON.stringify(S, null, 2); }
+  $('#jsonBox').addEventListener('toggle', () => { if ($('#jsonBox').open) syncJson(); });
+  $('#jsonApply').onclick = () => readText($('#jsonTxt').value);
+  $('#jsonCopy').onclick = async () => { try { await navigator.clipboard.writeText($('#jsonTxt').value); toast('コピーしました'); } catch (e) { toast('コピーできませんでした'); } };
+
+  // ---------- 始まり ----------
+  const saved = store.get(EDIT_KEY);
+  S = prep(saved && saved.scn ? saved.scn : SC.blank());
+  render(); check();
+  load();
+})();
+</script>
+</body>
+</html>

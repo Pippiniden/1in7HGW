@@ -397,6 +397,7 @@ FGO風ステータスの表を二重に読んでスキルが増えた、セリ�
 | `js/scenario.js` | オリジナル特異点のシナリオの形式・既定の文面・整合性チェック |
 | `js/original.js` | オリジナル特異点の進行（シナリオから顔ぶれを決め、節ごとに進める） |
 | `original.html` | オリジナル特異点の画面（テスト機能。`singularity.html` をもとにしたが、別のページ） |
+| `scenario.html` | オリジナル特異点のシナリオエディタ（編集中のシナリオは `hgw.orig.edit` に自動で残り、`original.html?edit=1` で試せる） |
 | `data/scenarios/` | オリジナル特異点のシナリオ。`index.json` が画面の「公開しているシナリオ」の一覧（`sample.json` はサンプル兼テスト用） |
 | `data/bosses.json` | 特異点のボス専用の英霊（聖杯戦争には呼ばれない） |
 | `tools/kagemiya.js` | kagemiya のページを名前で取得してリストに入れる（GitHub Actions から使う） |
@@ -503,6 +504,12 @@ FGO風ステータスの表を二重に読んでスキルが増えた、セリ�
 読み込んだシナリオは指紋ごとにブラウザに残り（記録・中断から指されているものは消えない）、共有リンク（`sh=` が指紋）は同じシナリオを持つブラウザでだけ再現できます。
 マスターの設定（`hgw.orig.master`）はシナリオをまたいで使われます。名前・性別・年齢・出自・願いは展開を変えず、能力は変えます（どれもURLと記録に入る）。
 シナリオを公開するときは `data/scenarios/` にファイルを置き、`data/scenarios/index.json` の一覧に足します（`sw.js` の `PRECACHE` にも足すとオフラインで遊べる）。
+
+### エディタ（scenario.html）
+
+シナリオの JSON をそのまま `S` に持ち、入力欄は `data-p`（シナリオの中の場所。`stages.0.enemies.1.servant` など）と `data-t`（値の種類）で読み書きします。節・敵・出来事などを足す・消す・並べ替えるときは全体を描き直します。
+入力のたびに `HGW.scenario.check` を回し（誤りを押すとその欄へ移る）、`hgw.orig.edit` に保存します。「全自動で試す」は `HGW.original.run` を回すだけで、保存はしません。
+新しい項目を足したら、`scenario.js`（`normalize`・`check`）とエディタの欄を両方直してください。
 
 ### テスト
 

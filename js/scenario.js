@@ -265,7 +265,7 @@
   // 指定のしかた：id（'saber:真名'）／真名／'真名#key'。同じ真名が何騎もいれば id で指定する
   function resolve(ref, roster, bosses) {
     ref = str(ref);
-    if (!ref) return { error: '未指定' };
+    if (!ref) return { error: '英霊が決まっていません' };
     const norm = x => (G.rank && G.rank.normalize ? G.rank.normalize(x) : x).replace(/\s+/g, '');
     const all = (roster || []).concat((bosses || []).filter(b => !(roster || []).some(s => s.id === b.id)));
     const byId = all.find(s => s.id === ref);

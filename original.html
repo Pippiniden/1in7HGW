@@ -719,8 +719,9 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     $('#data').innerHTML = `<b>${rosterAll.length}</b> 騎のサーヴァントと <b>${bosses.length}</b> 騎のボス（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）。シナリオの敵やボスは、この中から呼ばれる。${dataLinks(label)}${err}`;
     bindDataLinks();
     // 共有リンク・記録：そのシナリオ（指紋 sh）で観測する。リンクが無ければ、前回のシナリオを選んでおく
-    const m = loadScns(), sh = qs.get('sh');
-    if (sh && m[sh]) setScenario(m[sh].scn, true);
+    const m = loadScns(), sh = qs.get('sh'), ed = qs.get('edit') ? store.get(EDIT_KEY) : null;
+    if (ed && ed.scn) setScenario(ed.scn, true);   // シナリオエディタの「遊ぶページで試す」
+    else if (sh && m[sh]) setScenario(m[sh].scn, true);
     else if (!sh) { const last = store.get(LAST_KEY); if (last && m[last]) setScenario(m[last].scn, true); else renderScn(); }
     else renderScn();
     if (!urlTried && qs.get('seed')) { urlTried = true; $('#seed').value = qs.get('seed'); fromUrl(); }
@@ -786,7 +787,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (published.length) html += '<p class="scnhd">公開しているシナリオ</p><ul class="scnlist">' + published.map((p, i) => item(`data-pub="${i}"`, p.title || p.file, p.note || '', [['load', '選ぶ']], false)).join('') + '</ul>';
     if (edit && edit.scn) html += '<p class="scnhd">シナリオエディタで編集中</p><ul class="scnlist">' + item('data-edit="1"', SC.normalize(edit.scn).title, '保存していない変更も含む', [['load', '試す']], false) + '</ul>';
     const mine = Object.entries(m).sort((a, b) => (b[1].at || 0) - (a[1].at || 0));
-    if (mine.length) html += '<p class="scnhd">このブラウザに残したシナリオ</p><ul class="scnlist">' + mine.map(([h, x]) => { const n = SC.normalize(x.scn); return item(`data-h="${esc(h)}"`, n.title, [n.author && '作：' + n.author, n.days + '日', n.stages.length + '節'].filter(Boolean).join(' ・ '), [['load', '選ぶ'], ['del', '消す']], h === scnHash); }).join('') + '</ul>';
+    if (mine.length) html += '<p class="scnhd">このブラウザに残したシナリオ</p><ul class="scnlist">' + mine.map(([h, x]) => { const n = SC.normalize(x.scn); return item(`data-h="${esc(h)}"`, n.title, [n.author && '作：' + n.author, n.days + '日', n.stages.length + '節', fmtAt(x.at)].filter(Boolean).join(' ・ '), [['load', '選ぶ'], ['del', '消す']], h === scnHash); }).join('') + '</ul>';
     $('#scnList').innerHTML = html || '<p class="hint">まだシナリオがありません。ファイルを読み込むか、シナリオエディタで作ってください。</p>';
     // 選んだシナリオの中身と整合性チェック
     const info = $('#scnInfo');
