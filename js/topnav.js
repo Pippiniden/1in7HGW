@@ -6,10 +6,14 @@
     { href: 'taisen.html', name: '14分の1の聖杯大戦', note: '二色に分かれた十四騎の戦い（テスト中）' },
     { href: 'singularity.html', name: '46億分の1の特異点', note: '六騎を率いて敵とボスに挑む（テスト中）' },
     { href: 'original.html', name: 'オリジナル特異点', note: 'シナリオを読み込んで遊ぶ（テスト中）' },
-    { href: 'scenario.html', name: 'シナリオエディタ', note: 'オリジナル特異点のシナリオを書く', spoil: true, local: true },
     { href: 'zukan.html', name: '英霊図鑑', note: '解説・スキル・宝具を読む', spoil: true, local: true },
     { href: 'ranking.html', name: '強さランキング', note: '真名・強さ・優勝率を見比べる', spoil: true, local: true },
     { href: 'logview.html', name: '戦いのログビューア', note: '書き出したCSVを日ごとに読む', plain: true },
+  ];
+  // 開発者・管理者向けのエディタ類。画面の一番下に折りたたんで置く
+  const DEV = [
+    { href: 'roster.html', name: 'サーヴァントエディタ', note: '英霊データの取り込み・確認・手直し', local: true },
+    { href: 'scenario.html', name: 'シナリオエディタ', note: 'オリジナル特異点のシナリオを書く', spoil: true, local: true },
   ];
   const css = `
 .topnav { max-width: 1100px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); font-family: inherit; }
@@ -32,6 +36,10 @@
 .topnav .tn-cur small { color: var(--sel-ink, #04122c); opacity: .75; }
 .topnav .spoil b::after { content: "ネタバレ注意"; margin-left: 8px; font-size: 10px; font-weight: 400; color: var(--gold, #f2c14e); }
 .topnav .tn-cur.spoil b::after { color: var(--sel-ink, #04122c); }
+.devnav { max-width: 1100px; margin: 28px auto 0; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.devnav > summary { cursor: pointer; font-size: 12px; color: var(--mute, #8fb0d8); letter-spacing: .08em; padding: 8px 0; min-height: 24px; user-select: none; }
+.devnav > summary:focus-visible { outline: 2px solid var(--cyan, #38d6ff); outline-offset: 2px; }
+.devnav .tn-list { margin-top: 4px; }
 .topnav .tn-note { margin: 4px 2px 0; font-size: 11px; color: var(--mute, #8fb0d8); }
 `;
   function build() {
@@ -52,6 +60,17 @@
     st.textContent = css;
     document.head.appendChild(st);
     document.body.insertBefore(d, document.body.firstChild);
+    const v = document.createElement('details');
+    v.className = 'topnav devnav';
+    v.innerHTML = '<summary>開発者向け</summary><nav aria-label="開発者向けのエディタ"><div class="tn-list">'
+      + DEV.map(m => {
+        const inner = `<b>${m.name}</b><small>${m.note}</small>`, cls = m.spoil ? 'spoil' : '';
+        return m.href === here
+          ? `<span class="tn-cur ${cls}" aria-current="page">${inner}</span>`
+          : `<a class="${cls}" href="${m.href}${local && m.local ? '?data=local' : ''}">${inner}</a>`;
+      }).join('')
+      + '</div></nav>';
+    document.body.appendChild(v);
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
 })();
