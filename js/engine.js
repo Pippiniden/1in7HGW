@@ -1526,6 +1526,8 @@
         }
         if (chance(eff(c, 'uncontrolled') * (1 - c.bond / 150) * clamp(1 - FX.mMindControl * md(c, 'mind'), 0.3, 1.5))) { c.wander = true; if (c.you) log('day', `${sn(c)}が言うことを聞かず、昼の街をうろついている。`, [c.id]); continue; }
 
+        yield* soulEat(c);
+
         // 昼の行動
         const P = POLICIES[c.policy] || POLICIES.balanced;
         const w = {
@@ -1562,6 +1564,36 @@
     function learnLoc(x, t) {
       if (t.you && !x.you && x !== t && !x.knowLoc.has(t.id) && x.alive) log('scout', `${nm(x)}に、こちらの拠点「${t.base.name}」を突き止められた。`, [t.id, x.id]);
       x.knowLoc.add(t.id);
+    }
+
+    // ---------- 魂喰い ----------
+    // 悪属性のマスターで、令呪が残り、霊基が乏しい日に、低い確率で市民の魂を喰らわせて霊基と魔力を満たす（属性が混沌に近いほど起きやすい）。
+    //   善・中庸のサーヴァントには令呪を一画使って従わせ、善なら絆が底まで落ちる。高い確率で露見し、自分に討伐令が出る
+    const moralOf = sv => { const t = String((sv.alignment || '').split('・')[1] || '').replace(/[^぀-ヿ一-鿿]/g, ''); return t === '善' ? 'good' : t === '中庸' || t === '中立' ? 'neutral' : 'other'; };
+    function* soulEat(c) {
+      const S = ENG.soulEat, al = c.master.align;
+      if (!S || !c.alive || !c.masterAlive || c.noMaster || c.cs < 1 || c.hp >= S.hp || !al || al[1] !== 'E') return;
+      if (!chance(clamp(S.chance * (S.order[al[0]] || 0), 0, 1))) return;
+      const mood = moralOf(c.sv), seal = mood !== 'other';
+      if (c.you) {
+        const a = yield* ask(c, 'soul', {
+          title: '魂喰い',
+          body: `${sn(c)}の霊基は限界に近い。街の人々の魂を喰らわせれば、霊基も魔力も満ちる。だが露見すれば、討伐令が出るだろう。`,
+          options: [
+            { k: 'eat', label: '魂を喰らわせる', sub: '霊基と魔力が全回復' + (seal ? '。令呪を一画使って従わせる' : '') + (mood === 'good' ? '。絆が底まで落ちる' : '') + '。高い確率で討伐令が出る' },
+            { k: 'refuse', label: '思いとどまる', sub: '何も起こらない' },
+          ],
+        }, () => 'eat');
+        if (a !== 'eat') { log('event', line('soulRefuse', { S: nm(c), M: mn(c) }), [c.id]); return; }
+      }
+      c.hp = 100; c.mana = c.manaMax;
+      log('event', line('soulEat', { S: nm(c), M: mn(c) }), [c.id], { big: true });
+      if (seal) { c.cs--; log('event', line('soulSeal', { S: nm(c), M: mn(c) }), [c.id]); }
+      if (mood === 'good') { c.bond = 0; log('event', line('soulBond', { S: nm(c), M: mn(c) }), [c.id]); }
+      if (!c.bounty && chance(clamp(S.expose, 0, 1))) {
+        c.bounty = true;
+        log('world', line('soulExposed', { name: nm(c) }), [c.id], { big: true });
+      }
     }
 
     function* doAct(c, act, alive) {

@@ -349,6 +349,7 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 | `fallen` | player's servant died | `watch`, `skip`, `stray:<id>`, `steal` |
 | `gameover` | player's Master died | `watch`, `skip` |
 | `intrude` | boss intrusion (§7.12), player is the camp outside the pact | `join`, `solo` |
+| `soul` | soul eating (§7.7), player's evil Master, low HP | `eat`, `refuse` |
 | `gwshift` | Great War decided with 2+ survivors (§7.13): a system choice (`system: true`), not a big decision | `shift`, `end` |
 
 `<id>` is the **camp index** (0–6). Option keys are persisted in the URL for replay — **never rename existing keys; add new ones.** The church **never** reveals true names (owner's design decision): names are learned by deduction, NPs, scouting, battle insight, relations, alliance or conversation.
@@ -356,6 +357,7 @@ Player's Servant dies: with `fallenDeath` the Master dies too (game over); else 
 ### 7.7 Events, narration, voice
 
 - **World events** (`worldEvent`) and **life events** (`lifeEvent`, player camp only; they raise bond) are weighted keys; rates are in `CONFIG.ENGINE`. New event → weighted key + `log()` + (if the player chooses) `ask()`; text in `G.LINES`.
+- **Soul eating** (`soulEat` in `engine.js`, `ENGINE.soulEat`, line keys `soul*`): in the morning, per camp whose Master's alignment moral is evil (`master.align[1] === 'E'`), with ≥ 1 command seal and Servant HP below `hp` %, rolled at `chance` × `order[align[0]]` (chaotic highest). Restores HP and mana fully; a good or neutral Servant (`moralOf`, from the wiki alignment text) costs one seal, a good one also drops `bond` to 0; with `expose` the camp gets `bounty`. The player's camp is asked (`soul`: `eat`/`refuse`; auto = `eat`). Costs `rnd()` only when the conditions hold.
 - **Narration variants**: `G.LINES` in `names.js` (key → templates with `{S} {M} {city} …`). `line(key, vars)` picks one by an FNV hash of `seed:lineN:entries.length` — **not** `rnd()` — so adding or editing variants never changes a war's outcome. Only the vars a call passes are available.
 - **Voice lines**: `sv.voice` is `{ wiki heading: [lines] }`; the game reads it only through **scenes** in `G.VOICE_SLOTS` (`{ key, aliases, use }`) via `G.voiceLines/voiceHeadings/npVoiceLines`. `say(c, [keys])` picks by hash (`vpick`), never `rnd()`, so editing lines never changes the outcome
   (only the *presence* of 会話/聖杯について/好きなこと/嫌いなこと/絆 matters: it enables life events). New use → add/reuse a slot; `test/voice.js` fails on unknown keys.
