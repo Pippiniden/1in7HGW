@@ -1,0 +1,66 @@
+{
+  "format": "hgw-scenario",
+  "version": 1,
+  "title": "霧の円卓 アヴァロン前夜",
+  "author": "サンプル",
+  "description": "オリジナル特異点のサンプル。二つの節を越え、湖に眠る魔神を討つ。",
+  "city": "霧の湖畔",
+  "tag": "霧",
+  "days": 50,
+  "master": { "name": "", "sex": "", "age": null, "originLabel": "人理の守り手", "wish": "人理の修復", "stats": { "mana": "C", "craft": "C", "body": "C", "mind": "B", "luck": "B" } },
+  "party": { "size": 6, "front": 3, "from": [], "exclude": [] },
+  "settings": { "foePower": 1.0, "csEvery": 8 },
+  "places": [
+    { "name": "霧の立ちこめる湖畔", "terrain": "水辺", "scene": "river" },
+    { "name": "苔むした円卓の間", "terrain": null, "scene": "mansion" },
+    { "name": "黒く枯れた森", "terrain": "森", "scene": "forest" },
+    { "name": "崩れた見張りの塔", "terrain": "山", "scene": "rooftop" }
+  ],
+  "stages": [
+    {
+      "name": "霧の森",
+      "days": 30,
+      "intro": ["霧の奥に、いくつもの英霊の気配がある。まずはこの森を抜けねばならない。"],
+      "clear": ["森を覆っていた霧が、わずかに晴れた。湖へ続く道が見える。"],
+      "places": [],
+      "enemies": [
+        { "key": "wood", "pick": "random", "from": [], "classes": [], "count": 3, "meet": "mixed" },
+        { "key": "king", "pick": "fixed", "servant": "ヴォーティマー", "meet": "day", "day": 6, "label": "霧の竜王", "intro": ["霧が裂け、竜の気配をまとった{T}が道を塞いだ。"], "defeat": ["{S}は霧に溶けた。だが、その気配は湖の方へ流れていった。"] }
+      ],
+      "boss": null
+    },
+    {
+      "name": "湖の底",
+      "days": null,
+      "intro": ["湖の水面に、倒したはずの竜王の影が映っている。"],
+      "clear": [],
+      "places": [],
+      "enemies": [
+        { "key": "king2", "pick": "fixed", "servant": "ヴォーティマー", "meet": "raid", "label": "蘇った竜王", "revealed": true, "power": 1.6, "intro": ["「まだ終わらぬ」——{S}が、再び立ちはだかった。"] },
+        { "key": "lake", "pick": "random", "from": [], "classes": ["caster", "assassin"], "count": 2, "meet": "search" }
+      ],
+      "boss": { "pick": "fixed", "servant": "魔神フラウロス", "intro": ["湖の底から、燃える眼が一行を見上げた。{B}——この特異点の主だ。"], "defeat": ["魔神の炎が消え、湖に静けさが戻った。"] }
+    }
+  ],
+  "stray": { "pick": "fixed", "servant": "雑賀孫市", "appear": "event", "label": "霧の射手", "intro": ["霧の向こうから、銃声が一つ。{T}が姿を見せた。"] },
+  "events": {
+    "defaults": true,
+    "list": [
+      {
+        "id": "ferryman", "title": "渡し守", "day": 3,
+        "text": ["湖の渡し守が、一行に舟を出すと申し出た。代わりに、魔力を少し分けてほしいという。"],
+        "choices": [
+          { "label": "魔力を分ける", "sub": "魔力の蓄えが減るが、敵の居場所を教わる", "text": ["渡し守は約束どおり、霧の中の気配を指さした。"], "effects": [{ "type": "mana", "amount": -15 }, { "type": "lead" }] },
+          { "label": "断る", "sub": "何も起きない", "text": ["渡し守は肩をすくめ、霧の中へ消えた。"], "effects": [] }
+        ],
+        "auto": 0
+      },
+      { "id": "shot", "title": "銃声", "from": 8, "stage": 1, "weight": 0.6, "text": ["霧の中で、誰かが敵を撃ち払っている。"], "effects": [{ "type": "stray" }] },
+      { "id": "spring", "title": "湖の加護", "after": "king", "weight": 0.4, "once": false, "text": ["湖の水が、英霊たちの傷を洗い流した。"], "effects": [{ "type": "heal", "amount": 15, "target": "all" }] }
+    ]
+  },
+  "lines": {
+    "sgQuiet": { "add": ["霧は深く、今日は誰の気配もなかった。"] },
+    "ogTitle": ["特異点「{name}」——霧の円卓"]
+  }
+}
