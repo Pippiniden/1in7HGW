@@ -51,7 +51,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
    (`(function (G) { 'use strict'; … })(globalThis.HGW = globalThis.HGW || {});`) so the game runs from `file://` and Node tests `require()` the same files.
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
-   `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`; `original.html` loads up to `data` then `singdata → scenario → original`.
+   `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`; `original.html` and `scenario.html` load up to `data` then `singdata → scenario → original`.
    `sealmark` and `sealdata` are UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
@@ -72,6 +72,7 @@ logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.htm
 singularity.html    Singularity mode (test feature, §7.11)
 taisen.html         Great Holy Grail War (test feature, §7.13): a mirror of index.html with its own storage keys; same scripts as index.html
 original.html       Original singularity (test feature, §7.14): pick/load a scenario, check it, set the Master, play; derived from singularity.html but independent
+scenario.html       Original-singularity scenario editor: path-bound form (`data-p`), live check, auto-save to `hgw.orig.edit`, JSON export, auto-run trial
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/
   manifest.json     Which data files to load
