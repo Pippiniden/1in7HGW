@@ -12,8 +12,8 @@
     { href: 'logview.html', name: '戦いのログビューア', note: '書き出したCSVを日ごとに読む', plain: true },
   ];
   const css = `
-.topnav { max-width: 1100px; margin: 0 auto; padding: 8px 16px 0; font-family: inherit; }
-.topnav > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 14px; font-size: 13px; letter-spacing: .08em;
+.topnav { max-width: 1100px; margin: 0 auto; padding: calc(8px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 0 max(16px, env(safe-area-inset-left, 0px)); font-family: inherit; }
+.topnav > summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 6px 14px; min-height: 40px; box-sizing: border-box; font-size: 13px; letter-spacing: .08em; -webkit-tap-highlight-color: transparent;
   color: var(--ice, #dbeaff); background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); box-shadow: inset 0 0 0 1px var(--line-hi, #3a78c8);
   clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); user-select: none; }
 .topnav > summary::-webkit-details-marker { display: none; }
