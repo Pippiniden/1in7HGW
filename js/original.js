@@ -161,15 +161,12 @@
       FOCUS,
       init(t) {
         const { rnd } = t;
-        // マスター（あなた）：シナリオの既定に、プレイヤーの設定を重ねる。空の欄は乱数で決まる
-        const spec = Object.assign({ origin: 'custom' }, n.master);
-        const pm = opts.master || {};
-        for (const k of ['name', 'sex', 'age', 'originLabel', 'wish']) if (pm[k] != null && pm[k] !== '') spec[k] = pm[k];
-        spec.stats = Object.assign({}, n.master.stats || {}, pm.stats || {});
-        for (const k of ['name', 'sex', 'originLabel', 'wish']) if (!spec[k]) delete spec[k];
-        if (spec.sex && spec.sex !== '男' && spec.sex !== '女') delete spec.sex;
-        if (spec.age == null || spec.age === '' || !isFinite(+spec.age)) delete spec.age; else spec.age = clamp(Math.round(+spec.age), 10, 99);
-        for (const k of Object.keys(spec.stats)) if (spec.stats[k] == null || spec.stats[k] === '') delete spec.stats[k];
+        // マスター（あなた）：シナリオの既定に、プレイヤーの設定を重ねる（masterOf）。空の能力は乱数で決まる。
+        // 名前・性別・年齢は乱数を使わずにエンジンが後から付ける（warGen の playerName など）ので、変えても展開は変わらない
+        const mo = masterOf(n, opts.master);
+        const spec = { origin: 'custom', stats: mo.stats };
+        if (mo.originLabel) spec.originLabel = mo.originLabel;
+        if (mo.wish) spec.wish = mo.wish;
         const m = G.master.createMaster(spec, rnd);
         if (!m.name) {
           const N = G.NAMES, female = /女/.test(m.sex);
@@ -848,7 +845,7 @@
       for (const c of party) A.log('summon', A.line('ogSummon', { S: A.nm(c) }), [c.id], { quote: A.say(c, ['召喚']) });
       A.log('summon', A.line('ogFormation', { front: frontAlive().map(A.sn).join('・'), reserve: reserveAlive().map(A.sn).join('・') || 'なし', days: maxDays }), P.front.slice());
       Object.assign(A.out, { orig: { title: n.title, city: L.city, days: maxDays, stages: n.stages.map(s => s.name) } });
-      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, stage: c.stage != null ? c.stage : null, master: c.party ? { name: P.master.name, sex: P.master.sex, age: P.master.age, origin: P.master.origin, originLabel: P.master.originLabel, persona: P.master.persona, skills: P.master.skills, traits: P.master.traits, catalyst: P.master.catalyst, wish: P.master.wish, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
+      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, stage: c.stage != null ? c.stage : null, key: c.key || null, meet: c.meet || null, master: c.party ? { name: P.master.name, sex: P.master.sex, age: P.master.age, origin: P.master.origin, originLabel: P.master.originLabel, persona: P.master.persona, skills: P.master.skills, traits: P.master.traits, catalyst: P.master.catalyst, wish: P.master.wish, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
       A.day = 1;
       startStage();
 
@@ -932,10 +929,25 @@
         bosses: bosses.filter(Boolean).map(b => Object.assign(sideOf(b), { gauges: b.gauges, gaugeMax: b.gaugeMax, empowered: !!b.empowered })),
         stray: stray ? sideOf(stray) : null, entries: A.entries,
       };
+      result.boss = result.bosses.length ? result.bosses[result.bosses.length - 1] : null;   // 最後に立ちはだかったボス（画面の要約用）
       Object.assign(A.out, result);
       return result;
     }
     return plugin;
+  }
+
+  /**
+   * マスターの設定：シナリオの既定（n.master）に、プレイヤーの設定（pm）を重ねる。空の欄は既定のまま（既定も空なら乱数・ランダム）
+   * 戻り値 { name, sex（'男'|'女'|''）, age（10〜99|0）, originLabel, wish, stats: { mana, … }（空の能力は入れない） }
+   */
+  function masterOf(n, pm) {
+    pm = pm || {};
+    const d = n.master || {}, v = k => (pm[k] != null && pm[k] !== '' ? pm[k] : d[k]);
+    const sex = v('sex'), age = Math.round(+v('age'));
+    const stats = {};
+    for (const k of ['mana', 'craft', 'body', 'mind', 'luck']) { const x = pm.stats && pm.stats[k] != null && pm.stats[k] !== '' ? pm.stats[k] : d.stats && d.stats[k]; if (x != null && x !== '') stats[k] = x; }
+    return { name: String(v('name') || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20), sex: sex === '男' || sex === '女' ? sex : '', age: age >= 10 && age <= 99 ? age : 0,
+      originLabel: String(v('originLabel') || '').trim().slice(0, 30), wish: String(v('wish') || '').trim().slice(0, 60), stats };
   }
 
   /**
@@ -951,8 +963,9 @@
     const lineup = opts.lineup || compose({ scenario: n, roster: opts.roster, bosses: opts.bosses, seed: opts.seed });
     const LN = SC.linesOf(n);
     const plugin = makePlugin(opts, n, lineup, LN);
-    const S = settingsOf(n);
-    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, lines: LN, engine: { knowNameMult: S.knowNameMult, rallyPower: S.rallyPower } });
+    const S = settingsOf(n), mo = masterOf(n, opts.master);
+    return G.engine.warGen({ roster: opts.roster, seed: opts.seed, ask: opts.ask || 'never', out: opts.out, sing: plugin, lines: LN, engine: { knowNameMult: S.knowNameMult, rallyPower: S.rallyPower },
+      playerName: mo.name || undefined, playerSex: mo.sex || undefined, playerAge: mo.age || undefined });
   }
   /** 全自動で最後まで（方針は focus(day) か「おまかせ」、問いはすべておまかせ） */
   function run(opts) {
@@ -962,5 +975,5 @@
     return r.value;
   }
 
-  G.original = { compose, gen, run, settingsOf, FOCUS, FOCUS_BY_CODE, SIDE_JA };
+  G.original = { compose, gen, run, settingsOf, masterOf, FOCUS, FOCUS_BY_CODE, SIDE_JA };
 })(globalThis.HGW = globalThis.HGW || {});

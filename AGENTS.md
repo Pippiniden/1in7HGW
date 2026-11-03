@@ -51,7 +51,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
    (`(function (G) { 'use strict'; … })(globalThis.HGW = globalThis.HGW || {});`) so the game runs from `file://` and Node tests `require()` the same files.
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
-   `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`.
+   `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`; `original.html` and `scenario.html` load up to `data` then `singdata → scenario → original`.
    `sealmark` and `sealdata` are UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
@@ -71,6 +71,8 @@ roster.html         Admin tool: import, review, edit, export   submit.html    Pl
 logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)
 taisen.html         Great Holy Grail War (test feature, §7.13): a mirror of index.html with its own storage keys; same scripts as index.html
+original.html       Original singularity (test feature, §7.14): pick/load a scenario, check it, set the Master, play; derived from singularity.html but independent
+scenario.html       Original-singularity scenario editor: path-bound form (`data-p`), live check, auto-save to `hgw.orig.edit`, JSON export, auto-run trial
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
 data/
   manifest.json     Which data files to load
@@ -399,6 +401,7 @@ A user-written scenario (`{ format: 'hgw-scenario', version: 1, … }`, see `doc
 - **Lines.** `warGen({ lines })` is looked up before `G.LINES` in `line()`; `tx(key, def, vars)` replaces a few hard-coded engine strings (death heads, guts, master down) only when the key is present, so without `lines` the logs are byte-identical (verify by hashing logs against `origin/main`). Per-item lines use `@e:<key>:intro|defeat`, `@b:<stage>:…`, `@st:<stage>:intro|clear`, `@s:intro`, `@ev:<id>[:<choice>]`. `og*` defaults are registered in `G.LINES` by `scenario.js`.
 - **Check first.** `HGW.scenario.check(scn, { roster, bosses })` → `{ errors, warnings, n }`; `original.gen` throws on errors. Servant refs are id, `trueName` or `trueName#key`; ambiguous names are errors.
 - **Determinism.** `compose` uses its own stream (`seed+':顔ぶれ'`); a run is fixed by (data, scenario, seed, master settings, front, ticks, answers). The player's Master settings are part of the record.
+- **Page** (`original.html`): keys `hgw.orig.scenarios` (`{ hash: { at, scn } }`, kept while history/save refer to them), `hgw.orig.last`, `hgw.orig.master` (player Master settings shared by all scenarios), `hgw.orig.save.v1`, `hgw.orig.history.v1`, `hgw.orig.settings`; `hgw.orig.edit` is the editor's working copy. URL `?sh=<scenario hash>&seed=&fr=&f=&c=&k=&dy=&n=&sx=&ag=&ol=<origin label>&wi=<wish>&ms=<stats mana.craft.body.mind.luck>`; a link replays only where that scenario is stored. Export `hgw-orig-records` carries the scenarios. Published scenarios are listed in `data/scenarios/index.json`.
 - Test: `node test/original.js [N] [seed]`.
 
 ### 7.11 Singularity mode (test feature: `singularity.js`, `singularity.html`)

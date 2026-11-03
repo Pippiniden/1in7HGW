@@ -1,0 +1,1994 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>オリジナル特異点（テスト）</title>
+<meta name="description" content="誰かが書いたシナリオを読み込み、その特異点の敵とボスを倒して人理を修復する。7分の1の聖杯戦争のテスト機能。">
+<meta name="theme-color" content="#050d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と文字は index.html と同じ */
+:root {
+  --void: #050d22; --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85); --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4;
+  --gold: #ffd84a; --seal: #ff4f72; --hp: #4fd2ff; --mana: #4ef0c0; --bond: #ff8fc8; --foe: #ff9a6b; --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif; --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --cut: 10px; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ice); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere;
+  background: repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #3a1a5c 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%), var(--void);
+  background-attachment: fixed; }
+a { color: var(--cyan); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.en { font-family: var(--en); letter-spacing: .14em; text-transform: uppercase; }
+[hidden] { display: none !important; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); box-shadow: inset 0 0 28px rgba(62, 230, 255, .06), 0 6px 24px rgba(0, 0, 0, .35); min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.dlg-in.panel::before, .dlg-in.panel::after { position: sticky; z-index: 1; }
+.dlg-in.panel::before { top: 0; left: 0; margin-bottom: -14px; }
+.dlg-in.panel::after { bottom: 0; right: 0; margin: -14px 0 0 auto; }
+.hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; }
+.chev { flex: none; width: 22px; height: 16px; background: var(--gold); clip-path: polygon(0 0, 30% 0, 62% 50%, 30% 100%, 0 100%, 32% 50%, 38% 0, 68% 0, 100% 50%, 68% 100%, 38% 100%, 70% 50%); }
+.hd .en { font-size: 18px; font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(62, 230, 255, .55); line-height: 1; white-space: nowrap; }
+.hd .ja { margin-left: auto; font-size: 12px; background: linear-gradient(90deg, rgba(62, 230, 255, .02), rgba(62, 230, 255, .18)); padding: 3px 12px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.body { padding: 0 16px 14px; }
+.btn { position: relative; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; white-space: nowrap;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn[aria-pressed="true"], .btn.primary { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.btn.seal { box-shadow: inset 0 0 0 1px var(--seal); }
+.btn:disabled { opacity: .45; cursor: default; }
+.bar { height: 7px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; transition: width .4s; }
+.seals { display: inline-flex; gap: 3px; vertical-align: -1px; }
+.seals i { width: 5px; height: 14px; background: var(--seal); transform: skewX(-20deg); box-shadow: 0 0 6px rgba(255, 79, 114, .7); }
+.seals i.used { background: rgba(255, 255, 255, .12); box-shadow: none; }
+.hint { font-size: 12px; color: var(--mute); margin: 6px 0 0; }
+select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); padding: 6px 8px; max-width: 100%; min-height: 34px; }
+.rowsel { display: grid; gap: 4px; }
+.rowsel label, .rowsel button { position: relative; display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: center; gap: 0 10px; text-align: left; cursor: pointer;
+  padding: 7px 14px 7px 10px; min-height: 40px; background: linear-gradient(90deg, rgba(20, 70, 150, .55), rgba(10, 36, 86, .55)); border: 0; box-shadow: inset 0 0 0 1px var(--line); font-size: 14px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); }
+.rowsel .ico { width: 16px; height: 16px; display: grid; place-items: center; border: 1px solid var(--line-hi); transform: rotate(45deg); }
+.rowsel .ico::after { content: ""; width: 6px; height: 6px; background: var(--cyan); }
+.rowsel button:hover, .rowsel label:hover { box-shadow: inset 0 0 0 1px var(--cyan); }
+.rowsel [aria-pressed="true"], .rowsel label:has(input:checked) { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; box-shadow: 0 0 16px rgba(62, 230, 255, .45); }
+.rowsel [aria-pressed="true"] .ico, .rowsel label:has(input:checked) .ico { border-color: var(--sel-ink); }
+.rowsel [aria-pressed="true"] .ico::after, .rowsel label:has(input:checked) .ico::after { background: var(--sel-ink); }
+.rowsel label:has(input:checked)::before { content: ""; position: absolute; left: -2px; top: 50%; width: 8px; height: 8px; margin-top: -4px; background: var(--gold); transform: rotate(45deg); }
+.rowsel label:has(input:focus-visible) { outline: 2px solid var(--gold); outline-offset: 2px; }
+.rowsel input { position: absolute; opacity: 0; pointer-events: none; }
+.choices4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 560px) { .choices4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- 開始前 ---------- */
+/* 聖杯戦争（index.html）の開戦前の画面とそろえる */
+.intro { max-width: 720px; margin: 0 auto; padding: calc(8vh + var(--safe-t)) 16px 64px; }
+.title { position: relative; padding: 0 0 18px; margin-bottom: 18px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; text-shadow: 0 0 10px rgba(62, 230, 255, .6); }
+.title h1 { font: 700 clamp(44px, 12vw, 76px)/1.1 var(--gothic); margin: 6px 0 0; letter-spacing: .1em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
+.title h1 small { font-size: .3em; letter-spacing: .3em; color: var(--mute); margin-left: 10px; font-weight: 500; }
+.lead { font: 500 16px/2 var(--mincho); margin: 0 0 22px; color: var(--ice); }
+.intro > .panel + .panel { margin-top: 18px; }
+.form { padding: 4px 0 16px; }
+.form .body { display: grid; gap: 16px; }
+.field > .lbl { display: block; font-size: 12px; color: var(--mute); margin-bottom: 6px; }
+.field input[type=text] { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 10px 12px; font: 16px var(--gothic); width: 100%; max-width: 280px; }
+.choices2 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.go { justify-self: start; font: 700 18px var(--gothic); letter-spacing: .2em; padding: 12px 40px; min-height: 52px; --cut: 14px; }
+.data { font-size: 13px; color: var(--mute); margin: 0; }
+.data b { color: var(--cyan); font: 700 18px var(--en); }
+.over { margin: -6px 0 0; font-size: 12px; color: var(--mute); }
+.field .hint { margin: 6px 0 0; }
+.daysel { display: flex; align-items: center; gap: 14px; max-width: 420px; }
+.daysel input[type=range] { flex: 1; min-width: 0; accent-color: var(--cyan); height: 28px; }
+.daysel output { font: 700 20px var(--en); color: var(--cyan); min-width: 3.6em; text-align: right; }
+.install { margin-top: 18px; }
+.install .btn { min-height: 40px; padding: 8px 16px; }
+.install .note { font-size: 12px; color: var(--mute); margin: 0; }
+.resume .rinfo { margin: 0 0 12px; font: 500 15px/1.8 var(--mincho); }
+.resume .rinfo small { display: block; font: 12px var(--gothic); color: var(--mute); }
+.intro .acts .btn { min-height: 40px; padding: 8px 16px; display: inline-flex; align-items: center; }
+.records input[type=file] { display: none; }
+.records .note, .recempty { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+.recempty { margin: 0 0 12px; }
+.reclist { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 6px; }
+.reclist li { padding: 10px 12px; background: linear-gradient(90deg, rgba(20, 70, 150, .45), rgba(10, 36, 86, .35)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+.reclist li.won { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px var(--line); }
+.reclist li.kept { box-shadow: inset 0 0 0 1px rgba(255, 216, 74, .55); }
+.reclist li.won.kept { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px rgba(255, 216, 74, .55); }
+.reclist .rt { font: 700 15px/1.5 var(--gothic); }
+.reclist .rm { font-size: 12px; color: var(--mute); }
+.reclist .ra { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.reclist .ra .btn { min-height: 34px; font-size: 12px; }
+.reclist .ra .del { margin-left: auto; }
+.reclist .ra .btn[data-act="keep"][aria-pressed="true"] { background: linear-gradient(90deg, var(--gold), #fff3c4); box-shadow: 0 0 10px rgba(255, 216, 74, .4); }
+.reclist .keepmark { display: inline-block; margin-left: 8px; padding: 0 8px; font: 500 11px/1.7 var(--gothic); color: var(--sel-ink); background: var(--gold); vertical-align: 2px; }
+.err { color: var(--seal); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.sname { text-align: center; padding: 6px 0 12px; }
+.sname small { display: block; font: 600 12px var(--en); color: var(--mute); letter-spacing: .3em; }
+.sname b { display: block; font: 700 clamp(26px, 7vw, 40px)/1.3 var(--mincho); letter-spacing: .12em; color: #fff; text-shadow: 0 0 18px rgba(255, 216, 74, .4); }
+.sname span { font-size: 13px; color: var(--mute); }
+.cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 620px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.card { position: relative; text-align: left; padding: 8px 10px 9px; background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; min-width: 0; }
+.card .cls { font-size: 11px; color: var(--mute); }
+.card .nm { font: 700 15px/1.35 var(--gothic); display: block; }
+.card .st { font: 600 12px/1.4 var(--en); color: var(--mute); letter-spacing: .04em; }
+.card .tag { position: absolute; top: 6px; right: 8px; font: 700 11px var(--gothic); color: var(--mute); }
+.card[aria-pressed="true"] { box-shadow: inset 0 0 0 2px var(--cyan), 0 0 14px rgba(62, 230, 255, .35); background: linear-gradient(180deg, rgba(62, 230, 255, .16), var(--inset)); }
+.card[aria-pressed="true"] .tag { color: var(--cyan); }
+.foeline { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.foeline span { font-size: 12px; padding: 2px 8px; box-shadow: inset 0 0 0 1px rgba(255, 154, 107, .5); color: var(--foe); }
+details.pick { font-size: 13px; color: var(--mute); }
+details.pick summary { cursor: pointer; padding: 6px 0; }
+.pickgrid { display: grid; gap: 6px; margin: 8px 0; }
+.pickgrid .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 6px; }
+.pickgrid label { display: grid; grid-template-columns: 4.5em minmax(0, 1fr); gap: 8px; align-items: center; }
+.foot { margin-top: 28px; font-size: 12px; color: var(--mute); line-height: 1.9; }
+
+/* ---------- 観戦 ---------- */
+.war { display: none; }
+body.watching .intro { display: none; }
+body.watching .war { display: block; }
+.hud { position: sticky; top: 0; z-index: 10; background: linear-gradient(180deg, rgba(5, 13, 34, .97), rgba(8, 22, 56, .94)); border-bottom: 1px solid var(--line-hi); }
+.hud-in { max-width: 1360px; margin: 0 auto; padding: calc(8px + var(--safe-t)) 16px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 14px; align-items: center; }
+.hud .nm { font: 700 17px/1.3 var(--mincho); letter-spacing: .06em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hud .dayx { font: 700 15px var(--en); color: var(--cyan); letter-spacing: .08em; }
+.prog { height: 4px; background: var(--inset); margin-top: 4px; } .prog i { display: block; height: 100%; background: var(--gold); }
+.ctl { display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end; }
+.ctl .btn { padding: 4px 9px; min-height: 30px; font-size: 12px; }
+.layout { max-width: 1360px; margin: 0 auto; padding: 14px 16px calc(24px + var(--safe-b)); display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 14px; align-items: start; }
+.col { display: grid; gap: 14px; min-width: 0; }
+.full { grid-column: 1 / -1; } .full:empty { display: none; }
+@media (max-width: 820px) { .layout { grid-template-columns: minmax(0, 1fr); } .hud-in { grid-template-columns: minmax(0, 1fr); } .ctl { justify-content: flex-start; } }
+.mstat { display: grid; grid-template-columns: 5.6em minmax(0, 1fr) 3.2em; gap: 4px 8px; align-items: center; font-size: 12px; color: var(--mute); }
+.mstat b { font: 700 12px var(--en); color: var(--ice); text-align: right; }
+.mrow { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--mute); margin-top: 8px; }
+.mrow b { color: var(--ice); }
+.unit { display: grid; grid-template-columns: minmax(0, 1fr) 3em; gap: 2px 8px; align-items: center; padding: 6px 8px; border-top: 1px solid rgba(80, 196, 255, .14); }
+.unit:first-child { border-top: 0; }
+.unit .u-nm { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.unit .u-nm small { font-weight: 400; font-size: 11px; color: var(--mute); margin-right: 5px; }
+.unit .u-hp { font: 700 12px var(--en); text-align: right; }
+.unit .bar { grid-column: 1 / -1; }
+.unit.front { background: linear-gradient(90deg, rgba(62, 230, 255, .10), transparent 70%); }
+.unit.front .u-nm::before { content: "前衛 "; font-size: 10px; color: var(--cyan); font-weight: 700; }
+.unit.dead { opacity: .4; } .unit.dead .u-nm { text-decoration: line-through; }
+.unit.foe .bar i { background: var(--foe); }
+.unit.unseen .u-nm { color: var(--mute); font-weight: 400; }
+.gauges { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: 1px; } .gauges i { width: 10px; height: 6px; background: var(--seal); } .gauges i.off { background: rgba(255, 255, 255, .15); }
+.focus .rowsel { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.focus .rowsel button { font-size: 13px; padding: 7px 14px 7px 8px; gap: 0 7px; white-space: nowrap; }
+.order .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+.order .row select { flex: 1 1 10em; min-width: 0; }
+.order .row .btn { flex: 1 1 auto; }
+.queue { font-size: 12px; color: #ff9db1; margin-top: 6px; }
+.logp .body { padding: 0; }
+/* 記録欄の大きさは固定（件数や「すべての記録を見る」の開閉で伸び縮みさせない） */
+.log { list-style: none; margin: 0; padding: 0 10px 8px; height: min(62vh, 640px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(62, 230, 255, .45) transparent; }
+.log li { position: relative; display: grid; grid-template-columns: 3.6em minmax(0, 1fr); gap: 10px; padding: 9px 8px; border-top: 1px solid rgba(80, 196, 255, .12); }
+.log .when { font: 700 13px/1.2 var(--en); color: var(--cyan); padding-top: 3px; }
+.log .when span { display: block; font: 11px var(--gothic); color: var(--mute); }
+.log .txt { font: 500 15px/1.8 var(--mincho); }
+.log .q { display: block; font-size: 14px; color: var(--cyan-2); opacity: .85; margin-top: 3px; padding-left: 10px; border-left: 2px solid rgba(62, 230, 255, .4); }
+.log .q::before { content: "「"; } .log .q::after { content: "」"; }
+.log .is-you::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--cyan); }
+.log .k-death .txt { color: var(--seal); font-weight: 700; }
+.log .k-death::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: var(--seal); }
+.log .k-np .txt { font-weight: 700; color: #fff3c4; text-shadow: 0 0 12px rgba(255, 216, 74, .45); }
+.log .k-cs .txt { color: #ff9db1; }
+.log .k-end .txt { color: var(--gold); font-weight: 700; }
+.log .k-scout .txt { color: var(--cyan-2); }
+.log .k-choice .txt, .log .k-council .txt { font-family: var(--gothic); font-size: 14px; color: var(--gold); }
+.log .k-choice .txt::before { content: "▶ "; }
+.log .k-dayhead { display: block; padding: 6px 8px 2px; border-top: 1px solid var(--line-hi); }
+.log .k-dayhead .txt { font: 700 13px var(--en); color: var(--gold); letter-spacing: .1em; }
+.log .new { animation: rise .45s ease-out; }
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: center; justify-content: center; padding: 16px; background: rgba(2, 6, 16, .78); }
+.dlg.on { display: flex; }
+/* いったん下ろす：記録を見返せるように、問いを画面の下に小さくたたむ（index.html と同じ） */
+.dlg.min { background: transparent; pointer-events: none; align-items: flex-end; }
+.dlg.min .dlg-in { pointer-events: auto; width: min(440px, 100%); margin-bottom: var(--safe-b); }
+.dlg.min .dlg-in > :not(.hd) { display: none; }
+.dlg .hd .btn { flex: none; padding: 4px 10px; min-height: 28px; font-size: 12px; }
+.dlg-in { width: min(600px, 100%); max-height: calc(100dvh - 32px); overflow: auto; }
+.dlg h4 { font: 700 21px/1.35 var(--gothic); margin: 2px 16px 4px; }
+.dlg .lead2 { margin: 0 16px 12px; font-size: 14px; color: var(--mute); }
+.dlg .rowsel { padding: 0 16px; gap: 6px; }
+.dlg .rowsel button { grid-template-columns: 28px minmax(0, 1fr); min-height: 52px; }
+.dlg .rowsel .n { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--en); box-shadow: inset 0 0 0 2px var(--line-hi); grid-row: span 2; }
+.dlg .rowsel small { grid-column: 2; font-size: 12px; opacity: .85; }
+.dlg .rowsel button:hover, .dlg .rowsel button:focus-visible { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); outline: none; }
+.dlg-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px 16px; }
+.result .big { font: 700 clamp(26px, 6vw, 36px)/1.3 var(--mincho); text-align: center; margin: 4px 0 2px; }
+.result .big.ok { color: var(--gold); text-shadow: 0 0 18px rgba(255, 216, 74, .45); } .result .big.ng { color: var(--seal); }
+.result .sub { text-align: center; color: var(--mute); font-size: 13px; margin-bottom: 12px; }
+.result table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.result td, .result th { padding: 4px 6px; border-top: 1px solid rgba(80, 196, 255, .14); text-align: left; vertical-align: top; }
+.result th { color: var(--mute); font-weight: 500; white-space: nowrap; }
+.result tr.tap { cursor: pointer; } .result tr.tap:hover, .result tr.tap:focus-visible { background: rgba(62, 230, 255, .08); outline: none; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + var(--safe-b)); transform: translateX(-50%); z-index: 30; background: rgba(8, 30, 74, .96); box-shadow: inset 0 0 0 1px var(--line-hi); padding: 8px 16px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .3s; max-width: calc(100vw - 32px); }
+.toast.on { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .log .new { animation: none; } .bar i, .prog i { transition: none; } }
+/* ---------- 追加（聖杯戦争側 index.html と同じ機能） ---------- */
+body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
+.ci { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; display: inline-block; }
+.face { object-fit: cover; border: 1px solid rgba(240, 201, 120, .6); background: #061533; }
+.fic .face { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; border-radius: 3px; }
+.fic.has .ci { display: none; }
+.field input[type=text].wide { max-width: 420px; }
+.field .rowsel + input[type=text] { margin-top: 8px; }
+.cast { margin-top: 10px; }
+.cast > summary { cursor: pointer; color: var(--mute); display: inline-block; }
+.cast > summary:hover, .cast > summary:focus-visible { color: var(--cyan); }
+.cast-in { margin-top: 8px; padding: 10px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); text-align: left; }
+.cast-in p { margin: 0 0 6px; }
+.cast-sum { color: var(--ice); }
+.cast-sum.warn { color: var(--seal); }
+.cast-acts { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 12px; }
+.cast .btn { min-height: 30px; padding: 2px 12px; font-size: 12px; --cut: 7px; }
+.cast-cls { margin: 0 0 12px; }
+.cast-hd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-bottom: 4px; margin-bottom: 4px; border-bottom: 1px solid var(--line); }
+.cast-hd b { color: var(--ice); }
+.cast-hd .n { color: var(--mute); font: 12px var(--en); margin-right: auto; }
+.cast-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0 10px; }
+.cast-sv { display: flex; align-items: center; gap: 6px; min-height: 30px; cursor: pointer; font-size: 13px; color: var(--ice); }
+.cast-sv input { accent-color: var(--cyan); width: 16px; height: 16px; flex: none; margin: 0; }
+.cast-sv.off { color: var(--mute); text-decoration: line-through; }
+.card .gr { display: inline-block; min-width: 1.4em; text-align: center; margin-right: 6px; font: 700 12px var(--en); color: var(--sel-ink); background: var(--mute); }
+.gr.g-S { background: var(--gold); } .gr.g-A { background: var(--cyan); } .gr.g-B { background: #7ec8ff; }
+.file { cursor: pointer; color: var(--cyan); text-decoration: underline; }
+.scene { padding: 0; overflow: hidden; }
+.view { position: relative; aspect-ratio: 3 / 1; background: #081530; overflow: hidden; }
+.view svg, .view img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.view img { opacity: 0; transition: opacity .6s; } .view img.on { opacity: 1; }
+.view .scan { position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .14) 0 1px, transparent 1px 3px), linear-gradient(180deg, rgba(5, 13, 34, .15), transparent 30%, transparent 62%, rgba(5, 13, 34, .85)); }
+.view .rain { position: absolute; inset: -20% 0 0; pointer-events: none; opacity: 0; background: repeating-linear-gradient(105deg, transparent 0 9px, rgba(180, 225, 255, .28) 9px 10px); animation: rain .5s linear infinite; }
+.view.rainy .rain { opacity: 1; }
+@keyframes rain { from { transform: translateY(-12%); } to { transform: translateY(0); } }
+.view .fx { position: absolute; inset: 0; pointer-events: none; opacity: 0; } .view .fx.flash { animation: flash 1.1s ease-out; }
+@keyframes flash { 0% { opacity: .5; } 100% { opacity: 0; } }
+.view .cap { position: absolute; left: 0; right: 0; bottom: 0; display: flex; min-width: 0; align-items: center; gap: 10px; padding: 8px 14px; font-size: 14px; }
+.view .cap .en { flex: none; font-size: 12px; font-weight: 700; color: var(--cyan); }
+.view .cap .tag { margin-left: auto; font: 700 13px var(--en); letter-spacing: .14em; flex: none; color: var(--sel-ink); background: var(--cyan); padding: 1px 10px; }
+.view .cap .tag.day { background: var(--gold); }
+.view .cap .capt { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 0 16px 8px; }
+.logbar .btn { min-height: 30px; padding: 3px 12px; font-size: 12px; --cut: 7px; } .logbar .csv { margin-left: auto; }
+#log[data-f="hl"] li:not(.hl):not(.k-dayhead), #log[data-f="battle"] li:not(.fb):not(.k-dayhead) { display: none; }
+.log li.hl .txt { text-shadow: 0 0 10px rgba(255, 216, 74, .25); }
+.unit[data-id] { cursor: pointer; } .unit[data-id]:hover { background: rgba(62, 230, 255, .08); }
+#mName.clk { cursor: pointer; text-decoration: underline dotted; }
+.det .kv { display: grid; grid-template-columns: 5em minmax(0, 1fr); gap: 4px 10px; margin: 0 16px 12px; font-size: 13px; } .det .kv dt { color: var(--mute); } .det .kv dd { margin: 0; }
+.det .txt { margin: 0 16px 12px; font: 500 14px/1.9 var(--mincho); white-space: pre-wrap; }
+.det h4 .ci { width: 28px; height: 28px; }
+.result .rsec { margin-top: 16px; } .result .rsec > summary { cursor: pointer; } .result .rsec h5 { display: inline; margin: 0; font: 700 14px var(--gothic); color: var(--cyan); }
+.result .rsec ol { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; max-height: 46vh; overflow: auto; }
+.result .rsec li { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 10px; padding: 5px 0; border-bottom: 1px solid rgba(80, 196, 255, .12); font: 500 14px/1.75 var(--mincho); }
+.result .rsec li b { font: 700 13px var(--en); color: var(--cyan); }
+.result .rsec li.k-death span { color: var(--seal); } .result .rsec li.k-end span { color: var(--gold); }
+.lastword { margin: 10px 0 4px; padding: 8px 14px; border-left: 3px solid var(--cyan); background: linear-gradient(90deg, rgba(62, 230, 255, .10), transparent 80%); }
+.lastword .who { font-size: 12px; color: var(--mute); } .lastword p { margin: 2px 0 0; font: 500 16px/1.9 var(--mincho); color: var(--cyan-2); }
+.totop { position: fixed; right: 14px; bottom: calc(14px + var(--safe-b)); z-index: 15; }
+/* ---------- 追加（聖杯戦争側 index.html と同じ機能：名前・開戦の案内・解説・画像・⋯メニュー・方針をたたむ） ---------- */
+.namerow { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.namerow input[type=text] { flex: 1 1 200px; min-width: 0; }
+.namerow .btn { min-height: 34px; font-size: 12px; --cut: 7px; white-space: normal; max-width: 100%; text-align: left; line-height: 1.5; }
+.ctl .more { display: none; }
+.menu { display: none; position: absolute; right: 16px; top: 100%; z-index: 12; min-width: 200px; padding: 8px; }
+.menu.on { display: grid; gap: 4px; }
+.menu .rowsel button { min-height: 38px; }
+@media (max-width: 820px) { .ctl .wide { display: none; } .ctl .more { display: inline-block; margin-left: auto; } .menu { right: 8px; } }
+.focus .hd { cursor: default; }
+.focus .fnow { display: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; color: var(--mute); }
+.focus .fnow b { color: var(--cyan-2); font-weight: 700; margin-left: 4px; }
+.focus .ftog { flex: none; min-height: 28px; padding: 3px 12px; font-size: 12px; --cut: 7px; margin-left: auto; }
+.focus.collapsed .body, .focus.collapsed .ja { display: none; }
+.focus.collapsed .fnow { display: block; margin-left: 0; }
+.focus.collapsed .hd { cursor: pointer; padding-bottom: 12px; }
+.dlg .hd .step { margin-left: auto; font: 600 13px var(--en); letter-spacing: .14em; color: var(--mute); white-space: nowrap; }
+.dlg-foot .keys { margin-right: auto; font-size: 12px; color: var(--mute); }
+.dlg-foot .keys i { font-style: normal; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line-hi); font: 700 11px var(--en); margin-right: 3px; }
+.opening .dlg-in { width: min(640px, 100%); }
+.opbody { padding: 0 16px; font-size: 14px; }
+.opbody .say { font: 500 15px/1.95 var(--mincho); margin: 0 0 12px; }
+.opkv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; font-size: 13px; margin: 0 0 10px; }
+.opkv dt { color: var(--mute); white-space: nowrap; } .opkv dd { margin: 0; }
+.opstats { display: grid; gap: 6px; margin: 0 0 12px; }
+.opstats div { display: grid; grid-template-columns: 4.4em 2.6em minmax(0, 1fr); gap: 10px; align-items: center; font-size: 13px; }
+.opstats b { font: 700 17px var(--en); color: var(--cyan); text-shadow: 0 0 6px rgba(62, 230, 255, .5); }
+.opening .note2, .lore .note2 { font-size: 12px; color: var(--mute); margin: 10px 0 0; }
+.opbody .txt2 { font: 500 14px/1.95 var(--mincho); white-space: pre-wrap; margin: 0 0 10px; }
+.namefield { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 0 0 14px; padding: 10px 12px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); min-width: 0; }
+.namefield .lbl { font-size: 12px; color: var(--mute); }
+.namefield input { flex: 1 1 200px; min-width: 0; background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 12px; font: 500 18px var(--gothic); }
+.namefield input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
+.namefield select { background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 8px 10px; font: 500 16px var(--gothic); }
+.namefield input[type=number] { flex: 0 0 7em; }
+.namefield .hint2 { font-size: 12px; color: var(--mute); margin: 0; }
+.ptlist { display: grid; gap: 6px; margin: 0 0 6px; }
+.pt { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 2px 12px; align-items: center; padding: 8px 10px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.pt.front { box-shadow: inset 0 0 0 1px var(--cyan); background: linear-gradient(90deg, rgba(62, 230, 255, .12), var(--inset) 70%); }
+.pt .g { grid-row: span 2; width: 48px; height: 48px; display: grid; place-items: center; font: 700 28px/1 var(--en); color: var(--sel-ink); background: linear-gradient(135deg, var(--cyan), var(--cyan-2));
+  clip-path: polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px); }
+.g.S { background: linear-gradient(135deg, var(--gold), #fff3c4) !important; } .g.C { background: linear-gradient(135deg, #9fb7d8, #dfe9f7) !important; }
+.g.D { background: linear-gradient(135deg, #b9a6d9, #e9e0f8) !important; } .g.E { background: linear-gradient(135deg, var(--seal), #ff9db1) !important; }
+.pt b { font-size: 15px; } .pt .tg { font: 700 11px var(--gothic); color: var(--mute); } .pt.front .tg { color: var(--cyan); }
+.pt small { grid-column: 2 / 4; font-size: 12px; color: var(--mute); }
+.pt .btn { min-height: 28px; padding: 2px 10px; font-size: 12px; --cut: 6px; grid-column: 3; grid-row: 1; }
+.opening .rowsel { padding: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.opening .rowsel button { min-height: 58px; }
+.verdicts { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 12px; color: var(--mute); }
+.lore details summary { cursor: pointer; color: var(--cyan); font-size: 13px; margin-bottom: 6px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 16px 2px; } .links a { text-decoration: none; }
+.det .txt2 { margin: 0 16px 12px; font: 500 14px/1.95 var(--mincho); white-space: pre-wrap; }
+.det details { margin: 0 16px 10px; } .det details .txt2 { margin: 0 0 8px; }
+.det details summary { cursor: pointer; color: var(--cyan); font-size: 13px; margin-bottom: 6px; }
+.det .face.xl { float: right; width: 112px; height: 112px; margin: 0 16px 8px 12px; border-radius: 6px; }
+.imgdlg { background: rgba(2, 6, 16, .86); }
+.imgdlg .dlg-in { width: min(760px, 100%); }
+.imgdlg .dlg-foot #imgBack { margin-right: auto; }
+.imgpick { display: grid; gap: 8px; }
+.imgpick .lead4 { margin: 0 0 4px; font-size: 13px; color: var(--mute); }
+.imgopt { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 4px 14px; align-items: center; text-align: left; cursor: pointer; padding: 8px; border: 0; color: var(--ice);
+  background: linear-gradient(90deg, rgba(20, 70, 150, .55), rgba(10, 36, 86, .45)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); }
+.imgopt:hover, .imgopt:focus-visible { box-shadow: inset 0 0 0 1px var(--cyan); outline: none; }
+.imgopt img { grid-row: span 2; width: 112px; height: 84px; object-fit: cover; object-position: top; display: block; box-shadow: inset 0 0 0 1px var(--line); background: var(--void); }
+.imgopt b { font-size: 15px; align-self: end; } .imgopt small { font-size: 12px; color: var(--mute); align-self: start; }
+.imgwrap { background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); padding: 8px; max-height: 62vh; overflow: auto; }
+.imgwrap img { display: block; width: 100%; height: auto; }
+@media (max-width: 820px) {
+  .dlg { padding: 8px; align-items: flex-end; } .dlg-in { max-height: calc(100dvh - 16px); }
+  .dlg-foot { padding-bottom: calc(14px + var(--safe-b)); } .dlg-foot .keys { display: none; }
+  .opening .rowsel { grid-template-columns: minmax(0, 1fr); } .opstats div { grid-template-columns: 4em 2.4em minmax(0, 1fr); }
+  .det .face.xl { width: 84px; height: 84px; }
+}
+/* ---------- スマホ（820px 以下）：上に常に見える状況の帯、記録を上に、細かい欄は折りたたむ ---------- */
+.strip, .ctl .sp1, .logmore, .sheet { display: none; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 18; padding: 0 0 var(--safe-b); }
+.sheet.on { display: block; }
+.sheet .rowsel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 820px) {
+  .hud-in { padding: calc(6px + var(--safe-t)) 12px 4px; gap: 4px; }
+  .hud .nm { font-size: 15px; }
+  #hudInfo { display: none; }
+  .ctl { flex-wrap: nowrap; gap: 4px; }
+  .ctl .btn { min-height: 40px; padding: 4px 10px; --cut: 7px; flex: 0 0 auto; }
+  .ctl [data-sp] { display: none; }
+  .ctl .sp1 { display: inline-block; min-width: 3.4em; }
+  .ctl #pause { flex: 1 1 auto; font-weight: 700; }
+  .strip { display: flex; align-items: center; gap: 6px 10px; flex-wrap: wrap; padding: 2px 12px 8px; }
+  .strip .sg { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--mute); }
+  .strip .sg .bar { width: 38px; height: 6px; }
+  .strip .chip small { font-size: 10px; color: var(--mute); margin-right: 4px; }
+  .strip { flex-wrap: nowrap; gap: 8px; } .strip #stripBars { display: flex !important; align-items: center; gap: 8px; min-width: 0; }
+  .strip .seals i { height: 12px; }
+  .strip .pips { display: inline-flex; gap: 3px; }
+  .strip .pip { position: relative; width: 9px; height: 22px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); display: block; }
+  .strip .pip b { position: absolute; left: 0; right: 0; bottom: 0; background: var(--hp); }
+  .strip .pip.low b { background: var(--seal); }
+  .strip .pip.f { box-shadow: inset 0 0 0 1px var(--cyan); }
+  .strip .pip.x { opacity: .4; } .strip .pip.x b { display: none; }
+  .strip .sf { font-size: 12px; color: var(--foe); white-space: nowrap; }
+  .strip .chip { margin-left: auto; min-height: 30px; padding: 2px 10px; font-size: 12px; --cut: 7px; }
+  /* 並べ替え：情景 → 記録 → 方針 → 味方 → 敵 → マスター → 令呪（詳しい欄は折りたたんで、必要なときだけ開く） */
+  .layout { display: flex; flex-direction: column; align-items: stretch; gap: 10px; padding: 10px 10px calc(24px + var(--safe-b)); }
+  .col { display: contents; }
+  #result { order: 0; }
+  .m-scene { order: 1; } .m-log { order: 2; } .m-focus { order: 3; } .m-party { order: 4; } .m-foes { order: 5; } .m-master { order: 6; } .m-order { order: 7; }
+  .view { aspect-ratio: 5 / 2; }
+  .focus.panel { display: none; }
+  .foldable .hd { cursor: pointer; }
+  .foldable .hd::after { content: "▾"; margin-left: 6px; color: var(--mute); font-size: 12px; }
+  .foldable.folded .hd::after { content: "▸"; }
+  .foldable.folded .body { display: none; }
+  .foldable .hd .ja { margin-left: auto; }
+  #log:not(.open) li:nth-child(n+9) { display: none; }
+  .logmore { display: block; width: calc(100% - 20px); margin: 4px 10px 10px; }
+  .log { padding: 0 4px 6px; height: 52vh; }
+  .logbar { padding: 0 10px 8px; }
+  .toast { bottom: calc(70px + var(--safe-b)); }
+}
+
+/* オリジナル特異点：シナリオの選択・整合性チェック・マスターの設定 */
+.scnlist { list-style: none; margin: 0 0 10px; padding: 0; display: grid; gap: 6px; }
+.scnlist li { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.scnlist li.on { box-shadow: inset 3px 0 0 var(--cyan), inset 0 0 0 1px var(--line-hi); }
+.scnlist .t { flex: 1; min-width: 0; font: 700 14px/1.5 var(--gothic); overflow-wrap: anywhere; }
+.scnlist .t small { display: block; font: 400 12px var(--gothic); color: var(--mute); }
+.scnlist .btn { min-height: 32px; font-size: 12px; flex: none; }
+.scnhd { font-size: 12px; color: var(--mute); margin: 10px 0 6px; }
+.scninfo { margin-top: 10px; padding: 10px 12px; background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); }
+.scninfo h3 { margin: 0 0 4px; font: 700 20px/1.4 var(--mincho); color: #fff; }
+.scninfo p { margin: 4px 0; font-size: 13px; line-height: 1.7; }
+.chk { margin: 8px 0 0; padding-left: 1.3em; font-size: 13px; line-height: 1.6; }
+.chk li.e { color: var(--seal); } .chk li.w { color: var(--gold); }
+.chk-ok { color: var(--mana); font-size: 13px; margin: 8px 0 0; }
+.mgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px 12px; }
+.mgrid label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--mute); min-width: 0; }
+.mgrid input, .mgrid select { width: 100%; background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 8px 10px; font: 15px var(--gothic); min-height: 36px; }
+.mgrid .wide2 { grid-column: 1 / -1; }
+</style>
+</head>
+<body>
+<script src="js/topnav.js"></script>
+
+<section class="intro" aria-labelledby="title">
+  <div class="title">
+    <span class="en">Original Singularity ／ Test</span>
+    <h1 id="title">オリジナル特異点<small>テスト版</small></h1>
+  </div>
+  <p class="lead">誰かが書き記した特異点の記録——シナリオを読み込み、その地へレイシフトする。節ごとに待ち受ける敵とボス、決まった日に起こる出来事、語られる言葉は、すべてシナリオの書き手が決めたもの。あなたにできるのは、前衛を選び、日々の方針を決め、令呪を切ることだけだ。</p>
+  <section class="panel resume" id="resumeBox" aria-label="中断中の特異点" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Continue</span><span class="ja">中断中の特異点</span></div>
+    <div class="body"><p class="rinfo" id="resumeInfo"></p>
+      <div class="acts"><button class="btn primary" id="resumeBtn" type="button">続きから</button><button class="btn" id="resumeDrop" type="button">破棄する</button></div>
+    </div>
+  </section>
+  <section class="panel form" aria-label="シナリオ">
+    <div class="hd"><i class="chev"></i><span class="en">Scenario</span><span class="ja">シナリオ</span></div>
+    <div class="body">
+      <div class="data" id="data">サーヴァントのデータを読み込んでいます…</div>
+      <div id="scnList"></div>
+      <div class="acts"><label class="btn" for="scnFile">シナリオのファイルを読み込む</label><input type="file" id="scnFile" accept=".json,application/json" hidden><a class="btn" href="scenario.html">シナリオエディタで作る</a></div>
+      <p class="hint">シナリオは JSON のファイルです。読み込んだシナリオはこのブラウザに残り、記録の見返しにも使われます。人に渡すときは、ファイルをそのまま渡してください。</p>
+      <div class="scninfo" id="scnInfo" hidden></div>
+    </div>
+  </section>
+  <section class="panel form" aria-label="あなた（マスター）">
+    <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja">あなた（マスター）</span></div>
+    <div class="body">
+      <div class="mgrid">
+        <label class="wide2">名前（20字まで）<span class="namerow"><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>空欄に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></span></label>
+        <label>性別<select id="mfSex"><option value="">既定</option><option value="男">男</option><option value="女">女</option></select></label>
+        <label>年齢<input type="number" id="mfAge" min="10" max="99" step="1" inputmode="numeric" placeholder="シナリオの既定"></label>
+        <label>出自の呼び名<input type="text" id="mfOrigin" maxlength="30" autocomplete="off"></label>
+        <label>願い<input type="text" id="mfWish" maxlength="60" autocomplete="off"></label>
+        <span id="mfStats" style="display:contents"></span>
+      </div>
+      <div class="acts"><button class="btn" id="mfReset" type="button">すべてシナリオの既定に戻す</button></div>
+      <p class="hint">ここで決めたマスターは、どのシナリオを読み込んでも使われます（このブラウザに残ります）。空欄はシナリオの既定、既定も空ならランダム。名前・性別・年齢・出自・願いは展開を変えませんが、能力を変えると展開が変わります。</p>
+    </div>
+  </section>
+  <section class="panel form" aria-label="観測の準備">
+    <div class="hd"><i class="chev"></i><span class="en">Observation</span><span class="ja">観測の準備</span></div>
+    <div class="body">
+      <div class="field"><span class="lbl">進む速さ</span>
+        <div class="rowsel choices4" role="radiogroup">
+          <label><input type="radio" name="speed" value="1"><span class="ico"></span>ゆっくり</label>
+          <label><input type="radio" name="speed" value="2" checked><span class="ico"></span>ふつう</label>
+          <label><input type="radio" name="speed" value="4"><span class="ico"></span>はやい</label>
+          <label><input type="radio" name="speed" value="8"><span class="ico"></span>とても速い</label>
+        </div>
+        <p class="hint">観測中も上の 1×〜16× で変えられる。</p>
+      </div>
+      <div class="field"><span class="lbl">一言を残す</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="words" value="1" checked><span class="ico"></span>結末に出す</label>
+          <label><input type="radio" name="words" value="0"><span class="ico"></span>出さない</label>
+        </div>
+        <input type="text" id="pword" class="wide" maxlength="60" autocomplete="off" placeholder="結末に残す、あなたの一言（空欄でよい）" aria-label="結末に残す、あなたの一言">
+        <p class="hint">残した言葉は結末に並ぶ。リンクには入らず、このブラウザにだけ残る。</p>
+      </div>
+      <label class="field"><span class="lbl">シード（同じシナリオ・同じシード・同じデータ・同じマスター・同じ選択なら、同じ特異点になる。空欄なら毎回ちがう顔ぶれ）</span><input type="text" id="seed" autocomplete="off" spellcheck="false" placeholder="空欄でよい"></label>
+      <button class="btn primary go" id="observe" type="button" disabled>特異点を観測する</button>
+      <p class="over" id="overNote" hidden>新しくレイシフトすると、中断中の特異点は上書きされます。</p>
+    </div>
+  </section>
+  <section class="panel" id="formation" aria-label="編成" hidden>
+    <div class="hd"><i class="chev"></i><span class="en">Formation</span><span class="ja">編成</span></div>
+    <div class="body">
+      <div class="sname"><small>SINGULARITY</small><b id="sName"></b><span id="sRegion"></span></div>
+      <p class="hint" style="margin:0 0 8px" id="frontHint">前衛に立てる英霊を選ぶ（押して切り替え）。前衛が倒れると、控えが順に前に出る。味方はシナリオの決まりにしたがって、シードからランダムに選ばれる。</p>
+      <div class="cards" id="partyCards"></div>
+      <p class="hint" id="frontNote"></p>
+      <div class="foeline" id="foeLine" aria-label="この特異点の節"></div>
+      <div class="acts"><button class="btn primary" id="go">レイシフトする</button><button class="btn" id="reroll">別の特異点を観測する</button></div>
+    </div>
+  </section>
+  <section class="panel records" aria-label="これまでの特異点">
+    <div class="hd"><i class="chev"></i><span class="en">Records</span><span class="ja">これまでの特異点</span></div>
+    <div class="body">
+      <ol class="reclist" id="recList"></ol>
+      <p class="recempty" id="recEmpty">まだ記録はありません。終わった特異点は、新しいものから<span id="recMax">10</span>件までここに残ります。</p>
+      <div class="acts">
+        <button class="btn" id="recExport" type="button">記録を書き出す</button>
+        <label class="btn" for="recImport">記録を読み込む</label><input type="file" id="recImport" accept=".json,application/json">
+      </div>
+      <p class="note">終わった特異点は新しいものから<span id="recMax2">10</span>件まで残ります。「保護する」を押した記録はこの数に含まれず、外すか消すまで残ります（<span id="keepMax">30</span>件まで）。記録にはシード・方針・決断だけを保存し、開くとその場で再現します。記録と中断中の特異点は、このブラウザにだけ保存されます。別の端末へ移すときは、書き出したファイルを移した先で読み込んでください。</p>
+    </div>
+  </section>
+  <div class="install" id="installBox" hidden>
+    <button class="btn" id="installBtn" type="button" hidden>アプリとして追加する</button>
+    <p class="note" id="installIos" hidden>iPhone・iPad では、Safari の共有ボタン（□に↑）から「ホーム画面に追加」を選ぶと、アプリのように開けます。</p>
+  </div>
+  <p class="foot">オリジナル特異点はテスト中の機能です。シナリオは<a href="scenario.html">シナリオエディタ</a>で誰でも書けます。登場するサーヴァントは、kagemiya@ふたば などの設定をもとにした二次創作で、データは聖杯戦争と共有しています（各英霊の解説の「設定元リンク」から元の設定を読めます）。データの追加と確認は<a href="roster.html">サーヴァントエディタ</a>から。</p>
+</section>
+
+<section class="war">
+  <header class="hud">
+    <div class="hud-in">
+      <div style="min-width:0">
+        <div class="nm" id="hudName"></div>
+        <div><span class="dayx" id="hudDay">DAY 0</span> <span class="hint" id="hudInfo" style="margin-left:8px"></span></div>
+        <div class="prog"><i id="hudProg" style="width:0"></i></div>
+      </div>
+      <div class="ctl">
+        <button class="btn" id="pause">❚❚ 一時停止</button>
+        <button class="btn" data-sp="1">1×</button><button class="btn" data-sp="2">2×</button><button class="btn" data-sp="4">4×</button><button class="btn" data-sp="8">8×</button><button class="btn" data-sp="16">16×</button><button class="btn sp1" id="spCycle" type="button" aria-label="進む速さを切り替える">2×</button>
+        <button class="btn" id="skip" title="次の決断（なければ最後）まで進める">▸▸ 先へ</button>
+        <button class="btn wide" id="autoBtn" aria-pressed="false">決断をおまかせ</button>
+        <button class="btn wide" id="csvBtn" title="ここまでの記録をCSVで保存">CSV</button><button class="btn wide" id="quitBtn">やめる</button>
+        <button class="btn more" id="moreBtn" aria-expanded="false" aria-controls="menu" aria-label="そのほかの操作">⋯</button>
+      </div>
+    </div>
+    <div class="strip" id="strip" aria-label="いまの状況">
+      <div id="stripBars" style="display:contents"></div>
+      <button class="btn chip" id="focusChip" type="button" aria-label="方針を選ぶ"><small>方針</small><b id="focusChipLabel">おまかせ</b> ▾</button>
+    </div>
+    <div class="menu panel" id="menu" role="menu">
+      <div class="rowsel">
+        <button id="stopBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>退場・令呪で自動的に止める</button>
+        <button id="autoBtn2" role="menuitemcheckbox" aria-checked="false" aria-pressed="false"><span class="ico"></span>決断をおまかせ</button>
+        <button id="csvBtn2" role="menuitem"><span class="ico"></span>記録をCSVで保存</button>
+        <button id="quitBtn2" role="menuitem"><span class="ico"></span>やめて最初の画面へ</button>
+      </div>
+    </div>
+  </header>
+  <div class="layout">
+    <div id="result" class="full"></div>
+    <div class="col">
+      <section class="panel foldable m-master" data-fold="master" aria-label="マスター">
+        <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja clk" id="mName" role="button" tabindex="0" title="マスターの詳細"></span></div>
+        <div class="body">
+          <div class="mstat"><span>体力</span><div class="bar"><i id="mHp" style="background:var(--hp)"></i></div><b id="mHpT"></b>
+            <span>魔力の蓄え</span><div class="bar"><i id="mMana" style="background:var(--mana)"></i></div><b id="mManaT"></b></div>
+          <div class="mrow"><span>令呪 <span class="seals" id="mSeals"></span></span><span>道具 <b id="mItems">0</b></span><span>陣地 <b id="mCamp">0</b></span><span>討伐 <b id="mSlain">0</b></span></div>
+          <div class="mrow"><span>いま <b id="mPlace"></b></span></div>
+        </div>
+      </section>
+      <section class="panel foldable m-party" data-fold="party" aria-label="味方">
+        <div class="hd"><i class="chev"></i><span class="en">Party</span><span class="ja">率いる英霊</span></div>
+        <div class="body" id="partyList" style="padding:0 8px 10px"></div>
+      </section>
+      <section class="panel focus m-focus" id="focusPanel" aria-label="方針">
+        <div class="hd" id="focusHead"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span><span class="fnow">方針<b id="focusNow">おまかせ</b></span><button class="btn ftog" id="focusToggle" type="button" aria-expanded="true" aria-controls="focusBody">たたむ ▴</button></div>
+        <div class="body" id="focusBody"><div class="rowsel" id="focusSeg" role="radiogroup"></div><p class="hint" id="focusDesc"></p></div>
+      </section>
+      <section class="panel order foldable m-order" data-fold="orders" aria-label="令呪と推理">
+        <div class="hd"><i class="chev"></i><span class="en">Orders</span><span class="ja">令呪・真名の推測</span></div>
+        <div class="body">
+          <p class="hint" id="orderHint" style="margin-top:0">一時停止中に選べる。選んだものは次の朝に働く。</p>
+          <div class="row"><select id="healT" aria-label="癒やす英霊"></select><button class="btn seal" id="healBtn">令呪一画で霊基を癒やす</button></div>
+          <div class="row"><button class="btn seal" id="manaBtn">令呪一画で魔力を満たす</button></div>
+          <div class="row"><select id="guessT" aria-label="推測する敵"></select><select id="guessSv" aria-label="真名の候補"></select><button class="btn" id="guessBtn">この真名だと推測する</button></div>
+          <p class="hint">真名の推測は、一度でも出会った敵に、1日に一度まで。当たれば、その敵との戦いで有利になる。</p>
+          <div class="queue" id="queue"></div>
+        </div>
+      </section>
+    </div>
+    <div class="col">
+      <section class="panel scene m-scene" aria-label="情景">
+        <div class="view" id="view"><svg id="sceneSvg" viewBox="0 0 300 100" preserveAspectRatio="xMidYMax slice" aria-hidden="true"></svg><img id="sceneImg" alt=""><div class="rain"></div><div class="scan"></div><div class="fx" id="fx"></div>
+          <div class="cap"><span class="en">Location</span><span id="sceneCap" class="capt"></span><span class="tag" id="sceneTag">NIGHT</span></div></div>
+      </section>
+      <section class="panel foldable m-foes" data-fold="foes" aria-label="敵">
+        <div class="hd"><i class="chev"></i><span class="en">Enemies</span><span class="ja" id="foeHead">特異点の敵</span></div>
+        <div class="body" id="foeList" style="padding:0 8px 10px"></div>
+      </section>
+      <section class="panel logp m-log" aria-label="記録">
+        <div class="hd"><i class="chev"></i><span class="en">Chronicle</span><span class="ja">攻略の記録</span></div>
+        <div class="body"><div class="logbar" role="group" aria-label="記録の絞り込み"><button class="btn" data-lf="all" aria-pressed="true">すべて</button><button class="btn" data-lf="hl" aria-pressed="false">★山場</button><button class="btn" data-lf="battle" aria-pressed="false">戦い・退場</button></div><ol class="log" id="log" data-f="all"></ol><button class="btn logmore" id="logMore" type="button" aria-expanded="false" aria-controls="log">すべての記録を見る</button></div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en">Decision</span><button class="btn" id="dlgMin" type="button">いったん下ろす ▾</button><span class="ja" id="dlgWhen"></span></div>
+    <h4 id="dlgTitle"></h4>
+    <p class="lead2" id="dlgBody"></p>
+    <div class="rowsel" id="dlgOpts"></div>
+    <div class="dlg-foot"><button class="btn" id="dlgAuto">これからはおまかせ</button></div>
+  </section>
+</div>
+<div class="sheet" id="focusSheet" role="dialog" aria-label="方針を選ぶ">
+  <section class="panel">
+    <div class="hd"><i class="chev"></i><span class="en">Focus</span><span class="ja">方針（次の朝から）</span></div>
+    <div class="body"><div class="rowsel" id="focusSeg2" role="radiogroup"></div><p class="hint" id="focusDesc2"></p></div>
+  </section>
+</div>
+<div class="dlg opening" id="opening" role="dialog" aria-modal="true" aria-labelledby="opTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en" id="opEn">Master</span><span class="step" id="opStep">1 / 3</span></div>
+    <h4 id="opTitle"></h4>
+    <div class="opbody" id="opBody"></div>
+    <div class="dlg-foot"><span class="keys" id="opKeys">Enter で次へ</span><button class="btn" id="opBack" type="button">戻る</button><button class="btn primary" id="opNext" type="button">次へ</button></div>
+  </section>
+</div>
+<div class="dlg opening imgdlg" id="imgDlg" role="dialog" aria-modal="true" aria-labelledby="imgTitle">
+  <section class="dlg-in panel">
+    <div class="hd"><i class="chev"></i><span class="en">Image</span><span class="step" id="imgSub"></span></div>
+    <h4 id="imgTitle">画像</h4>
+    <div class="opbody">
+      <div id="imgPick"></div>
+      <div id="imgView" hidden><div class="imgwrap"><img id="imgPrev" alt=""></div>
+        <p class="note2">画像を長押し（パソコンは右クリック）しても保存できます。</p></div>
+    </div>
+    <div class="dlg-foot"><button class="btn" id="imgBack" type="button" hidden>← 選び直す</button><button class="btn" id="imgClose" type="button">閉じる</button><button class="btn" id="imgShare" type="button" hidden>共有する</button><button class="btn primary" id="imgSave" type="button" hidden>保存する</button></div>
+  </section>
+</div>
+<div class="dlg" id="det" role="dialog" aria-modal="true" aria-labelledby="detTitle">
+  <section class="dlg-in panel det">
+    <div class="hd"><i class="chev"></i><span class="en">Detail</span><span class="ja" id="detSub"></span></div>
+    <h4 id="detTitle"></h4>
+    <div id="detBody"></div>
+    <div class="dlg-foot"><button class="btn" id="detClose" type="button">閉じる</button></div>
+  </section>
+</div>
+<button class="btn totop" id="toTopBtn" type="button" hidden aria-label="いちばん上へ">▲ 上へ</button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script src="js/names.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/data.js"></script>
+<script src="js/singdata.js"></script>
+<script src="js/scenario.js"></script>
+<script src="js/original.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, OG = H.original, SC = H.scenario, CFG0 = H.CONFIG.SING;
+  let CFG = Object.assign({}, CFG0);   // 読み込んだシナリオの数値（味方の数・前衛の数・令呪の上限など。OG.settingsOf）
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const qs = new URLSearchParams(location.search);
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const FOCUS = OG.FOCUS, BY_CODE = OG.FOCUS_BY_CODE;
+  const pad2 = n => String(n).padStart(2, '0');
+  const store = {
+    get(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } },
+    set(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); return true; } catch (e) { return false; } },
+  };
+
+  // ---------- データ ----------
+  // rosterAll … 読み込んだ全員（ボス専用を除く）。ボス専用は bosses に入る
+  let rosterAll = [], roster = [], bosses = [], source = '', dataLoaded = false;
+  async function withBosses(res) {
+    // リストツールのリスト・選んだファイルにボスが無ければ、公開中のボスを借りる
+    if (!(res.bosses && res.bosses.length)) { res.bosses = []; try { res.bosses = (await H.data.loadPublished('data/')).bosses || []; } catch (e) { /* ボスなしでも動く */ } }
+    return res;
+  }
+  async function load() {
+    try {
+      if (qs.get('data') === 'local' && H.data.hasLocal()) return dataReady(await withBosses(H.data.loadLocal()), 'local');
+      dataReady(await H.data.loadPublished('data/'), 'pub');
+    } catch (e) {
+      askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : 'データを読めませんでした（' + e.message + '）。');
+    }
+  }
+  function dataLinks(label) {
+    const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
+    const pub = label === 'local' ? ' ・ <a href="#" id="usePub">公開データに戻す</a>' : '';
+    return local + pub;
+  }
+  function bindDataLinks() {
+    const ul = $('#useLocal'); if (ul) ul.onclick = async e => { e.preventDefault(); dataReady(await withBosses(H.data.loadLocal()), 'local'); };
+    const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
+  }
+  function dataReady(res, label) {
+    source = label;
+    rosterAll = res.servants.filter(s => !s.bossOnly); roster = rosterAll;
+    const b = H.build.prepareBosses(res.bosses || []);
+    bosses = b.bosses;
+    // サーヴァントエディタにいるボス専用の英霊も、ボスとして使う（同じ真名なら、リストの方を使う）
+    const inList = new Map(res.servants.filter(s => s.bossOnly && s.score).map(s => [s.trueName, s]));
+    bosses = bosses.map(x => inList.has(x.trueName) ? H.build.bossFromRoster(inList.get(x.trueName)) : x);
+    const have = new Set(bosses.map(x => x.trueName));
+    for (const [tn, s] of inList) if (!have.has(tn)) bosses.push(H.build.bossFromRoster(s));
+    const errs = (res.errors || []).concat(b.errors);
+    dataLoaded = true;
+    const err = errs.length ? `<div class="err">読めなかったもの：${esc(errs.join('、'))}</div>` : '';
+    $('#data').innerHTML = `<b>${rosterAll.length}</b> 騎のサーヴァントと <b>${bosses.length}</b> 騎のボス（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）。シナリオの敵やボスは、この中から呼ばれる。${dataLinks(label)}${err}`;
+    bindDataLinks();
+    // 共有リンク・記録：そのシナリオ（指紋 sh）で観測する。リンクが無ければ、前回のシナリオを選んでおく
+    const m = loadScns(), sh = qs.get('sh'), ed = qs.get('edit') ? store.get(EDIT_KEY) : null;
+    if (ed && ed.scn) setScenario(ed.scn, true);   // シナリオエディタの「遊ぶページで試す」
+    else if (sh && m[sh]) setScenario(m[sh].scn, true);
+    else if (!sh) { const last = store.get(LAST_KEY); if (last && m[last]) setScenario(m[last].scn, true); else renderScn(); }
+    else renderScn();
+    if (!urlTried && qs.get('seed')) { urlTried = true; $('#seed').value = qs.get('seed'); fromUrl(); }
+    renderIntroRecords();
+  }
+  let urlTried = false;
+  function askFiles(msg) {
+    $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
+      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
+    $('#pick').onchange = async e => dataReady(await withBosses(await H.data.loadFiles(e.target.files)), 'files');
+    bindDataLinks();
+  }
+
+  // ---------- シナリオ ----------
+  // 読み込んだシナリオは、指紋（HGW.scenario.hashOf）ごとにこのブラウザに残す（続きから・記録の見返しに使う）。
+  // エディタ（scenario.html）で編集中のシナリオは EDIT_KEY に入っていて、ここから試せる
+  const SCN_KEY = 'hgw.orig.scenarios', LAST_KEY = 'hgw.orig.last', EDIT_KEY = 'hgw.orig.edit', SCN_MAX = 20;
+  const loadScns = () => { const m = store.get(SCN_KEY); return m && typeof m === 'object' && !Array.isArray(m) ? m : {}; };
+  let scn = null, scnHash = '', scnN = null, scnChk = null, published = [];
+  // 記録・中断から指されているシナリオは残し、それ以外は新しいものから SCN_MAX 件まで
+  function trimScns() {
+    const m = loadScns(), used = new Set(), sv = store.get(SAVE_KEY);
+    for (const r of loadHist().concat(sv ? [sv] : [])) if (r.sh) used.add(r.sh);
+    if (scnHash) used.add(scnHash);
+    const free = Object.keys(m).filter(h => !used.has(h)).sort((a, b) => (m[b].at || 0) - (m[a].at || 0));
+    for (const h of free.slice(SCN_MAX)) delete m[h];
+    store.set(SCN_KEY, m);
+  }
+  function keepScn(s) {
+    const h = SC.hashOf(s), m = loadScns();
+    m[h] = { at: Date.now(), scn: s };
+    if (!store.set(SCN_KEY, m)) toast('シナリオをこのブラウザに残せませんでした（容量が足りないかもしれません）');
+    return h;
+  }
+  function setScenario(s, quiet) {
+    scn = s; scnHash = s ? keepScn(s) : ''; scnChk = null; scnN = null;
+    if (s && dataLoaded) { scnChk = SC.check(s, { roster: rosterAll, bosses }); if (!scnChk.errors.length) scnN = scnChk.n; }
+    if (s) store.set(LAST_KEY, scnHash);
+    CFG = scnN ? OG.settingsOf(scnN) : Object.assign({}, CFG0);
+    trimScns(); formationStale(quiet); renderScn(); renderMaster();
+    // 共有リンクのシナリオがまだ無かったときは、読み込んだ時点で観測し直す
+    if (s && pendingUrl && scnHash === qs.get('sh') && scnN) { pendingUrl = false; fromUrl(); }
+  }
+  let pendingUrl = false;
+  function readScnText(text, from) {
+    let j;
+    try { j = JSON.parse(text); } catch (e) { toast('JSON として読めませんでした：' + e.message); return; }
+    if (!j || j.format !== SC.FORMAT) { toast('オリジナル特異点のシナリオではありません'); return; }
+    setScenario(j);
+    toast(`シナリオ「${SC.normalize(j).title}」を読み込みました${scnChk && scnChk.errors.length ? '（誤りがあります）' : ''}`);
+    if (from !== 'url') $('#scnInfo').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'nearest' });
+  }
+  $('#scnFile').onchange = async e => { const f = e.target.files[0]; e.target.value = ''; if (f) readScnText(await f.text()); };
+  // 公開しているシナリオの一覧（data/scenarios/index.json）
+  (async () => {
+    try { const r = await fetch('data/scenarios/index.json', { cache: 'no-cache' }); if (r.ok) { const j = await r.json(); published = Array.isArray(j.scenarios) ? j.scenarios.filter(x => x && x.file) : []; } } catch (e) { /* 一覧が無くても、ファイルから読める */ }
+    renderScn();
+  })();
+  function renderScn() {
+    const m = loadScns(), edit = store.get(EDIT_KEY);
+    const item = (attrs, title, sub, btns, on) => `<li class="${on ? 'on' : ''}"><span class="t">${esc(title)}${sub ? `<small>${esc(sub)}</small>` : ''}</span>${btns.map(b => `<button class="btn" type="button" ${attrs} data-act="${b[0]}">${esc(b[1])}</button>`).join('')}</li>`;
+    let html = '';
+    if (published.length) html += '<p class="scnhd">公開しているシナリオ</p><ul class="scnlist">' + published.map((p, i) => item(`data-pub="${i}"`, p.title || p.file, p.note || '', [['load', '選ぶ']], false)).join('') + '</ul>';
+    if (edit && edit.scn) html += '<p class="scnhd">シナリオエディタで編集中</p><ul class="scnlist">' + item('data-edit="1"', SC.normalize(edit.scn).title, '保存していない変更も含む', [['load', '試す']], false) + '</ul>';
+    const mine = Object.entries(m).sort((a, b) => (b[1].at || 0) - (a[1].at || 0));
+    if (mine.length) html += '<p class="scnhd">このブラウザに残したシナリオ</p><ul class="scnlist">' + mine.map(([h, x]) => { const n = SC.normalize(x.scn); return item(`data-h="${esc(h)}"`, n.title, [n.author && '作：' + n.author, n.days + '日', n.stages.length + '節', fmtAt(x.at)].filter(Boolean).join(' ・ '), [['load', '選ぶ'], ['del', '消す']], h === scnHash); }).join('') + '</ul>';
+    $('#scnList').innerHTML = html || '<p class="hint">まだシナリオがありません。ファイルを読み込むか、シナリオエディタで作ってください。</p>';
+    // 選んだシナリオの中身と整合性チェック
+    const info = $('#scnInfo');
+    if (!scn) { info.hidden = true; $('#observe').disabled = true; return; }
+    const n = SC.normalize(scn);
+    info.hidden = false;
+    const chk = scnChk;
+    const list = chk ? chk.errors.map(e => `<li class="e">誤り：${esc(e.msg)}</li>`).concat(chk.warnings.map(w => `<li class="w">注意：${esc(w.msg)}</li>`)) : [];
+    info.innerHTML = `<h3>${esc(n.title)}</h3><p class="hint">${[n.author && '作：' + n.author, '期限 ' + n.days + '日', n.stages.map(s => s.name).join(' → '), '味方 ' + n.party.size + '騎'].filter(Boolean).map(esc).join(' ・ ')}</p>`
+      + (n.description ? `<p>${esc(n.description)}</p>` : '')
+      + (!dataLoaded ? '<p class="hint">サーヴァントのデータを読み込んだあとで、整合性を確かめます。</p>'
+        : list.length ? `<ul class="chk">${list.join('')}</ul>` : '<p class="chk-ok">整合性チェック：問題ありません。</p>')
+      + (chk && chk.errors.length ? '<p class="hint">誤りがあるシナリオでは始められません。シナリオエディタで直してください。</p>' : '');
+    $('#observe').disabled = !scnN;
+  }
+  $('#scnList').addEventListener('click', async e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    if (b.dataset.pub != null) {
+      const p = published[+b.dataset.pub]; if (!p) return;
+      try { const r = await fetch('data/scenarios/' + p.file, { cache: 'no-cache' }); if (!r.ok) throw new Error(r.status); readScnText(await r.text()); } catch (err) { toast('読み込めませんでした：' + err.message); }
+    } else if (b.dataset.edit) {
+      const ed = store.get(EDIT_KEY); if (ed && ed.scn) readScnText(JSON.stringify(ed.scn));
+    } else if (b.dataset.h) {
+      const m = loadScns(), h = b.dataset.h;
+      if (b.dataset.act === 'load' && m[h]) { setScenario(m[h].scn); return; }
+      if (b.dataset.act === 'del') {
+        const used = loadHist().some(r => r.sh === h) || ((store.get(SAVE_KEY) || {}).sh === h);
+        if (!confirm(`シナリオ「${SC.normalize(m[h].scn).title}」をこのブラウザから消します。${used ? '\nこのシナリオの記録は、ファイルを読み込み直すまで見返せなくなります。' : ''}`)) return;
+        delete m[h]; store.set(SCN_KEY, m);
+        if (h === scnHash) { scn = null; scnHash = ''; scnN = null; scnChk = null; formationStale(true); }
+        renderScn();
+      }
+    }
+  });
+
+  // ---------- マスター（どのシナリオでも使う設定） ----------
+  const MASTER_KEY = 'hgw.orig.master';
+  const MSTATS = [['mana', '魔力'], ['craft', '魔術'], ['body', '体'], ['mind', '精神'], ['luck', '運']];
+  const RANKS = ['EX', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E+', 'E'];
+  const cleanSex = v => ({ m: '男', f: '女', '男': '男', '女': '女' })[String(v == null ? '' : v)] || '';
+  const cleanAge = v => { const n = Math.round(Number(v)); return isFinite(n) && n >= 10 && n <= 99 ? n : 0; };
+  const cleanPName = v => String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 20);
+  const cleanRank = v => { const t = String(v == null ? '' : v).trim().toUpperCase(); return RANKS.includes(t) ? t : ''; };
+  let masterSet = (() => { const m = store.get(MASTER_KEY) || {}; const st = {}; for (const [k] of MSTATS) { const r = cleanRank(m.stats && m.stats[k]); if (r) st[k] = r; } return { name: cleanPName(m.name), sex: cleanSex(m.sex), age: cleanAge(m.age), originLabel: String(m.originLabel || '').slice(0, 30), wish: String(m.wish || '').slice(0, 60), stats: st }; })();
+  const saveMaster = () => store.set(MASTER_KEY, masterSet);
+  $('#mfStats').innerHTML = MSTATS.map(([k, l]) => `<label>${esc(l)}<select data-ms="${k}"></select></label>`).join('');
+  function renderMaster() {
+    const d = scnN ? scnN.master : (scn ? SC.normalize(scn).master : {}), ds = d.stats || {};
+    $('#pname').value = masterSet.name;
+    $('#pname').placeholder = d.name ? `シナリオの既定：${d.name}` : '空欄ならランダム';
+    $('#mfSex').value = masterSet.sex; $('#mfSex').options[0].textContent = d.sex ? `既定（${d.sex}）` : '既定（ランダム）';
+    $('#mfAge').value = masterSet.age || ''; $('#mfAge').placeholder = d.age ? `既定：${d.age}` : '既定：ランダム';
+    $('#mfOrigin').value = masterSet.originLabel; $('#mfOrigin').placeholder = d.originLabel ? `既定：${d.originLabel}` : '';
+    $('#mfWish').value = masterSet.wish; $('#mfWish').placeholder = d.wish ? `既定：${d.wish}` : '';
+    document.querySelectorAll('[data-ms]').forEach(sel => {
+      const k = sel.dataset.ms, def = ds[k] ? `既定（${ds[k]}）` : '既定（ランダム）';
+      sel.innerHTML = `<option value="">${esc(def)}</option>` + RANKS.map(r => `<option value="${r}"${masterSet.stats[k] === r ? ' selected' : ''}>${r}</option>`).join('');
+    });
+    syncNameBtns();
+  }
+  function readMaster() {
+    masterSet.name = cleanPName($('#pname').value); masterSet.sex = cleanSex($('#mfSex').value); masterSet.age = cleanAge($('#mfAge').value);
+    masterSet.originLabel = $('#mfOrigin').value.trim().slice(0, 30); masterSet.wish = $('#mfWish').value.trim().slice(0, 60);
+    const st = {}; document.querySelectorAll('[data-ms]').forEach(sel => { const r = cleanRank(sel.value); if (r) st[sel.dataset.ms] = r; }); masterSet.stats = st;
+    saveMaster();
+  }
+  ['#pname', '#mfSex', '#mfAge', '#mfOrigin', '#mfWish'].forEach(id => $(id).addEventListener('change', () => { readMaster(); syncNameBtns(); }));
+  $('#mfStats').addEventListener('change', readMaster);
+  $('#mfReset').onclick = () => { masterSet = { name: '', sex: '', age: 0, originLabel: '', wish: '', stats: {} }; saveMaster(); renderMaster(); toast('マスターの設定を、シナリオの既定に戻しました'); };
+  // 新しく始めるときのマスター（このブラウザの設定）と、共有リンクのマスター
+  const masterNow = () => JSON.parse(JSON.stringify(masterSet));
+  function masterFromUrl() {
+    const st = {}, ms = String(qs.get('ms') || '').split('.');
+    MSTATS.forEach(([k], i) => { const r = cleanRank(ms[i]); if (r) st[k] = r; });
+    return { name: cleanPName(qs.get('n')), sex: cleanSex(qs.get('sx')), age: cleanAge(qs.get('ag')), originLabel: String(qs.get('ol') || '').slice(0, 30), wish: String(qs.get('wi') || '').slice(0, 60), stats: st };
+  }
+
+    // ---------- 評価（S〜E）：リストの全騎と1対1で戦った平均勝率の順位（聖杯戦争の開戦の評価と同じ） ----------
+    let gradeCache = null;
+    function gradeMap() {
+      if (gradeCache && gradeCache.src === rosterAll) return gradeCache.m;
+      const B = H.build, rates = new Map(), ids = rosterAll.slice().sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0));
+      const refs = ids.length <= 60 ? ids : Array.from({ length: 60 }, (_, i) => ids[Math.floor(i * ids.length / 60)]);
+      for (const a of rosterAll) { let t = 0, n = 0; for (const b of refs) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } rates.set(a.id, n ? t / n : 0.5); }
+      const sorted = [...rates.values()].sort((x, y) => y - x), m = new Map();
+      for (const [id, r] of rates) m.set(id, H.gradeOfPct((sorted.filter(x => x > r + 1e-9).length) / Math.max(1, rosterAll.length - 1)));
+      gradeCache = { src: rosterAll, m }; return m;
+    }
+    const evaluate = sv => ({ grade: gradeMap().get(sv.id) || '' });
+    const ci = (key, big) => key ? `<img class="ci" src="${H.classIcon(key)}" alt="" width="20" height="20" loading="lazy" decoding="async">` : '';
+    const fic = (name, key) => name ? `<span class="fic">${ci(key)}<img class="face" data-face="${esc(name)}" alt="" hidden></span>` : ci(key);
+    function fillFaces(root) {
+      for (const im of (root || document).querySelectorAll('img[data-face]')) {
+        const u = H.faceUrl(im.dataset.face, () => fillFaces());
+        if (!u) continue;
+        if (im.getAttribute('src') !== u) im.src = u;
+        im.hidden = false; if (im.parentNode && im.parentNode.classList) im.parentNode.classList.add('has');
+      }
+    }
+
+  // ---------- 開始前の設定（前回選んだものを覚えておく） ----------
+  const SET_KEY = 'hgw.orig.settings';
+  const formWords = () => document.querySelector('input[name=words]:checked').value !== '0';
+  const formSpeed = () => +document.querySelector('input[name=speed]:checked').value;
+  let settings0 = {};
+  (() => {
+    settings0 = store.get(SET_KEY) || {};
+    const st = settings0;
+    if (st.words === false) document.querySelector('input[name=words][value="0"]').checked = true;
+    const sp = document.querySelector(`input[name=speed][value="${+st.speed}"]`); if (sp) sp.checked = true;
+    $('#pword').value = st.word || '';
+  })();
+  const saveSettings = () => store.set(SET_KEY, { words: formWords(), word: $('#pword').value.trim() || undefined, last: settings0.last || undefined, speed: settings0.speed, auto: settings0.auto || undefined });
+  $('#pword').addEventListener('change', saveSettings);
+  document.querySelectorAll('input[name=words]').forEach(r => r.addEventListener('change', saveSettings));
+  // 名前の欄の「空欄に戻す」「前回の名前」（前回＝いちばん最近に始めた特異点で使った名前）
+  function syncNameBtns() {
+    const cur = cleanPName($('#pname').value), last = cleanPName(settings0.last);
+    $('#pnameReset').hidden = !cur;
+    $('#pnameLast').hidden = !last || last === cur;
+    $('#pnameLast').textContent = last ? `前回の名前「${last.length > 12 ? last.slice(0, 12) + '…' : last}」` : '';
+  }
+  $('#pname').addEventListener('input', syncNameBtns);
+  $('#pnameReset').onclick = () => { $('#pname').value = ''; readMaster(); syncNameBtns(); $('#pname').focus(); };
+  $('#pnameLast').onclick = () => { $('#pname').value = cleanPName(settings0.last); readMaster(); syncNameBtns(); $('#pname').focus(); };
+  renderMaster();
+
+  // ---------- 編成 ----------
+  let seed = '', lineup = null, front = [];
+  const idxOf = id => rosterAll.findIndex(s => s.id === id);
+  // 顔ぶれを決める（保存・記録から組み直すときも、同じシナリオ・同じシードなら同じ顔ぶれになる）
+  function setup(o) {
+    seed = o.seed;
+    lineup = OG.compose({ scenario: scnN, roster: rosterAll, bosses, seed });
+    const fr = Array.isArray(o.front) ? [...new Set(o.front.map(Number))].filter(i => i >= 0 && i < lineup.party.length).slice(0, CFG.front) : [];
+    front = fr.length === Math.min(CFG.front, lineup.party.length) ? fr.sort((a, b) => a - b) : lineup.front.slice();
+  }
+  function observe(o) {
+    o = o || {};
+    if (!scnN) { toast(scn ? 'このシナリオには誤りがあるため、始められません' : '先にシナリオを選んでください'); return false; }
+    const sd = $('#seed').value.trim() || Math.random().toString(36).slice(2, 8);
+    $('#seed').value = sd;
+    try { setup({ seed: sd, front: o.fromUrl && qs.get('fr') ? qs.get('fr').split('.') : null }); }
+    catch (e) { toast('観測できませんでした：' + e.message); console.error(e); return false; }
+    renderFormation();
+    $('#formation').hidden = false;
+    if (!o.fromUrl) $('#formation').scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+    return true;
+  }
+  // シナリオを変えたら、顔ぶれが変わるので、観測し直してもらう
+  function formationStale(quiet) { if (!$('#formation').hidden) { $('#formation').hidden = true; if (!quiet) toast('シナリオを変えたので、もう一度「特異点を観測する」を押してください'); } }
+  function fromUrl() {
+    const sh = qs.get('sh');
+    if (!sh || !loadScns()[sh]) {
+      pendingUrl = true;
+      $('#scnInfo').hidden = false;
+      $('#scnInfo').innerHTML = '<p class="err">このリンクのシナリオが、このブラウザにありません。同じシナリオのファイルを読み込むと、この特異点を再現します。</p>';
+      return;
+    }
+    if (scnHash !== sh) setScenario(loadScns()[sh].scn, true);
+    if (!observe({ fromUrl: true })) return;
+    if (qs.get('f') || qs.get('c') || qs.get('k') || qs.get('dy')) start({ replay: true });
+  }
+  const svOf = id => rosterAll.find(s => s.id === id) || bosses.find(s => s.id === id);
+  const rk = (sv, k) => H.rank.label(sv.ranks[k]);
+  function renderFormation() {
+    $('#sName').textContent = lineup.name;
+    $('#sRegion').textContent = lineup.city || '';
+    $('#partyCards').innerHTML = lineup.party.map((id, i) => {
+      const s = svOf(id), on = front.includes(i), ev = evaluate(s);
+      return `<button class="card" type="button" data-i="${i}" aria-pressed="${on}"><span class="tag">${on ? '前衛' : '控え'}</span><span class="cls">${ev.grade ? `<b class="gr g-${ev.grade}" title="リストの全騎と戦った平均勝率の順位による評価">${ev.grade}</b>` : ''}${ci(s.class.key)}${esc(s.class.label)}</span><span class="nm">${esc(s.trueName)}</span>
+        <span class="st">筋${rk(s, 'str')} 耐${rk(s, 'end')} 敏${rk(s, 'agi')} 魔${rk(s, 'mag')} 運${rk(s, 'luk')} 宝${rk(s, 'np')}</span></button>`;
+    }).join('');
+    const need = Math.min(CFG.front, lineup.party.length);
+    $('#frontNote').textContent = front.length === need ? `前衛：${front.map(i => svOf(lineup.party[i]).trueName).join('・')}` : `前衛をあと${need - front.length}騎選んでください`;
+    $('#go').disabled = front.length !== need;
+    $('#foeLine').innerHTML = '<span class="lbl">この特異点：</span>' + scnN.stages.map((st, i) => `<span>${esc(st.name)}　敵${lineup.stages[i].enemies.length}騎${lineup.stages[i].boss ? '＋ボス' : ''}${st.days ? `（${st.days}日以内）` : ''}</span>`).join('') + `<span>期限 ${scnN.days}日</span>`;
+  }
+  $('#partyCards').addEventListener('click', e => {
+    if (e.target.closest('[data-tip]')) return;
+    const b = e.target.closest('[data-i]'); if (!b) return;
+    const i = +b.dataset.i, need = Math.min(CFG.front, lineup.party.length);
+    if (front.includes(i)) front = front.filter(x => x !== i);
+    else if (front.length < need) front.push(i);
+    else { front.shift(); front.push(i); }
+    front.sort((a, b2) => a - b2);
+    renderFormation();
+  });
+  $('#observe').onclick = () => observe();   // 書いたシードがあればそれで、空欄なら新しく
+  $('#reroll').onclick = () => { $('#seed').value = ''; observe(); };
+  $('#reroll').textContent = '別の顔ぶれで観測する';
+
+  // ---------- 進行 ----------
+  let gen = null, out = null, pending = null, done = false, result = null, idx = 0, timer = null, speed = 2, paused = false, autoAll = false, op = null;
+  let playerName = '', playerSex = '', playerAge = 0, curMaster = {}, curDay = 0, tickDay = 0, decLog = [], logFilter = 'all', words = '';
+  let focus = 'auto', focusLog = '', replayFocus = '', choices = [], replay = [], queue = [], cmdLog = [], replayCmds = [], maxDays = 30, lastSnap = null;
+  const DELAY = { death: 2200, np: 1700, end: 1900, cs: 1500, summon: 900, prologue: 1300, choice: 500, council: 900, life: 1300, event: 1100, scout: 1100 };
+  function pump(a) { const r = gen.next(a); if (r.done) { done = true; result = r.value; pending = null; } else pending = r.value; }
+  function start(o) {
+    o = o || {};
+    maxDays = scnN.days;
+    speed = [1, 2, 4, 8, 16].includes(+settings0.speed) ? +settings0.speed : formSpeed(); paused = false; autoAll = settings0.auto === true;
+    curMaster = o.replay ? masterFromUrl() : masterNow();
+    playerName = cleanPName(curMaster.name); playerSex = cleanSex(curMaster.sex); playerAge = cleanAge(curMaster.age);
+    if (playerName && !o.replay) { settings0.last = playerName; saveSettings(); syncNameBtns(); }
+    words = formWords() ? $('#pword').value.trim() : '';
+    curDay = 0; tickDay = 0; decLog = []; lastPlace = ''; lastSceneKey = null;
+    done = false; result = null; pending = null; idx = 0; queue = []; cmdLog = []; choices = []; focusLog = ''; focus = 'auto'; lastSnap = null; op = null;
+    replay = o.replay && qs.get('c') ? qs.get('c').split('.') : [];
+    replayFocus = o.replay ? qs.get('f') || '' : '';
+    replayCmds = o.replay ? parseCmds(qs.get('k')) : [];
+    try { makeGen(); }
+    catch (e) { toast('始められませんでした：' + e.message); console.error(e); return; }
+    document.body.classList.add('watching');
+    $('#log').innerHTML = ''; $('#result').innerHTML = '';
+    $('#hudName').textContent = lineup.name; $('#mName').textContent = '';
+    drawSkyline(seed); setLogFilter('all');
+    renderFocus(); syncCtl(); updateURL(); window.scrollTo(0, 0);
+    if (o.replay && qs.has('dy')) return catchUp();
+    // 新しい攻略は、マスターの紹介 → 率いる英霊の評価 → 最初の方針、を順に出してから始める
+    if (!o.replay && openOpening()) return;
+    step();
+  }
+  // 同じシード・同じ編成でジェネレータを作り直す（名前を付け直すとき。進行はまだ0日目）
+  function makeGen() {
+    out = {}; done = false; result = null; pending = null; idx = 0;
+    gen = OG.gen({ scenario: scnN, roster: rosterAll, bosses, seed, lineup, front, ask: 'big', out, master: Object.assign({}, curMaster, { name: playerName, sex: playerSex, age: playerAge }) }); pump();
+  }
+  // 続きから・記録の再現：保存した分は、アニメーションなしで一気に追いつく（そのあとは一時停止で止まる）
+  function catchUp() {
+    const dy = +qs.get('dy') || 0;
+    let guard = 0;
+    while (guard++ < 20000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick' && pending.day <= dy) { advanceTick(); continue; }
+      if (pending && pending.type === 'decision' && replay.length) { applyAnswer(replay.shift()); continue; }
+      break;
+    }
+    if (replayFocus) { const c = replayFocus[Math.min(replayFocus.length, dy) - 1]; if (c && BY_CODE[c]) focus = BY_CODE[c]; }
+    replayFocus = ''; replayCmds = []; replay = [];
+    renderFocus(); updateURL();
+    if (done && idx >= out.entries.length) return finish();
+    paused = true; syncCtl();
+    if (pending && pending.type === 'decision') return present(pending);
+    toast('続きから再現しました。「再開」で進みます');
+  }
+  $('#go').onclick = () => start({});
+  // 令呪・推測の記録（URL の k）：日＋種類（h 癒やす / m 魔力 / g 推測）＋相手
+  function cmdStr(d, c) { return c.k === 'heal' ? `${d}h${c.t}` : c.k === 'mana' ? `${d}m` : `${d}g${c.t}-${idxOf(c.sv).toString(36)}`; }
+  function parseCmds(p) {
+    const outc = [];
+    for (const t of String(p || '').split('_').filter(Boolean)) {
+      const m = /^(\d+)([hmg])(.*)$/.exec(t); if (!m) continue;
+      const d = +m[1];
+      if (m[2] === 'h') outc.push({ d, c: { k: 'heal', t: +m[3] } });
+      else if (m[2] === 'm') outc.push({ d, c: { k: 'mana' } });
+      else { const [t2, sv] = m[3].split('-'); const s = rosterAll[parseInt(sv, 36)]; if (s) outc.push({ d, c: { k: 'guess', t: +t2, sv: s.id } }); }
+    }
+    return outc;
+  }
+  function advanceTick() {
+    const d = pending.day; tickDay = Math.max(tickDay, d);
+    const code = replayFocus && replayFocus[d - 1] ? replayFocus[d - 1] : FOCUS[focus].code;
+    const f = BY_CODE[code] || 'auto';
+    focusLog = (focusLog + 'o'.repeat(Math.max(0, d - 1 - focusLog.length))).slice(0, d - 1) + FOCUS[f].code;
+    const cmds = replayCmds.length ? replayCmds.filter(x => x.d === d).map(x => x.c) : queue.splice(0);
+    for (const c of cmds) cmdLog.push(cmdStr(d, c));
+    renderQueue();
+    pump({ f, cmds });
+  }
+  function step() {
+    if (!gen || paused) return;
+    clearTimeout(timer);
+    if (idx < out.entries.length) {
+      const e = out.entries[idx++];
+      show(e);
+      if (autoStop && (e.kind === 'cs' || (e.kind === 'death' && e.you))) { paused = true; syncCtl(); toast('大事な場面なので止めました。「再開」で続きます'); return; }
+      timer = setTimeout(step, (DELAY[e.kind] || (e.big ? 1400 : e.kind === 'dayhead' ? 350 : 800)) / speed + (e.quote ? 600 / speed : 0));
+      return;
+    }
+    if (pending && pending.type === 'tick') { advanceTick(); updateURL(); return step(); }
+    if (pending && pending.type === 'decision') return present(pending);
+    if (done) return finish();
+  }
+  function updateURL() {
+    const u = new URL(location.href);
+    for (const k of [...u.searchParams.keys()]) if (k !== 'data') u.searchParams.delete(k);
+    u.searchParams.set('sh', scnHash);
+    u.searchParams.set('seed', seed);
+    if (playerName) u.searchParams.set('n', playerName);
+    if (playerSex) u.searchParams.set('sx', playerSex === '女' ? 'f' : 'm');
+    if (playerAge) u.searchParams.set('ag', playerAge);
+    if (curMaster.originLabel) u.searchParams.set('ol', curMaster.originLabel);
+    if (curMaster.wish) u.searchParams.set('wi', curMaster.wish);
+    const ms = MSTATS.map(([k]) => (curMaster.stats && curMaster.stats[k]) || '').join('.');
+    if (ms.replace(/\./g, '')) u.searchParams.set('ms', ms);
+    if (tickDay) u.searchParams.set('dy', tickDay);
+    u.searchParams.set('fr', front.join('.'));
+    if (focusLog.replace(/o/g, '')) u.searchParams.set('f', focusLog);
+    if (choices.length) u.searchParams.set('c', choices.join('.'));
+    if (cmdLog.length) u.searchParams.set('k', cmdLog.join('_'));
+    if (source === 'local') u.searchParams.set('data', 'local');
+    history.replaceState(null, '', u);
+    saveProgress();
+  }
+  function syncCtl() {
+    $('#pause').textContent = paused ? '▸ 再開' : '❚❚ 一時停止';
+    document.querySelectorAll('[data-sp]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.sp === speed)));
+    $('#autoBtn').setAttribute('aria-pressed', String(autoAll));
+    $('#autoBtn2').setAttribute('aria-pressed', String(autoAll)); $('#autoBtn2').setAttribute('aria-checked', String(autoAll));
+    $('#stopBtn2').setAttribute('aria-pressed', String(autoStop)); $('#stopBtn2').setAttribute('aria-checked', String(autoStop));
+    $('#spCycle').textContent = speed + '×';
+    renderOrders();
+  }
+  // スマホ向け：速さを一つのボタンで切り替える／退場・令呪の場面で自動的に止める（このブラウザに残す）
+  const SPEEDS = [1, 2, 4, 8, 16], STOP_KEY = 'hgw.orig.autostop';
+  let autoStop = store.get(STOP_KEY) === true;
+  // 速さと「決断をおまかせ」を、このブラウザに残す（次の特異点の開始時の既定になる）
+  const rememberCtl = () => { settings0.speed = speed; settings0.auto = autoAll || undefined; saveSettings(); };
+  document.querySelectorAll('input[name=speed]').forEach(r => r.addEventListener('change', () => { speed = +r.value; rememberCtl(); }));
+  $('#spCycle').onclick = () => { speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length]; syncCtl(); rememberCtl(); };
+  $('#stopBtn2').onclick = () => { autoStop = !autoStop; store.set(STOP_KEY, autoStop || null); syncCtl(); toast(autoStop ? '前衛の退場と令呪の場面で、自動的に止めます' : '自動では止めません'); };
+  $('#pause').onclick = () => { if (op || (done && idx >= out.entries.length)) return; paused = !paused; syncCtl(); clearTimeout(timer); if (!paused) step(); };
+  document.querySelectorAll('[data-sp]').forEach(b => b.onclick = () => { speed = +b.dataset.sp; syncCtl(); rememberCtl(); });
+  $('#autoBtn').onclick = () => { autoAll = !autoAll; syncCtl(); rememberCtl(); toast(autoAll ? '決断はおまかせで進みます' : '決断で止まります'); };
+  $('#quitBtn').onclick = () => { clearTimeout(timer); saveProgress(); gen = null; op = null; $('#opening').classList.remove('on'); $('#imgDlg').classList.remove('on'); $('#dlg').classList.remove('on', 'min'); document.body.classList.remove('watching'); renderIntroRecords(); };
+  // ⋯メニュー（スマホでは、おまかせ・CSV・やめるをここにまとめる）
+  const closeMenu = () => { $('#menu').classList.remove('on'); $('#moreBtn').setAttribute('aria-expanded', 'false'); };
+  $('#moreBtn').onclick = e => { e.stopPropagation(); const on = $('#menu').classList.toggle('on'); $('#moreBtn').setAttribute('aria-expanded', String(on)); };
+  document.addEventListener('click', e => { if (!e.target.closest('#menu')) closeMenu(); });
+  $('#autoBtn2').onclick = () => { closeMenu(); $('#autoBtn').click(); };
+  $('#csvBtn2').onclick = () => { closeMenu(); $('#csvBtn').click(); };
+  $('#quitBtn2').onclick = () => { closeMenu(); $('#quitBtn').click(); };
+  $('#skip').onclick = () => {
+    if (op) return;
+    if ($('#dlg').classList.contains('on')) { $('#dlg').classList.remove('min'); $('#dlgMin').textContent = 'いったん下ろす ▾'; return; }
+    clearTimeout(timer);
+    let guard = 0;
+    while (guard++ < 5000) {
+      if (idx < out.entries.length) { show(out.entries[idx++], true); continue; }
+      if (pending && pending.type === 'tick') { advanceTick(); continue; }
+      break;
+    }
+    updateURL();
+    if (pending && pending.type === 'decision') present(pending); else if (done) finish();
+  };
+
+  // ---------- 判断 ----------
+  function present(q) {
+    clearTimeout(timer);
+    if (replay.length) return answer(replay.shift(), true);
+    if (autoAll) return answer('auto', true);
+    $('#dlgWhen').textContent = q.day ? `DAY ${q.day}` : '';
+    $('#dlgTitle').textContent = q.title; $('#dlgBody').textContent = q.body || '';
+    $('#dlgOpts').innerHTML = q.options.map((o, i) => `<button data-k="${esc(o.k)}"><span class="n">${i + 1}</span><b>${esc(o.label)}</b>${o.sub ? `<small>${esc(o.sub)}</small>` : ''}</button>`).join('');
+    $('#dlg').classList.remove('min'); $('#dlg').classList.add('on'); $('#dlgMin').textContent = 'いったん下ろす ▾';
+    const f = $('#dlgOpts button'); if (f) f.focus({ preventScroll: true });
+  }
+  $('#dlgMin').onclick = () => { const m = $('#dlg').classList.toggle('min'); $('#dlgMin').textContent = m ? '決断に戻る ▴' : 'いったん下ろす ▾'; };
+  function applyAnswer(k) {
+    const q = pending, o = q && q.options ? q.options.find(x => x.k === k) : null;
+    decLog.push({ day: q ? q.day : 0, title: q ? q.title : '', label: o ? o.label : 'おまかせ', auto: !o });
+    choices.push(k); pump(k);
+  }
+  function answer(k, silent) { $('#dlg').classList.remove('on', 'min'); applyAnswer(k); updateURL(); timer = setTimeout(step, silent ? 30 : 250); }
+  $('#dlgOpts').addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) answer(b.dataset.k); });
+  $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); rememberCtl(); answer('auto'); };
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, select, textarea')) return;
+    if ($('#dlg').classList.contains('on') && !$('#dlg').classList.contains('min')) { const b = document.querySelectorAll('#dlgOpts button')[+e.key - 1]; if (b) { e.preventDefault(); answer(b.dataset.k); } return; }
+    if (e.key === ' ' && document.body.classList.contains('watching') && !op && !$('#det').classList.contains('on') && !$('#imgDlg').classList.contains('on')) { e.preventDefault(); $('#pause').click(); }
+  });
+
+  // ---------- 方針 ----------
+  function renderFocus() {
+    const html = Object.entries(FOCUS).map(([k, f]) => `<button data-f="${k}" role="radio" aria-checked="${k === focus}" aria-pressed="${k === focus}"><span class="ico"></span>${esc(f.label)}</button>`).join('');
+    $('#focusSeg').innerHTML = html; $('#focusSeg2').innerHTML = html;
+    $('#focusDesc').textContent = FOCUS[focus].desc; $('#focusDesc2').textContent = FOCUS[focus].desc;
+    $('#focusNow').textContent = FOCUS[focus].label; $('#focusChipLabel').textContent = FOCUS[focus].label;
+  }
+  ['#focusSeg', '#focusSeg2'].forEach(sel => $(sel).addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) { focus = b.dataset.f; replayFocus = ''; renderFocus(); } }));
+  // スマホ：帯の「方針」から、画面下の選択欄で切り替える
+  $('#focusChip').onclick = e => { e.stopPropagation(); $('#focusSheet').classList.toggle('on'); };
+  document.addEventListener('click', e => { if (!e.target.closest('#focusSheet') && !e.target.closest('#focusChip')) $('#focusSheet').classList.remove('on'); });
+  // 方針の欄は「たたむ」で一行に格納できる（たたんだかどうかはこのブラウザに残す）
+  const FC_KEY = 'hgw.orig.focusCollapsed';
+  function setFocusCollapsed(on, save) {
+    $('#focusPanel').classList.toggle('collapsed', on);
+    $('#focusToggle').setAttribute('aria-expanded', String(!on));
+    $('#focusToggle').textContent = on ? 'ひらく ▾' : 'たたむ ▴';
+    if (save) try { localStorage.setItem(FC_KEY, on ? '1' : '0'); } catch (e) { /* 保存できなくても動く */ }
+  }
+  try { setFocusCollapsed(localStorage.getItem(FC_KEY) === '1'); } catch (e) { setFocusCollapsed(false); }
+  $('#focusToggle').onclick = e => { e.stopPropagation(); setFocusCollapsed(!$('#focusPanel').classList.contains('collapsed'), true); };
+  $('#focusHead').onclick = () => { if ($('#focusPanel').classList.contains('collapsed')) setFocusCollapsed(false, true); };
+
+  // ---------- 開戦の案内（マスターの紹介 → 率いる英霊の評価 → 最初の方針） ----------
+  // 新しい攻略を始めたとき、記録を流す前に順に出す。方針を決めるまで1日目は始まらない（共有リンク・続きからの再現では出さない）
+  const ORIGIN_DESC = {
+    noble: '魔術の名門に生まれ、豊かな魔力と家伝の知識を受け継いだ魔術師。',
+    newblood: '歴史の浅い家系の魔術師。腕も魔力も人並みだが、この戦いに家の名を賭けている。',
+    mercenary: '魔術を道具として使う実戦の人。体と度胸で修羅場をくぐってきた。',
+    civilian: '魔術とは縁のない暮らしから、偶然この戦いに巻き込まれた。魔力は乏しいが、運だけはある。',
+    irregular: '生まれついての異能を持つ者。魔術師の常識には収まらない。',
+  };
+  const GRADE_JA = {
+    S: '最上位の戦力。正面からの勝負で後れを取る相手はほとんどいない',
+    A: '有力な戦力。多くの英霊と互角以上に渡り合える',
+    B: '並み以上の力を持つ。前衛でも控えでも安定して働く',
+    C: '多くの英霊と五分に渡り合う。編成と巡り合わせしだいで戦力になる',
+    D: '正面からでは分の悪い相手も多い。控えで機を待たせたい',
+    E: '単独での活躍は難しい。控えや、前衛を支える役に向く',
+  };
+  const MSTAT_JA = { mana: '魔力', craft: '魔術', body: '体', mind: '精神', luck: '運' };
+  // マスターの能力値（0〜100）をランクの表記に
+  function scoreRank(v) {
+    const S = H.CONFIG.RANK_SCORE, L = H.rank.LEVELS;
+    if (v < S.E - 4) return 'E-';
+    let best = L[0]; for (const l of L) if (v >= S[l] - 4) best = l;
+    return best + (v - S[best] >= 7 ? '+' : '');
+  }
+  const firstEntry = () => (out && out.entries ? out.entries.find(e => e.snap) : null);
+  function openOpening() {
+    const first = firstEntry();
+    if (!first || !(out.meta && out.meta[0] && out.meta[0].master)) return false;
+    board(first);
+    op = { step: 1, focus };
+    $('#opening').classList.add('on');
+    renderOpening();
+    return true;
+  }
+  function renderOpening() {
+    const step = op.step, mm = (out.meta[0] || {}).master || {};
+    $('#opStep').textContent = `${step} / 3`;
+    $('#opBack').hidden = step === 1;
+    $('#opNext').textContent = step === 3 ? 'この方針で一日目を始める' : '次へ';
+    $('#opKeys').innerHTML = step === 3 ? '<i>1</i>〜 で選ぶ ・ Enter で始める' : 'Enter で次へ';
+    if (step === 1) {
+      $('#opEn').textContent = 'Master';
+      $('#opTitle').textContent = mm.name || 'あなた';
+      const stats = Object.entries(mm.stats || {}).map(([k, v]) => `<div><span>${esc(MSTAT_JA[k] || k)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana)"></i></span></div>`).join('');
+      const P = H.PERSONAS || {}, per = mm.persona && P[mm.persona] ? P[mm.persona] : null, last = cleanPName(settings0.last);
+      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、ランダムで決まった名前になる）</label>
+          <div class="namerow"><input type="text" id="opName" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="next" value="${esc(mm.name || '')}">
+            ${playerName ? '<button class="btn" id="opNameReset" type="button">ランダムな名前に戻す</button>' : ''}
+            ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last.length > 12 ? last.slice(0, 12) + '…' : last)}」</button>` : ''}</div>
+          <div class="namerow" style="margin-top:6px"><label class="lbl" for="opSex">性別</label><select id="opSex"><option value=""${playerSex ? '' : ' selected'}>ランダム</option><option value="男"${playerSex === '男' ? ' selected' : ''}>男</option><option value="女"${playerSex === '女' ? ' selected' : ''}>女</option></select>
+            <label class="lbl" for="opAge">年齢</label><input type="number" id="opAge" min="10" max="99" step="1" inputmode="numeric" value="${playerAge || ''}" placeholder="ランダム">
+            ${playerSex || playerAge ? '<button class="btn" id="opProfReset" type="button">性別・年齢をランダムに戻す</button>' : ''}</div>
+          <p class="hint2">名前・性別・年齢を決めても、特異点の展開は変わらない（年齢は10〜99歳、空欄ならランダム）。決めたものは、ほかのシナリオでも使われる。</p></div>
+        <p class="say">特異点「${esc(lineup.name)}」。${lineup.city ? esc(lineup.city) + 'に降り立ち、' : ''}あなたは${CFG.party}騎の英霊を率いて、${scnN.stages.length > 1 ? scnN.stages.length + 'つの節を越え、' : ''}待ち受ける敵に挑む。期限は${scnN.days}日。手の甲には${(lastSnap && lastSnap.p && lastSnap.p.cs) || CFG.csMax}画の令呪が刻まれている。</p>
+        <dl class="opkv">
+          <dt>素性</dt><dd>${esc([mm.sex, mm.age ? mm.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
+          ${mm.originLabel ? `<dt>出自</dt><dd><b>${esc(mm.originLabel)}</b>${ORIGIN_DESC[mm.origin] ? '<br>' + esc(ORIGIN_DESC[mm.origin]) : ''}</dd>` : ''}
+          ${per ? `<dt>性格</dt><dd><b>${esc(per.label)}</b>${mm.personaDesc ? '<br>' + esc(mm.personaDesc) : ''}</dd>` : ''}
+          ${mm.wish ? `<dt>願い</dt><dd>${esc(mm.wish)}</dd>` : ''}
+          ${mm.catalyst ? `<dt>縁</dt><dd>${esc(typeof mm.catalyst === 'string' ? mm.catalyst : '縁の品がある')}</dd>` : ''}
+        </dl>
+        <div class="opstats">${stats}</div>
+        <p class="note2">前衛・控えの入れ替えは、観測の画面で済ませてある。ここから先は、方針と令呪で導く。</p>`;
+      $('#opName').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); opNext(); } });
+    } else if (step === 2) {
+      $('#opEn').textContent = 'Party';
+      $('#opTitle').textContent = `率いる${CFG.party}騎の評価`;
+      $('#opBody').innerHTML = `<div class="ptlist">${lineup.party.map((id, i) => {
+        const sv = svOf(id), m = out.meta[i] || {}, g = (sv && evaluate(sv).grade) || '', fr = front.includes(i);
+        return `<div class="pt${fr ? ' front' : ''}"><span class="g ${g}">${g || '？'}</span>
+          <span><b>${fic(faceOf(i) || (sv || {}).trueName, keyOf(i))}${esc((sv || {}).class ? sv.class.label : m.cls)}「${esc(m.trueName || (sv || {}).trueName)}」</b> <span class="tg">${fr ? '前衛' : '控え'}</span></span>
+          <button class="btn" type="button" data-lore="${i}">解説</button>
+          <small>${esc((m.ranks || []).map(r => r[0] + r[1]).join(' '))}${g ? ` ・ ${esc(GRADE_JA[g])}` : ''}</small></div>`;
+      }).join('')}</div>
+        <p class="note2">評価は、リストの全騎と1対1で戦った平均勝率の順位（S〜E）です。敵との相性や、編成での連携は含みません。</p>`;
+      fillFaces($('#opBody'));
+    } else {
+      $('#opEn').textContent = 'Focus';
+      $('#opTitle').textContent = '最初の方針';
+      $('#opBody').innerHTML = `<p class="say">方針はいつでも変えられ、次の朝から反映される。まずは一日目の動き方を決めよう。</p>
+        <div class="rowsel" id="opFocus" role="radiogroup">${Object.entries(FOCUS).map(([k, f], i) => `<button data-f="${k}" role="radio" aria-pressed="${k === op.focus}" aria-checked="${k === op.focus}"><span class="n">${i + 1}</span><b>${esc(f.label)}</b><small>${esc(f.desc)}</small></button>`).join('')}</div>`;
+    }
+    $('#opening .dlg-in').scrollTop = 0;
+    const f = step === 3 ? document.querySelector('#opFocus [aria-pressed="true"]') : step === 1 ? $('#opName') : $('#opNext');
+    if (f) f.focus({ preventScroll: true });
+  }
+  function opPick(k) {
+    if (!op || !FOCUS[k]) return;
+    op.focus = k;
+    document.querySelectorAll('#opFocus [data-f]').forEach(b => { const on = b.dataset.f === k; b.setAttribute('aria-pressed', String(on)); b.setAttribute('aria-checked', String(on)); });
+  }
+  function closeOpening() { $('#opening').classList.remove('on'); op = null; }
+  // 名前・性別・年齢を決める（付け直す）。同じシードで組み直すので、マスターの紹介も出し直す。undefined の項目は今のまま
+  function applyMaster(v) {
+    if (!op) return;
+    let name = v.name === undefined ? playerName : cleanPName(v.name);
+    const sex = v.sex === undefined ? playerSex : cleanSex(v.sex), age = v.age === undefined ? playerAge : cleanAge(v.age);
+    if (!playerName && name === (((out.meta[0] || {}).master) || {}).name) name = '';   // ランダムで決まった名前のままなら、付け直さない
+    if (name === playerName && sex === playerSex && age === playerAge) return;
+    playerName = name; playerSex = sex; playerAge = age;
+    makeGen();
+    const first = firstEntry(); if (first) board(first);
+    $('#pname').value = name;
+    if (name) settings0.last = name;
+    // マスターの設定として残す（ほかのシナリオでも使う）
+    masterSet.name = name; masterSet.sex = sex; masterSet.age = age; saveMaster(); renderMaster();
+    saveSettings(); syncNameBtns(); updateURL();
+  }
+  const applyName = v => applyMaster({ name: v });
+  const opFields = () => ({ name: $('#opName').value, sex: $('#opSex').value, age: $('#opAge').value });
+  function opNext() {
+    if (!op) return;
+    if (op.step === 1 && $('#opName')) applyMaster(opFields());
+    if (op.step < 3) { op.step++; return renderOpening(); }
+    const k = op.focus;
+    closeOpening(); focus = k; replayFocus = ''; renderFocus();
+    toast(`方針「${FOCUS[k].label}」で一日目を始めます`);
+    step();
+  }
+  $('#opBody').addEventListener('change', e => {
+    if (!op || op.step !== 1 || !e.target.closest('#opSex, #opAge')) return;
+    const id = e.target.id; applyMaster(opFields()); renderOpening(); $('#' + id).focus();
+  });
+  $('#opNext').onclick = opNext;
+  $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
+  $('#opBody').addEventListener('click', e => {
+    const lb = e.target.closest('[data-lore]'); if (lb) { openServant(+lb.dataset.lore); return; }
+    if (e.target.closest('#opProfReset')) { applyMaster({ sex: '', age: 0 }); renderOpening(); $('#opSex').focus(); return; }
+    if (e.target.closest('#opNameReset')) { applyName(''); renderOpening(); $('#opName').focus(); return; }
+    if (e.target.closest('#opNameLast')) { applyName(settings0.last); renderOpening(); $('#opName').focus(); return; }
+    const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f);
+  });
+  $('#opBody').addEventListener('dblclick', e => { const b = e.target.closest('#opFocus [data-f]'); if (b) { opPick(b.dataset.f); opNext(); } });
+  document.addEventListener('keydown', e => {
+    if (!op || $('#det').classList.contains('on') || (e.target.closest && e.target.closest('input, select, textarea'))) return;
+    if (e.key === 'Enter' && !(e.target.closest && e.target.closest('button, a, summary'))) { e.preventDefault(); opNext(); }
+    else if (op.step === 3 && /^[1-9]$/.test(e.key)) { const k = Object.keys(FOCUS)[+e.key - 1]; if (k) opPick(k); }
+  });
+
+  // ---------- 令呪と推測（一時停止中だけ。次の朝に働く） ----------
+  function renderOrders() {
+    const sn = lastSnap, can = paused && !done && !!sn && sn.p.alive;
+    const party = sn ? sn.c.filter(c => c.side === 'party' && c.alive && c.hp < 100 && !queue.some(q => q.k === 'heal' && q.t === c.id)) : [];   // 傷ついている英霊だけ
+    const planned = queue.filter(c => c.k === 'heal' || c.k === 'mana').length;
+    const cs = sn ? sn.p.cs - planned : 0;
+    $('#healT').innerHTML = party.length ? party.map(c => `<option value="${c.id}">${esc(c.name || c.label)}（霊基 ${c.hp}）</option>`).join('') : '<option value="">傷ついた英霊はいない</option>';
+    $('#healBtn').disabled = !can || cs < 1 || !party.length;
+    $('#manaBtn').disabled = !can || cs < 1 || queue.some(c => c.k === 'mana');
+    const foes = sn ? sn.c.filter(c => (c.side === 'foe' || c.side === 'boss') && c.alive && c.seen && !c.name) : [];
+    const cur = $('#guessT').value;
+    $('#guessT').innerHTML = foes.length ? foes.map(c => `<option value="${c.id}"${String(c.id) === cur ? ' selected' : ''}>${esc(c.label)}（手がかり${c.clues}）</option>`).join('') : '<option value="">推測できる敵はいない</option>';
+    renderGuessSv();
+    $('#guessBtn').disabled = !can || !foes.length || queue.some(c => c.k === 'guess');
+    $('#orderHint').textContent = paused ? `いまの令呪 ${cs}画。選んだものは次の朝に働く。` : '一時停止中に選べる。選んだものは次の朝に働く。';
+  }
+  function renderGuessSv() {
+    const id = $('#guessT').value; if (id === '') { $('#guessSv').innerHTML = ''; return; }
+    const meta = out.meta[+id] || {}, cls = meta.cls, partyIds = new Set(lineup.party);
+    const cand = roster.filter(s => s.class.label === cls && !partyIds.has(s.id)).sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja'));
+    $('#guessSv').innerHTML = cand.map(s => `<option value="${esc(s.id)}">${esc(s.trueName)}</option>`).join('');
+  }
+  $('#guessT').addEventListener('change', renderGuessSv);
+  $('#healBtn').onclick = () => { const t = +$('#healT').value; queue.push({ k: 'heal', t }); renderQueue(); renderOrders(); };
+  $('#manaBtn').onclick = () => { queue.push({ k: 'mana' }); renderQueue(); renderOrders(); };
+  $('#guessBtn').onclick = () => { const t = +$('#guessT').value, sv = $('#guessSv').value; if (!sv) return; queue.push({ k: 'guess', t, sv }); renderQueue(); renderOrders(); };
+  function renderQueue() {
+    const nameOf = id => { const c = lastSnap && lastSnap.c.find(x => x.id === id); return c ? (c.name || c.label) : '?'; };
+    $('#queue').innerHTML = queue.length ? '次の朝：' + queue.map((c, i) => `${c.k === 'heal' ? `令呪で${esc(nameOf(c.t))}を癒やす` : c.k === 'mana' ? '令呪で魔力を満たす' : `${esc(nameOf(c.t))}は「${esc((svOf(c.sv) || {}).trueName)}」と推測`} <a href="#" data-q="${i}">取り消す</a>`).join(' ／ ') : '';
+  }
+  $('#queue').addEventListener('click', e => { const a = e.target.closest('[data-q]'); if (!a) return; e.preventDefault(); queue.splice(+a.dataset.q, 1); renderQueue(); renderOrders(); });
+
+  // ---------- 表示 ----------
+  const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
+  function show(e, fast) {
+    const li = document.createElement('li');
+    li.className = `k-${e.kind}${e.you ? ' is-you' : ''}${fast ? '' : ' new'}${isHL(e) ? ' hl' : ''}${FB.includes(e.kind) ? ' fb' : ''}`;
+    curDay = e.day || curDay;
+    if (e.kind === 'dayhead') li.innerHTML = `<span class="txt">${esc(e.text)}</span>`;
+    else li.innerHTML = `<span class="when">${e.day ? 'D' + e.day : ''}<span>${PH[e.phase] || ''}</span></span><span class="txt">${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</span>`;
+    $('#log').prepend(li);
+    while ($('#log').children.length > 400) $('#log').lastChild.remove();
+    if (e.snap) board(e);
+    sceneOf(e);
+  }
+  // 上部バー：目標値へ向けて常になめらかに近づき続ける（ログ1件ごとの階段状にならない）
+  function glideProg(el, pct) {
+    el._t = pct;
+    if (el._v == null || pct < el._v - 2 || matchMedia('(prefers-reduced-motion: reduce)').matches) { el._v = pct; el.style.width = pct + '%'; return; }
+    if (el._raf) return;
+    let last = performance.now();
+    const f = now => {
+      const dt = Math.min(100, now - last); last = now;
+      el._v += (el._t - el._v) * (1 - Math.exp(-dt / 700));
+      if (Math.abs(el._t - el._v) < 0.02) { el._v = el._t; el._raf = 0; } else el._raf = requestAnimationFrame(f);
+      el.style.width = el._v + '%';
+    };
+    el._raf = requestAnimationFrame(f);
+  }
+  function board(e) {
+    const sn = e.snap; lastSnap = sn;
+    const p = sn.p;
+    $('#hudDay').textContent = `DAY ${e.day || 0} / ${maxDays}`;
+    // その日の進み具合（1日で満タン、翌日は0から。ログ件数ごとの階段にならないよう滑らかに追う）
+    const dayEntries = out.entries.filter(x => x.day === e.day), pos = out.entries.slice(0, idx).filter(x => x.day === e.day).length;
+    const fin = done && idx >= out.entries.length;
+    glideProg($('#hudProg'), fin ? 100 : Math.min(100, pos / Math.max(1, dayEntries.length) * 100));
+    const stg = scnN.stages[p.si] || {}, here = sn.c.filter(c => c.side === 'foe' && c.stage === p.si);
+    $('#hudInfo').textContent = `${scnN.stages.length > 1 ? stg.name + '・' : ''}${p.stage === 'boss' ? '特異点の主と対峙' : `討伐 ${here.filter(c => !c.alive).length}/${here.length}`}・方針 ${FOCUS[focus].label}`;
+    const meta = out.meta[0] || {};
+    $('#mName').textContent = meta.master ? meta.master.name : '';
+    $('#mHp').style.width = p.mhp + '%'; $('#mHpT').textContent = p.mhp + '%';
+    $('#mMana').style.width = p.mana + '%'; $('#mManaT').textContent = p.mana + '%';
+    $('#mSeals').innerHTML = Array.from({ length: CFG.csMax }, (_, i) => `<i class="${i < p.cs ? '' : 'used'}"></i>`).join('') + (p.cs > CFG.csMax ? `+${p.cs - CFG.csMax}` : '');
+    $('#mItems').textContent = p.items; $('#mCamp').textContent = p.camp; $('#mSlain').textContent = `${p.slain}`; $('#mPlace').textContent = p.place || '';
+    const unit = c => {
+      const cls = c.side === 'party' ? '' : ' foe';
+      const kn = c.side === 'party' || c.name, ico = kn ? fic(faceOf(c.id) || c.name || (svOf(((out.meta[c.id] || {}).servantId)) || {}).trueName, keyOf(c.id)) : ci(keyOf(c.id));
+      const name = c.side === 'party' || c.name ? `${ico}<small>${esc(c.cls)}</small>${esc(c.name || c.label)}` : c.seen ? `${c.label.includes(c.cls) ? '' : `<small>${esc(c.cls)}</small>`}${esc(c.label)}　？？？${c.clues ? `<small>（手がかり${c.clues}）</small>` : ''}` : `<small>${esc(c.cls)}</small>未遭遇`;
+      const g = c.gaugeMax > 1 ? `<span class="gauges">${Array.from({ length: c.gaugeMax }, (_, i) => `<i class="${i < c.gauges ? '' : 'off'}"></i>`).join('')}</span>` : '';
+      const showHp = c.side === 'party' || c.seen;
+      return `<div data-id="${c.id}" class="unit${cls}${c.front ? ' front' : ''}${c.alive ? '' : ' dead'}${c.seen || c.side === 'party' ? '' : ' unseen'}"><span class="u-nm">${name}${g}</span><span class="u-hp">${showHp ? (c.alive ? c.hp : '✝') : ''}</span>${showHp ? `<div class="bar"><i style="width:${c.alive ? c.hp : 0}%;background:${c.side === 'party' ? 'var(--hp)' : 'var(--foe)'}"></i></div>` : ''}</div>`;
+    };
+    const party = sn.c.filter(c => c.side === 'party'), stray = sn.c.find(c => c.side === 'stray' && c.joined);
+    $('#partyList').innerHTML = party.filter(c => c.front).concat(party.filter(c => !c.front)).map(unit).join('') + (stray ? unit(stray).replace('class="unit foe', 'class="unit') : '');
+    // いまの節の敵（決まった日に現れる敵は、現れるまで出さない）と、その節のボス
+    const foes = sn.c.filter(c => c.side === 'foe' && c.stage === p.si && (c.seen || (out.meta[c.id] || {}).meet !== 'day')),
+      boss = sn.c.find(c => c.side === 'boss' && c.stage === p.si);
+    $('#foeList').innerHTML = foes.map(unit).join('') + (boss ? (p.stage === 'boss' || !boss.alive ? unit(boss) : `<div class="unit unseen"><span class="u-nm"><small>ボス</small>？？？（この節の敵を倒すと現れる）</span><span></span></div>`) : '');
+    fillFaces($('#partyList')); fillFaces($('#foeList'));
+    renderStrip(sn);
+    $('#foeHead').textContent = p.stage === 'boss' ? '特異点の主' : `${scnN.stages.length > 1 ? stg.name + 'の' : '特異点の'}敵（残り${here.filter(c => c.alive).length}騎）`;
+    renderOrders();
+  }
+
+  // ---------- スマホ：上に常に出す状況の帯（体力・魔力・令呪・味方のHP・敵の残り）と、細かい欄の折りたたみ ----------
+  function renderStrip(sn) {
+    const p = sn.p, party = sn.c.filter(c => c.side === 'party'), foes = sn.c.filter(c => c.side === 'foe' && c.stage === p.si);
+    const pips = party.map(c => `<i class="pip${c.front ? ' f' : ''}${c.alive ? '' : ' x'}${c.alive && c.hp < 35 ? ' low' : ''}" title="${esc(c.name || c.label)}　${c.alive ? c.hp : '✝'}"><b style="height:${c.alive ? c.hp : 0}%"></b></i>`).join('');
+    const seals = Array.from({ length: CFG.csMax }, (_, i) => `<i class="${i < p.cs ? '' : 'used'}"></i>`).join('') + (p.cs > CFG.csMax ? `+${p.cs - CFG.csMax}` : '');
+    $('#stripBars').innerHTML = `<span class="sg" title="マスターの体力">体<span class="bar"><i style="width:${p.mhp}%;background:var(--hp)"></i></span></span><span class="sg" title="魔力の蓄え">魔<span class="bar"><i style="width:${p.mana}%;background:var(--mana)"></i></span></span><span class="seals" title="令呪">${seals}</span><span class="pips" title="味方の霊基（太枠は前衛）">${pips}</span><span class="sf">${p.stage === 'boss' ? 'ボス戦' : `敵 ${foes.filter(c => c.alive).length}/${foes.length}`}</span>`;
+  }
+  const FOLD_KEY = 'hgw.orig.folds', FOLD_DEF = { master: true, party: true, foes: true, orders: true };
+  let folds = store.get(FOLD_KEY) || {};
+  document.querySelectorAll('[data-fold]').forEach(p => {
+    const k = p.dataset.fold;
+    p.classList.toggle('folded', k in folds ? !!folds[k] : !!FOLD_DEF[k]);
+    p.querySelector('.hd').addEventListener('click', () => { if (!matchMedia('(max-width: 820px)').matches) return; const on = p.classList.toggle('folded'); folds[k] = on; store.set(FOLD_KEY, folds); });
+  });
+  $('#logMore').onclick = () => { const on = $('#log').classList.toggle('open'); $('#log').scrollTop = 0; $('#logMore').setAttribute('aria-expanded', String(on)); $('#logMore').textContent = on ? '最近の記録だけにする' : 'すべての記録を見る'; };
+
+  // ---------- 記録の絞り込み・山場 ----------
+  const KIND_JA = { prologue: '序幕', summon: '召喚', dayhead: '日付', day: '昼', night: '夜', battle: '戦い', np: '宝具', cs: '令呪', death: '退場', event: '出来事', world: '世界', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
+  const FB = ['battle', 'np', 'cs', 'death'];
+  const isHL = e => !!e.big || ['death', 'np', 'cs', 'end', 'council', 'choice'].includes(e.kind);
+  const keyOf = id => String(((out && out.meta && out.meta[id]) || {}).servantId || '').split(':')[0];
+  // 顔グラフィックのファイル名（真名、同名の別の騎なら 真名#key）。陣営の id から
+  const faceOf = id => { const m = (out && out.meta && out.meta[id]) || {}; return H.faceNameOfId(m.servantId) || m.trueName || ''; };
+  function setLogFilter(f) {
+    logFilter = f; $('#log').dataset.f = f;
+    document.querySelectorAll('[data-lf]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lf === f)));
+  }
+  document.querySelectorAll('[data-lf]').forEach(b => b.onclick = () => setLogFilter(b.dataset.lf));
+
+  // ---------- 情景（背景画像があれば使い、無ければ描いた街並み） ----------
+  const imgOk = new Map();
+  function probe(url) {
+    if (imgOk.has(url)) return Promise.resolve(imgOk.get(url));
+    const p = new Promise(res => { const im = new Image(); im.onload = () => { imgOk.set(url, true); res(true); }; im.onerror = () => { imgOk.set(url, false); res(false); }; im.src = url; });
+    imgOk.set(url, p); return p;
+  }
+  let lastSceneKey = null, sceneReq = 0, lastPlace = '', lastScene = '';
+  function sceneOf(e) {
+    if (e.scene) lastScene = e.scene;
+    if (e.place) lastPlace = e.place;
+    else if (e.snap && e.snap.p && e.snap.p.place) lastPlace = e.snap.p.place;
+    const scene = e.scene || lastScene || (e.snap && e.snap.p && e.snap.p.scene) || H.SCENE_CONFIG.defaultScene;
+    $('#sceneCap').textContent = `${lineup.city || lineup.name} ・ ${lastPlace || lineup.city || lineup.name}`;
+    setScene(scene, e.phase === 'day' ? 'day' : 'night', e.weather);
+  }
+  async function setScene(scene, time, weather) {
+    $('#view').classList.toggle('rainy', weather === 'rain');
+    $('#sceneTag').textContent = time === 'day' ? 'DAY' : 'NIGHT'; $('#sceneTag').classList.toggle('day', time === 'day');
+    $('#sceneSvg').style.filter = time === 'day' ? 'brightness(1.7) saturate(.7) hue-rotate(-10deg)' : '';
+    const st = $('#sceneSvg').querySelector('#stars'); if (st) st.setAttribute('opacity', time === 'day' ? 0 : .8);
+    const key = scene + '|' + time; if (key === lastSceneKey) return; lastSceneKey = key;
+    const req = ++sceneReq;
+    for (const url of H.sceneCandidates(scene, time)) {
+      const ok = await (imgOk.get(url) === true ? true : imgOk.get(url) === false ? false : probe(url));
+      if (req !== sceneReq) return;
+      if (ok) { const im = $('#sceneImg'); if (im.getAttribute('src') !== url) { im.classList.remove('on'); im.src = url; } requestAnimationFrame(() => im.classList.add('on')); return; }
+    }
+    $('#sceneImg').classList.remove('on');
+  }
+  function drawSkyline(sd) {
+    const rnd = H.engine.makeRng('scene' + sd);
+    let x = 0, b = '', w = '';
+    while (x < 300) {
+      const bw = 10 + Math.floor(rnd() * 22), bh = 22 + Math.floor(rnd() * 50), y = 100 - bh;
+      b += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}"/>`;
+      for (let wy = y + 4; wy < 96; wy += 6) for (let wx = x + 2; wx < x + bw - 3; wx += 5) if (rnd() < 0.26) w += `<rect x="${wx}" y="${wy}" width="2" height="3"/>`;
+      if (rnd() < 0.18) b += `<rect x="${x + bw / 2 - 0.5}" y="${y - 9}" width="1" height="9"/>`;
+      x += bw + (rnd() < 0.3 ? 2 : 0);
+    }
+    const stars = Array.from({ length: 50 }, () => `<rect x="${Math.floor(rnd() * 300)}" y="${Math.floor(rnd() * 55)}" width="1" height="1"/>`).join('');
+    $('#sceneSvg').innerHTML = `<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#050d26"/><stop offset=".7" stop-color="#123a7a"/><stop offset="1" stop-color="#1c64a8"/></linearGradient></defs>
+      <rect width="300" height="100" fill="url(#sky)"/><g id="stars" fill="#cfefff" opacity=".8" shape-rendering="crispEdges">${stars}</g>
+      <circle cx="${40 + Math.floor(rnd() * 220)}" cy="22" r="8" fill="#e9f6ff" opacity=".9"/><g fill="#071a3c" shape-rendering="crispEdges">${b}</g><g fill="#59e3ff" opacity=".85" shape-rendering="crispEdges">${w}</g>`;
+  }
+
+  // ---------- CSV ----------
+  function exportCsv() {
+    if (!out || !out.entries) return;
+    const list = out.entries.slice(0, idx).filter(e => e.kind !== 'dayhead');
+    const q = v => { const t = String(v == null ? '' : v); return /[",\n\r]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+    const who = (e, id) => { const c = e.snap && e.snap.c && e.snap.c.find(x => x.id === id); return c ? c.label + (c.name ? '「' + c.name + '」' : '') : ''; };
+    const rows = [['日', '時間帯', '種類', 'ハイライト', '前衛に関わる', '関わった者', '本文', 'セリフ', '場所']];
+    for (const e of list) rows.push([e.day || 0, PH[e.phase] || '', KIND_JA[e.kind] || e.kind, isHL(e) ? '★' : '', e.you ? '○' : '', (e.ids || []).map(id => who(e, id)).filter(Boolean).join(' / '), e.text, e.quote ? e.quote.text : '', e.place || '']);
+    const csv = '﻿' + rows.map(r => r.map(q).join(',')).join('\r\n') + '\r\n';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = `オリジナル特異点_${lineup.name.replace(/\s+/g, '_')}_${seed}_${done && idx >= out.entries.length ? '全記録' : curDay + '日目まで'}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast(`記録を${list.length}件、CSVで保存しました`);
+  }
+  $('#csvBtn').onclick = exportCsv;
+
+  // ---------- 詳細（サーヴァント・マスター） ----------
+  // 開いている間は記録を止め、閉じたら続きから流す（聖杯戦争側の解説と同じ）
+  let detResume = false;
+  function openDet(title, sub, html) {
+    if (!$('#det').classList.contains('on')) {
+      detResume = !!gen && !paused && !done && !op && !$('#dlg').classList.contains('on') && !$('#imgDlg').classList.contains('on');
+      clearTimeout(timer);
+    }
+    $('#detTitle').innerHTML = title; $('#detSub').textContent = sub || ''; $('#detBody').innerHTML = html; $('#det').classList.add('on'); syncLock(); fillFaces($('#det')); $('#detClose').focus({ preventScroll: true });
+    $('#det .dlg-in').scrollTop = 0;
+  }
+  const closeDet = () => {
+    if (!$('#det').classList.contains('on')) return;
+    $('#det').classList.remove('on'); syncLock();
+    if (detResume) { detResume = false; step(); }
+  };
+  // 解説の本文：最初の部分を出し、続きがあれば「続きを読む」で開く（最初の部分は繰り返さない）。人物・性格は別に折りたたむ
+  function loreBlock(body, person) {
+    const lead = H.build.loreLead(body, 160), pl = H.build.loreLead(person, 160);
+    if (lead.head) return `<p class="txt2">${esc(lead.head)}</p>${lead.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(lead.rest)}</p></details>` : ''}`
+      + (person ? `<details><summary>人物・性格</summary><p class="txt2">${esc(H.build.loreText(person))}</p></details>` : '');
+    if (pl.head) return `<p class="txt2">${esc(pl.head)}</p>${pl.rest ? `<details><summary>続きを読む</summary><p class="txt2">${esc(pl.rest)}</p></details>` : ''}`;
+    return '';
+  }
+  // kagemiya のURL（ページ名は EUC-JP でパーセント符号化する）。対応表は初回に作る
+  let eucMap = null;
+  function eucEncode(str) {
+    if (!eucMap) {
+      eucMap = new Map(); const dec = new TextDecoder('euc-jp');
+      for (let a = 0xa1; a <= 0xfe; a++) for (let b = 0xa1; b <= 0xfe; b++) { const ch = dec.decode(Uint8Array.of(a, b)); if (ch.length === 1 && ch !== '�' && !eucMap.has(ch)) eucMap.set(ch, [a, b]); }
+      for (let b = 0xa1; b <= 0xdf; b++) { const ch = dec.decode(Uint8Array.of(0x8e, b)); if (!eucMap.has(ch)) eucMap.set(ch, [0x8e, b]); }
+    }
+    let o2 = '';
+    for (const ch of String(str)) {
+      const c = ch.codePointAt(0);
+      if (c < 0x80) { o2 += /[A-Za-z0-9\-_.~]/.test(ch) ? ch : '%' + c.toString(16).toUpperCase().padStart(2, '0'); continue; }
+      const bs = eucMap.get(ch); if (!bs) return null;
+      o2 += bs.map(x => '%' + x.toString(16).toUpperCase()).join('');
+    }
+    return o2;
+  }
+  const wikiSearch = q => 'https://ja.wikipedia.org/w/index.php?search=' + encodeURIComponent(q) + '&go=Go';
+  const cleanName = n => String(n || '').replace(/[（(〔\[【].*?[)）〕\]】]/g, '').trim();
+  function loreLinks(sv) {
+    if (!sv || sv.bossOnly) return '';
+    const links = [], name = cleanName(sv.trueName);
+    if (name) links.push(`<a class="btn" href="${wikiSearch(name)}" target="_blank" rel="noopener">「${esc(name)}」をWikipediaで調べる</a>`);
+    const og = String(sv.origin || '').split(/[、,，／/]/)[0].replace(/^史実|[『』「」]/g, '').trim();
+    if (og && og !== name) links.push(`<a class="btn" href="${wikiSearch(og)}" target="_blank" rel="noopener">元ネタ「${esc(og)}」</a>`);
+    if (H.build.linkOf(sv)) links.push(`<a class="btn" href="${esc(H.build.linkOf(sv))}" target="_blank" rel="noopener">設定元リンク</a>`);
+    else if (!sv.manual) try { const u = eucEncode(H.build.pageOf(sv) || sv.trueName); if (u) links.push(`<a class="btn" href="https://seesaawiki.jp/kagemiya/d/${u}" target="_blank" rel="noopener">設定元リンク</a>`); } catch (e) { /* EUC-JP が使えない環境 */ }
+    links.push(`<a class="btn" href="submit.html?servant=${encodeURIComponent(sv.trueName)}" target="_blank" rel="noopener">この英霊の調整を希望する</a>`);
+    return `<div class="links">${links.join('')}</div>`;
+  }
+  $('#detClose').onclick = closeDet;
+  $('#det').addEventListener('click', e => { if (e.target === $('#det')) closeDet(); });
+  function openServant(id) {
+    const sn = lastSnap && lastSnap.c.find(c => c.id === id); if (!sn) return;
+    const m = out.meta[id] || {}, sv = svOf(m.servantId), known = sn.side === 'party' || !!sn.name;
+    if (!known) {
+      openDet(`${ci(keyOf(id))}${esc(sn.label)}`, sn.cls, `<dl class="kv"><dt>クラス</dt><dd>${esc(sn.cls)}</dd><dt>真名</dt><dd>不明${sn.clues ? `（手がかり${sn.clues}）` : ''}</dd></dl><p class="lead2">真名を見抜くには、戦って手がかりを集めるか、令呪・推測の欄から真名を推測します。</p>`);
+      return;
+    }
+    const T = sv && sv.text || {}, prof = sv && sv.profile || {};
+    const body = (T.commentary || '').trim(), person = (T.personality || '').trim();
+    openDet(`${fic(faceOf(id) || m.trueName, keyOf(id))}${esc(m.trueName)}`, `${sn.label}`,
+      `<img class="face xl" data-face="${esc(faceOf(id) || m.trueName)}" alt="" hidden><dl class="kv"><dt>クラス</dt><dd>${esc(m.cls)}</dd><dt>能力</dt><dd>${m.ranks.map(r => esc(r[0]) + esc(r[1])).join('　')}</dd>${m.skills ? `<dt>スキル</dt><dd>${esc(m.skills)}</dd>` : ''}${m.nps ? `<dt>宝具</dt><dd>${esc(m.nps)}</dd>` : ''}${sv && sv.aliases && sv.aliases.length ? `<dt>異名</dt><dd>${esc(sv.aliases.join('、'))}</dd>` : ''}${sv && sv.alignment ? `<dt>属性</dt><dd>${esc(sv.alignment)}</dd>` : ''}${sv && sv.origin ? `<dt>元ネタ</dt><dd>${esc(sv.origin)}</dd>` : ''}${prof.wish ? `<dt>願い</dt><dd>${esc(prof.wish)}</dd>` : ''}</dl>`
+      + loreBlock(body, person)
+      + loreLinks(sv));
+  }
+  function openMaster() {
+    const mm = (out && out.meta && out.meta[0] || {}).master; if (!mm) return;
+    const P = H.PERSONAS || {}, per = mm.persona && P[mm.persona] ? P[mm.persona].label : '';
+    const st = Object.entries(mm.stats || {}).map(([k, v]) => `${({ mana: '魔力', craft: '魔術', body: '体', mind: '精神', luck: '運' })[k] || k} ${v}`).join('　');
+    openDet(esc(mm.name), 'マスター', `<dl class="kv">${mm.originLabel ? `<dt>出自</dt><dd>${esc(mm.originLabel)}</dd>` : ''}${mm.sex ? `<dt>性別</dt><dd>${esc(mm.sex)}</dd>` : ''}${mm.age ? `<dt>年齢</dt><dd>${esc(mm.age)}</dd>` : ''}${per ? `<dt>性格</dt><dd>${esc(per)}</dd>` : ''}${st ? `<dt>能力</dt><dd>${esc(st)}</dd>` : ''}${mm.wish ? `<dt>願い</dt><dd>${esc(mm.wish)}</dd>` : ''}${mm.catalyst ? `<dt>縁</dt><dd>${esc(mm.catalyst)}</dd>` : ''}</dl>`);
+  }
+  $('#mName').onclick = openMaster; $('#mName').onkeydown = e => { if (e.key === 'Enter') openMaster(); };
+  for (const sel of ['#partyList', '#foeList']) $(sel).addEventListener('click', e => { const u = e.target.closest('[data-id]'); if (u) openServant(+u.dataset.id); });
+
+  // ---------- 画面の固定・一番上へ・Esc ----------
+  let lockY = null;
+  function syncLock() {
+    const open = !!document.querySelector('.dlg.on:not(.min)');
+    if (open && lockY == null) { lockY = scrollY; document.body.style.top = -lockY + 'px'; document.body.classList.add('locked'); }
+    else if (!open && lockY != null) { const y = lockY; lockY = null; document.body.classList.remove('locked'); document.body.style.top = ''; scrollTo(0, y); }
+  }
+  const lockObs = new MutationObserver(syncLock);
+  document.querySelectorAll('.dlg').forEach(d => lockObs.observe(d, { attributes: true, attributeFilter: ['class'] }));
+  addEventListener('scroll', () => { $('#toTopBtn').hidden = !(scrollY > 700 && lockY == null); }, { passive: true });
+  $('#toTopBtn').onclick = () => scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if ($('#det').classList.contains('on')) return closeDet();
+    if ($('#imgDlg').classList.contains('on')) return closeImg();
+    const d = $('#dlg'); if (d.classList.contains('on') && !d.classList.contains('min')) $('#dlgMin').click();
+  });
+
+  // ---------- 中断・これまでの記録 ----------
+  const SAVE_KEY = 'hgw.orig.save.v1', HIST_KEY = 'hgw.orig.history.v1', HIST_MAX = 10, KEEP_MAX = 30;
+  const rosterFp = () => { let h = 2166136261; for (const s of rosterAll) { const t = s.id + ':' + Math.round(s.power || 0) + ';'; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } } return (h >>> 0).toString(36) + '.' + rosterAll.length; };
+  const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+  const validRec = r => r && typeof r.q === 'string' && /(^|&)seed=/.test(r.q);
+  const loadHist = () => { const l = store.get(HIST_KEY); return Array.isArray(l) ? l.filter(validRec) : []; };
+  function saveProgress() {
+    if (!gen || done || !out || !document.body.classList.contains('watching') || !lineup) return false;
+    return store.set(SAVE_KEY, { v: 1, at: Date.now(), q: location.search.replace(/^\?/, ''), fp: rosterFp(), sh: scnHash, name: lineup.name, day: curDay, days: maxDays });
+  }
+  addEventListener('pagehide', saveProgress);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) saveProgress(); });
+  function addHistory(r, cls) {
+    const rec = { v: 1, at: Date.now(), q: location.search.replace(/^\?/, ''), fp: rosterFp(), sh: scnHash, name: r.name, ending: r.ending, day: r.days, slain: r.slain, foes: r.foes, stage: r.stageReached, stages: r.stages, boss: r.boss ? { name: r.boss.trueName, alive: r.boss.alive } : null };
+    let list = loadHist().filter(x => x.q !== rec.q);
+    list.unshift(rec);
+    const keep = list.filter(x => x.keep).slice(0, KEEP_MAX), rest = list.filter(x => !x.keep).slice(0, HIST_MAX);
+    store.set(HIST_KEY, list.filter(x => keep.includes(x) || rest.includes(x)));
+    store.set(SAVE_KEY, null);
+    trimScns();
+  }
+  function openRecord(q, fpSaved) {
+    if (fpSaved && dataLoaded && fpSaved !== rosterFp() && !confirm('サーヴァントのリストが、保存したときから変わっています。\nこのまま開くと、別の特異点になることがあります。開きますか？')) return;
+    const sh = new URLSearchParams(q).get('sh');
+    if (sh && !loadScns()[sh]) return toast('この記録のシナリオがこのブラウザにありません。同じシナリオのファイルを読み込んでから開いてください');
+    location.href = location.pathname + '?' + q;
+  }
+  function renderIntroRecords() {
+    const sv = store.get(SAVE_KEY), hist = loadHist();
+    const END_JA = { clear: '人理修復 成功', wipe: '全滅', master: 'マスター死亡', timeout: '人理定礎崩壊' };
+    const resumable = !!(sv && sv.q);
+    $('#resumeBox').hidden = !resumable; $('#overNote').hidden = !resumable;
+    if (resumable) $('#resumeInfo').innerHTML = `特異点「${esc(sv.name || '')}」、${sv.day ? esc(sv.day) + '日目 / ' + esc(sv.days) + '日' : 'レイシフト直後'}。<small>中断 ${esc(fmtAt(sv.at))}</small>`;
+    $('#recMax').textContent = $('#recMax2').textContent = HIST_MAX; $('#keepMax').textContent = KEEP_MAX;
+    $('#recEmpty').hidden = hist.length > 0;
+    $('#recExport').disabled = !hist.length && !resumable;
+    $('#recList').innerHTML = hist.map((h, i) => `<li class="${h.ending === 'clear' ? 'won' : ''}${h.keep ? ' kept' : ''}"><div class="rt">${esc(h.name)}${h.keep ? '<span class="keepmark">保護</span>' : ''}</div>
+      <div class="rm">${esc(fmtAt(h.at))} ・ ${esc(END_JA[h.ending] || '終了')} ・ ${h.day}日目${h.stages > 1 ? ` ・ ${h.stage}/${h.stages}節` : ''} ・ 討伐 ${h.slain}/${h.foes}${h.boss ? ' ・ ボス' + (h.boss.alive ? '健在' : '撃破') : ''}${loadScns()[h.sh] ? '' : ' ・ シナリオなし'}</div>
+      <div class="ra"><button class="btn" type="button" data-act="open" data-i="${i}">見返す</button><button class="btn" type="button" data-act="keep" data-i="${i}" aria-pressed="${!!h.keep}" title="保護した記録は、新しい特異点が増えても消えずに残ります">${h.keep ? '★ 保護中' : '☆ 保護する'}</button><button class="btn del" type="button" data-act="del" data-i="${i}">消す</button></div></li>`).join('');
+  }
+  $('#resumeBtn').onclick = () => { const sv = store.get(SAVE_KEY); if (sv && sv.q) openRecord(sv.q, sv.fp); };
+  $('#resumeDrop').onclick = () => { if (confirm('中断中の特異点を破棄します。よろしいですか？')) { store.set(SAVE_KEY, null); renderIntroRecords(); } };
+  $('#recList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const hist = loadHist(), h = hist[+b.dataset.i]; if (!h) return;
+    if (b.dataset.act === 'open') openRecord(h.q, h.fp);
+    else if (b.dataset.act === 'keep') {
+      if (!h.keep && hist.filter(x => x.keep).length >= KEEP_MAX) return toast(`保護できるのは${KEEP_MAX}件までです。ほかの記録の保護を外してください`);
+      h.keep = !h.keep; store.set(HIST_KEY, hist); renderIntroRecords();
+      toast(h.keep ? 'この記録を保護しました。新しい特異点が増えても消えません' : '保護を外しました。新しい特異点が増えると、古いものから消えます');
+    } else if (b.dataset.act === 'del') {
+      if (!confirm(`この記録を消します。元には戻せません。よろしいですか？\n\n${fmtAt(h.at)} ・ ${h.name}`)) return;
+      hist.splice(+b.dataset.i, 1); store.set(HIST_KEY, hist); renderIntroRecords(); toast('記録を1件消しました');
+    }
+  });
+  $('#recExport').onclick = () => {
+    // 記録と一緒に、その記録のシナリオも書き出す（読み込んだ先で見返せるように）
+    const hist = loadHist(), sv = store.get(SAVE_KEY), m = loadScns(), used = {};
+    for (const r of hist.concat(sv ? [sv] : [])) if (r.sh && m[r.sh]) used[r.sh] = m[r.sh];
+    const blob = new Blob([JSON.stringify({ format: 'hgw-orig-records', version: 1, history: hist, save: sv, scenarios: used })], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'オリジナル特異点_記録.json'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+  $('#recImport').onchange = async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      if (!j || j.format !== 'hgw-orig-records') throw new Error('オリジナル特異点の記録ではありません');
+      const m = loadScns(); for (const [h, x] of Object.entries(j.scenarios || {})) if (x && x.scn && !m[h]) m[h] = x; store.set(SCN_KEY, m);
+      const have = loadHist(), seen = new Set(have.map(x => x.q)), add = (j.history || []).filter(x => validRec(x) && !seen.has(x.q));
+      store.set(HIST_KEY, have.concat(add).sort((a, b) => b.at - a.at));
+      if (j.save && validRec(j.save) && !store.get(SAVE_KEY)) store.set(SAVE_KEY, j.save);
+      renderIntroRecords(); toast(`記録を${add.length}件、読み込みました`);
+    } catch (err) { toast('読み込めませんでした：' + err.message); }
+  };
+
+  // ---------- 結末 ----------
+  const END = { clear: ['人理修復 成功', 'ok'], wipe: ['全滅', 'ng'], master: ['マスター死亡', 'ng'], timeout: ['人理定礎崩壊', 'ng'] };
+  function lastWord(r) {
+    const alive = r.party.filter(c => c.alive), pool = alive.length ? alive : r.party;
+    const keys = r.ending === 'clear' ? ['勝利', '聖杯について', '絆'] : ['戦闘不能', '敗北', '絆'];
+    for (const c of pool.slice().sort((a, b) => (b.front ? 1 : 0) - (a.front ? 1 : 0))) {
+      const sv = rosterAll.find(s => s.trueName === c.trueName); if (!sv || !sv.voice) continue;
+      for (const k of keys) {
+        const lines = H.voiceLines(sv, k); if (!lines.length) continue;
+        let h = 2166136261; const t = seed + ':last:' + k; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return { who: `${c.label}「${c.trueName}」`, text: lines[(h >>> 0) % lines.length] };
+      }
+    }
+    return null;
+  }
+  function finish() {
+    clearTimeout(timer); paused = false; syncCtl();
+    const r = result, [t, cls] = END[r.ending] || ['終了', 'ng'];
+    const row = c => `<tr data-id="${c.id}" class="tap" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.trueName + '」の解説')}"><th>${fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || (rosterAll.find(s => s.trueName === c.trueName) || {}).id || '').split(':')[0])}${esc(c.label)}</th><td>${esc(c.trueName)}${c.front ? '（前衛）' : ''}</td><td>${c.alive ? '生存' : esc(c.fate ? c.fate.day + '日目に消滅' : '消滅')}${c.kills.length ? `・討伐 ${c.kills.map(esc).join('、')}` : ''}</td></tr>`;
+    const q = lastWord(r);
+    const hls = out.entries.filter(e => isHL(e) && e.kind !== 'dayhead' && e.kind !== 'prologue');
+    const decs = decLog.filter(d => d.title);
+    const dlist = decs.length ? `<details class="rsec"><summary><h5>下した決断（${decs.length}）</h5></summary><ol>${decs.map(d => `<li><b>D${pad2(d.day || 0)}</b><span>${esc(d.title)}　→　${esc(d.label)}${d.auto ? '（おまかせ）' : ''}</span></li>`).join('')}</ol></details>` : '';
+    const tl = hls.length ? `<details class="rsec"><summary><h5>この攻略の振り返り（${hls.length}件）</h5></summary><ol>${hls.map(e => `<li class="k-${e.kind}"><b>${e.day ? 'D' + pad2(e.day) + ' ' + (PH[e.phase] || '') : '開戦'}</b><span>${esc(e.text)}</span></li>`).join('')}</ol></details>` : '';
+    $('#result').innerHTML = `<section class="panel result" aria-label="結末"><div class="hd"><i class="chev"></i><span class="en">Result</span><span class="ja">${esc(r.name)}</span></div><div class="body">
+      <p class="big ${cls}">${t}</p><p class="sub">${r.days}日目${r.stages > 1 ? ` ・ ${r.ending === 'clear' ? r.stages + '節すべてを越えた' : r.stageReached + '/' + r.stages + '節（' + esc(r.stageName) + '）'}` : ''}${r.stageTimeout ? ' ・ 節の期限切れ' : ''} ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${esc(r.boss.trueName)}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}${playerName || r.master ? ` ・ マスター ${esc(playerName || r.master)}` : ''}</p>
+      ${q ? `<div class="lastword"><span class="who">最後に、${esc(q.who)}から一言</span><p>「${esc(q.text)}」</p></div>` : ''}
+      ${words ? `<div class="lastword" style="border-color:var(--bond)"><span class="who">あなたの一言</span><p style="color:var(--bond)">「${esc(words)}」</p></div>` : ''}
+      <table><tbody>${r.party.map(row).join('')}</tbody></table>
+      <p class="hint">敵：${r.enemies.map(c => `${esc(c.label)}「${esc(c.trueName)}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${esc(r.stray.trueName)}${r.strayJoined ? '（共闘）' : ''}` : ''}</p>
+      ${dlist}${tl}
+      <div class="acts"><button class="btn" id="again">同じ特異点をもう一度</button><button class="btn primary" id="newOne">新しい特異点へ</button><button class="btn" id="copyUrl">この攻略のリンクをコピー</button><button class="btn" id="csv2">記録をCSVで保存</button><button class="btn" id="cardBtn">画像にする</button></div></div></section>`;
+    fillFaces($('#result'));
+    addHistory(r);
+    const tapRow = e => { const u = e.target.closest('tr[data-id]'); if (u && (e.type === 'click' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openServant(+u.dataset.id); } };
+    $('#result').querySelector('table').addEventListener('click', tapRow); $('#result').querySelector('table').addEventListener('keydown', tapRow);
+    $('#csv2').onclick = exportCsv;
+    $('#cardBtn').onclick = openImages;
+    $('#again').onclick = () => start({});
+    $('#newOne').onclick = () => { $('#quitBtn').click(); $('#seed').value = ''; observe(); };
+    $('#newOne').textContent = '別の顔ぶれで挑む';
+    $('#copyUrl').onclick = async () => { try { await navigator.clipboard.writeText(location.href); toast('リンクをコピーしました。同じシナリオを読み込んだブラウザなら、同じ選択で同じ特異点が再現されます'); } catch (e) { toast('コピーできませんでした。アドレスバーのURLを共有してください'); } };
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+
+  // ---------- 画像にする（結末のまとめ・率いた英霊の評価） ----------
+  // canvas に描いて PNG にする。サーバーは使わない。共有できる端末では「共有する」も出す（描き方は index.html と同じ）
+  const CV = { W: 1200, P: 64 };
+  const CF = { en: '"Rajdhani", "Zen Kaku Gothic New", sans-serif', go: '"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif', mi: '"Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif' };
+  const CC = { void: '#050d22', ice: '#e8f7ff', mute: '#8daed4', cyan: '#3ee6ff', cyan2: '#8ff4ff', gold: '#ffd84a', seal: '#ff4f72', bond: '#ff8fc8', ink: '#04152e', line: 'rgba(80, 196, 255, .30)' };
+  const GRADE_BG = { S: [CC.gold, '#fff3c4'], A: [CC.cyan, CC.cyan2], B: [CC.cyan, CC.cyan2], C: ['#9fb7d8', '#dfe9f7'], D: ['#b9a6d9', '#e9e0f8'], E: [CC.seal, '#ff9db1'] };
+  // Webフォントを使う文字だけ読み込んでから描く（つながらないときは端末の字体で描く）
+  async function cardFonts(text) {
+    if (!document.fonts || !document.fonts.load) return;
+    const t = String(text).slice(0, 6000) + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789%／・';
+    const faces = ['700 40px "Zen Kaku Gothic New"', '500 40px "Zen Kaku Gothic New"', '500 40px "Shippori Mincho"', '700 40px "Shippori Mincho"', '700 40px "Rajdhani"', '600 40px "Rajdhani"'];
+    try { await Promise.race([Promise.all(faces.map(f => document.fonts.load(f, t))), new Promise(r => setTimeout(r, 5000))]); } catch (e) { /* 端末の字体で描く */ }
+  }
+  const setFont = (ctx, w, size, fam) => { ctx.font = `${w} ${size}px ${fam}`; };
+  const spacing = (ctx, px) => { if ('letterSpacing' in ctx) ctx.letterSpacing = px + 'px'; };
+  // 1文字ずつ折り返す（句読点や閉じ括弧は行頭に来ないよう、前の行にぶら下げる）
+  function wrapText(ctx, text, maxW) {
+    const lines = []; let cur = '';
+    for (const ch of String(text || '')) {
+      if (ch === '\n') { lines.push(cur); cur = ''; continue; }
+      const t = cur + ch;
+      if (cur && ctx.measureText(t).width > maxW) {
+        if (/[、。，．・：；？！」』）〕】…ー]/.test(ch)) { lines.push(t); cur = ''; } else { lines.push(cur); cur = ch; }
+      } else cur = t;
+    }
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function para(ctx, text, x, y, maxW, lh, maxLines) {
+    let lines = wrapText(ctx, text, maxW);
+    if (maxLines && lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].slice(0, -1) + '…'; }
+    for (const l of lines) { ctx.fillText(l, x, y + lh * 0.78); y += lh; }
+    return y;
+  }
+  function cardBg(ctx, W, Ht) {
+    ctx.fillStyle = CC.void; ctx.fillRect(0, 0, W, Ht);
+    let g = ctx.createRadialGradient(W * 0.8, -Ht * 0.1, 0, W * 0.8, -Ht * 0.1, Math.max(W, Ht) * 0.75);
+    g.addColorStop(0, '#15367a'); g.addColorStop(1, 'rgba(21, 54, 122, 0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, Ht);
+    g = ctx.createRadialGradient(-W * 0.05, Ht * 1.05, 0, -W * 0.05, Ht * 1.05, Math.max(W, Ht) * 0.65);
+    g.addColorStop(0, '#0d2a62'); g.addColorStop(1, 'rgba(13, 42, 98, 0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, Ht);
+    ctx.strokeStyle = 'rgba(62, 230, 255, .05)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0.5; x < W; x += 48) { ctx.moveTo(x, 0); ctx.lineTo(x, Ht); }
+    for (let y = 0.5; y < Ht; y += 48) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+    ctx.strokeStyle = CC.line; ctx.strokeRect(24.5, 24.5, W - 49, Ht - 49);
+    ctx.strokeStyle = CC.cyan; ctx.lineWidth = 3; ctx.shadowColor = 'rgba(62, 230, 255, .6)'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.moveTo(24, 58); ctx.lineTo(24, 24); ctx.lineTo(58, 24); ctx.moveTo(W - 24, Ht - 58); ctx.lineTo(W - 24, Ht - 24); ctx.lineTo(W - 58, Ht - 24); ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+  // 見出し（英字の帯・金の山形・題）。top は帯の上端（つなげた画像の2枚目では途中から描く）。戻り値は次に描く位置
+  function cardHead(ctx, en, right, title, top) {
+    const { W, P } = CV, T = top == null ? P : top;
+    setFont(ctx, 700, 22, CF.en); spacing(ctx, 4); ctx.fillStyle = CC.cyan; ctx.textAlign = 'left';
+    ctx.shadowColor = 'rgba(62, 230, 255, .55)'; ctx.shadowBlur = 10; ctx.fillText(en, P, T + 20); ctx.shadowBlur = 0;
+    spacing(ctx, 0); setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.textAlign = 'right'; ctx.fillText(right, W - P, T + 20); ctx.textAlign = 'left';
+    const cx = P, cy = T + 48;
+    ctx.fillStyle = CC.gold; ctx.beginPath();
+    for (const ox of [0, 14]) { ctx.moveTo(cx + ox, cy); ctx.lineTo(cx + ox + 9, cy); ctx.lineTo(cx + ox + 20, cy + 14); ctx.lineTo(cx + ox + 9, cy + 28); ctx.lineTo(cx + ox, cy + 28); ctx.lineTo(cx + ox + 11, cy + 14); ctx.closePath(); }
+    ctx.fill();
+    setFont(ctx, 700, 40, CF.go); spacing(ctx, 6); ctx.fillStyle = CC.ice; ctx.fillText(title, P + 46, cy + 28); spacing(ctx, 0);
+    const y = cy + 52;
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
+    return y + 28;
+  }
+  // つなげた画像の区切り（シアンの二重線と、中央の菱形）
+  function cardDivider(ctx, y) {
+    const { W, P } = CV;
+    ctx.strokeStyle = 'rgba(62, 230, 255, .55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P, y); ctx.lineTo(W - P, y); ctx.stroke();
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 6.5); ctx.lineTo(W - P, y + 6.5); ctx.stroke();
+    ctx.fillStyle = CC.gold; ctx.save(); ctx.translate(W / 2, y + 3); ctx.rotate(Math.PI / 4); ctx.fillRect(-7, -7, 14, 14); ctx.restore();
+    return y + 34;
+  }
+  function cardFoot(ctx, y, left) {
+    const { W, P } = CV;
+    ctx.strokeStyle = CC.line; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + 0.5); ctx.lineTo(W - P, y + 0.5); ctx.stroke();
+    setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute; ctx.textAlign = 'left'; ctx.fillText(left, P, y + 34);
+    spacing(ctx, 0); setFont(ctx, 500, 18, CF.go); ctx.textAlign = 'right';
+    ctx.fillText('46億分の1の特異点（テスト版）' + (/^https?:$/.test(location.protocol) ? ' ・ ' + location.host + location.pathname.replace(/[^/]*$/, '') : ''), W - P, y + 34);
+    ctx.textAlign = 'left';
+    return y + 56;
+  }
+  // 引用の帯（左に色の線）
+  function quoteBlock(ctx, y, who, text, color) {
+    const { W, P } = CV, x = P + 22, w = W - P * 2 - 22;
+    setFont(ctx, 500, 26, CF.mi);
+    const lines = Math.min(4, wrapText(ctx, '「' + text + '」', w).length);
+    const h = 30 + lines * 40 + 14;
+    const g = ctx.createLinearGradient(P, 0, W - P, 0); g.addColorStop(0, color === CC.bond ? 'rgba(255, 143, 200, .14)' : 'rgba(62, 230, 255, .14)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = g; ctx.fillRect(P, y, W - P * 2, h);
+    ctx.fillStyle = color; ctx.fillRect(P, y, 4, h);
+    setFont(ctx, 500, 19, CF.go); ctx.fillStyle = CC.mute; ctx.fillText(who, x, y + 26);
+    setFont(ctx, 500, 26, CF.mi); ctx.fillStyle = color;
+    para(ctx, '「' + text + '」', x, y + 34, w, 40, 4);
+    return y + h + 14;
+  }
+  const cardIcons = new Map();
+  async function loadCardIcons() {
+    const r = result, list = r.party.concat(r.enemies, r.boss ? [r.boss] : [], r.stray ? [r.stray] : []);
+    const keys = new Set(list.map(c => String(c.servantId || '').split(':')[0]).filter(Boolean));
+    await Promise.all([...keys].map(async k => {
+      if (cardIcons.has(k)) return;
+      const im = new Image(); im.src = H.classIcon(k);
+      try { await im.decode(); cardIcons.set(k, im); } catch (e) { /* アイコンなしで描く */ }
+    }));
+  }
+  const clsKeyOf = c => String(c.servantId || '').split(':')[0];
+  const placeOf = () => lineup.city || lineup.name;
+  const fateOf = c => c.alive ? '生存' : c.fate ? c.fate.day + '日目に消滅' : '消滅';
+
+  // 結末のまとめ（o.foot === false なら下の帯を描かずに、次に描く位置を返す）
+  function drawResultCard(ctx, o) {
+    o = o || {};
+    const { W, P } = CV, r = result, endT = (END[r.ending] || ['終了'])[0];
+    let y = cardHead(ctx, 'ORIGINAL SINGULARITY ／ RESULT', `${placeOf()} ・ ${r.days}日目`, 'オリジナル特異点 記録');
+    setFont(ctx, 700, 34, CF.go); ctx.fillStyle = r.ending === 'clear' ? CC.gold : CC.seal; ctx.shadowColor = r.ending === 'clear' ? 'rgba(255, 216, 74, .35)' : 'rgba(255, 79, 114, .35)'; ctx.shadowBlur = 12;
+    y = para(ctx, `${r.name}　${endT}`, P, y, W - P * 2, 48) + 6;
+    ctx.shadowBlur = 0;
+    const decided = choices.filter(k => k !== 'auto').length;
+    const sum = `${r.days}日目 ・ 倒した敵 ${r.slain}/${r.foes}騎${r.boss ? `・ボス「${r.boss.trueName}」${r.boss.alive ? (r.stage === 'boss' ? 'は健在' : 'には至らず') : 'を撃破'}` : ''} ・ 残りの令呪 ${r.cs}画${r.revived ? `・全滅から${r.revived}度復帰` : ''}${decided ? ` ・ 下した決断 ${decided}回` : ''}`;
+    setFont(ctx, 500, 24, CF.mi); ctx.fillStyle = CC.ice; y = para(ctx, sum, P, y, W - P * 2, 40) + 4;
+    setFont(ctx, 500, 22, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, `マスター ${playerName || r.master || ''}`, P, y, W - P * 2, 34) + 12;
+    const q = lastWord(r);
+    if (q) y = quoteBlock(ctx, y, `最後に、${q.who}から一言`, q.text, CC.cyan2);
+    if (words) y = quoteBlock(ctx, y, 'あなたの一言', words, CC.bond);
+    y += 6;
+    // 率いた六騎の表
+    const cols = [P, P + 240, P + 640], widths = [220, 380, W - P - (P + 640)];
+    setFont(ctx, 600, 18, CF.en); spacing(ctx, 3); ctx.fillStyle = CC.mute;
+    ['CLASS', '真名', '結末'].forEach((t, i) => ctx.fillText(t, cols[i], y + 18)); spacing(ctx, 0);
+    y += 30;
+    for (const c of r.party) {
+      const icon = cardIcons.get(clsKeyOf(c)), iw = icon ? 34 : 0;
+      setFont(ctx, 500, 22, CF.go);
+      const fate = fateOf(c) + (c.kills.length ? `・討伐 ${c.kills.join('、')}` : '');
+      const cells = [c.label, c.trueName + (c.front ? '（前衛）' : ''), fate].map((t, i) => { const max = i === 2 ? 3 : 2, l = wrapText(ctx, t, widths[i] - (i ? 0 : iw)); if (l.length > max) { l.length = max; l[max - 1] = l[max - 1].slice(0, -1) + '…'; } return l; });
+      const h = Math.max(...cells.map(l => l.length)) * 31 + 16;
+      if (c.front) { ctx.fillStyle = 'rgba(62, 230, 255, .12)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, h); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, h); }
+      ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + h + 0.5); ctx.lineTo(W - P, y + h + 0.5); ctx.stroke();
+      cells.forEach((lines, i) => {
+        ctx.fillStyle = i === 2 ? (c.alive ? CC.cyan2 : CC.seal) : i === 1 ? CC.cyan2 : CC.ice;
+        setFont(ctx, i === 1 ? 700 : 500, i === 2 ? 20 : 22, CF.go);
+        lines.forEach((l, j) => ctx.fillText(l, cols[i] + (i ? 0 : iw), y + 30 + j * 31));
+      });
+      if (icon) ctx.drawImage(icon, cols[0], y + 9, 26, 26);
+      y += h;
+    }
+    y += 18;
+    const foes = `敵：${r.enemies.map(c => `${c.label}「${c.trueName}」${c.alive ? '' : '✝'}`).join('、')}${r.stray ? ` ／ はぐれ：${r.stray.trueName}${r.strayJoined ? '（共闘）' : ''}` : ''}`;
+    setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; y = para(ctx, foes, P, y, W - P * 2, 32, 5);
+    return o.foot === false ? y + 24 : cardFoot(ctx, y + 24, `SEED ${seed}`);
+  }
+  // 率いた六騎の評価（開戦の案内の2枚目と同じ内容）。o.top を渡すと、その位置から続けて描く
+  function drawPartyCard(ctx, o) {
+    o = o || {};
+    const { W, P } = CV, r = result;
+    let y = cardHead(ctx, 'PARTY APPRAISAL', o.top != null ? '開戦時の評価' : `${lineup.name} ・ SEED ${seed}`, '率いた英霊', o.top);
+    for (const c of r.party) {
+      const sv = svOf(c.servantId), g = sv ? evaluate(sv).grade : '', [g1, g2] = GRADE_BG[g] || GRADE_BG.B, m = out.meta[c.id] || {}, rh = 116;
+      if (c.front) { ctx.fillStyle = 'rgba(62, 230, 255, .10)'; ctx.fillRect(P - 12, y, W - P * 2 + 24, rh - 6); ctx.fillStyle = CC.cyan; ctx.fillRect(P - 12, y, 4, rh - 6); }
+      const gs = 84, gx = P, gy = y + 10, cut = 16;
+      const gr = ctx.createLinearGradient(gx, gy, gx + gs, gy + gs); gr.addColorStop(0, g1); gr.addColorStop(1, g2);
+      ctx.fillStyle = gr; ctx.shadowColor = g1; ctx.shadowBlur = 14;
+      ctx.beginPath(); ctx.moveTo(gx + cut, gy); ctx.lineTo(gx + gs, gy); ctx.lineTo(gx + gs, gy + gs - cut); ctx.lineTo(gx + gs - cut, gy + gs); ctx.lineTo(gx, gy + gs); ctx.lineTo(gx, gy + cut); ctx.closePath(); ctx.fill(); ctx.shadowBlur = 0;
+      setFont(ctx, 700, 64, CF.en); ctx.fillStyle = CC.ink; ctx.textAlign = 'center'; ctx.fillText(g || '？', gx + gs / 2, gy + gs / 2 + 23); ctx.textAlign = 'left';
+      const rx = P + gs + 24, icon = cardIcons.get(clsKeyOf(c)), iw = icon ? 40 : 0;
+      if (icon) ctx.drawImage(icon, rx, y + 8, 30, 30);
+      setFont(ctx, 700, 28, CF.go); ctx.fillStyle = CC.ice; ctx.fillText(`${c.label}「${c.trueName}」`, rx + iw, y + 33);
+      setFont(ctx, 700, 20, CF.go); ctx.fillStyle = c.front ? CC.cyan : CC.mute; ctx.textAlign = 'right'; ctx.fillText(`${c.front ? '前衛' : '控え'} ・ ${fateOf(c)}`, W - P, y + 33); ctx.textAlign = 'left';
+      setFont(ctx, 500, 20, CF.go); ctx.fillStyle = CC.mute; ctx.fillText((m.ranks || []).map(k => k[0] + k[1]).join('  '), rx, y + 66);
+      para(ctx, g ? GRADE_JA[g] : '', rx, y + 74, W - P - rx, 28, 1);
+      ctx.strokeStyle = 'rgba(80, 196, 255, .16)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(P, y + rh - 5.5); ctx.lineTo(W - P, y + rh - 5.5); ctx.stroke();
+      y += rh;
+    }
+    setFont(ctx, 500, 18, CF.go); ctx.fillStyle = CC.mute;
+    y = para(ctx, '評価は、リストの全騎と1対1で戦った平均勝率の順位（S〜E）。敵との相性や、編成での連携は含みません。', P, y + 6, W - P * 2, 28);
+    return cardFoot(ctx, y + 10, `SEED ${seed}`);
+  }
+  // 画像は3パターン（結末のまとめ・六騎の評価・両方をつなげた一枚）。終わってから作れる
+  const CARD_KINDS = {
+    result: { title: '結末のまとめ', desc: '結末・あなたの歩み・最後の一言・六騎の行方', file: '結末' },
+    party: { title: '率いた英霊の評価', desc: '六騎それぞれの評価（S〜E）と能力、前衛・控え、行方', file: '評価' },
+    both: { title: '両方をつなげた一枚', desc: '結末のまとめの下に、英霊の評価をつなげる', file: '結末と評価' },
+  };
+  async function makeCard(kind) {
+    const draft = document.createElement('canvas'); draft.width = CV.W; draft.height = 4400;
+    const dctx = draft.getContext('2d'); dctx.textBaseline = 'alphabetic';
+    let h;
+    if (kind === 'result') h = drawResultCard(dctx);
+    else if (kind === 'party') h = drawPartyCard(dctx);
+    else { const y = cardDivider(dctx, drawResultCard(dctx, { foot: false }) + 6); h = drawPartyCard(dctx, { top: y }); }
+    const cv = document.createElement('canvas'); cv.width = CV.W; cv.height = Math.min(draft.height, Math.ceil(h) + 30);
+    const ctx = cv.getContext('2d'); cardBg(ctx, cv.width, cv.height); ctx.drawImage(draft, 0, 0);
+    const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+    if (!blob) throw new Error('PNGにできませんでした');
+    return { kind, blob, url: URL.createObjectURL(blob), name: `オリジナル特異点_${CARD_KINDS[kind].file}_${lineup.name.replace(/[\\/:*?"<>|\s]+/g, '_')}_${seed}.png`, title: CARD_KINDS[kind].title };
+  }
+  let cards = {}, imgCur = null;
+  async function openImages() {
+    if (!out || !result) return;
+    const kinds = ['result', 'party', 'both'];
+    $('#imgTitle').textContent = '画像にする'; $('#imgSub').textContent = 'PNG';
+    $('#imgPick').innerHTML = '<p class="note2">画像を作っています…</p>'; showImgPick(true);
+    $('#imgDlg').classList.add('on');
+    await loadCardIcons();
+    const q = lastWord(result);
+    await cardFonts(JSON.stringify([result.name, result.master, result.party, result.enemies, result.boss, result.stray, out.meta.map(m => m.ranks)]) + lineup.name + placeOf() + words + (q ? q.who + q.text : '') + Object.values(GRADE_JA).join('')
+      + '46億分の1の特異点記録結末のまとめ人理修復成功全滅マスター死亡人理定礎崩壊日目倒した敵騎ボス健在撃破には至らず残りの令呪画全滅から度復帰下した決断回最後に、から一言あなたの一言率いた英霊開戦時の評価前衛控え生存消滅討伐はぐれ共闘評価はリストの全騎と対で戦った平均勝率の順位敵との相性や編成での連携は含みません');
+    for (const c of Object.values(cards)) URL.revokeObjectURL(c.url);
+    cards = {};
+    try { for (const k of kinds) cards[k] = await makeCard(k); }
+    catch (e) { $('#imgPick').innerHTML = `<p class="note2">画像を作れませんでした：${esc(e.message)}</p>`; return; }
+    if (!$('#imgDlg').classList.contains('on')) return;
+    $('#imgPick').innerHTML = `<div class="imgpick"><p class="lead4">どの画像にするか選んでください。</p>${kinds.map(k =>
+      `<button class="imgopt" type="button" data-card="${k}"><img src="${cards[k].url}" alt=""><b>${esc(CARD_KINDS[k].title)}</b><small>${esc(CARD_KINDS[k].desc)}</small></button>`).join('')}</div>`;
+    const first = $('#imgPick .imgopt'); if (first) first.focus({ preventScroll: true });
+  }
+  function showImgPick(on) {
+    $('#imgPick').hidden = !on; $('#imgView').hidden = on;
+    $('#imgSave').hidden = on; $('#imgShare').hidden = true; $('#imgBack').hidden = true;
+  }
+  function showCard(kind) {
+    const c = cards[kind]; if (!c) return;
+    imgCur = c; showImgPick(false);
+    $('#imgPrev').src = c.url; $('#imgPrev').alt = c.title; $('#imgTitle').textContent = c.title;
+    let can = false;
+    try { can = !!(navigator.canShare && navigator.canShare({ files: [new File([c.blob], c.name, { type: 'image/png' })] })); } catch (e) { can = false; }
+    $('#imgShare').hidden = !can; $('#imgBack').hidden = false;
+    $('#imgDlg .dlg-in').scrollTop = 0;
+    $('#imgSave').focus({ preventScroll: true });
+  }
+  $('#imgPick').addEventListener('click', e => { const b = e.target.closest('[data-card]'); if (b) showCard(b.dataset.card); });
+  $('#imgBack').onclick = () => { $('#imgTitle').textContent = '画像にする'; showImgPick(true); const b = $('#imgPick .imgopt'); if (b) b.focus({ preventScroll: true }); };
+  const closeImg = () => $('#imgDlg').classList.remove('on');
+  $('#imgClose').onclick = closeImg;
+  $('#imgDlg').addEventListener('click', e => { if (e.target.id === 'imgDlg') closeImg(); });
+  $('#imgSave').onclick = () => {
+    if (!imgCur) return;
+    const a = document.createElement('a'); a.href = imgCur.url; a.download = imgCur.name;
+    document.body.appendChild(a); a.click(); a.remove();
+    toast('画像を保存しました');
+  };
+  $('#imgShare').onclick = async () => {
+    if (!imgCur) return;
+    try { await navigator.share({ files: [new File([imgCur.blob], imgCur.name, { type: 'image/png' })], title: '46億分の1の特異点 記録' }); }
+    catch (e) { if (e && e.name !== 'AbortError') toast('共有できませんでした。「保存する」を使ってください'); }
+  };
+
+  // ---------- PWA ----------
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  // 「アプリとして追加」：ブラウザが追加を勧められるとき（Chrome・Edge など）だけボタンを出す。iPhone・iPad は手順を案内
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  let installEv = null;
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEv = e; $('#installBox').hidden = false; $('#installBtn').hidden = false; });
+  $('#installBtn').onclick = async () => { if (!installEv) return; installEv.prompt(); try { await installEv.userChoice; } catch (e) { /* 閉じられた */ } installEv = null; $('#installBtn').hidden = true; $('#installBox').hidden = $('#installIos').hidden; };
+  addEventListener('appinstalled', () => { $('#installBox').hidden = true; toast('ホーム画面に追加しました'); });
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+  if (ios && !standalone) { $('#installBox').hidden = false; $('#installIos').hidden = false; }
+  function toast(t) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 2600); }
+  load();
+})();
+</script>
+</body>
+</html>

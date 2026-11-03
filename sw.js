@@ -8,15 +8,15 @@
  * js/ にファイルを足したら PRECACHE にも足す。
  */
 'use strict';
-const VERSION = 'v15';
+const VERSION = 'v17';
 const CACHE = 'hgw-' + VERSION;
 const FONT_CACHE = 'hgw-fonts';
 const PRECACHE = [
-  './', 'index.html', 'roster.html', 'submit.html', 'ranking.html', 'zukan.html', 'singularity.html', 'taisen.html', 'logview.html', 'manifest.webmanifest',
+  './', 'index.html', 'roster.html', 'submit.html', 'ranking.html', 'zukan.html', 'singularity.html', 'original.html', 'scenario.html', 'taisen.html', 'logview.html', 'manifest.webmanifest',
   'js/config.js', 'js/rank.js', 'js/parser.js', 'js/effects.js', 'js/fgoskills.js', 'js/build.js', 'js/master.js', 'js/war.js', 'js/voiceedit.js',
   'js/names.js', 'js/scenes.js', 'js/personas.js', 'js/engine.js', 'js/data.js', 'js/survival.js', 'js/simlab.js', 'js/simworker.js',
-  'js/singdata.js', 'js/singularity.js', 'js/sealmark.js', 'js/sealdata.js', 'js/topnav.js',
-  'data/manifest.json', 'data/servants.json', 'data/overrides.json', 'data/survival.json', 'data/bosses.json',
+  'js/singdata.js', 'js/singularity.js', 'js/scenario.js', 'js/original.js', 'js/sealmark.js', 'js/sealdata.js', 'js/topnav.js',
+  'data/manifest.json', 'data/servants.json', 'data/overrides.json', 'data/survival.json', 'data/bosses.json', 'data/scenarios/index.json', 'data/scenarios/sample.json',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
   'img/classes/saber.webp', 'img/classes/archer.webp', 'img/classes/lancer.webp', 'img/classes/rider.webp', 'img/classes/caster.webp',
   'img/classes/assassin.webp', 'img/classes/berserker.webp', 'img/classes/extra.webp',

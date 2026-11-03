@@ -5,6 +5,8 @@
     { href: 'index.html', name: '7分の1の聖杯戦争', note: '七騎の戦いを見守る' },
     { href: 'taisen.html', name: '14分の1の聖杯大戦', note: '二色に分かれた十四騎の戦い（テスト中）' },
     { href: 'singularity.html', name: '46億分の1の特異点', note: '六騎を率いて敵とボスに挑む（テスト中）' },
+    { href: 'original.html', name: 'オリジナル特異点', note: 'シナリオを読み込んで遊ぶ（テスト中）' },
+    { href: 'scenario.html', name: 'シナリオエディタ', note: 'オリジナル特異点のシナリオを書く', spoil: true, local: true },
     { href: 'zukan.html', name: '英霊図鑑', note: '解説・スキル・宝具を読む', spoil: true, local: true },
     { href: 'ranking.html', name: '強さランキング', note: '真名・強さ・優勝率を見比べる', spoil: true, local: true },
     { href: 'logview.html', name: '戦いのログビューア', note: '書き出したCSVを日ごとに読む', plain: true },
