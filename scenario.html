@@ -315,7 +315,12 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
   const num = (p, label, o) => { o = o || {}; const v = val(p); return `<label class="f${o.full ? ' full' : ''}"><span>${esc(label)}</span><input type="number" data-p="${p}" data-t="${o.int ? 'int' : 'num'}" value="${v == null || v === '' ? '' : esc(v)}"${o.min != null ? ` min="${o.min}"` : ''}${o.max != null ? ` max="${o.max}"` : ''}${o.step ? ` step="${o.step}"` : ''}${o.ph != null ? ` placeholder="${esc(o.ph)}"` : ''}></label>`; };
   const sel = (p, label, opts, o) => { o = o || {}; const v = val(p) == null ? '' : String(val(p)); return `<label class="f${o.full ? ' full' : ''}"><span>${esc(label)}</span><select data-p="${p}" data-t="${o.t || 'sel'}"${o.rerender ? ' data-r="1"' : ''}>${opts.map(([k, l]) => `<option value="${esc(k)}"${String(k) === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></label>`; };
   const bool = (p, label, o) => `<label class="chk-row${o && o.full ? ' full' : ''}"><input type="checkbox" data-p="${p}" data-t="bool"${val(p) ? ' checked' : ''}${o && o.rerender ? ' data-r="1"' : ''}>${esc(label)}</label>`;
-  const lines = (p, label, vars, o) => { o = o || {}; return `<label class="f full"><span>${esc(label)}${vars ? ` <span class="vars">使える記号：${vars.length ? vars.map(v => `<code>{${esc(v)}}</code>`).join(' ') : 'なし'}</span>` : ''}</span><textarea data-p="${p}" data-t="lines" rows="${o.rows || 2}" placeholder="${esc(o.ph || '一行に一つ。いくつも書けば、そのつど一つが選ばれる')}">${esc(arr(val(p)).join('\n'))}</textarea></label>`; };
+  // 文の候補：--- だけの行で区切る。一つの文の中の改行・空行はそのまま残す
+  const SEP = '---';
+  const splitV = t => String(t || '').replace(/\r\n?/g, '\n').split(/^[ \t]*-{3,}[ \t]*$/m).map(x => x.replace(/^\s*\n|\s+$/g, '').replace(/^[ \t]+/, '')).filter(x => x.trim());
+  const joinV = l => arr(l).join('\n' + SEP + '\n');
+  const rowsOf = (l, min) => Math.min(14, Math.max(min || 2, String(joinV(l)).split('\n').length + 1));
+  const lines = (p, label, vars, o) => { o = o || {}; return `<label class="f full"><span>${esc(label)}${vars ? ` <span class="vars">使える記号：${vars.length ? vars.map(v => `<code>{${esc(v)}}</code>`).join(' ') : 'なし'}</span>` : ''}</span><textarea data-p="${p}" data-t="lines" rows="${rowsOf(val(p), o.rows)}" placeholder="${esc(o.ph || '改行はそのまま文に入る。--- だけの行で区切ると、そのつど一つが選ばれる')}">${esc(joinV(val(p)))}</textarea></label>`; };
   // 英霊の一覧（チップ）。押して外す・下の欄から足す
   const chips = (p, label, hint) => `<div class="f full" data-box="${p}"><span>${esc(label)}</span><div class="chips">${arr(val(p)).map((v, i) => `<span class="chip${okRef(v) ? '' : ' bad'}" data-ref="${esc(v)}">${esc(v)}<button type="button" data-a="chip-del" data-p="${p}" data-i="${i}" aria-label="${esc(v)}を外す">×</button></span>`).join('') || '<span class="hint" style="margin:0">（なし）</span>'}</div>
     <div class="chipin"><input type="text" list="svList" placeholder="真名を入れて追加" data-chip="${p}"><button class="btn sm" type="button" data-a="chip-add" data-p="${p}">追加</button></div>${hint ? `<p class="hint">${esc(hint)}</p>` : ''}</div>`;
@@ -423,8 +428,8 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     return `<div class="lrow${mode ? ' on' : ''}" data-box="lines.${esc(d.key)}"><div class="lh"><b>${esc(d.label)}</b><code>${esc(d.key)}</code>
       <select data-a="line-mode" data-key="${esc(d.key)}" aria-label="${esc(d.label)}の扱い"><option value=""${mode ? '' : ' selected'}>既定のまま</option><option value="replace"${mode === 'replace' ? ' selected' : ''}>置き換える</option><option value="add"${mode === 'add' ? ' selected' : ''}>既定に足す</option></select></div>
       <div class="vars">使える記号：${d.vars.length ? d.vars.map(x => `<code>{${esc(x)}}</code>`).join(' ') : 'なし'}</div>
-      ${mode ? `<textarea data-a="line-text" data-key="${esc(d.key)}" rows="3" placeholder="一行に一つ。いくつも書けば、そのつど一つが選ばれる">${esc(list.join('\n'))}</textarea>` : ''}
-      ${def.length ? `<details><summary>既定の文（${def.length}）</summary><ul>${def.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}</div>`;
+      ${mode ? `<textarea data-a="line-text" data-key="${esc(d.key)}" rows="${rowsOf(list, 3)}" placeholder="改行はそのまま文に入る。--- だけの行で区切ると、そのつど一つが選ばれる">${esc(joinV(list))}</textarea>` : ''}
+      ${def.length ? `<details><summary>既定の文（${def.length}）</summary><ul>${def.map(t => `<li style="white-space:pre-line">${esc(t)}</li>`).join('')}</ul></details>` : ''}</div>`;
   }
 
   // ---------- 画面全体 ----------
@@ -474,7 +479,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
       + sec('events', 'Events', `出来事（${S.events.list.length}）`, `${bool('events.defaults', '既定の出来事（霊脈・罠・雑魚・待ち伏せなど）も起こす', { rerender: true })}
         <p class="hint">日を決めた出来事はその日の朝に、決めない出来事は探索の日に重みにしたがってランダムに起きます。選択肢を足すと、遊ぶ人に問います（三つまで）。</p>
         ${S.events.list.map((ev, i) => eventCard(i, ev, S.events.list.length)).join('')}<div style="margin-top:12px">${btn('add', 'events.list', '出来事を足す', '', ' data-k="event"')}</div>`)
-      + sec('lines', 'Lines', `文面（差し替え ${nLines}）`, `<p class="hint" style="margin-top:0">あらゆる定型文を差し替えられます。「置き換える」はシナリオの文だけを、「既定に足す」は既定の文と混ぜて使います。{…} は遊ぶときに名前などに置き換わります。敵・ボス・節・出来事ごとの文は、それぞれの欄で書きます。</p>
+      + sec('lines', 'Lines', `文面（差し替え ${nLines}）`, `<p class="hint" style="margin-top:0">文の中の改行はそのまま記録に出ます。いくつかの文から一つを選ばせたいときは、--- だけの行で区切ります。あらゆる定型文を差し替えられます。「置き換える」はシナリオの文だけを、「既定に足す」は既定の文と混ぜて使います。{…} は遊ぶときに名前などに置き換わります。敵・ボス・節・出来事ごとの文は、それぞれの欄で書きます。</p>
         ${groups.map(g => `<details class="lgrp"${SC.LINE_DEFS.some(d => d.group === g && S.lines[d.key]) ? ' open' : ''}><summary>${esc(g)}（${SC.LINE_DEFS.filter(d => d.group === g).length}）</summary>${SC.LINE_DEFS.filter(d => d.group === g).map(lineRow).join('')}</details>`).join('')}`);
   }
 
@@ -484,7 +489,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     let v;
     if (t === 'bool') v = el.checked;
     else if (t === 'num' || t === 'int') { v = el.value.trim() === '' ? null : +el.value; if (v != null && !isFinite(v)) v = null; if (v != null && t === 'int') v = Math.round(v); }
-    else if (t === 'lines') v = el.value.split('\n').map(x => x.trim()).filter(Boolean);
+    else if (t === 'lines') v = splitV(el.value);
     else v = el.value;
     // 数値の上書きは、空欄なら書かない（既定の値を使う）
     if (p.startsWith('settings.')) { const k = p.slice(9); if (v == null) delete S.settings[k]; else S.settings[k] = v; return; }
@@ -494,7 +499,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
   $('#form').addEventListener('input', e => {
     const el = e.target;
     if (el.dataset.p && el.dataset.t && el.tagName !== 'SELECT' && el.type !== 'checkbox') { readInput(el); changed(false); }
-    else if (el.dataset.a === 'line-text') { const v = S.lines[el.dataset.key], list = el.value.split('\n').map(x => x.trim()).filter(Boolean); if (Array.isArray(v)) S.lines[el.dataset.key] = list; else S.lines[el.dataset.key] = { add: list }; changed(false); }
+    else if (el.dataset.a === 'line-text') { const v = S.lines[el.dataset.key], list = splitV(el.value); if (Array.isArray(v)) S.lines[el.dataset.key] = list; else S.lines[el.dataset.key] = { add: list }; changed(false); }
   });
   $('#form').addEventListener('change', e => {
     const el = e.target;

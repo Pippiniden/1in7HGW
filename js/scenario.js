@@ -179,7 +179,7 @@
   }
 
   // ---------- 読み取り ----------
-  const str = v => typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim();
+  const str = v => (typeof v === 'string' ? v : v == null ? '' : String(v)).replace(/\r\n?/g, '\n').trim();   // 文の中の改行は残す
   const arr = v => Array.isArray(v) ? v : v == null || v === '' ? [] : [v];
   const textList = v => arr(v).map(str).filter(Boolean);
   const num = (v, d) => v === '' || v == null || !isFinite(+v) ? d : +v;
