@@ -236,13 +236,17 @@
     }
     // 文面（names.js の LINES）から1つ選んで {…} を埋める。乱数は使わず、シードと記録の位置で決まるので、
     // 文面を足しても戦争の展開は変わらない
+    // opts.lines：文面の差し替え（オリジナル特異点のシナリオ。{ キー: [文…] }）。無ければ何も変わらない
+    const TX = opts.lines || null;
     let lineN = 0;
     function line(key, vars) {
-      const list = (G.LINES && G.LINES[key] && G.LINES[key].length) ? G.LINES[key] : [key];
+      const list = (TX && TX[key] && TX[key].length) ? TX[key] : (G.LINES && G.LINES[key] && G.LINES[key].length) ? G.LINES[key] : [key];
       let h = 2166136261; const t = seed + ':' + (lineN++) + ':' + entries.length;
       for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); }
       return list[(h >>> 0) % list.length].replace(/\{(\w+)\}/g, (m, k) => vars && vars[k] != null ? vars[k] : m);
     }
+    // コードに直接書いた文も、opts.lines に同じキーがあればそちらから選ぶ。無ければ def をそのまま返す（line() を呼ばないので、記録は変わらない）
+    const tx = (key, def, vars) => TX && TX[key] && TX[key].length ? line(key, vars) : def;
     // セリフ（config.js の VOICE_SLOTS の場面ごと。別名の見出しの行も使う）。選び方は乱数ではなく、シード・記録の位置・
     // 陣営・場面で決まるので、セリフを足したり直したりしても戦争の展開は変わらない
     const vpick = (lines, c, key) => {
@@ -618,12 +622,13 @@
       leavePact(c);
       // 消えた英霊の真名は、まだ知られていなくても記録に残す（あとでログだけ読んでも誰だったか分かるように）
       const dn = nm(c) === c.label ? `${c.label}（${c.sv.trueName}）` : nm(c);
-      const head = !by || !fin ? `${dn}が消滅した。${text}。`
-        : fin.how === 'np' ? `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${dn}は消滅した。`
-        : fin.how === 'np-earlier' ? `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${dn}は消滅した。`
-        : fin.how === 'instakill' ? `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${dn}は消滅した。`
-        : fin.how === 'mutual' ? `${nm(by)}を討った${dn}もまた、受けた傷に崩れ落ちた。相討ちだった。`
-        : line('blow', { by: nm(by), c: dn, c0: nm(c) });
+      const DV = { by: by ? nm(by) : '', c: dn, c0: nm(c), np: fin && fin.np || '', text };
+      const head = !by || !fin ? tx('downPlain', `${dn}が消滅した。${text}。`, DV)
+        : fin.how === 'np' ? tx('downNP', `${nm(by)}の宝具『${fin.np}』が勝敗を決定づけた。${dn}は消滅した。`, DV)
+        : fin.how === 'np-earlier' ? tx('downNPEarlier', `宝具『${fin.np}』で追い詰めた${nm(by)}が、とどめを刺した。${dn}は消滅した。`, DV)
+        : fin.how === 'instakill' ? tx('downInstakill', `${nm(by)}の一撃が霊核を穿ち、勝敗は決した。${dn}は消滅した。`, DV)
+        : fin.how === 'mutual' ? tx('downMutual', `${nm(by)}を討った${dn}もまた、受けた傷に崩れ落ちた。相討ちだった。`, DV)
+        : line('blow', DV);
       log('death', head, [c.id].concat(by ? [by.id] : []), { quote: say(c, ['戦闘不能']), big: true, fin: by && fin ? { by: by.id, how: fin.how, np: fin.np || null } : null });
       pubName.add(c.id);
       if (SG) return SG.hooks.down(c, by);   // 特異点：倒れた英霊はその場で消える（マスターは巻き込まれない）
@@ -640,7 +645,7 @@
     }
     function masterDown(c, text, by) {
       c.masterAlive = false; c.mhp = 0;
-      if (SG) { log('death', `マスターの${mn(c)}が倒れた。${text}。`, [c.id].concat(by ? [by.id] : []), { big: true }); return SG.hooks.masterDown(c, by); }   // 特異点：マスターの死は即座に失敗
+      if (SG) { log('death', tx('masterDown', `マスターの${mn(c)}が倒れた。${text}。`, { M: mn(c), text }), [c.id].concat(by ? [by.id] : []), { big: true }); return SG.hooks.masterDown(c, by); }   // 特異点：マスターの死は即座に失敗
       c.soloLeft = Math.floor(eff(c, 'solo'));
       log('death', `マスターの${mn(c)}が倒れた。${text}。`, [c.id].concat(by ? [by.id] : []), { big: true });
       if (c.you) c.gameOver = true;
@@ -653,7 +658,7 @@
       if (SG) { const g = SG.hooks.gauge(l, w); if (g) return g; }
       // 致命傷を受けた瞬間に自動で発動する宝具（回復・踏みとどまりなど）。霊基が戻れば、そのまま踏みとどまる
       if (l.bx && l.bx.ctx && autoNP(l, w, 'lethal', l.bx.ctx, round) && l.hp > 0) {
-        log('battle', `宝具の力が、消えかけた${sn(l)}の霊基をつなぎ止めた。`, [l.id, w.id]);
+        log('battle', tx('gutsNP', `宝具の力が、消えかけた${sn(l)}の霊基をつなぎ止めた。`, { S: sn(l), O: sn(w) }), [l.id, w.id]);
         return 'guts';
       }
       const pierced = chance(Math.min(0.9, eff(w, 'pierce')));
@@ -661,7 +666,7 @@
       const gutsK = l.critHit ? 1 - ENG.critGuts : 1; l.critHit = false;
       if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85) * gutsK)) {
         l.hp = 5 + rnd() * 10;
-        log('battle', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, [l.id, w.id]);
+        log('battle', tx('guts', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, { S: sn(l), O: sn(w) }), [l.id, w.id]);
         return 'guts';
       }
       if (SG) { const r = yield* SG.hooks.seal(l, w); if (r) return r; }   // 特異点：消滅寸前に令呪で霊基を癒やすか
