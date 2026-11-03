@@ -618,7 +618,7 @@
         log('death', line('gwRulerDown', { R: nm(c), by: by ? nm(by) : '' }), [c.id].concat(by ? [by.id] : []), { big: true, quote: say(c, ['戦闘不能']) });
         return;
       }
-      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive && !by.intruder) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
+      if (by) { by.kills.push(c.id); if (c.bounty && by.masterAlive && !by.intruder && !by.overseer) { by.cs++; log('event', `討伐令の標的を倒した${mn(by)}に、監督役から追加の令呪が一画与えられた。`, [by.id], { big: true }); } }
       leavePact(c);
       // 消えた英霊の真名は、まだ知られていなくても記録に残す（あとでログだけ読んでも誰だったか分かるように）
       const dn = nm(c) === c.label ? `${c.label}（${c.sv.trueName}）` : nm(c);
@@ -1442,6 +1442,7 @@
     // 通常の聖杯戦争へ：色は解け、生き残りは癒え、日数は1日目に戻る。令呪と知識は引き継ぐ
     function gwToWar() {
       const left = active();
+      if (rulerC) rulerC.foe = null;   // 大戦で敵に回っていた監督役も、ここで戦列を離れる
       gwStage = false; gwShift = day; pactLock = false; leader = null; leaderSeen = new Set(); lastCouncil = 0;
       for (const k in supLog) delete supLog[k];
       for (const c of left) {
@@ -1623,7 +1624,9 @@
     function* nightPhase() {
       phase = 'night';
       const alive = active();
-      const field = bossC && bossC.alive ? alive.concat([bossC]) : alive;   // ボスも夜に動く（狙うのも、狙われるのも）
+      let field = bossC && bossC.alive ? alive.concat([bossC]) : alive;   // ボスも夜に動く（狙うのも、狙われるのも）
+      const rulerFoe = gwStage && rulerC && rulerC.alive && rulerC.foe != null;   // 色に敵と見なされた監督役は、相手の色の側で戦う
+      if (rulerFoe) field = field.concat([rulerC]);
       if (field.length <= 1) return;
       if (tonight.calm) return;
       const avg = alive.reduce((t, c) => t + c.sv.power, 0) / alive.length;
@@ -1641,19 +1644,30 @@
         else if (F && F.night != null) c.hunting = F.night;
         else c.hunting = chance(p);
       }
+      if (rulerFoe) rulerC.hunting = chance(GW.rulerHunt);
       let any = false;
       for (const h of shuffle(field)) {
         if (bossC && !bossC.alive) break;   // ボスが倒れた夜は、もう戦いは続かない
         if (!h.alive || !h.hunting || h.fought) continue;
         // 監督役を襲う者：ごくまれに、裁定そのものを邪魔に思う陣営が教会へ押し入る
-        if (gwStage && rulerC && rulerC.alive && !rulerC.fought && !h.you && h.masterAlive && chance(GW.rulerRaid + perv(h, 'betray') * 0.02)) {
+        //   その夜のうちに仕留めれば、襲った色の陣営すべてに令呪が一画。仕留め損ねれば、監督役は相手の色の側に立つ（大戦の間だけ。通常の聖杯戦争には加わらない）
+        if (gwStage && rulerC && rulerC.alive && rulerC.foe == null && !h.overseer && !rulerC.fought && !h.you && h.masterAlive && chance(GW.rulerRaid + perv(h, 'betray') * 0.02)) {
           h.fought = rulerC.fought = true; h.warned += 2; any = true;
+          const side = h.side;
           log('event', line('gwRulerRaid', { S: nm(h), R: nm(rulerC) }), [h.id, rulerC.id], { big: true, place: W.church, scene: 'church' });
           yield* battle(h, rulerC, { place: rulerC.base, home: rulerC, terrain: null, rain: tonight.rain, helpA: null, helpB: null });
           yield* checkFallen();
+          if (!rulerC.alive) {
+            const mates = camps.filter(x => x.alive && x.masterAlive && !x.overseer && x.side === side);
+            for (const x of mates) x.cs++;
+            if (mates.length) log('event', line('gwRulerSlain', { C: gwColors[side].name, N: mates.map(nm).join('、') }), mates.map(x => x.id), { big: true });
+          } else {
+            rulerC.foe = side;
+            log('event', line('gwRulerFoe', { R: nm(rulerC), C: gwColors[side].name, A: gwColors[1 - side].name }), [rulerC.id], { big: true });
+          }
           continue;
         }
-        const targets = field.filter(t => t.alive && t !== h && !t.fought && !isAlly(t, h));
+        const targets = field.filter(t => t.alive && t !== h && !t.fought && !isAlly(t, h) && (h.overseer ? t.side === rulerC.foe && !t.overseer : !t.overseer || h.side === rulerC.foe));
         if (!targets.length) continue;
         let t = null;
         const fixed = h.assault != null ? camps[h.assault] : h.op != null ? camps[h.op] : h.targetPref != null ? camps[h.targetPref] : null;
@@ -1673,7 +1687,7 @@
         const home = t.hunting ? null : t;
         const place = home ? t.base : pick(W.places);
         if (!home) learnLoc(t, h);
-        if (home && t.masterAlive && !t.noMaster && chance(Math.min(0.6, effO(h, 'anti_master', t) * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
+        if (home && t.masterAlive && !t.noMaster && !h.overseer && chance(Math.min(0.6, effO(h, 'anti_master', t) * 1.5 + Math.max(0, perv(h, 'ambush')) * 0.12))) {
           h.fought = t.fought = true;
           if (yield* ambushMaster(h, t)) { yield* checkFallen(); continue; }
         }
