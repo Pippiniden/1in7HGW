@@ -131,5 +131,18 @@
     return spec; // createMaster(spec) に渡すと、書いていない部分が抽選で埋まる
   }
 
-  G.master = { MASTER_STATS, ORIGINS, MASTERS, createMaster, registerMaster, parseMasterText, drawStat, pickOrigin };
+  // 属性（秩序・中立・混沌 × 善・中庸・悪）。いまは表示と記録だけで、戦いには効かない。コードは 'LG'（秩序・善）のような2字
+  const ALIGN_ORDER = [['L', '秩序'], ['N', '中立'], ['C', '混沌']];
+  const ALIGN_MORAL = [['G', '善'], ['B', '中庸'], ['E', '悪']];
+  const ALIGN = {
+    ORDER: ALIGN_ORDER, MORAL: ALIGN_MORAL,
+    all: ALIGN_ORDER.flatMap(o => ALIGN_MORAL.map(m => o[0] + m[0])),
+    valid: code => typeof code === 'string' && code.length === 2 && ALIGN_ORDER.some(o => o[0] === code[0]) && ALIGN_MORAL.some(m => m[0] === code[1]),
+    clean: code => { const c = String(code == null ? '' : code).toUpperCase(); return ALIGN.valid(c) ? c : ''; },
+    label: code => { if (!ALIGN.valid(code)) return ''; return ALIGN_ORDER.find(o => o[0] === code[0])[1] + '・' + ALIGN_MORAL.find(m => m[0] === code[1])[1]; },
+    // 0〜1 の値を2つ渡して決める（乱数関数は使わない）
+    pick: (u1, u2) => ALIGN_ORDER[Math.min(2, Math.floor(u1 * 3))][0] + ALIGN_MORAL[Math.min(2, Math.floor(u2 * 3))][0],
+  };
+
+  G.master = { MASTER_STATS, ORIGINS, MASTERS, createMaster, registerMaster, parseMasterText, drawStat, pickOrigin, ALIGN };
 })(globalThis.HGW = globalThis.HGW || {});
