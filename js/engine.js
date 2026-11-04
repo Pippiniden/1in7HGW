@@ -292,12 +292,15 @@
       const k = p.cond;
       const terrain = terrain0 != null ? terrain0 : c.bx && c.bx.ctx ? c.bx.ctx.terrain : c.base ? c.base.terrain : null;
       if (k) {
+        const t = o || (c.bx && c.bx.opp);
         const hit = k === '拠点' ? (c.bx ? !!c.bx.home : true)   // 戦いの外（昼の行動など）は拠点にいる
           : k === '瀕死' ? c.hp < ENG.pinchAt
+          : k === '未看破' ? !pubName.has(c.id) && !(t && t.knowName && t.knowName.has(c.id))   // 相手に真名を知られていない（相手がいなければ、知られていない扱い）
           : k === terrain || (k === '夜' && phase === 'night' && !tonight.moon);
         if (hit === !!p.condNot) return false;
       }
-      if (p.vs) { const t = o || (c.bx && c.bx.opp); if (!t || t.sv.tags.includes(p.vs) === !!p.vsNot) return false; }
+      // 相手の条件：属性か、その名前のスキル・宝具を持つ相手（effects.js の hasTag）
+      if (p.vs) { const t = o || (c.bx && c.bx.opp); if (!t || E.hasTag(t.sv, p.vs) === !!p.vsNot) return false; }
       if ((p.dmin > 0 || p.dmax > 0) && !E.dayOk(p, day)) return false;
       return true;
     };
@@ -310,6 +313,11 @@
     const npUsable = (c, n, o, terrain) => npLeft(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
+    // 傷の深さ（params.wound：失った霊基の割合）と打ち合いごとの変化（params.rgrow：c.bx.round。戦いの外では1打ち合い目）。
+    //   常時の効果は読むたびに掛け、発動する効果は発動したときに掛ける（fireTrig）。どちらも乱数は使わない
+    const wm = (c, p) => p && p.wound ? E.woundMult(p, c.hp) : 1;
+    const rm = (c, p) => p && p.rgrow ? E.roundMult(p, c.bx ? c.bx.round : 1) : 1;
+    const sm = (c, p) => wm(c, p) * rm(c, p);
     // 発動確率：戦いの間は戦いの始めの判定どおり、戦い以外では強さ×確率
     const chanceW = (c, key, p) => !p || p.chance == null ? 1 : c.bx ? (c.bx.rolls[key] ? 1 : 0) : clamp(p.chance, 0, 1);
     // effS：スキル・宝具の常時の効果だけ（戦闘力の計算用）／eff：それに、この戦いだけの効果（c.temp）を足したもの
@@ -327,7 +335,7 @@
     //   o：戦いの外で相手のいる場面（偵察・推理・索敵・交渉）の相手。相手の属性の条件（params.vs）に使う
     function effS(c, id, terrain, self, o) {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain, o)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params);
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain, o)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
       return t;
     }
     function eff(c, id, terrain, self, o) {
@@ -339,15 +347,15 @@
     const effO = (c, id, o) => eff(c, id, undefined, false, o);   // 戦いの外で相手のいる場面
     const effVs = (c, id, o, terrain) => {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && o.sv.tags.includes(x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params);
-      for (const e of c.temp) if (e.id === id && e.params && o.sv.tags.includes(e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && E.hasTag(o.sv, x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
+      for (const e of c.temp) if (e.id === id && e.params && E.hasTag(o.sv, e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     };
     // ---------- 状態異常（effects.js の AILMENTS：魅了・毒・スタン・混乱・宝具封印。防ぐのは ail_guard ほか） ----------
     // ailInfo：その効果の強さの合計と、いちばん強いものの params（表示名 name・記録の文 msg）
     function ailInfo(c, id, terrain, self) {
       let t = 0, top = null, best = -Infinity;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) { const m = (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params); t += m; if (m > best) { best = m; top = x.params; } }
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain)) { const m = sm(c, x.params) * (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params); t += m; if (m > best) { best = m; top = x.params; } }
       for (const e of c.temp) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain)) { t += e.mag; if (e.mag > best) { best = e.mag; top = e.params; } }
       return { t, p: top };
     }
@@ -406,7 +414,7 @@
         const used = (U && U[k]) || 0;
         const lim = p.uses > 0 ? p.uses : on === 'start' || on === 'pinch' || on === 'kill' ? 1 : 0;
         if (U && lim && used >= lim) continue;
-        const m = mag * dm(p); if (!m) continue;   // 日ごとの変化で強さが0になった効果は発動しない
+        const m = mag * dm(p) * sm(c, p); if (!m) continue;   // 日ごとの変化・傷の深さ・打ち合いごとの変化で強さが0になった効果は発動しない
         if (p.cost > 0 && c.mana < p.cost) continue;
         if (p.chance != null && p.chance < 1 && !chance(Math.max(0, p.chance))) continue;
         if (p.cost > 0) c.mana -= p.cost;
@@ -890,7 +898,7 @@
       };
       const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
-        for (const c of all()) { c.npBoost = 0; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ
+        for (const c of all()) { c.npBoost = 0; if (c.bx) c.bx.round = round; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ。打ち合いの番号は打ち合いごとの変化（rgrow）に
         // バーサーカーは、打ち合いのたびに魔力を食う
         for (const c of all()) if (c.alive && c.masterAlive && isBerserk(c)) { c.mana -= ENG.wildMana * upk(c); drain(c); }
         // 退く戦い方なら最初に離脱を試みる

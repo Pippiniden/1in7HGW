@@ -24,6 +24,8 @@ const WEAK = 0.03;
 
 const { roster } = L.loadDir(dir);
 const allTags = new Set(roster.flatMap(s => s.tags || []));
+// 相手の条件・特攻は、属性のほかにその名前のスキル・宝具を持つ相手にも当たる（effects.js の hasTag）
+const anyHas = t => allTags.has(t) || roster.some(s => E.hasTag(s, t));
 const out = [], count = {};
 const note = (sv, item, e, why, kind) => { out.push({ sv, item, e, why }); count[kind] = (count[kind] || 0) + 1; };
 for (const sv of roster) {
@@ -33,10 +35,10 @@ for (const sv of roster) {
     const p = e.params || {};
     const dead = E.deadParams(e.id, p, np);
     if (dead.length) note(sv, item, e, '働かない設定：' + dead.join('・'), '働かない設定');
-    for (const [k, t] of [['vs', p.vs], ['tag', ['power_vs', 'weakness'].includes(e.id) ? p.tag : null]]) if (t && !allTags.has(t)) note(sv, item, e, `「${t}」の属性を持つ英霊がリストにいない（${k === 'vs' ? (p.vsNot ? 'いつでも働く' : '働かない') : '特攻・弱点が当たらない'}）`, '誰にも当たらない');
+    for (const [k, t] of [['vs', p.vs], ['tag', ['power_vs', 'weakness'].includes(e.id) ? p.tag : null]]) if (t && !anyHas(t)) note(sv, item, e, `「${t}」の属性を持つ英霊がリストにいない（${k === 'vs' ? (p.vsNot ? 'いつでも働く' : '働かない') : '特攻・弱点が当たらない'}）`, '誰にも当たらない');
     const unit = (E.EFFECTS[e.id] || {}).unit;
     if (weak && (unit === 'rate' || unit === 'chance') && e.mag > 0) {
-      const w = Math.abs(e.mag) * (p.cond ? 0.4 : 1) * (p.vs ? 0.3 : 1) * (p.chance != null ? Math.max(0, Math.min(1, p.chance)) : 1) * (p.dmin || p.dmax || p.grow || p.decay ? 0.6 : 1);
+      const w = Math.abs(e.mag) * (p.cond ? 0.4 : 1) * (p.vs ? 0.3 : 1) * (p.chance != null ? Math.max(0, Math.min(1, p.chance)) : 1) * (p.dmin || p.dmax || p.grow || p.decay ? 0.6 : 1) * (p.wound ? 0.35 : 1);
       if (w < WEAK) note(sv, item, e, `とても弱い（強さ ${Math.round(e.mag * 1000) / 10}%${E.hasCond(p) ? '・条件つき' : ''}）`, 'とても弱い');
     }
   }
