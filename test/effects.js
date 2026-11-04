@@ -338,5 +338,50 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(!errs, '新しい条件の効果で戦争がエラーになった');
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果`);
+// 5i) 傷の深さ（params.wound）・打ち合いごとの変化（params.rgrow）・真名の条件（cond 未看破）・スキル名で当たる相手（vs／特攻の tag）
+{
+  ok(E.woundMult({ wound: true }, 100) === 0 && Math.abs(E.woundMult({ wound: true }, 30) - 0.7) < 1e-9 && E.woundMult({ wound: true }, -5) === 1 && E.woundMult({}, 10) === 1, '傷の深さの倍率が違う');
+  ok(E.roundMult({ rgrow: 0.5 }, 1) === 1 && Math.abs(E.roundMult({ rgrow: 0.5 }, 4) - 2.5) < 1e-9 && E.roundMult({ rgrow: -0.5 }, 3) === 0 && E.roundMult({ rgrow: 9 }, 4) === E.GROW_MAX && E.roundMult({ rgrow: 0.5 }) === 1, '打ち合いごとの倍率が違う');
+  const w = E.describe({ id: 'power', mag: 0.2, params: { wound: true, rgrow: 0.25, cond: '未看破', vs: '騎乗' } }).when;
+  ok(/傷が深いほど強く/.test(w) && /打ち合いごとに強さ\+25%（4打ち合い目で1\.75倍）/.test(w) && /真名を知られていない間だけ/.test(w) && /「騎乗」の相手（その属性か、その名前のスキル・宝具を持つ相手）/.test(w), '新しい条件の説明が出ない：' + w);
+  ok(/真名を知られてからだけ/.test(E.describe({ id: 'power', mag: 0.2, params: { cond: '未看破', condNot: true } }).when), '「未看破」の「それ以外」の説明が出ない');
+  ok(E.condShort({ wound: true, rgrow: 0.1 }) === '（傷が深いほど）（打ち合いごとに変化）', '短い表記が違う：' + E.condShort({ wound: true, rgrow: 0.1 }));
+  // 戦いの外で読む効果には働かない。戦いの中の効果では働く。属性付与には付けられない
+  ok(E.deadParams('stealth', { wound: true, rgrow: 0.1, cond: '未看破' }).length === 2 && E.deadParams('regen', { wound: true, rgrow: 0.1, cond: '未看破' }).length === 3 && !E.deadParams('guard', { wound: true, rgrow: 0.1, cond: '未看破' }).length && !E.deadParams('reveal', { cond: '未看破' }).length
+    && E.fieldsFor('power').wound && E.fieldsFor('power').rgrow && !E.fieldsFor('regen').wound && E.fieldsFor('power').conds.includes('未看破') && !E.fieldsFor('regen').conds.includes('未看破'), '新しい条件の働く効果の見分けが違う');
+  // 編集画面の欄：出る・読める
+  const html = E.moreHtml('power', { wound: true, rgrow: 0.15 }, s => s, false, true);
+  ok(/data-e="wound"[^>]*checked/.test(html) && /data-e="rgrow"[^>]*value="15"/.test(html), '編集画面に傷の深さ・打ち合いごとの変化の欄が出ない');
+  const q = k => ({ wound: { checked: true, value: '' }, rgrow: { value: '-20' } })[k] || null;
+  const p = E.readMore(q, 'power', {});
+  ok(p.wound === true && p.rgrow === -0.2, '編集画面の欄が読めない：' + JSON.stringify(p));
+  // スキル名で当たる相手
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const rider = roster.find(s => s.allSkills.some(x => /^騎乗/.test(E.normName(x.name))) && !s.tags.includes('騎乗'));
+  ok(rider && E.hasTag(rider, '騎乗') && !E.hasTag(rider, '騎乗なし') && E.hasTag(roster.find(s => s.tags.includes('男性')), '男性'), 'スキル名で相手の条件に当たらない');
+  const npName = (roster.find(s => (s.nps || []).length) || {}).nps[0].name;
+  ok(E.hasTag(roster.find(s => (s.nps || []).length), npName), '宝具の名前で相手の条件に当たらない');
+  // 集計の鍵が分かれる（同じ効果に別の設定が混ざらない）
+  const me0 = roster.find(s => s.allSkills.length && (s.nps || []).length);
+  const key = me0.trueName + '/' + E.normName(me0.allSkills[0].name);
+  const withSpec = (...specs) => { E.SERVANT_OVERRIDES[key] = specs; const s = B.fromJSON(B.toLean(me0)); delete E.SERVANT_OVERRIDES[key]; return s; };
+  const ks = Object.keys(withSpec(['power', 1, { wound: true }], ['power', 1, { rgrow: 0.2 }], ['power', 1]).effectSummary).filter(k => /^power/.test(k));
+  ok(ks.some(k => /~w/.test(k)) && ks.some(k => /~r0\.2/.test(k)) && ks.length >= 3, '集計の鍵に傷の深さ・打ち合いごとの変化が出ない：' + ks.join(' '));
+  // 見積もり：傷の深さは強さを減らして数え、打ち合いごとの変化はならして数える
+  const plain = withSpec(['power', 0]), full = withSpec(['power', 3]), wounded = withSpec(['power', 3, { wound: true }]), rg = withSpec(['power', 3, { rgrow: 0.5 }]);
+  ok(wounded.power > plain.power && wounded.power < full.power && rg.power > full.power, '見積もりに傷の深さ・打ち合いごとの変化が効いていない');
+  // エンジン：エラーにならず、展開が変わる（無傷では働かない効果も、傷を負えば働く）
+  const others = roster.filter(s => s.id !== me0.id).slice(0, 7);
+  const log = s => { const out = []; for (let i = 0; i < 20; i++) out.push(H.engine.runWar({ roster: others.concat([s]), seed: 'gen' + i, player: 'none', war: { pick: 'open' } }).entries.map(e => e.text).join('\n')); return out.join('\n#\n'); };
+  const L0 = log(plain);
+  let errs = 0; const diff = {};
+  for (const [name, spec] of [['wound', ['power', 10, { wound: true }]], ['rgrow', ['power', 10, { rgrow: 1 }]], ['未看破', ['power', 10, { cond: '未看破' }]], ['vs騎乗', ['power', 10, { vs: '騎乗' }]],
+    ['wound+trig', ['heal', 3, { on: 'win', wound: true }]], ['rgrow-', ['guard', 5, { rgrow: -0.4 }]], ['wound-ail', ['stun', 3, { wound: true }]]]) {
+    try { diff[name] = log(withSpec(spec)) !== L0; } catch (e) { errs++; console.error(name, e); }
+  }
+  ok(!errs, '新しい条件の効果で戦争がエラーになった');
+  ok(diff.wound && diff.rgrow && diff['未看破'] && diff['vs騎乗'], '新しい条件の効果が展開に効いていない：' + JSON.stringify(diff));
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手`);
 process.exitCode = fail ? 1 : 0;
