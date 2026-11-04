@@ -30,7 +30,7 @@
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
+body { touch-action: manipulation; margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", "Meiryo", system-ui, sans-serif; }
 header { padding: 18px 16px 8px; max-width: 1240px; margin: 0 auto; }
 h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .02em; }
 header p { margin: 0; color: var(--sub); font-size: 13px; }
@@ -240,10 +240,30 @@ details.more summary { cursor: pointer; color: var(--sub); }
 dialog { border: 1px solid var(--rule); border-radius: 12px; background: var(--panel); color: var(--ink); width: min(660px, calc(100vw - 32px)); padding: 16px; }
 dialog::backdrop { background: rgba(0,0,0,.35); }
 dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
-.erow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 32px; gap: 6px; margin-bottom: 6px; align-items: center; }
+.erow { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 6px 8px; align-items: center; padding: 8px 10px 6px; border: 1px solid var(--rule); border-radius: 10px; background: var(--bg); margin-bottom: 0; }
+.erow > select[data-e=id] { min-width: 0; }
+.erow .fk { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--sub); white-space: nowrap; }
+.erow .fk input { width: 5.2em; }
+.erow .tools { display: inline-flex; gap: 2px; }
+.erow .tools button { padding: 3px 7px; font-size: 12px; line-height: 1.2; }
+.erows { display: grid; gap: 8px; margin: 6px 0 10px; }
+.efx { font-size: 12px; color: var(--sub); margin: 0 0 6px; padding: 0 10px; }
+.efx:empty { display: none; }
+.ed-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
+.ed-toolbar select { max-width: 100%; }
+.ed-foot { position: sticky; bottom: -16px; margin: 12px -16px -16px; padding: 10px 16px 14px; background: var(--panel); border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ed-foot .sp { flex: 1; }
+.ed-top { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 6px; }
+.ed-top h3 { margin: 0; }
+.kbd { font: 11px ui-monospace, Menlo, monospace; padding: 0 4px; border: 1px solid var(--rule); border-radius: 4px; color: var(--sub); }
+#ed { max-height: calc(100vh - 32px); overflow: auto; }
+@media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) auto; } .erow .tools { grid-column: 1 / -1; justify-content: flex-end; } }
 #edLegend tr.lg th { text-align: left; font-size: 12px; color: var(--accent); padding-top: 10px; border-bottom: 1px solid var(--rule); }
 .emore { grid-column: 1 / -1; font-size: 12px; color: var(--sub); margin-top: -2px; }
-.emore > summary { cursor: pointer; padding: 2px 0; overflow-wrap: anywhere; }
+.emore > summary { cursor: pointer; padding: 3px 8px; overflow-wrap: anywhere; display: inline-block; border-radius: 999px; background: var(--chip); border: 1px solid var(--rule); font-size: 12px; }
+.emore > summary::before { content: "⚙ "; color: var(--sub); }
+.emore[open] > summary { border-color: var(--accent); }
+.emore > summary:hover { filter: brightness(0.97); }
 .emore[open] > summary { color: var(--ink); }
 .emore .ef { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin: 4px 0 0 12px; }
 .emore .ef > b { font-weight: 600; min-width: 6.5em; color: var(--ink); }
@@ -514,15 +534,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 </main>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
-<dialog id="ed">
-  <h3 id="edTitle"></h3>
-  <div class="desc" id="edDesc" style="margin-bottom:10px;max-height:160px;overflow:auto"></div>
+<dialog id="ed" class="wide">
+  <div class="ed-top"><h3 id="edTitle"></h3><span class="hint" id="edSrc"></span></div>
+  <details class="desc" style="margin-bottom:10px"><summary style="cursor:pointer">説明文を見る</summary><div id="edDesc" style="margin-top:4px;max-height:160px;overflow:auto"></div></details>
   <p class="hint" id="edNote" style="margin:0 0 8px"></p>
-  <div class="erow hint"><span>効果（誰に掛かるか）</span><span>係数</span><span></span></div>
-  <p class="hint" style="margin:-2px 0 8px">各効果の下の「発動・条件など」を開くと、発動する場面・魔力・回数、働く場面や相手（「それ以外」も）、確率、日数、日ごとの強さの変化、デメリットなどを決められます。その効果で働く欄だけが出ます。状態異常の「記録の文」では {S}＝掛けた側、{O}＝掛けられた側、{N}＝名前 が使えます。</p>
   <datalist id="tagList"></datalist>
-  <div id="edRows"></div>
-  <div class="row" style="margin:8px 0 12px"><button class="sm" id="edAdd">＋ 効果を追加</button></div>
+  <div class="erows" id="edRows"></div>
+  <div class="ed-toolbar">
+    <button class="sm" id="edAdd" type="button">＋ 効果を追加</button>
+    <select id="edPreset" title="よくある形をひとつ足す"><option value="">よくある形を足す…</option></select>
+    <button class="sm ghost" id="edAuto" type="button" title="辞書・説明文からの自動の読み取り結果を行に並べる（いまの行は置き換える）">自動の読み取りを並べる</button>
+    <span class="hint">各行の ⚙ で発動・場面・相手・確率・日数・日ごとの変化などを付けられます（その効果で働く欄だけが出ます）。状態異常の「記録の文」では {S}＝掛けた側、{O}＝掛けられた側、{N}＝名前。</span>
+  </div>
   <div class="row" id="edAtkRow" style="margin-bottom:12px">
     <span class="hint">宝具の扱い：</span>
     <label class="hint"><input type="radio" name="atk" value="auto" checked> 自動</label>
@@ -539,11 +562,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <div class="box warn hint" id="edScopeNote" style="margin:-4px 0 12px" hidden></div>
   <div class="hint" style="margin-bottom:8px">係数1でBランク標準の強さ。ランクの倍率は自動で掛かります（自滅・使用不可・属性付与は倍率なし）。マイナスにすると逆向き（不利な効果）になります。各行の下に、ゲームでの実際の働きを出しています。</div>
   <details class="legend"><summary>効果の一覧（誰に掛かるか・何が起きるか）</summary><table id="edLegend"></table></details>
-  <div class="row">
-    <button class="primary" id="edSave">保存して反映</button>
+  <div class="ed-foot">
+    <button class="primary" id="edSave">保存して反映 <span class="kbd">Ctrl+Enter</span></button>
     <button id="edReset">この騎の手直しを消す</button>
     <button class="ghost danger" id="edResetGlobal" hidden>全員分の手直しを消す</button>
-    <button class="ghost" id="edCancel">閉じる</button>
+    <span class="sp"></span>
+    <button class="ghost" id="edCancel">閉じる <span class="kbd">Esc</span></button>
   </div>
 </dialog>
 
@@ -1619,29 +1643,79 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // 行の中身を作る。効果・発動・「自分に掛ける」を変えたら、いまの値を読んでから作り直す（その効果で働く欄だけを出すため）
   function edFill(div, spec, open) {
     const [id, f, p] = spec;
-    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}" title="係数"><button class="sm ghost" data-rm title="削除">×</button>${pField(id, p ? p.tag || p.stat || '' : '')}${E.moreHtml(id, p, esc, edNp(), open)}`;
+    div.innerHTML = `<select data-e="id">${effOptions(id)}</select><label class="fk">×<input type="number" data-e="f" step="0.1" value="${f == null ? 1 : f}" title="係数（1でBランク標準）"></label>`
+      + `<span class="tools"><button class="sm ghost" type="button" data-dup title="この効果を複製">⧉</button><button class="sm ghost" type="button" data-up title="上へ">↑</button><button class="sm ghost" type="button" data-down title="下へ">↓</button><button class="sm ghost" type="button" data-rm title="削除">×</button></span>`
+      + `${pField(id, p ? p.tag || p.stat || '' : '')}${E.moreHtml(id, p, esc, edNp(), open)}`;
   }
   const edRefill = div => { const d = div.querySelector('.emore'); edFill(div, specOf(div), !!(d && d.open)); };
   $('#edMode').addEventListener('change', () => { for (const r of $('#edRows').querySelectorAll('.erow')) { edRefill(r); edExplain(r); } });
-  function edRow(spec) {
+  function edRow(spec, before) {
     const div = document.createElement('div'); div.className = 'erow';
     edFill(div, spec || ['power', 1, null]);
     const fx = document.createElement('div'); fx.className = 'efx';
-    div.addEventListener('click', e => { if (e.target.closest('[data-rm]')) { div.remove(); fx.remove(); } });
+    div.addEventListener('click', e => {
+      if (e.target.closest('[data-rm]')) { div.remove(); fx.remove(); return; }
+      if (e.target.closest('[data-dup]')) { edRow(specOf(div), fx.nextElementSibling); return; }
+      const up = e.target.closest('[data-up]'), down = e.target.closest('[data-down]');
+      if (up || down) {   // 行（effect と説明の2要素）を入れ替える
+        const rows = $('#edRows'), pair = [div, fx];
+        if (up && div.previousElementSibling) { const prevFx = div.previousElementSibling, prev = prevFx.previousElementSibling; if (prev) for (const el of pair) rows.insertBefore(el, prev); }
+        if (down && fx.nextElementSibling) { const nextDiv = fx.nextElementSibling, nextFx = nextDiv.nextElementSibling; if (nextFx) for (const el of pair) rows.insertBefore(el, nextFx.nextElementSibling); }
+        return;
+      }
+    });
     const sum = () => { const s = div.querySelector('.emore > summary'); if (s) s.textContent = E.moreSummary(specOf(div)[2]); };
     div.addEventListener('input', () => { sum(); edExplain(div); });
     div.addEventListener('change', e => {
       if (e.target.matches('[data-e=id], [data-e=on], [data-e=self]')) edRefill(div);
       sum(); edExplain(div);
     });
-    $('#edRows').appendChild(div); $('#edRows').appendChild(fx);
+    if (before) { $('#edRows').insertBefore(div, before); $('#edRows').insertBefore(fx, before); } else { $('#edRows').appendChild(div); $('#edRows').appendChild(fx); }
     edExplain(div);
   }
+  // よくある形（ひとつ足す）。宝具のときだけのもの（結界）は np: true
+  const ED_PRESETS = [
+    ['戦闘力上昇（常に）', ['power', 1]], ['瀕死で奮起（霊基4割未満で戦闘力上昇）', ['power', 1.5, { cond: '瀕死' }]], ['傷が深いほど強く', ['power', 2, { wound: true }]],
+    ['戦いが長引くほど強く', ['power', 1, { rgrow: 0.3 }]], ['夜に強い', ['power', 1, { cond: '夜' }]], ['拠点で守りが固い', ['guard', 1.5, { cond: '拠点' }]],
+    ['初見殺し（初めて戦う相手に即死）', ['instakill', 1, { cond: '初見' }]], ['真名を知られるまで強い', ['power', 1, { cond: '未看破' }]], ['味方と並ぶと強い', ['power', 1, { cond: '共闘' }]],
+    ['弱った相手を狩る（相手が瀕死なら戦闘力上昇）', ['power', 1.5, { cond: '相手瀕死' }]], ['特攻（相手の属性・スキル名を指定）', ['power_vs', 1, { tag: '竜' }]],
+    ['魔力を払って戦いの始めに発動', ['power', 1.5, { on: 'start', cost: 20 }]], ['押し勝つたびに霊基を吸う', ['drain_hp', 1]], ['毎朝回復', ['heal', 1, { on: 'day' }]],
+    ['味方にも効く統率', ['rally', 1, { team: 0.5 }]], ['日ごとに強く（7日目を境に弱る）', ['power', 1, { grow: 0.1, turn: 7, decay: 0.2 }]],
+    ['結界：使った戦いだけ陣地（宝具）', ['territory', 1, { use: true }], true], ['デメリット：日ごとに衰弱（自分に）', ['wither', 1, { self: true }]],
+  ];
+  $('#edPreset').innerHTML = '<option value="">よくある形を足す…</option>' + ED_PRESETS.map((p, i) => `<option value="${i}">${esc(p[0])}</option>`).join('');
+  $('#edPreset').addEventListener('change', () => {
+    const p = ED_PRESETS[+$('#edPreset').value]; $('#edPreset').value = '';
+    if (!p) return;
+    if (p[2] && !(edCtx && edCtx.kind === 'n')) { status('「結界」は宝具の効果にだけ付けられます'); return; }
+    const spec = [p[1][0], p[1][1], p[1][2] ? Object.assign({}, p[1][2]) : null];
+    edRow(spec);
+    const rows = $('#edRows').querySelectorAll('.erow'); const last = rows[rows.length - 1]; if (last) { const s = last.querySelector('select[data-e=id]'); if (s) s.focus({ preventScroll: true }); last.scrollIntoView({ block: 'nearest' }); }
+  });
+  // 自動の読み取り（辞書・説明文・FGO）の結果を行に並べる：この騎の手直しと全員分の手直しを一時的に外して組み立て直す
+  $('#edAuto').onclick = () => {
+    if (!edCtx) return;
+    const k = keysFor(edCtx), own = E.SERVANT_OVERRIDES[k.servant], g = E.SKILL_OVERRIDES[k.global];
+    delete E.SERVANT_OVERRIDES[k.servant]; delete E.SKILL_OVERRIDES[k.global];
+    let it = null;
+    try { const s = B.fromJSON(B.toLean(edCtx.sv)); it = (edCtx.kind === 'n' ? s.nps : s.allSkills).find(x => E.normName(x.name) === E.normName(edCtx.item.name)); }
+    finally { if (own) E.SERVANT_OVERRIDES[k.servant] = own; if (g) E.SKILL_OVERRIDES[k.global] = g; }
+    if (!it) { status('読み取り結果を作れませんでした'); return; }
+    $('#edRows').innerHTML = '';
+    const list = (it.effects || []).filter(e => e.id !== 'disabled');
+    list.forEach(e => edRow([e.id, e.factor, e.params]));
+    if (!list.length) edRow();
+    status(`自動の読み取り（${srcLabel(it.effectSource)}）を ${list.length}件並べました。保存するまで手直し表は変わりません`);
+  };
+  const srcLabel = s => ({ dict: '辞書', 'dict-partial': '辞書の一部一致', compound: '説明文の参照', keyword: '説明文', fgo: 'FGOの同名スキル', default: '仮の効果', lost: '失われたスキル', type: '種別' })[s] || s || '読み取り';
+  // Ctrl+Enter で保存
+  $('#ed').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('#edSave').click(); } });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-ed]'); if (!b) return;
     const [i, kind, j] = b.dataset.ed.split(':'), sv = roster[+i], item = kind === 's' ? sv.allSkills[+j] : sv.nps[+j];
     edCtx = { sv, item, kind };
     $('#edTitle').textContent = `${sv.trueName} ／ ${item.name}（${R.label(item.rank)}）`;
+    $('#edSrc').textContent = `いまの効果の出どころ：${item.effectSource === 'servant-override' ? 'この騎の手直し' : item.effectSource === 'override' ? '全員に効く手直し' : srcLabel(item.effectSource)}${item.matched ? `（${item.matched}）` : ''}`;
     $('#edDesc').textContent = item.desc || '';
     $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(attrList(), ['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();

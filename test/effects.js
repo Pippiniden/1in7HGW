@@ -383,5 +383,39 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(diff.wound && diff.rgrow && diff['未看破'] && diff['vs騎乗'], '新しい条件の効果が展開に効いていない：' + JSON.stringify(diff));
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手`);
+// 5j) 増えた場面の条件（霧・月夜・共闘・敵陣・相手瀕死・初見・真名把握・はぐれ・同盟・魔力枯渇）と、使った戦いだけ働く宝具の効果（params.use）
+{
+  const NEW = ['霧', '月夜', '共闘', '敵陣', '相手瀕死', '初見', '真名把握', 'はぐれ', '同盟', '魔力枯渇'];
+  ok(NEW.every(k => E.COND_JA[k] && E.COND_NOT_JA[k] && E.COND_OPTS.some(o => o[0] === k)), '新しい場面の条件の表がそろっていない');
+  const fb = E.fieldsFor('power').conds, fp = E.fieldsFor('stealth').conds, fd = E.fieldsFor('regen').conds;
+  ok(NEW.every(k => fb.includes(k)) && !fp.includes('共闘') && !fp.includes('敵陣') && fp.includes('初見') && fp.includes('真名把握') && fd.includes('はぐれ') && fd.includes('同盟') && fd.includes('魔力枯渇') && !fd.includes('相手瀕死') && !fd.includes('霧'),
+    '場面の条件を付けられる効果の見分けが違う');
+  ok(E.deadParams('stealth', { cond: '共闘' }).length === 1 && !E.deadParams('stealth', { cond: '真名把握' }).length && E.deadParams('regen', { cond: '初見' }).length === 1, '働かない場面の見分けが違う');
+  ok(/初めて戦う相手とだけ/.test(E.describe({ id: 'instakill', mag: 0.1, params: { cond: '初見' } }).when) && /二度目からの相手とだけ/.test(E.describe({ id: 'power', mag: 0.1, params: { cond: '初見', condNot: true } }).when), '場面の説明が出ない');
+  // 使った戦いだけ働く宝具の効果：陣地（持っているだけで働く種類）に付けられ、戦いの効果には要らない
+  ok(E.fieldsFor('territory', true).use && !E.fieldsFor('power', true).use && !E.fieldsFor('territory', false).use && !E.fieldsFor('heal', true).use, '「使った戦いだけ」を付けられる効果の見分けが違う');
+  ok(E.npOnUse({ id: 'territory', params: { use: true } }) && !E.npOnUse({ id: 'territory' }) && E.deadParams('territory', { use: true }).length === 1 && !E.deadParams('territory', { use: true }, true).length, '「使った戦いだけ」の読み取りが違う');
+  ok(/宝具を使ったその戦いの間/.test(E.describe({ id: 'territory', mag: 0.2, params: { use: true } }, { np: true }).when) && /持っているだけで常に/.test(E.describe({ id: 'territory', mag: 0.2 }, { np: true }).when), '「使った戦いだけ」の説明が出ない');
+  ok(/data-e="use"[^>]*checked/.test(E.moreHtml('territory', { use: true }, s => s, true, true)) && !/data-e="use"/.test(E.moreHtml('territory', {}, s => s, false, true)), '編集画面に「使った戦いだけ」の欄が出ない');
+  ok(E.readMore(k => ({ use: { checked: true, value: '' } })[k] || null, 'territory', {}).use === true, '「使った戦いだけ」の欄が読めない');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const me0 = roster.find(s => s.allSkills.length && (s.nps || []).some(n => !n.disabled));
+  const sk = me0.trueName + '/' + E.normName(me0.allSkills[0].name), npI = (me0.nps || []).find(n => !n.disabled), nk = me0.trueName + '/' + E.normName(npI.name);
+  const withSpec = (key, specs) => { E.SERVANT_OVERRIDES[key] = specs; const s = B.fromJSON(B.toLean(me0)); delete E.SERVANT_OVERRIDES[key]; return s; };
+  const held = withSpec(nk, [['territory', 2]]), used = withSpec(nk, [['territory', 2, { use: true }]]);
+  const sumOf = (s, pred) => Object.entries(s.effectSummary).filter(([k, x]) => x.id === 'territory' && pred(k, x));
+  ok(sumOf(held, (k, x) => x.passive > 0 && !/~u/.test(k)).length === 1 && sumOf(used, (k, x) => x.onNP > 0 && /~u/.test(k)).length === 1, '陣地の宝具の効果が「持っているだけ」と「使った戦いだけ」で集計が分かれない');
+  // エンジン：新しい場面の条件はエラーにならず、起きやすいものは展開を変える。使った戦いだけの陣地も展開を変える
+  const others = roster.filter(s => s.id !== me0.id).slice(0, 7);
+  const log = s => { const out = []; for (let i = 0; i < 24; i++) out.push(H.engine.runWar({ roster: others.concat([s]), seed: 'cnd' + i, player: 'none', war: { pick: 'open' } }).entries.map(e => e.text).join('\n')); return out.join('\n#\n'); };
+  const L0 = log(withSpec(sk, [['power', 0]]));
+  let errs = 0; const diff = {};
+  for (const k of NEW) { try { diff[k] = log(withSpec(sk, [['power', 12, { cond: k }]])) !== L0; } catch (e) { errs++; console.error(k, e); } }
+  for (const k of ['共闘', '初見']) { try { log(withSpec(sk, [['stealth', 3, { cond: k }], ['guard', 3, { cond: k, condNot: true }]])); } catch (e) { errs++; console.error(k, e); } }
+  ok(!errs, '新しい場面の条件で戦争がエラーになった');
+  ok(['相手瀕死', '初見', '真名把握', '同盟', '敵陣'].every(k => diff[k]), '新しい場面の条件が展開に効いていない：' + JSON.stringify(diff));
+  try { ok(log(used) !== L0 && log(used) !== log(held), '使った戦いだけの陣地が展開に効いていない'); } catch (e) { errs++; console.error(e); ok(false, '使った戦いだけの陣地で戦争がエラーになった'); }
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手／増えた場面の条件・使った戦いだけ働く宝具の効果`);
 process.exitCode = fail ? 1 : 0;

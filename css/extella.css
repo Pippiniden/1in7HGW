@@ -23,6 +23,8 @@ body::after {
 }
 /* 細いシアンのスクロールバー */
 html { scrollbar-width: thin; scrollbar-color: rgba(62, 230, 255, .45) transparent; }
+/* iOS：ダブルタップでの拡大と、タップの反応の遅れを止める（ピンチでの拡大はそのまま） */
+body { touch-action: manipulation; }
 
 /* 見出しの帯：左から薄く光り、下に光の線を引く */
 .hd {

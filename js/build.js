@@ -252,7 +252,7 @@
       const p = e.params || {};
       const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
       const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + (p.condNot ? '!' : '') + p.cond : '') + (p.vs ? '>' + (p.vsNot ? '!' : '') + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '') + (p.self ? '^self' : '') + (p.nocure ? '^fix' : '') + (p.team > 0 ? '&' + p.team : '')
-        + (p.dmin > 0 ? '[' + p.dmin : '') + (p.dmax > 0 ? ']' + p.dmax : '') + (p.grow ? '+g' + p.grow : '') + (p.turn > 0 ? '|t' + p.turn : '') + (p.decay ? '-d' + p.decay : '') + (p.wound ? '~w' : '') + (p.rgrow ? '~r' + p.rgrow : '')
+        + (p.dmin > 0 ? '[' + p.dmin : '') + (p.dmax > 0 ? ']' + p.dmax : '') + (p.grow ? '+g' + p.grow : '') + (p.turn > 0 ? '|t' + p.turn : '') + (p.decay ? '-d' + p.decay : '') + (p.wound ? '~w' : '') + (p.rgrow ? '~r' + p.rgrow : '') + (p.use ? '~u' : '')
         + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }
@@ -279,10 +279,12 @@
   //   相手の属性：o.opp（相手のサーヴァント）が持つときだけ（相手が分からなければ数えない。「それ以外」は数える）／発動確率：強さ×確率
   //   日数・日ごとの変化：1〜EST_DAYS日目のならし（戦いの多い序盤〜中盤）
   const EST_DAYS = 12, EST_WOUND = 0.35;
+  // 場面の条件の起きやすさ（見積もり用のならし。地形と拠点は相手・場所から決める）
+  const COND_EST = { 瀕死: 0.3, 未看破: 0.5, 相手瀕死: 0.3, 初見: 0.5, 真名把握: 0.4, 共闘: 0.3, 敵陣: 0.3, はぐれ: 0.1, 同盟: 0.4, 魔力枯渇: 0.15, 霧: 0.1, 月夜: 0.1 };
   function condW(p, terrain, o) {
     if (!p) return 1;
     let w = 1;
-    if (p.cond) { const c = p.cond === '拠点' ? (o && o.home ? 1 : 0) : p.cond === '瀕死' ? 0.3 : p.cond === '未看破' ? 0.5 : p.cond === terrain ? 1 : 0; w *= p.condNot ? 1 - c : c; }
+    if (p.cond) { const c = p.cond === '拠点' ? (o && o.home ? 1 : 0) : COND_EST[p.cond] != null ? COND_EST[p.cond] : p.cond === terrain ? 1 : 0; w *= p.condNot ? 1 - c : c; }
     if (p.vs) w *= o && o.opp ? (E.hasTag(o.opp, p.vs) !== !!p.vsNot ? 1 : 0) : p.vsNot ? 1 : 0;
     if (p.chance != null) w *= Math.max(0, Math.min(1, p.chance));
     if (p.dmin > 0 || p.dmax > 0 || p.grow || p.decay) { let s = 0; for (let d = 1; d <= EST_DAYS; d++) s += E.dayOk(p, d) ? E.dayMult(p, d) : 0; w *= s / EST_DAYS; }

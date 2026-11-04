@@ -296,6 +296,16 @@
         const hit = k === '拠点' ? (c.bx ? !!c.bx.home : true)   // 戦いの外（昼の行動など）は拠点にいる
           : k === '瀕死' ? c.hp < ENG.pinchAt
           : k === '未看破' ? !pubName.has(c.id) && !(t && t.knowName && t.knowName.has(c.id))   // 相手に真名を知られていない（相手がいなければ、知られていない扱い）
+          : k === '相手瀕死' ? !!t && t.hp < ENG.pinchAt
+          : k === '初見' ? !!t && (c.bx && t === c.bx.opp ? !!c.bx.first : !(c.met && c.met.has(t.id)))   // 戦ったことのない相手（戦いの間は、その戦いの始めの判定のまま）
+          : k === '真名把握' ? !!t && (pubName.has(t.id) || c.knowName.has(t.id))
+          : k === '共闘' ? !!(c.bx && c.bx.mates && c.bx.mates().length > 1)   // 加勢・前衛の仲間と並んで戦っている
+          : k === '敵陣' ? !!(c.bx && c.bx.ctx && c.bx.opp && c.bx.ctx.home === c.bx.opp)
+          : k === 'はぐれ' ? !c.masterAlive
+          : k === '同盟' ? c.pact != null
+          : k === '魔力枯渇' ? !!c.masterAlive && c.mana < (c.manaMax || 0) * 0.2
+          : k === '霧' ? phase === 'night' && !!tonight.fog
+          : k === '月夜' ? phase === 'night' && !!tonight.moon
           : k === terrain || (k === '夜' && phase === 'night' && !tonight.moon);
         if (hit === !!p.condNot) return false;
       }
@@ -385,7 +395,9 @@
     }
     // 戦いの始め：相手・拠点を覚え、発動確率のある効果をこの戦いの分だけ判定する（確率のある効果を持たない英霊では rnd を使わない）
     const enterBattle = (c, opp, home) => {
-      c.bx = { opp, home, rolls: {} };
+      // 初めて戦う相手か（条件「初見」）。覚えるのは相手の陣営の番号だけ
+      const first = !(c.met && c.met.has(opp.id)); (c.met = c.met || new Set()).add(opp.id);
+      c.bx = { opp, home, rolls: {}, first };
       for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.params && x.params.chance != null && !x.on) c.bx.rolls[k] = x.params.chance >= 1 || chance(x.params.chance);   // 発動する効果（x.on）は発動のたびに判定
     };
     // ---------- 発動する効果（effects.js の TRIGGERS：params.on）----------
@@ -603,7 +615,8 @@
       const selfDeb = eff(c, 'debuff', T, true) + eff(c, 'debuff_mind', T, true) + eff(c, 'debuff_body', T, true);
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
       if (c.wither || c.witherSelf || c.witherFix) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0) + (c.witherFix || 0));
-      if (ctx.home === c || wsUp(c, T)) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.05;   // 拠点か、陣地の段階を上げる効果（ws_up）を持つとき
+      // 拠点か、陣地の段階を上げる効果（ws_up）を持つとき。使った戦いだけ働く陣地の効果（結界宝具など、c.temp の territory）があれば、その場に陣地を張ったものとして拠点の外でも数える
+      if (ctx.home === c || wsUp(c, T) || c.temp.some(e => e.id === 'territory')) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.05;
       if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
