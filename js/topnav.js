@@ -37,7 +37,7 @@
 .topnav .spoil b::after { content: "ネタバレ注意"; margin-left: 8px; font-size: 10px; font-weight: 400; color: var(--gold, #f2c14e); }
 .topnav .tn-cur.spoil b::after { color: var(--sel-ink, #04122c); }
 .devnav { max-width: 1100px; margin: 28px auto 0; padding: 0 max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
-.devnav > summary { cursor: pointer; font-size: 12px; color: var(--mute, #8fb0d8); letter-spacing: .08em; padding: 8px 0; min-height: 24px; user-select: none; }
+.devnav > summary { cursor: pointer; font-size: 12px; color: var(--mute, #8fb0d8); letter-spacing: .08em; padding: 8px 0; min-height: 24px; user-select: none; background: none; box-shadow: none; clip-path: none; }
 .devnav > summary:focus-visible { outline: 2px solid var(--cyan, #38d6ff); outline-offset: 2px; }
 .devnav .tn-list { margin-top: 4px; }
 .topnav .tn-note { margin: 4px 2px 0; font-size: 11px; color: var(--mute, #8fb0d8); }
@@ -60,17 +60,21 @@
     st.textContent = css;
     document.head.appendChild(st);
     document.body.insertBefore(d, document.body.firstChild);
-    const v = document.createElement('details');
-    v.className = 'topnav devnav';
-    v.innerHTML = '<summary>開発者向け</summary><nav aria-label="開発者向けのエディタ"><div class="tn-list">'
-      + DEV.map(m => {
-        const inner = `<b>${m.name}</b><small>${m.note}</small>`, cls = m.spoil ? 'spoil' : '';
-        return m.href === here
-          ? `<span class="tn-cur ${cls}" aria-current="page">${inner}</span>`
-          : `<a class="${cls}" href="${m.href}${local && m.local ? '?data=local' : ''}">${inner}</a>`;
-      }).join('')
-      + '</div></nav>';
-    document.body.appendChild(v);
+    // 開発者向けは画面の一番下。このスクリプトは body の先頭で動くので、ページが組み上がってから足す
+    const dev = () => {
+      const v = document.createElement('details');
+      v.className = 'topnav devnav';
+      v.innerHTML = '<summary>開発者向け</summary><nav aria-label="開発者向けのエディタ"><div class="tn-list">'
+        + DEV.map(m => {
+          const inner = `<b>${m.name}</b><small>${m.note}</small>`, cls = m.spoil ? 'spoil' : '';
+          return m.href === here
+            ? `<span class="tn-cur ${cls}" aria-current="page">${inner}</span>`
+            : `<a class="${cls}" href="${m.href}${local && m.local ? '?data=local' : ''}">${inner}</a>`;
+        }).join('')
+        + '</div></nav>';
+      document.body.appendChild(v);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', dev); else dev();
   }
   if (document.body) build(); else document.addEventListener('DOMContentLoaded', build);
 })();

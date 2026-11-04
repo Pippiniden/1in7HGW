@@ -52,7 +52,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
    `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`; `original.html` and `scenario.html` load up to `data` then `singdata → scenario → original`.
-   `sealmark` and `sealdata` are UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`).
+   `sealmark` and `sealdata` are UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`). `js/topnav.js` runs at the top of `<body>`: it inserts the mode menu first and appends the 「開発者向け」 menu at `DOMContentLoaded` so it lands at the bottom of the page.
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
    `rnd()` calls changes every seed's outcome (acceptable, but old shared links replay differently). Never iterate `Set`/object keys in
@@ -74,6 +74,7 @@ taisen.html         Great Holy Grail War (test feature, §7.13): a mirror of ind
 original.html       Original singularity (test feature, §7.14): pick/load a scenario, check it, set the Master, play; derived from singularity.html but independent
 scenario.html       Original-singularity scenario editor: path-bound form (`data-p`), live check, auto-save to `hgw.orig.edit`, JSON export, auto-run trial
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
+css/extella.css     Shared Fate/EXTELLA-style ornaments (left lattice, top light line, header bands, selection cursor, key legend bar); linked after each dark page's inline `<style>` (not roster/submit); uses each page's `:root` tokens
 data/
   manifest.json     Which data files to load
   servants.json     Servant pack (hgw-servants, lean). ~1.2M chars — NEVER read it whole; use tools/servant.js (§4.6)

@@ -558,10 +558,14 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .fic.big .face { width: 30px; height: 30px; vertical-align: -6px; margin-right: 8px; }
 .fic.has .ci { display: none; }
 .hd .ja .fic .face { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
-.face.lg { float: left; width: 72px; height: 72px; margin: 2px 10px 6px 0; border-radius: 4px; }
+.face.lg { width: 72px; height: 72px; margin: 2px 0 4px; border-radius: 4px; grid-row: 1; align-self: start; }
 .face.xl { float: right; width: 112px; height: 112px; margin: 0 0 8px 12px; border-radius: 6px; }
 @media (max-width: 820px) { .face.xl { width: 84px; height: 84px; } }
-.svbody::after { content: ""; display: block; clear: both; }
+/* 顔グラフィックと名前を一段に並べ、ランクの枠はその下に全幅で（左の欄が狭いので、顔の横に並べると折り返す） */
+.svbody { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 10px; align-items: center; }
+.svbody .tn { grid-row: 1; margin-bottom: 0; }
+.svbody .ranks, .svbody .skl, .svbody .lorebtn { grid-column: 1 / -1; }
+.svbody .lorebtn { justify-self: start; }
 .ci.big { width: 30px; height: 30px; vertical-align: -6px; margin-right: 8px; }
 .hd .ja .ci { width: 16px; height: 16px; vertical-align: -3px; margin-right: 4px; }
 .tiphint { font-size: 11px; color: var(--mute); margin: 8px 0 0; }
@@ -624,6 +628,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
 @media (prefers-reduced-motion: reduce) { .log .new, .view .fx.flash, .view .rain { animation: none; } .bar i, .prog i, .view img { transition: none; } }
 
 </style>
+<link rel="stylesheet" href="css/extella.css">
 </head>
 <body>
 <script src="js/topnav.js"></script>
@@ -834,6 +839,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   </section>
 </div>
 
+<div class="keybar" aria-hidden="true"><div class="kb-in"><span class="kb-note">方針はいつでも変えられ、次の朝から反映される。大きな決断は番号でも選べる。</span><span class="kb-keys"><span><kbd>Space</kbd>一時停止・再開</span><span><kbd>1</kbd>〜 決断を選ぶ</span><span><kbd>Enter</kbd>次へ</span><span><kbd>Esc</kbd>閉じる</span></span></div></div>
 <div class="dlg" id="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
   <section class="dlg-in panel">
     <div class="dlg-head"><i class="chev"></i><span class="en">Decision</span><span class="when" id="dlgWhen"></span><button class="btn" id="dlgMin">いったん下ろす ▾</button></div>

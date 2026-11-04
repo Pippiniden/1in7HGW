@@ -18,7 +18,8 @@ for (let i = 0; i < 30; i++) {
   ok(strip(a, rolled) === strip(b, '衛宮 テスト'), `名前で展開が変わった（シード n${i}）`);
   const y = b.camps.find(c => c.you);
   // マスターが倒れたあと、サーヴァントが別のマスターと再契約すると結果の表の名前は変わる。付けた名前は召喚の記録で確かめる
-  ok(y && (y.master === '衛宮 テスト' || b.entries.some(e => e.kind === 'summon' && e.you && e.text.startsWith('衛宮 テスト'))), `付けた名前が使われていない（シード n${i}）`);
+  // あなたのマスターが死んでサーヴァントが別のマスターに渡ると（result.youTaken）、結果の表に印（you）は残らない
+  ok((y && y.master === '衛宮 テスト') || b.entries.some(e => e.kind === 'summon' && e.you && e.text.startsWith('衛宮 テスト')), `付けた名前が使われていない（シード n${i}）`);
   ok(b.entries.some(e => e.text.includes('衛宮 テスト')), `記録に名前が出ていない（シード n${i}）`);
 }
 // 制御文字は除き、20字まで
