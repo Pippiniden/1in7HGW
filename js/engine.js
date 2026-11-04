@@ -61,6 +61,11 @@
     const wpick = o => { let t = 0; for (const k in o) t += Math.max(0, o[k]); let x = rnd() * t; for (const k in o) { x -= Math.max(0, o[k]); if (x <= 0) return k; } return Object.keys(o)[0]; };
     const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
     const askLevel = opts.ask || 'never'; // 'never' 以外なら、プレイヤーの陣営で大きな決断のたびに止まる
+    // 効果の検証（roster.html「効果の検証」）：opts.trace = { id: サーヴァントの id, on: 出来事 => {} }。その英霊の陣営で効果が働いた・働かなかった出来事を知らせる。
+    //   乱数は使わず、記録も変えない（無ければ何も起きない）。出来事の形は traceFx と各所の trace() を参照
+    const TR = opts.trace && typeof opts.trace.on === 'function' ? opts.trace : null;
+    const traced = c => !!TR && !!c && !!c.sv && c.sv.id === TR.id;
+    const trace = (c, ev) => { if (traced(c)) TR.on(Object.assign({ day, phase, camp: c.id }, ev)); };
 
     const roster = (opts.roster || []).filter(s => s && s.score && !s.bossOnly);   // ボス専用の英霊（特異点のボス）は聖杯戦争に呼ばない
     if (roster.length < 2) throw new Error('サーヴァントが2騎以上必要です');
@@ -355,6 +360,17 @@
       return t;
     }
     const effO = (c, id, o) => eff(c, id, undefined, false, o);   // 戦いの外で相手のいる場面
+    // 効果の検証：常時の効果（effectSummary の passive）ごとに、いま条件を満たしているかと働いている強さ。戦いの中だけ呼ぶ（乱数は使わない）
+    function traceFx(c, terrain) {
+      const out = {};
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) {
+        if (!x.passive) continue;
+        const ok = condOk(c, x.params, terrain);
+        out[k] = { id: x.id, cond: ok, mag: ok ? (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params) : 0 };
+      }
+      const temp = (c.temp || []).map(e => ({ id: e.id, mag: e.mag, from: e.from || '' }));
+      return { fx: out, temp };
+    }
     const effVs = (c, id, o, terrain) => {
       let t = 0;
       for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && E.hasTag(o.sv, x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
@@ -388,9 +404,11 @@
     // 掛ける：強さ（上限つき）で判定し、相手の耐性で防がれることもある。強さが0なら乱数を使わない
     function tryAil(x, y, id, T) {
       const { t, p } = ailInfo(x, id, T);
-      if (!(t > 0) || !chance(Math.min(E.AIL_CAP[id], t) * (1 - (y.cleanse || 0)))) return null;   // 弱体解除（cleanse）した戦いでは掛かりにくい
+      if (!(t > 0)) return null;
+      if (!chance(Math.min(E.AIL_CAP[id], t) * (1 - (y.cleanse || 0)))) { trace(x, { t: 'ail', id, to: y.id, ok: false, why: 'miss' }); return null; }   // 弱体解除（cleanse）した戦いでは掛かりにくい
       const r = ailResist(y, id, T);
-      if (r > 0 && chance(r)) { log('battle', ailText('ailResist', id, p, x, y), [y.id, x.id]); return null; }
+      if (r > 0 && chance(r)) { log('battle', ailText('ailResist', id, p, x, y), [y.id, x.id]); trace(x, { t: 'ail', id, to: y.id, ok: false, why: 'resist' }); return null; }
+      trace(x, { t: 'ail', id, to: y.id, ok: true });
       return p || {};
     }
     // 戦いの始め：相手・拠点を覚え、発動確率のある効果をこの戦いの分だけ判定する（確率のある効果を持たない英霊では rnd を使わない）
@@ -417,20 +435,23 @@
     function fireTrig(c, o, on, T) {
       if (!c.alive) return;
       const list = trigList(c, on); if (!list.length) return;
-      if (on !== 'day' && c.ail && c.ail.skseal) return;   // スキル封印
+      if (on !== 'day' && c.ail && c.ail.skseal) { for (const [k, id, , , from] of list) trace(c, { t: 'trig', key: k, id, on, from, skip: 'seal' }); return; }   // スキル封印
       for (const [k, id, mag, p0, from] of list) {
         const p = p0 || {};
-        if (!condOk(c, p, T) || offMatch(c, from, id)) continue;   // 止めた効果は発動しない
+        const skip = why => trace(c, { t: 'trig', key: k, id, on, from, skip: why });
+        if (!condOk(c, p, T)) { skip('cond'); continue; }
+        if (offMatch(c, from, id)) { skip('off'); continue; }   // 止めた効果は発動しない
         // 回数：戦いの中の発動は1回の戦いで、毎朝の発動は戦争を通して（「最初のN日」）
         const U = on === 'day' ? (p.uses > 0 ? (c.dUsed = c.dUsed || {}) : null) : c.tUsed;
         const used = (U && U[k]) || 0;
         const lim = p.uses > 0 ? p.uses : on === 'start' || on === 'pinch' || on === 'kill' ? 1 : 0;
-        if (U && lim && used >= lim) continue;
-        const m = mag * dm(p) * sm(c, p); if (!m) continue;   // 日ごとの変化・傷の深さ・打ち合いごとの変化で強さが0になった効果は発動しない
-        if (p.cost > 0 && c.mana < p.cost) continue;
-        if (p.chance != null && p.chance < 1 && !chance(Math.max(0, p.chance))) continue;
+        if (U && lim && used >= lim) { skip('uses'); continue; }
+        const m = mag * dm(p) * sm(c, p); if (!m) { skip('zero'); continue; }   // 日ごとの変化・傷の深さ・打ち合いごとの変化で強さが0になった効果は発動しない
+        if (p.cost > 0 && c.mana < p.cost) { skip('cost'); continue; }
+        if (p.chance != null && p.chance < 1 && !chance(Math.max(0, p.chance))) { skip('chance'); continue; }
         if (p.cost > 0) c.mana -= p.cost;
         if (U) U[k] = used + 1;
+        trace(c, { t: 'trig', key: k, id, on, from, mag: m });
         applyTrig(c, o, k, id, m, p, from, on, T); shareTrig(c, k, id, m, p, from, on, T);
       }
     }
@@ -690,6 +711,7 @@
       const gutsK = l.critHit ? 1 - ENG.critGuts : 1; l.critHit = false;
       if (!pierced && chance(clamp(eff(l, 'guts') + eff(l, 'luck') * 0.5 + l.bond / 500 + FX.endGuts * sd(l, 'end') + FX.lukGuts * sd(l, 'luk'), 0, 0.85) * gutsK)) {
         l.hp = 5 + rnd() * 10;
+        trace(l, { t: 'guts' });
         log('battle', tx('guts', sd(l, 'end') >= 0.9 ? `致命の一撃を受けながら、${sn(l)}の頑強な霊基は崩れなかった。` : `致命の一撃を受けながら、${sn(l)}は踏みとどまった。`, { S: sn(l), O: sn(w) }), [l.id, w.id]);
         return 'guts';
       }
@@ -776,16 +798,18 @@
       if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; if (SG) c.lastNP.aoe = SG.aoeOf(c, np); }
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
+      const applied = [];   // 効果の検証（trace）に知らせる、使ったときに働いた効果
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
         && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
-        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
+        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); applied.push(e.id); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
       // 発動のしかたのある効果は、この戦いの残りでその場面のたびに発動する（c.armed）
       (np.effects || []).forEach((e, i) => {
         const p = e.params || {};
         if (p.on) { const k = 'np:' + np.name + ':' + i; if (c.armed && !c.armed.some(a => a.k === k)) c.armed.push({ k, on: p.on, id: e.id, mag: e.mag, params: p, from: np.name }); }
-        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) { applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); shareTrig(c, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); }
+        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) { applied.push(e.id); applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); shareTrig(c, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); }
       });
+      trace(c, { t: 'np', name: np.name, round, attack: !!np.attackResolved, cost, over, boost: c.npBoost || 0, effects: applied });
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (np.exposure >= 1) pubName.add(c.id);
       if (np.exposure >= 0.8) witnessed.push(c.id);
@@ -856,6 +880,7 @@
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
       for (const x of all()) { x.bx.ctx = ctx; x.bx.mates = () => side(side(a).includes(x) ? a : b); }   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように／味方にも効く効果（shareTrig）の相手
+      if (TR) for (const x of all()) trace(x, { t: 'bstart', opp: opp(x).id, home: ctx.home === x, atHome: ctx.home != null, hp: x.hp, oppHp: opp(x).hp, helper: x !== a && x !== b, mates: side(side(a).includes(x) ? a : b).length });
       // 並んで戦う味方どうしの効果：味方にも効く効果（params.team）と統率（rally）を、その戦いの間だけ分け合う（乱数は使わない）。
       //   加勢がいない一騎どうしの戦いでは何も起きない
       for (const s of [side(a), side(b)]) if (s.length > 1) for (const x of s) for (const y of s) if (x !== y) shareTeam(y, x, (ctx.teamK || 1) * weakK(y, ctx));
@@ -912,6 +937,7 @@
       const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) { c.npBoost = 0; if (c.bx) c.bx.round = round; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ。打ち合いの番号は打ち合いごとの変化（rgrow）に
+        if (TR) for (const c of all()) if (traced(c)) trace(c, { t: 'round', round, opp: opp(c).id, fx: traceFx(c, ctx.terrain) });
         // バーサーカーは、打ち合いのたびに魔力を食う
         for (const c of all()) if (c.alive && c.masterAlive && isBerserk(c)) { c.mana -= ENG.wildMana * upk(c); drain(c); }
         // 退く戦い方なら最初に離脱を試みる
@@ -993,8 +1019,10 @@
         if (tg.alive) fireTrig(tg, w, 'hit', ctx.terrain);
         const dg = eff(tg, 'dodge', ctx.terrain);
         const dodged = dg > 0 && chance(Math.min(ENG.dodgeCap, dg) * (1 - clamp(eff(w, 'sure_hit', ctx.terrain), 0, 1)));
-        if (dodged) log('battle', `${sn(w)}が押し込んだ一撃を、${sn(tg)}は紙一重で見切った。`, [tg.id, w.id]);
+        if (TR) { trace(w, { t: 'xw', round }); trace(tg, { t: 'xl', round, cover }); }
+        if (dodged) { log('battle', `${sn(w)}が押し込んだ一撃を、${sn(tg)}は紙一重で見切った。`, [tg.id, w.id]); trace(tg, { t: 'dodge' }); }
         else if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
+          trace(w, { t: 'instakill' });
           log('battle', `${sn(w)}の一撃が、${sn(tg)}の霊核を捉えた。`, [w.id, tg.id]);
           tg.hp = 0; o3 = yield* lethal(tg, w, 'instakill', round);
         } else {
@@ -1002,7 +1030,7 @@
           // 筋力の高い側ほど深く斬り込み、耐久の高い側ほど持ちこたえる
           dmg *= clamp(1 + FX.str * sd(w, 'str') - FX.end * sd(tg, 'end'), 0.6, 1.5);
           const crit = chance(Math.max(0, eff(w, 'crit', ctx.terrain) + FX.lukCrit * sd(w, 'luk')));
-          if (crit) { dmg *= ENG.critMult; tg.critHit = true; }
+          if (crit) { dmg *= ENG.critMult; tg.critHit = true; trace(w, { t: 'crit' }); }
           if (!chance(eff(w, 'pierce', ctx.terrain))) dmg *= 1 - clamp(B.softDef(eff(tg, 'guard', ctx.terrain)) * ENG.guardDmgW, -0.5, ENG.guardDmgCap);
           const flat = eff(w, 'dmg_plus', ctx.terrain) - eff(tg, 'dmg_cut', ctx.terrain);   // ダメージプラス・ダメージカット（固定値）
           if (flat) dmg = Math.max(1, dmg + flat);
@@ -1010,7 +1038,8 @@
           tg.hp -= dmg; w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
           // 反撃：傷を受けても立っていれば、その傷の一部を返す
           const ctr = tg.hp > 0 ? eff(tg, 'counter', ctx.terrain) : 0;
-          if (ctr > 0) { w.hp -= dmg * Math.min(1, ctr); if (tg.tLog && !tg.tLog.has('#counter')) { tg.tLog.add('#counter'); log('battle', `${sn(tg)}は退かず、すかさず反撃を返した。`, [tg.id, w.id]); } }
+          if (ctr > 0) { w.hp -= dmg * Math.min(1, ctr); trace(tg, { t: 'counter', dmg: dmg * Math.min(1, ctr) }); if (tg.tLog && !tg.tLog.has('#counter')) { tg.tLog.add('#counter'); log('battle', `${sn(tg)}は退かず、すかさず反撃を返した。`, [tg.id, w.id]); } }
+          if (TR) { trace(w, { t: 'dmg', dealt: dmg }); trace(tg, { t: 'dmg', taken: dmg }); }
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           tg.critHit = false;
@@ -1074,7 +1103,9 @@
         if (!x.knowName.has(y.id)) { x.knowName.add(y.id); if (x.you) log('scout', `剣を交えるうちに、${y.label}の真名に思い至った——「${y.sv.trueName}」。`, [x.id, y.id]); }
       }
       cleanup();
-      function cleanup() { for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
+      function cleanup() {
+        if (TR) for (const c of [a, b].concat(helpers0)) if (c && c.bx && c.bx.opp) trace(c, { t: 'bend', opp: c.bx.opp.id, hp: c.hp, alive: c.alive, oppHp: c.bx.opp.hp, oppAlive: c.bx.opp.alive });
+        for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
     }
 
     // y の常時の効果のうち、味方にも効くもの（params.team）を x の c.temp へ（強さ×割合）。統率は x の戦闘力を 統率×rallyPower 上げる

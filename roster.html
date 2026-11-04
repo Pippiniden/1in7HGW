@@ -256,6 +256,21 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .ed-top { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 6px; }
 .ed-top h3 { margin: 0; }
 .kbd { font: 11px ui-monospace, Menlo, monospace; padding: 0 4px; border: 1px solid var(--rule); border-radius: 4px; color: var(--sub); }
+/* 効果の検証 */
+#vf { max-height: calc(100vh - 32px); overflow: auto; }
+.vf-sum { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin: 8px 0 12px; }
+.vf-sum div { background: var(--bg); border: 1px solid var(--rule); border-radius: 8px; padding: 6px 10px; font-size: 12px; color: var(--sub); }
+.vf-sum b { display: block; font-size: 16px; color: var(--ink); }
+.vf-item { border: 1px solid var(--rule); border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+.vf-item h4 { margin: 0 0 4px; font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.vf-item h4 .hint { font-weight: 400; }
+.vf-fx { font-size: 12px; margin: 6px 0; padding-left: 10px; border-left: 3px solid var(--rule); }
+.vf-fx .ex { color: var(--sub); }
+.vf-fx .act { display: block; color: var(--ink); margin-top: 2px; }
+.vf-fx .act b { color: var(--accent); }
+.vf-fx.none .act { color: var(--sub); }
+.vf-cmp { font-size: 12px; margin-top: 6px; color: var(--sub); }
+.vf-cmp b { color: var(--ink); }
 #ed { max-height: calc(100vh - 32px); overflow: auto; }
 @media (max-width: 560px) { .erow { grid-template-columns: minmax(0, 1fr) auto; } .erow .tools { grid-column: 1 / -1; justify-content: flex-end; } }
 #edLegend tr.lg th { text-align: left; font-size: 12px; color: var(--accent); padding-top: 10px; border-bottom: 1px solid var(--rule); }
@@ -571,6 +586,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   </div>
 </dialog>
 
+<dialog id="vf" class="wide">
+  <div class="ed-top"><h3 id="vfTitle"></h3><span class="hint">この騎を必ず含む七騎（相手は毎回ランダム）で全自動の聖杯戦争を回し、スキル・宝具の効果がゲームの中で実際にどう働いたかを数えます。同じシード・同じリストなら同じ結果です</span></div>
+  <div class="row" style="margin:8px 0">
+    <label class="hint">戦争の数 <select id="vfN"><option value="20">20</option><option value="40" selected>40</option><option value="80">80</option><option value="160">160</option></select></label>
+    <label class="hint">シード <input type="text" id="vfSeed" value="vf" style="width:7em" autocomplete="off" spellcheck="false"></label>
+    <button class="primary" id="vfGo" type="button">回す</button>
+    <span class="hint" id="vfProg"></span>
+  </div>
+  <div id="vfOut"><p class="hint">「回す」で始めます。1戦につき0.1秒ほどかかります。</p></div>
+  <div class="ed-foot"><span class="hint">「外して比べる」は、そのスキル・宝具の効果を無しにして同じシードで回し直し、優勝率などの差を見ます（手直し表は変えません）</span><span class="sp"></span><button class="ghost" id="vfClose" type="button">閉じる <span class="kbd">Esc</span></button></div>
+</dialog>
+
 <dialog id="ad">
   <h3 id="adTitle"></h3>
   <p class="hint" style="margin:0">この騎に付ける属性を選びます。選んだ内容は手直し表に入り、Wikiから取り直しても残ります（「Wikiの特性に戻す」で外せます）。</p>
@@ -819,7 +846,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button><button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button><button class="sm" data-verify="${i}" title="この騎を必ず含む七騎で全自動の聖杯戦争を回し、スキル・宝具の効果が実際にどう働いたかを数えます">効果の検証</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button><button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
         ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">設定元リンク</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
@@ -1187,6 +1214,151 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   };
   $('#adReset').onclick = () => { if (adCtx) delete E.ATTR_OF[E.okey(adCtx)]; $('#ad').close(); afterEdit(); };
   $('#adCancel').onclick = () => $('#ad').close();
+
+  // ---------- 効果の検証 ----------
+  // この騎を必ず含む七騎で全自動の聖杯戦争を回し、エンジンの trace（効果が働いた・働かなかった出来事。engine.js の opts.trace）を集計する。
+  // 乱数は戦争のシードだけ（顔ぶれもシードから）。「外して比べる」は同じシードで、そのスキル・宝具の効果だけ無しにして回し直す
+  let vfCtx = null, vfToken = 0;
+  const VF_OTHERS = 6;
+  function vfSeven(sv, seedBase, i) {
+    const rng = H.engine.makeRng(seedBase + ':' + i + ':顔ぶれ');
+    const pool = roster.filter(s => s.id !== sv.id && !s.bossOnly && s.score), idx = pool.map((_, j) => j), picked = [];
+    for (let k = 0; k < VF_OTHERS && idx.length; k++) { const j = Math.floor(rng() * idx.length); picked.push(pool[idx[j]]); idx.splice(j, 1); }
+    return [sv].concat(picked);
+  }
+  const vfEmpty = () => ({ wars: 0, wins: 0, deaths: 0, days: [], battles: 0, xw: 0, xl: 0, dealt: 0, taken: 0, crit: 0, instakill: 0, dodge: 0, counter: 0, guts: 0, kills: 0, fx: {}, temp: {}, trig: {}, np: {}, ail: {} });
+  function vfRunOne(sv, seedBase, i, t) {
+    let fought = 0;
+    const on = ev => {
+      if (ev.t === 'round') {
+        for (const [k, x] of Object.entries(ev.fx.fx)) { const o = t.fx[k] || (t.fx[k] = { id: x.id, n: 0, on: 0, sum: 0 }); o.n++; if (x.cond) { o.on++; o.sum += x.mag; } }
+        for (const e of ev.fx.temp) { const k = e.from + '|' + e.id; const o = t.temp[k] || (t.temp[k] = { id: e.id, from: e.from, n: 0, sum: 0 }); o.n++; o.sum += e.mag; }
+      } else if (ev.t === 'trig') {
+        const o = t.trig[ev.key] || (t.trig[ev.key] = { id: ev.id, on: ev.on, from: ev.from, fired: 0, sum: 0, skip: {} });
+        if (ev.skip) o.skip[ev.skip] = (o.skip[ev.skip] || 0) + 1; else { o.fired++; o.sum += ev.mag; }
+      } else if (ev.t === 'np') {
+        const o = t.np[ev.name] || (t.np[ev.name] = { uses: 0, over: 0, attack: ev.attack, boost: 0, effects: {} });
+        o.uses++; if (ev.over) o.over++; o.boost += ev.boost || 0; for (const id of ev.effects) o.effects[id] = (o.effects[id] || 0) + 1;
+      } else if (ev.t === 'ail') { const o = t.ail[ev.id] || (t.ail[ev.id] = { ok: 0, miss: 0, resist: 0 }); if (ev.ok) o.ok++; else o[ev.why] = (o[ev.why] || 0) + 1; }
+      else if (ev.t === 'bstart') fought++;
+      else if (ev.t === 'xw') t.xw++; else if (ev.t === 'xl') t.xl++;
+      else if (ev.t === 'dmg') { if (ev.dealt) t.dealt += ev.dealt; else t.taken += ev.taken || 0; }
+      else if (t[ev.t] != null && ['crit', 'instakill', 'dodge', 'counter', 'guts'].includes(ev.t)) t[ev.t]++;
+    };
+    const r = H.engine.runWar({ roster: vfSeven(sv, seedBase, i), seed: seedBase + i, player: 'none', war: { pick: 'open' }, intrude: { on: false }, trace: { id: sv.id, on } });
+    const me = r.camps.find(c => c.servantId === sv.id);
+    t.wars++; t.battles += fought;
+    if (me) {
+      if (r.winner === me.id) t.wins++;
+      if (!me.alive) { t.deaths++; const de = r.entries.find(e => e.kind === 'death' && e.ids && e.ids[0] === me.id); t.days.push(de && de.day ? de.day : r.days); } else t.days.push(r.days);
+      t.kills += (me.kills || []).length;
+    }
+  }
+  const vfPct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  const vfMed = a => { if (!a.length) return '—'; const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)] + '日'; };
+  function vfMag(id, v) {
+    const u = (E.EFFECTS[id] || {}).unit, s = v < 0 ? '−' : '+';
+    if (u === 'rate' || u === 'chance') return s + Math.round(Math.abs(v) * 1000) / 10 + '%';
+    if (u === 'days') return s + Math.round(Math.abs(v) * 10) / 10 + '日';
+    if (u === 'flag') return v ? 'あり' : 'なし';
+    return s + Math.round(Math.abs(v) * 10) / 10;
+  }
+  // 実際の強さを、設定（effectSummary）の何倍かで言う（日ごとの変化・傷の深さ・打ち合いごとの変化・確率・解除で変わる）
+  const vfRatio = (actual, set) => { if (!set) return `強さの平均 ${Math.round(actual * 1000) / 1000}`; const r = actual / set; return Math.abs(r - 1) < 0.02 ? '設定どおりの強さ' : `強さは設定の <b>${Math.round(r * 100) / 100}倍</b>`; };
+  const SKIP_JA = { cond: '場面の条件が合わず', off: '止められていて', uses: '回数を使い切って', zero: '強さが0で', cost: '魔力が足りず', chance: '確率に外れ', seal: 'スキル封印で' };
+  // 1戦争あたり
+  const per = (n, t) => t.wars ? Math.round(n / t.wars * 100) / 100 : 0;
+  function vfRender(sv, t, done) {
+    const items = sv.allSkills.map(s => ({ it: s, np: false })).concat(sv.nps.map(n => ({ it: n, np: true })));
+    const sum = `<div class="vf-sum">
+      <div>優勝<b>${vfPct(t.wins, t.wars)}</b>${t.wins}回／${t.wars}戦</div>
+      <div>脱落<b>${vfPct(t.deaths, t.wars)}</b>生き残った日数の中央値 ${vfMed(t.days)}</div>
+      <div>戦い<b>${per(t.battles, t)}回</b>1戦争あたり</div>
+      <div>押し勝ち<b>${vfPct(t.xw, t.xw + t.xl)}</b>${t.xw}勝 ${t.xl}敗の打ち合い</div>
+      <div>与えた傷<b>${per(t.dealt, t).toFixed(0)}</b>受けた傷 ${per(t.taken, t).toFixed(0)}（1戦争あたり）</div>
+      <div>倒した相手<b>${per(t.kills, t)}騎</b>1戦争あたり</div>
+      <div>クリティカル<b>${t.crit}</b>即死 ${t.instakill}・見切り ${t.dodge}・反撃 ${t.counter}・踏みとどまり ${t.guts}</div>
+    </div>`;
+    const fromOf = x => (x.from || []).map(f => String(f).replace(/\(消滅後も持続\)$/, ''));
+    const html = items.map(({ it, np }) => {
+      const name = E.normName(it.name);
+      const keys = Object.entries(sv.effectSummary || {}).filter(([, x]) => fromOf(x).some(f => E.normName(f) === name));
+      const rows = keys.map(([k, x]) => {
+        const e = { id: x.id, mag: x.passive || x.trig || x.npTrig || x.onNP || 0, params: x.params };
+        const d = E.describe(e, { np: np && it.mode !== 'always', attack: np && it.attackResolved, npMode: np ? it.mode : '' });
+        let act = '', none = false;
+        if (x.passive) {
+          const f = t.fx[k];
+          if (!f || !f.n) { act = 'まだ戦いが無い'; none = true; }
+          else act = `打ち合い ${f.n}回のうち <b>${f.on}回（${vfPct(f.on, f.n)}）</b>で働いた${f.on ? '・' + vfRatio(f.sum / f.on, x.passive) : ''}`;
+        }
+        if (x.trig || x.npTrig) {
+          const g = t.trig[k], sk = g ? Object.entries(g.skip).filter(([, n]) => n > 0).map(([w, n]) => `${SKIP_JA[w] || w} ${n}回`).join('・') : '';
+          if (!g) { act += (act ? '<br>' : '') + '発動の機会が無かった'; none = !act || none; }
+          else act += (act ? '<br>' : '') + `発動 <b>${g.fired}回</b>（1戦争あたり ${per(g.fired, t)}）${g.fired ? '・' + vfRatio(g.sum / g.fired, x.trig || x.npTrig) : ''}${sk ? `・不発：${sk}` : ''}`;
+        }
+        if (x.onNP && np) {
+          const u = t.np[it.name], n = u ? u.effects[x.id] || 0 : 0;
+          act += (act ? '<br>' : '') + (u ? `宝具を使った ${u.uses}回のうち <b>${n}回</b>この効果が働いた` : '宝具を使わなかった');
+          if (!u) none = true;
+        }
+        const tk = Object.values(t.temp).find(o => E.normName(o.from) === name && o.id === x.id);
+        if (tk && !x.passive) act += `<br>働いている間の打ち合い ${tk.n}回・${vfRatio(tk.sum / tk.n, x.onNP || x.npTrig || x.trig)}`;
+        const ail = E.AILMENTS[x.id] && t.ail[x.id];
+        if (ail) act += `<br>掛けた <b>${ail.ok}回</b>・外れ ${ail.miss || 0}回・防がれた ${ail.resist || 0}回`;
+        if (!act) { act = 'この効果は戦いの外で働く（ここでは数えない）'; none = true; }
+        return `<div class="vf-fx${none ? ' none' : ''}"><span class="ex">${esc(d.name)}（${esc(d.whoJa)}）・${esc(d.when)}：${esc(d.text)}</span><span class="act">→ ${act}</span></div>`;
+      });
+      const u = np ? t.np[it.name] : null;
+      const npLine = np ? `<div class="hint">${u ? `使用 <b>${u.uses}回</b>（1戦争あたり ${per(u.uses, t)}${u.over ? `・魔力が足りないまま ${u.over}回` : ''}${u.attack && u.uses ? `・威力の上乗せの平均 ${Math.round(u.boost / u.uses)}` : ''}）` : '一度も使わなかった'}${it.mode === 'always' ? '（常時発動：効果はスキルと同じに数える）' : ''}</div>` : '';
+      const cmp = t.cmp && t.cmp[name];
+      const cmpHtml = cmp ? `<div class="vf-cmp">外した場合：優勝 <b>${vfPct(t.wins, t.wars)} → ${vfPct(cmp.wins, cmp.wars)}</b>・脱落 ${vfPct(t.deaths, t.wars)} → ${vfPct(cmp.deaths, cmp.wars)}・生き残りの中央値 ${vfMed(t.days)} → ${vfMed(cmp.days)}・押し勝ち ${vfPct(t.xw, t.xw + t.xl)} → ${vfPct(cmp.xw, cmp.xw + cmp.xl)}・倒した相手 ${per(t.kills, t)} → ${per(cmp.kills, cmp)}騎</div>` : '';
+      return `<div class="vf-item"><h4>${esc(it.name)} <span class="hint">${esc(R.label(it.rank))}${np ? '・宝具' : ''}</span>${done && (it.effects || []).length ? `<button class="sm ghost" type="button" data-vfcmp="${esc(name)}">外して比べる</button>` : ''}</h4>${npLine}${rows.join('') || '<div class="hint">効果なし</div>'}${cmpHtml}</div>`;
+    }).join('');
+    $('#vfOut').innerHTML = sum + html;
+  }
+  async function vfRun() {
+    if (!vfCtx) return;
+    const sv = vfCtx.sv, n = +$('#vfN').value || 40, seedBase = ($('#vfSeed').value.trim() || 'vf') + ':';
+    const token = ++vfToken, t = vfEmpty(); vfCtx.t = t; vfCtx.n = n; vfCtx.seedBase = seedBase;
+    $('#vfGo').disabled = true;
+    for (let i = 0; i < n; i++) {
+      if (token !== vfToken) return;
+      try { vfRunOne(sv, seedBase, i, t); } catch (e) { console.error(e); $('#vfProg').textContent = 'エラー：' + e.message; $('#vfGo').disabled = false; return; }
+      if (i % 4 === 3 || i === n - 1) { $('#vfProg').textContent = `${i + 1} / ${n} 戦`; vfRender(sv, t, i === n - 1); await new Promise(r => setTimeout(r, 0)); }
+    }
+    $('#vfGo').disabled = false;
+  }
+  // そのスキル・宝具の効果を無しにした騎で同じシードを回し直す（手直し表は一時的に書き、必ず戻す）
+  async function vfCompare(name) {
+    if (!vfCtx || !vfCtx.t || vfCtx.t.wars < vfCtx.n) return;
+    const sv = vfCtx.sv, key = E.okey(sv) + '/' + name, own = E.SERVANT_OVERRIDES[key], had = key in E.SERVANT_OVERRIDES;
+    let off;
+    try { E.SERVANT_OVERRIDES[key] = []; off = B.fromJSON(B.toLean(sv)); }
+    finally { if (had) E.SERVANT_OVERRIDES[key] = own; else delete E.SERVANT_OVERRIDES[key]; }
+    const token = ++vfToken, t2 = vfEmpty(), t = vfCtx.t;
+    $('#vfGo').disabled = true;
+    for (let i = 0; i < vfCtx.n; i++) {
+      if (token !== vfToken) return;
+      try { vfRunOne(off, vfCtx.seedBase, i, t2); } catch (e) { console.error(e); $('#vfProg').textContent = 'エラー：' + e.message; break; }
+      if (i % 4 === 3) { $('#vfProg').textContent = `「${name}」を外して ${i + 1} / ${vfCtx.n} 戦`; await new Promise(r => setTimeout(r, 0)); }
+    }
+    t.cmp = t.cmp || {}; t.cmp[name] = t2;
+    $('#vfProg').textContent = `${t.wars} / ${vfCtx.n} 戦`; $('#vfGo').disabled = false;
+    vfRender(sv, t, true);
+  }
+  document.addEventListener('click', e => {
+    const b = e.target.closest('[data-verify]'); if (!b) return;
+    const sv = roster[+b.dataset.verify];
+    vfCtx = { sv, t: null, n: 0, seedBase: '' };
+    $('#vfTitle').textContent = `効果の検証 ／ ${sv.trueName}（${sv.class.label}）`;
+    $('#vfOut').innerHTML = '<p class="hint">「回す」で始めます。1戦につき0.1秒ほどかかります。</p>'; $('#vfProg').textContent = '';
+    $('#vf').showModal();
+  });
+  $('#vfGo').onclick = vfRun;
+  $('#vfOut').addEventListener('click', e => { const b = e.target.closest('[data-vfcmp]'); if (b) vfCompare(b.dataset.vfcmp); });
+  $('#vfClose').onclick = () => { vfToken++; $('#vf').close(); };
+  $('#vf').addEventListener('close', () => { vfToken++; });
 
   // ボス：属性「ボス専用」の英霊。bosses.json の1騎の形（B.leanFromSpec）から、リストの英霊と手直し表を作る
   function importBossSpec(spec) {
