@@ -456,7 +456,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     <div class="hd"><i class="chev"></i><span class="en">Master</span><span class="ja">あなた（マスター）</span></div>
     <div class="body">
       <div class="mgrid">
-        <label class="wide2">名前（20字まで）<span class="namerow"><input type="text" id="pname" maxlength="20" autocomplete="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>空欄に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></span></label>
+        <label class="wide2">呼び名（20字まで）<span class="namerow"><input type="text" id="pname" name="hgw-handle" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="空欄でよい"><button class="btn" id="pnameReset" type="button" hidden>空欄に戻す</button><button class="btn" id="pnameLast" type="button" hidden></button></span></label>
         <label>性別<select id="mfSex"><option value="">既定</option><option value="男">男</option><option value="女">女</option></select></label>
         <label>年齢<input type="number" id="mfAge" min="10" max="99" step="1" inputmode="numeric" placeholder="シナリオの既定"></label>
         <label>出自の呼び名<input type="text" id="mfOrigin" maxlength="30" autocomplete="off"></label>
@@ -1232,8 +1232,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
       $('#opTitle').textContent = mm.name || 'あなた';
       const stats = Object.entries(mm.stats || {}).map(([k, v]) => `<div><span>${esc(MSTAT_JA[k] || k)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana)"></i></span></div>`).join('');
       const P = H.PERSONAS || {}, per = mm.persona && P[mm.persona] ? P[mm.persona] : null, last = cleanPName(settings0.last);
-      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">あなたの名前（20字まで。空欄にすると、ランダムで決まった名前になる）</label>
-          <div class="namerow"><input type="text" id="opName" maxlength="20" autocomplete="off" spellcheck="false" enterkeyhint="next" value="${esc(mm.name || '')}">
+      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">マスターの呼び名（20字まで。空欄にすると、ランダムで決まったものになる）</label>
+          <div class="namerow"><input type="text" id="opName" name="hgw-handle" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" value="${esc(mm.name || '')}">
             ${playerName ? '<button class="btn" id="opNameReset" type="button">ランダムな名前に戻す</button>' : ''}
             ${last && last !== playerName ? `<button class="btn" id="opNameLast" type="button">前回の名前「${esc(last.length > 12 ? last.slice(0, 12) + '…' : last)}」</button>` : ''}</div>
           <div class="namerow" style="margin-top:6px"><label class="lbl" for="opSex">性別</label><select id="opSex"><option value=""${playerSex ? '' : ' selected'}>ランダム</option><option value="男"${playerSex === '男' ? ' selected' : ''}>男</option><option value="女"${playerSex === '女' ? ' selected' : ''}>女</option></select>
