@@ -417,5 +417,44 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   try { ok(log(used) !== L0 && log(used) !== log(held), '使った戦いだけの陣地が展開に効いていない'); } catch (e) { errs++; console.error(e); ok(false, '使った戦いだけの陣地で戦争がエラーになった'); }
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手／増えた場面の条件・使った戦いだけ働く宝具の効果`);
+// 5k) 条件「結界」（自分の陣地の中）・宝具の効果が使ったあとも続く期間（params.last）・別の宝具を使ったあとでないと使えない宝具（NP_OVERRIDES の after）
+{
+  ok(E.COND_JA['結界'] && E.COND_NOT_JA['結界'] && E.COND_OPTS.some(o => o[0] === '結界') && E.fieldsFor('power').conds.includes('結界') && !E.fieldsFor('stealth').conds.includes('結界'), '条件「結界」の表がそろっていない');
+  ok(E.fieldsFor('territory', true).last && E.fieldsFor('power', true).last && !E.fieldsFor('heal', true).last && !E.fieldsFor('power', false).last && !E.fieldsFor('power', true, 'win').last, '働く期間を付けられる効果の見分けが違う');
+  ok(E.deadParams('territory', { last: 'war' }, true).length === 1 && !E.deadParams('territory', { use: true, last: 'war' }, true).length && !E.deadParams('power', { last: 'day' }, true).length && E.deadParams('power', { last: 'day' }).length === 1, '働く期間の働かない設定の見分けが違う');
+  ok(/戦争の終わりまで/.test(E.describe({ id: 'territory', mag: 0.2, params: { use: true, last: 'war' } }, { np: true }).when) && /その日の終わりまで/.test(E.describe({ id: 'power', mag: 0.2, params: { last: 'day' } }, { np: true }).when), '働く期間の説明が出ない');
+  ok(/data-e="last"/.test(E.moreHtml('power', {}, s => s, true, true)) && /data-e="last"/.test(E.moreHtml('territory', { use: true }, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('territory', {}, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('power', {}, s => s, false, true)), '編集画面の働く期間の欄の出し分けが違う');
+  ok(E.readMore(k => ({ last: { value: 'war' } })[k] || null, 'power', {}).last === 'war' && !E.readMore(k => ({ last: { value: 'x' } })[k] || null, 'power', {}).last, '働く期間の欄が読めない');
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON).filter(s => !s.bossOnly);
+  const sv = roster.find(s => (s.nps || []).filter(n => !n.disabled && n.mode !== 'always').length >= 2 && s.allSkills.length);
+  const [A, Bn] = sv.nps.filter(n => !n.disabled && n.mode !== 'always');
+  const ka = E.okey(sv) + '/' + E.normName(A.name), kb = E.okey(sv) + '/' + E.normName(Bn.name);
+  E.NP_OVERRIDES[kb] = { after: A.name, afterN: 2 };
+  E.SERVANT_OVERRIDES[ka] = [['territory', 2, { use: true, last: 'war' }], ['power', 3, { cond: '結界' }]];
+  const me = B.fromJSON(B.toLean(sv)); delete E.NP_OVERRIDES[kb]; delete E.SERVANT_OVERRIDES[ka];
+  const useIf = me.nps.find(n => n.name === Bn.name).useIf;
+  ok(useIf && useIf.after && useIf.after.np === E.normName(A.name) && useIf.after.n === 2 && useIf.after.scope === 'war', '宝具の使える条件（after）が読めない：' + JSON.stringify(useIf));
+  ok(Object.keys(me.effectSummary).some(k => /^territory.*~u.*~lwar/.test(k)) && Object.keys(me.effectSummary).some(k => /^power@結界/.test(k)), '集計の鍵に働く期間・結界が出ない');
+  const others = roster.filter(s => s.id !== sv.id).slice(0, 6);
+  let bad = 0, bUses = 0, held = 0, aWars = 0, errs = 0;
+  for (let i = 0; i < 30; i++) {
+    let aN = 0;
+    try {
+      H.engine.runWar({ roster: [me].concat(others), seed: 'bar' + i, player: 'none', war: { pick: 'open' }, intrude: { on: false }, trace: { id: me.id, on: ev => {
+        if (ev.t === 'np') { if (ev.name === A.name) aN++; else if (ev.name === Bn.name) { bUses++; if (aN < 2) bad++; } }
+        if (ev.t === 'round' && ev.round === 1 && aN && ev.fx.temp.some(t => t.id === 'territory' && t.from === A.name)) held++;   // 1打ち合い目（宝具を使う前）から結界が残っている
+      } } });
+    } catch (e) { errs++; console.error(e); }
+    if (aN) aWars++;
+  }
+  ok(!errs, '結界・働く期間・使える条件で戦争がエラーになった');
+  ok(aWars > 0 && held > 0, '使ったあとの結界が次の戦いに残らない：' + JSON.stringify({ aWars, held }));
+  ok(bUses >= 0 && !bad, '別の宝具を使う前に宝具が使われた：' + JSON.stringify({ bUses, bad }));
+  // 回数の制限が無くても、使った回数は数えている（after の判定に要る）
+  let counted = false;
+  H.engine.runWar({ roster: [me].concat(others), seed: 'bar0', player: 'none', war: { pick: 'open' }, intrude: { on: false }, trace: { id: me.id, on: ev => { if (ev.t === 'np') counted = true; } } });
+  ok(counted, '宝具が一度も使われなかった（数え方の確認ができない）');
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手／増えた場面の条件・使った戦いだけ働く宝具の効果／結界の条件・働く期間・宝具の使える条件`);
 process.exitCode = fail ? 1 : 0;

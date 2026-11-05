@@ -287,22 +287,25 @@
   // params.use：持っているだけで働く種類の効果（陣地など）でも、宝具を使ったその戦いの間だけ働かせる（結界宝具など）
   const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id) || !!(e.params && e.params.use)) && !e.persistent;
   const COND_JA = { 未看破: '相手に真名を知られていない間だけ', 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ',
-    拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ',
+    拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ', 結界: '自分の陣地の中（拠点で戦うときか、陣地を張った戦い）でだけ',
     霧: '霧の夜の戦いでだけ', 月夜: '満月の夜の戦いでだけ', 共闘: '味方と並んで戦うときだけ', 敵陣: '相手の拠点に攻め込んだ戦いでだけ', 相手瀕死: '相手の霊基が4割を切っているときだけ',
     初見: '初めて戦う相手とだけ', 真名把握: '相手の真名を知っているときだけ', はぐれ: 'マスターを失っている間だけ', 同盟: '同盟を結んでいる間だけ', 魔力枯渇: 'マスターの魔力が2割を切っているときだけ' };
   // 「〇〇以外」（params.condNot）の説明
   const COND_NOT_JA = { 未看破: '相手に真名を知られてからだけ', 水辺: '水辺・雨の夜以外でだけ', 森: '森以外でだけ', 山: '山以外でだけ', 夜: '夜の戦い以外（昼・満月の夜）でだけ',
-    拠点: '自分の拠点の外で戦うときだけ', 瀕死: '霊基が4割以上あるときだけ',
+    拠点: '自分の拠点の外で戦うときだけ', 瀕死: '霊基が4割以上あるときだけ', 結界: '自分の陣地の外（拠点でもなく、陣地も張っていない戦い）でだけ',
     霧: '霧の夜以外でだけ', 月夜: '満月の夜以外でだけ', 共闘: '一騎で戦うときだけ', 敵陣: '相手の拠点以外で戦うときだけ', 相手瀕死: '相手の霊基が4割以上あるときだけ',
     初見: '二度目からの相手とだけ', 真名把握: '相手の真名を知らないときだけ', はぐれ: 'マスターがいる間だけ', 同盟: '同盟を結んでいない間だけ', 魔力枯渇: 'マスターの魔力が2割以上あるときだけ' };
   // 条件欄の選択肢（リストツール・申請フォーム）。[値, 表示]
   const COND_OPTS = [['', 'いつでも'], ['水辺', '水辺・雨の夜'], ['森', '森'], ['山', '山'], ['夜', '夜（満月を除く）'], ['霧', '霧の夜'], ['月夜', '満月の夜'],
-    ['拠点', '自分の拠点で'], ['敵陣', '相手の拠点に攻め込んだとき'], ['共闘', '味方と並んで戦うとき'],
+    ['拠点', '自分の拠点で'], ['結界', '自分の陣地の中で（拠点か、陣地を張った戦い）'], ['敵陣', '相手の拠点に攻め込んだとき'], ['共闘', '味方と並んで戦うとき'],
     ['瀕死', '瀕死のとき（霊基4割未満）'], ['相手瀕死', '相手が瀕死のとき（霊基4割未満）'], ['初見', '初めて戦う相手'], ['真名把握', '相手の真名を知っているとき'], ['未看破', '相手に真名を知られていない間'],
     ['はぐれ', 'マスターを失っている間'], ['同盟', '同盟を結んでいる間'], ['魔力枯渇', 'マスターの魔力が乏しいとき（2割未満）']];
   // 場面の条件が要るもの：b＝戦いの中でだけ判定できる（並んで戦う味方・戦いの場所）、p＝相手がいる場面（戦いの中か、偵察・推理などの相手のいる場面）。無いものはどこでも
-  const COND_NEED = { 拠点: 'b', 共闘: 'b', 敵陣: 'b', 夜: 'p', 霧: 'p', 月夜: 'p', 未看破: 'p', 相手瀕死: 'p', 初見: 'p', 真名把握: 'p' };
+  const COND_NEED = { 拠点: 'b', 結界: 'b', 共闘: 'b', 敵陣: 'b', 夜: 'p', 霧: 'p', 月夜: 'p', 未看破: 'p', 相手瀕死: 'p', 初見: 'p', 真名把握: 'p' };
   const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1) || p.dmin > 0 || p.dmax > 0 || p.grow || p.decay || p.wound || p.rgrow));
+  // 宝具の効果が使ったあとどこまで続くか（params.last）：'' ＝使った戦いの間、day ＝その日の終わりまで、war ＝戦争の終わりまで（張った結界が残る、など）
+  const LAST_OPTS = [['', '使った戦いの間'], ['day', 'その日の終わりまで'], ['war', '戦争の終わりまで（使ったあとずっと）']];
+  const LAST_JA = { day: 'その日の終わりまで', war: '戦争の終わりまで' };
   // 傷の深さ（params.wound）：強さ × 失った霊基の割合（無傷で0倍、霊基が尽きる寸前で1倍。「窮地であるほど強くなる」）
   const woundMult = (p, hp) => !p || !p.wound ? 1 : Math.max(0, Math.min(1, (100 - (hp == null ? 100 : hp)) / 100));
   // 打ち合いごとの変化（params.rgrow）：1打ち合い目を1倍として、打ち合いごとに rgrow ずつ増える（マイナスなら減る。「戦いが長引くほど」）。0倍〜GROW_MAX倍。戦いの外では1倍
@@ -349,7 +352,7 @@
   // 短い表記（一覧の札など）：（水辺）〔対 竜〕（30%）
   const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + (p.uses > 0 ? '・' + p.uses + '回' : '') + '〉' : '') + (p.cond ? '（' + p.cond + (p.condNot ? '以外' : '') + '）' : '') + (p.vs ? '〔対 ' + p.vs + (p.vsNot ? '以外' : '') + '〕' : '')
     + (p.dmin > 0 || p.dmax > 0 ? '（' + dayText(p) + '）' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '') + (p.grow || p.decay ? '（日ごとに変化）' : '')
-    + (p.wound ? '（傷が深いほど）' : '') + (p.rgrow ? '（打ち合いごとに変化）' : '') + (p.use ? '（使った戦いだけ）' : '')
+    + (p.wound ? '（傷が深いほど）' : '') + (p.rgrow ? '（打ち合いごとに変化）' : '') + (p.use ? '（使った戦いだけ）' : '') + (LAST_JA[p.last] ? '（' + LAST_JA[p.last] + '）' : '')
     + (p.self ? '（自分に）' : '') + (p.nocure ? '（解除不可）' : '') + (p.team > 0 ? '（味方' + Math.round(p.team * 100) + '%）' : '');
   /**
    * 効果ひとつの説明。e は instantiate の結果（mag を持つ）か [id, factor, params] と rank。
@@ -384,11 +387,11 @@
     if (ctx.np && ctx.npMode === 'always') ctx = Object.assign({}, ctx, { np: false, always: true });
     const tt = trigText(p, e.id, ctx.np), inst = INSTANT.includes(e.id);
     if (ctx.np && ctx.npMode && NP_MODE_JA[ctx.npMode] && !(p && p.on)) {
-      const w = NP_MODE_JA[ctx.npMode] + (npOnUse(e) && !inst && def.phase !== 'np' ? '（その戦いの間）' : '');
+      const w = NP_MODE_JA[ctx.npMode] + (npOnUse(e) && !inst && def.phase !== 'np' ? (p && LAST_JA[p.last] ? '（' + LAST_JA[p.last] + '）' : '（その戦いの間）') : '');
       return { name: p && p.name && AILMENTS[e.id] ? `${p.name}（${def.name}）` : def.name, who: inf.who, whoJa: WHO_JA[inf.who], bad,
         when: [!npOnUse(e) && !inst ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : w, condText(p, e.id)].filter(Boolean).join('・'), text: inf.fx(m, p) };
     }
-    const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めの先手の判定に足す（それで先手を取れたら、この宝具を開幕に放つ）' : '宝具を使ったその戦いの間')
+    const when = [ctx.np ? (p && p.on ? tt : !npOnUse(e) ? (e.persistent ? '宝具を持つ限り（消滅後も）' : '宝具を持っているだけで常に') : def.phase === 'np' || inst ? 'この宝具を使ったとき' : e.id === 'initiative' ? '戦いの始めの先手の判定に足す（それで先手を取れたら、この宝具を開幕に放つ）' : p && LAST_JA[p.last] ? '宝具を使ったあと、' + LAST_JA[p.last] : '宝具を使ったその戦いの間')
       : tt ? tt + (inst ? '' : { day: '（その日の終わりまで）', kill: '（次の戦いの終わりまで）', round: '（その打ち合いの間）' }[p && p.on] || '（その戦いの終わりまで）') : hasCond(p) ? '' : '常に',
       condText(p, e.id)].filter(Boolean).join('・');
     let text = inf.fx(m, p);
@@ -417,7 +420,7 @@
   /** その効果で意味のある設定。np：宝具の効果（常時発動の宝具は false で呼ぶ）、on：選んでいる発動 */
   function fieldsFor(id, np, on) {
     const at = readAt(id), inB = at.includes('b'), opp = inB || at.includes('p');
-    if (at === 'x') return { trig: [''], cost: false, uses: false, conds: [''], vs: false, chance: id === 'self_retire', days: false, grow: false, wound: false, rgrow: false, use: false, self: false, team: false, strip: false, ail: false };
+    if (at === 'x') return { trig: [''], cost: false, uses: false, conds: [''], vs: false, chance: id === 'self_retire', days: false, grow: false, wound: false, rgrow: false, use: false, last: false, self: false, team: false, strip: false, ail: false };
     let trig = TRIGGERS.map(([k]) => k);
     if (np) trig = trig.filter(k => k !== 'start' && k !== 'day');                       // 宝具は使ったあとに働く（戦いの始め・毎朝は無い）
     if (!inB) trig = np ? [''] : trig.filter(k => k === '' || k === 'day');              // 戦いの外で読む効果は「常に」か「毎朝」だけ
@@ -427,7 +430,9 @@
     // 傷の深さ・打ち合いごとの変化は、戦いの中で読む効果だけ（戦いの外では無傷・1打ち合い目として読む）。
     // 使った戦いだけ（use）は、持っているだけで働く種類の宝具の効果だけ（戦いの効果はもともと使った戦いの間）
     const use = !!np && !NP_BATTLE_PHASES.includes((EFFECTS[id] || {}).phase) && !NP_USE_ONLY.includes(id) && !INSTANT.includes(id);
-    return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true, wound: inB, rgrow: inB, use,
+    // 働く期間（last）：使ったときに働く宝具の効果（戦いの効果か、「使った戦いだけ」を付けた効果）。その場で働く効果・発動のしかた付きには無い
+    const last = !!np && !INSTANT.includes(id) && !on;
+    return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true, wound: inB, rgrow: inB, use, last,
       self: SELF_IDS.includes(id), team: TEAM_IDS.includes(id), strip: STRIP_IDS.includes(id), ail: !!AILMENTS[id] };
   }
   /** 付けても働かない設定の名前の並び（編集画面の注意・点検ツール tools/fxcheck.js） */
@@ -447,6 +452,7 @@
     if (p.wound && !F.wound) out.push('傷が深いほど');
     if (p.rgrow && !F.rgrow) out.push('打ち合いごとの変化');
     if (p.use && !F.use) out.push('使った戦いだけ');
+    if (p.last && (!F.last || (F.use && !p.use))) out.push('働く期間');
     if (p.self && !F.self) out.push('自分に掛ける');
     if (p.nocure && !p.self) out.push('解除で消えない（自分に掛ける効果だけ）');
     if (p.team > 0 && !F.team) out.push('味方にも効く');
@@ -476,7 +482,8 @@
     if (F.days || p.dmin || p.dmax) rows.push(row('日数', `${num('dmin', p.dmin || '', '1', 'min="1" step="1"')}日目から${num('dmax', p.dmax || '', '最後', 'min="1" step="1"')}日目まで`));
     if (F.grow || p.grow || p.decay) rows.push(row('日ごとの変化', `<label>1日ごとに${num('grow', p.grow ? Math.round(p.grow * 1000) / 10 : '', '0', 'step="5"')}%</label>`
       + `<label>${num('turn', p.turn || '', '—', 'min="1" step="1"')}日目を境に</label><label>以降1日ごとに −${num('decay', p.decay ? Math.round(p.decay * 1000) / 10 : '', '0', 'min="0" step="5"')}%</label>`));
-    if (F.use || p.use) rows.push(row('働く期間', chk('use', p.use, 'この宝具を使った戦いの間だけ働く（持っているだけでは働かない。結界宝具など）')));
+    if (F.use || p.use || (F.last && !F.use) || p.last) rows.push(row('働く期間', (F.use || p.use ? chk('use', p.use, 'この宝具を使ったときに働く（持っているだけでは働かない。結界宝具など）') : '')
+      + ((F.last && (!F.use || p.use)) || p.last ? `<label>使ったあと<select data-e="last">${opt(LAST_OPTS, p.last || '')}</select></label>` : '')));
     if (F.wound || p.wound) rows.push(row('傷の深さ', chk('wound', p.wound, '傷が深いほど強く（無傷では働かず、霊基が尽きる寸前で設定の強さ）')));
     if (F.rgrow || p.rgrow) rows.push(row('打ち合いごとの変化', `<label>打ち合いごとに${num('rgrow', p.rgrow ? Math.round(p.rgrow * 1000) / 10 : '', '0', 'step="5"')}%</label>（1打ち合い目を基準に。マイナスなら弱く）`));
     if (F.self || p.self) rows.push(row('デメリット', chk('self', p.self, '自分に掛ける') + (p.self ? chk('nocure', p.nocure, '解除で消えない') : '')));
@@ -503,6 +510,7 @@
     if (i('turn') > 0 && (p.grow || p.decay)) p.turn = i('turn');
     if (on('wound')) p.wound = true;
     if (on('use')) p.use = true;
+    const lastV = v('last'); if (LAST_JA[lastV]) p.last = lastV;
     const rg = n('rgrow'); if (isFinite(rg) && rg) p.rgrow = Math.round(rg * 10) / 1000;
     readStrip(q, id, p); readSelf(q, id, p); if (p.self && on('nocure')) p.nocure = true; readTeam(q, id, p);
     if (AILMENTS[id]) { const nm = v('name'), m = v('msg'); if (nm) p.name = nm; if (m) p.msg = m; }
@@ -1234,7 +1242,9 @@
     // 使える相手・場面の制限（手直し表の vs＝相手が持つ属性、cond＝場所・時間。condOk と同じ書き方）。「男性にしか使えない」など
     // 使える回数の制限（手直し表の perBattle＝1回の戦いに何回まで、perWar＝戦争全体で何回まで。engine.js の npUsable が数える）
     const limit = npo && (npo.perBattle > 0 || npo.perWar > 0) ? Object.assign({}, npo.perBattle > 0 ? { battle: Math.floor(npo.perBattle) } : null, npo.perWar > 0 ? { war: Math.floor(npo.perWar) } : null) : null;
-    const useIf = npo && (npo.vs || npo.cond) ? Object.assign({}, npo.vs ? { vs: npo.vs } : null, npo.cond ? { cond: npo.cond } : null) : null;
+    // 別の宝具を使ったあとでないと使えない（手直し表の after＝宝具の名前、afterN＝何回（既定1）、afterScope＝'war'（戦争全体。既定）か 'battle'（その戦い）。engine.js の npUsable が数える）
+    const after = npo && npo.after ? { np: normName(npo.after), n: npo.afterN > 0 ? Math.floor(npo.afterN) : 1, scope: npo.afterScope === 'battle' ? 'battle' : 'war' } : null;
+    const useIf = npo && (npo.vs || npo.cond || after) ? Object.assign({}, npo.vs ? { vs: npo.vs } : null, npo.cond ? { cond: npo.cond } : null, after ? { after } : null) : null;
     return {
       attack, basis,
       disabled, useIf, limit,
@@ -1249,5 +1259,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, okey, idOf, attrFold, attrIndex, resolveAttrs,
-    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, LAST_OPTS, LAST_JA, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
 })(globalThis.HGW = globalThis.HGW || {});
