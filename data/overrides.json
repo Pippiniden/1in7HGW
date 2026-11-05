@@ -2,37 +2,6 @@
  "format": "hgw-overrides",
  "version": 2,
  "global": {
-  "軍略": [
-   [
-    "rally",
-    0.6
-   ],
-   [
-    "np_boost",
-    0.7
-   ]
-  ],
-  "神性": [
-   [
-    "tag",
-    1,
-    {
-     "tag": "神性"
-    }
-   ],
-   [
-    "power",
-    0.3
-   ],
-   [
-    "magic_guard",
-    0.2
-   ],
-   [
-    "upkeep_up",
-    0.33
-   ]
-  ],
   "天地の開豁": [
    [
     "debuff",

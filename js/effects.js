@@ -536,7 +536,7 @@
     '単独行動':     [['solo', 1], ['upkeep_down', 0.5]],
     '単独顕現':     [['solo', 2], ['upkeep_down', 0.8]],
     '狂化':         [['power', 1.5], ['upkeep_up', 1], ['uncontrolled', 1], ['mental_guard', 1], ['negotiate', -2]],
-    '神性':         [['tag', 1, { tag: '神性' }], ['power', 0.3], ['magic_guard', 0.2]],
+    '神性':         [['tag', 1, { tag: '神性' }], ['power', 0.3], ['magic_guard', 0.2], ['upkeep_up', 0.33]],
     '女神の神核':   [['tag', 1, { tag: '神性' }], ['mental_guard', 1], ['guard', 0.4]],
     '戦闘続行':     [['guts', 1]],
     '心眼(真)':     [['evade', 0.7], ['power', 0.5]],
@@ -552,7 +552,7 @@
     '怪力':         [['power', 0.8], ['upkeep_up', 0.2]],
     '勇猛':         [['mental_guard', 1], ['power', 0.3]],
     'カリスマ':     [['negotiate', 0.8], ['rally', 1]],
-    '軍略':         [['intel', 0.5], ['guard', 0.4, { team: 0.5 }]],
+    '軍略':         [['rally', 0.6], ['np_boost', 0.7]],
     '黄金律':       [['resource', 1]],
     '黄金率':       [['resource', 1]],   // Wikiでよく見る表記
     '仕切り直し':   [['escape', 1.5]],
