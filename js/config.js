@@ -70,6 +70,8 @@
       manaRegen: 12,        // 1日の魔力回復の基本値（＋魔力量×0.15＋工房×2）
       npCost: 18,           // 宝具の魔力消費＝宝具の消費倍率×npCost
       npPowerK: 0.5,        // 宝具の威力を戦闘力に足すときの係数
+      npSplash: { anti_army: 0.4, anti_fort: 0.5, anti_nation: 0.6, anti_world: 0.6 },   // 対軍以上の宝具で押し勝ったとき、その戦いの相手側の加勢役にも届く傷の割合（相手本人が受けた傷に対して）。聖杯戦争のみ（特異点は SING.aoe）
+      npBreak: { anti_fort: 1, anti_nation: 1, anti_world: 1 },   // 対城以上の宝具を放つと、相手の工房がこの段数だけ下がる（戻らない。聖杯戦争のみ）
       huntBase: 0.56,        // 夜に出撃する基本確率
       findBase: 0.4,        // 出撃して相手を見つける基本確率
       rounds: 4,            // 1回の戦闘の打ち合い回数
@@ -293,10 +295,10 @@
     // 宝具の種別ごとの基本値（威力倍率・魔力消費・露見しやすさ）
     NP_TYPE: {
       anti_unit:   { name: '対人', power: 1.0, cost: 1.0, exposure: 0.5 },
-      anti_army:   { name: '対軍', power: 1.25, cost: 1.6, exposure: 0.8 },
-      anti_fort:   { name: '対城', power: 1.6, cost: 2.5, exposure: 1.0 },
-      anti_nation: { name: '対国', power: 1.9, cost: 3.2, exposure: 1.0 },
-      anti_world:  { name: '対界', power: 2.2, cost: 4.0, exposure: 1.0 },
+      anti_army:   { name: '対軍', power: 1.2, cost: 1.8, exposure: 0.95 },
+      anti_fort:   { name: '対城', power: 1.5, cost: 2.6, exposure: 1.0 },
+      anti_nation: { name: '対国', power: 1.6, cost: 3.6, exposure: 1.0 },
+      anti_world:  { name: '対界', power: 1.8, cost: 4.5, exposure: 1.0 },
       barrier:     { name: '結界', power: 1.1, cost: 1.8, exposure: 0.7 },
       self:        { name: '対己', power: 0.8, cost: 0.8, exposure: 0.3 },
       special:     { name: '特殊', power: 1.0, cost: 1.2, exposure: 0.6 },

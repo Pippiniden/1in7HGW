@@ -806,7 +806,7 @@
       c.mana -= cost; c.npUses++;
       (c.npBattle = c.npBattle || {})[np.name] = (c.npBattle[np.name] || 0) + 1; (c.npWar = c.npWar || {})[np.name] = (c.npWar[np.name] || 0) + 1;   // 使った回数（回数の制限と、別の宝具のあとで使える条件に）
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
-      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; if (SG) c.lastNP.aoe = SG.aoeOf(c, np); }
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; c.lastNP.aoe = SG ? SG.aoeOf(c, np) : (ENG.npSplash[np.typeKey] || 0); }
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       const applied = [];   // 効果の検証（trace）に知らせる、使ったときに働いた効果
@@ -822,6 +822,10 @@
       });
       trace(c, { t: 'np', name: np.name, round, attack: !!np.attackResolved, cost, over, boost: c.npBoost || 0, effects: applied });
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
+      if (!SG && np.attackResolved && ENG.npBreak[np.typeKey] && o.workshop > 0) {   // 対城以上：相手の工房を打ち崩す
+        const before = o.workshop; o.workshop = clamp(before - ENG.npBreak[np.typeKey], 0, 5);
+        if (o.workshop < before) log('battle', `『${np.name}』の余波が、${sn(o)}の陣地を打ち崩した。`, [c.id, o.id]);
+      }
       if (np.exposure >= 1) pubName.add(c.id);
       if (np.exposure >= 0.8) witnessed.push(c.id);
       log('np', `${nm(c)}が宝具を解放した——『${np.name}』${np.reading ? '（' + np.reading + '）' : ''}！`, [c.id, o.id], { quote: sayNP(c, np), big: true });
@@ -1054,8 +1058,8 @@
           log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           tg.critHit = false;
-          // 特異点：全体攻撃の宝具で押し勝った打ち合いでは、傷が相手の側の全員に広がる（聖杯戦争では起きない）
-          if (SG && w.alive && w.lastNP && w.lastNP.round === round && w.lastNP.aoe > 0) {
+          // 全体攻撃の宝具で押し勝った打ち合いでは、傷が相手の側の全員に広がる（聖杯戦争では対軍以上の宝具で、その戦いに居る加勢役まで）
+          if (w.alive && w.lastNP && w.lastNP.round === round && w.lastNP.aoe > 0) {
             const hit = side(l).filter(y => y !== tg && y.alive);
             if (hit.length) log('battle', `宝具の奔流は${sn(tg)}だけでは止まらず、${hit.map(sn).join('・')}をも呑み込んだ。`, [w.id].concat(hit.map(y => y.id)));
             for (const y of hit) {
