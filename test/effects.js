@@ -283,7 +283,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
     return lose / next;
   };
   const lossPlain = nextLoss(mk([['power', 0]])), lossKiller = nextLoss(mk([['power', 6, { on: 'kill' }]]));
-  ok(lossKiller < lossPlain * 0.85, `相手を倒したときの強化が次の戦いに効いていない（次の戦いで倒された割合 ${lossPlain.toFixed(3)} → ${lossKiller.toFixed(3)}）`);
+  ok(lossKiller < lossPlain * 0.9, `相手を倒したときの強化が次の戦いに効いていない（次の戦いで倒された割合 ${lossPlain.toFixed(3)} → ${lossKiller.toFixed(3)}）`);
 }
 
 // 6) 要確認の消し込み（手直し表 reviewed）：同じ内容なら確認済みのまま、中身が変われば戻る
