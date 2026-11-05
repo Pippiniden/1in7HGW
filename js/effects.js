@@ -167,7 +167,12 @@
   };
   // 解除する効果の欄（強化解除・自己強化解除だけ）。空なら「すべて」
   const STRIP_IDS = ['strip', 'self_strip'];
-  const readStrip = (q, id, p) => { if (!STRIP_IDS.includes(id) || !q('eff')) return; const v = q('eff').value; if (v) p.eff = v; };
+  const readStrip = (q, id, p) => {
+    if (!STRIP_IDS.includes(id) || !q('eff')) return;
+    const v = q('eff').value; if (v) p.eff = v;
+    const c = q('cut') ? parseFloat(q('cut').value) : NaN;   // 弱める割合（%）：強化解除で効果を指定したときだけ。100%以上は完全に止める
+    if (id === 'strip' && p.eff && isFinite(c) && c > 0 && c < 100) p.cut = Math.round(c * 10) / 1000;
+  };
   // 自分に掛ける欄（SELF_IDS の不利な効果だけ）
   const readSelf = (q, id, p) => { if (SELF_IDS.includes(id) && q('self') && q('self').checked) p.self = true; };
   // 味方にも効く欄（params.team：0〜1）。並んで戦う味方（同盟の加勢・特異点の前衛）にも、その戦いの間 強さ×この割合 が働く。
@@ -228,7 +233,8 @@
     drain_hp:     { who: 'enemy', fx: m => `相手の霊基を ${num(Math.abs(m))} 吸い取り、自分の霊基を同じだけ回復（相手は霊基1より下にならない）` },
     mana_gain:    { who: 'master', fx: m => `その場で魔力 ${pm(m)}（上限まで）` },
     drain_mana:   { who: 'enemyMaster', fx: m => `相手の魔力を ${num(Math.abs(m))} 吸い取り、自分の魔力にする` },
-    strip:        { who: 'enemy', fx: (m, p) => p && p.eff ? `${pc(Math.min(1, m))} の確率で、相手の「${effName(p.eff)}」を、常に持っている分も含めてその戦いの間止める` : `${pc(Math.min(1, m))} の確率で、相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手）を消す` },
+    strip:        { who: 'enemy', fx: (m, p) => p && p.eff && p.cut > 0 && p.cut < 1 ? `${pc(Math.min(1, m))} の確率で、相手の「${effName(p.eff)}」を、常に持っている分も含めて ${pc(p.cut)} 弱める（その戦いの間。0を下回って逆の効果にはならない）`
+      : p && p.eff ? `${pc(Math.min(1, m))} の確率で、相手の「${effName(p.eff)}」を、常に持っている分も含めてその戦いの間止める` : `${pc(Math.min(1, m))} の確率で、相手がその戦いで得た強化（補助宝具・発動したスキル・道具・先手）を消す` },
     cleanse:      { who: 'self', fx: m => `自分の毒・スタン・混乱・宝具封印・スキル封印をその場で消し、その戦いの間は相手の弱体化と状態異常の確率 −${pc(Math.min(1, m))}` },
     self_strip:   { who: 'self', fx: (m, p) => p && p.tag && p.eff ? `自分の「${p.tag}」の「${effName(p.eff)}」を、その戦いの間止める（ほかの効果はそのまま）`
       : p && p.tag ? `自分の「${p.tag}」の効果を、その戦いの間止める` : p && p.eff ? `自分の「${effName(p.eff)}」を（どのスキル・宝具のものも）、その戦いの間止める`
@@ -462,6 +468,7 @@
     if (p.nocure && !p.self) out.push('解除で消えない（自分に掛ける効果だけ）');
     if (p.team > 0 && !F.team) out.push('味方にも効く');
     if (p.eff && !F.strip) out.push('止める効果');
+    if (p.cut > 0 && !(id === 'strip' && p.eff)) out.push('弱める割合（強化解除で効果を選んだときだけ働く）');
     if ((p.name || p.msg) && !F.ail) out.push('状態異常の名前・記録の文');
     return out;
   }
@@ -494,7 +501,8 @@
     if (F.rgrow || p.rgrow) rows.push(row('打ち合いごとの変化', `<label>打ち合いごとに${num('rgrow', p.rgrow ? Math.round(p.rgrow * 1000) / 10 : '', '0', 'step="5"')}%</label>（1打ち合い目を基準に。マイナスなら弱く）`));
     if (F.self || p.self) rows.push(row('デメリット', chk('self', p.self, '自分に掛ける') + (p.self ? chk('nocure', p.nocure, '解除で消えない') : '')));
     if (F.team || p.team > 0) rows.push(row('味方にも効く', `${num('team', p.team > 0 ? Math.round(p.team * 100) : '', '0', 'min="0" max="100" step="10"')}%`));
-    if (F.strip || p.eff) rows.push(row('止める効果', `<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>${effOptionsHtml(p.eff || '', esc, x => EFFECTS[x].name)}</select>`));
+    if (F.strip || p.eff) rows.push(row('止める効果', `<select data-e="eff"><option value="">${esc('指定しない（すべて）')}</option>${effOptionsHtml(p.eff || '', esc, x => EFFECTS[x].name)}</select>`
+      + (id === 'strip' || p.cut > 0 ? `<label>弱める割合${num('cut', p.cut > 0 ? Math.round(p.cut * 1000) / 10 : '', '全部', 'min="0" max="99" step="10"')}%（空欄＝完全に止める）</label>` : '')));
     if (F.ail || p.name || p.msg) rows.push(row('状態異常', `<label>名前<input type="text" data-e="name" value="${V(p.name)}" placeholder="${esc(AILMENTS[id] || '')}" autocomplete="off"></label>`
       + `<label class="msg">記録の文<input type="text" data-e="msg" value="${V(p.msg)}" placeholder="${esc(AIL_MSG_HINT[id] || '')}" autocomplete="off"></label>`));
     if (!rows.length) return '';

@@ -352,16 +352,18 @@
     // self：自分に掛ける不利な効果（params.self）だけを数える。ふだん（false）は相手に掛ける分・自分のための分だけ
     const isSelf = p => !!(p && p.self);
     //   o：戦いの外で相手のいる場面（偵察・推理・索敵・交渉）の相手。相手の属性の条件（params.vs）に使う
+    // 弱めた効果（強化解除 strip の params.cut）：c.cutFx['効果'] = 残る割合（0〜1）。正の分だけに掛けるので、0を下回って逆の効果にはならない
+    const cutK = (c, id, t) => t > 0 && c.cutFx && c.cutFx[id] != null ? t * c.cutFx[id] : t;
     function effS(c, id, terrain, self, o) {
       let t = 0;
       for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && isSelf(x.params) === !!self && condOk(c, x.params, terrain, o)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
-      return t;
+      return cutK(c, id, t);
     }
     function eff(c, id, terrain, self, o) {
-      let t = effS(c, id, terrain, self, o);
+      let t = effS(c, id, terrain, self, o), u = 0;
       // 戦いの外では、毎朝発動した効果（c.dayTemp）も数える（戦いの中では戦いの始めに c.temp へ写してある）
-      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain, o)) t += e.mag;
-      return t;
+      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain, o)) u += e.mag;
+      return t + cutK(c, id, u);
     }
     const effO = (c, id, o) => eff(c, id, undefined, false, o);   // 戦いの外で相手のいる場面
     // 効果の検証：常時の効果（effectSummary の passive）ごとに、いま条件を満たしているかと働いている強さ。戦いの中だけ呼ぶ（乱数は使わない）
@@ -484,6 +486,10 @@
         if (p.eff) {
           if (!o || !o.temp || (o.off && o.off.has('|' + p.eff)) || !holds(o, p.eff)) return;
           if (mag < 1 && !chance(Math.max(0, mag))) return;
+          if (p.cut > 0 && p.cut < 1) {   // 一部だけ弱める：残る割合を掛ける（重ねがけも掛け合わせ。0にはならない）
+            o.cutFx = o.cutFx || {}; o.cutFx[p.eff] = (o.cutFx[p.eff] != null ? o.cutFx[p.eff] : 1) * (1 - p.cut);
+            say(`${sn(c)}の${src}が、${sn(o)}の${(E.EFFECTS[p.eff] || {}).name || '力'}を削いだ。`); return;
+          }
           (o.off = o.off || new Set()).add('|' + p.eff); dropOff(o);
           say(`${sn(c)}の${src}が、${sn(o)}の${(E.EFFECTS[p.eff] || {}).name || '力'}を打ち消した。`); return;
         }
@@ -885,7 +891,7 @@
       const all = () => side(a).concat(side(b));
       for (const c of all()) {
         c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || [], c.hold || []); c.carry = null; c.usedSup = new Set(); c.npBattle = {}; c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
-        c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null;   // 発動する効果（fireTrig）の、この戦いの分
+        c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null; c.cutFx = null;   // 発動する効果（fireTrig）の、この戦いの分
         c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }
       const opp = x => (side(a).includes(x) ? b : a);
@@ -949,7 +955,7 @@
         }
         return t;
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cutFx = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) { c.npBoost = 0; if (c.bx) c.bx.round = round; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ。打ち合いの番号は打ち合いごとの変化（rgrow）に
         if (TR) for (const c of all()) if (traced(c)) trace(c, { t: 'round', round, opp: opp(c).id, fx: traceFx(c, ctx.terrain) });
@@ -1120,7 +1126,7 @@
       cleanup();
       function cleanup() {
         if (TR) for (const c of [a, b].concat(helpers0)) if (c && c.bx && c.bx.opp) trace(c, { t: 'bend', opp: c.bx.opp.id, hp: c.hp, alive: c.alive, oppHp: c.bx.opp.hp, oppAlive: c.bx.opp.alive });
-        for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
+        for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cutFx = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
     }
 
     // y の常時の効果のうち、味方にも効くもの（params.team）を x の c.temp へ（強さ×割合）。統率は x の戦闘力を 統率×rallyPower 上げる
@@ -1922,7 +1928,7 @@
       yield* checkFallen();
       if (!over()) yield* nightPhase();
       yield* checkFallen();
-      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; c.armed = null; c.off = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; }
+      for (const c of camps) { c.temp = []; c.npBoost = 0; c.bx = null; c.ail = null; c.armed = null; c.off = null; c.cutFx = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; }
       const quiet = entries.length === n0 || entries.slice(n0).every(e => e.kind === 'night' && !e.ids.length);
       if (quiet) { entries.splice(entries.indexOf(head)); if (quietFrom == null) quietFrom = day; }
       else if (quietFrom != null) {

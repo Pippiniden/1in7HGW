@@ -180,6 +180,18 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
     for (const e of r.entries) { if (e.text.includes(`『${sk2}』の戦闘力上昇を収めた`)) selfStop++; if (e.text.includes('致命傷耐性を打ち消した')) foeStop++; }
   }
   ok(selfStop > 0 && foeStop > 0, `特定の効果を止める効果が発動していない（自己 ${selfStop}・相手 ${foeStop}）`);
+  // 一部だけ弱める：強化解除の cut（指定した効果だけ、割合で。0を下回らない）
+  ok(/50% 弱める/.test(E.describe({ id: 'strip', mag: 1, params: { eff: 'guts', cut: 0.5 } }).text), '弱める割合の説明が違う');
+  const sc = mk([['strip', 2, { eff: 'guts', cut: 0.5 }]]);
+  ok(sc.effectSummary['strip~guts~c0.5!start'], '弱める割合が集計の鍵に入っていない：' + Object.keys(sc.effectSummary).join(','));
+  ok(E.deadParams('power', { cut: 0.5 }).length && !E.deadParams('strip', { eff: 'guts', cut: 0.5 }).some(t => /弱める/.test(t)), '弱める割合の働かない設定の判定が違う');
+  const ros3 = roster.filter(s => s.id !== base.id && Object.values(s.effectSummary).some(x => x.id === 'guts' && x.passive)).slice(0, 7).concat([sc]);
+  let cutN = 0;
+  for (let i = 0; i < 30; i++) {
+    let r; try { r = H.engine.runWar({ roster: ros3, seed: 'cut' + i, player: 'none', war: { pick: 'open' } }); } catch (e) { ok(false, '弱める効果で戦争がエラー：' + e.message); }
+    for (const e of r.entries) { if (e.text.includes('致命傷耐性を削いだ')) cutN++; ok(!/undefined|NaN/.test(e.text), '記録に undefined / NaN：' + e.text); }
+  }
+  ok(cutN > 0, '一部だけ弱める効果が発動していない');
   // 見積もり：回復・ダメージカットは強さとして数える
   const plain = mk([['power', 0]]), tough = mk([['heal', 2], ['dmg_cut', 2]]);
   ok(B.battleOdds(tough, roster[1], {}).a > B.battleOdds(plain, roster[1], {}).a, '回復・ダメージカットが見積もりに効いていない');
