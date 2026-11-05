@@ -1861,7 +1861,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     ['弱った相手を狩る（相手が瀕死なら戦闘力上昇）', ['power', 1.5, { cond: '相手瀕死' }]], ['特攻（相手の属性・スキル名を指定）', ['power_vs', 1, { tag: '竜' }]],
     ['魔力を払って戦いの始めに発動', ['power', 1.5, { on: 'start', cost: 20 }]], ['押し勝つたびに霊基を吸う', ['drain_hp', 1]], ['毎朝回復', ['heal', 1, { on: 'day' }]],
     ['味方にも効く統率', ['rally', 1, { team: 0.5 }]], ['日ごとに強く（7日目を境に弱る）', ['power', 1, { grow: 0.1, turn: 7, decay: 0.2 }]],
-    ['結界：使った戦いだけ陣地（宝具）', ['territory', 1, { use: true }], true], ['デメリット：日ごとに衰弱（自分に）', ['wither', 1, { self: true }]],
+    ['結界：使った戦いだけ陣地（宝具）', ['territory', 1], true], ['常設の陣地（持っているだけで働く宝具）', ['territory', 1, { hold: true }], true], ['デメリット：日ごとに衰弱（自分に）', ['wither', 1, { self: true }]],
   ];
   $('#edPreset').innerHTML = '<option value="">よくある形を足す…</option>' + ED_PRESETS.map((p, i) => `<option value="${i}">${esc(p[0])}</option>`).join('');
   $('#edPreset').addEventListener('change', () => {

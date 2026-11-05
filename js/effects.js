@@ -284,8 +284,10 @@
   // 自滅の確率：強さ × 確率（params.chance）。engine.js・build.js もこれで読む
   const retireP = e => Math.max(0, Math.min(1, e.mag * (e.params && e.params.chance != null ? Math.max(0, e.params.chance) : 1)));
   const npRetire = n => (n.effects || []).filter(e => e.id === 'self_retire').reduce((t, e) => t + retireP(e), 0);
-  // params.use：持っているだけで働く種類の効果（陣地など）でも、宝具を使ったその戦いの間だけ働かせる（結界宝具など）
-  const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id) || !!(e.params && e.params.use)) && !e.persistent;
+  // 宝具に付いたときは既定で「使ったその戦いの間だけ」働く効果（陣地：結界宝具は張った戦いでだけ陣地になる。持っているだけで拠点の陣地が強くなるのは常時発動の宝具か params.hold）
+  const NP_USE_DEFAULT = ['territory'];
+  // params.use：持っているだけで働く種類の効果（索敵など）でも、宝具を使ったその戦いの間だけ働かせる／params.hold：NP_USE_DEFAULT の効果を持っているだけで働かせる（常設の陣地）
+  const npOnUse = e => (NP_BATTLE_PHASES.includes((EFFECTS[e.id] || {}).phase) || NP_USE_ONLY.includes(e.id) || (NP_USE_DEFAULT.includes(e.id) && !(e.params && e.params.hold)) || !!(e.params && e.params.use)) && !e.persistent;
   const COND_JA = { 未看破: '相手に真名を知られていない間だけ', 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ',
     拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ', 結界: '自分の陣地の中（拠点で戦うときか、陣地を張った戦い）でだけ',
     霧: '霧の夜の戦いでだけ', 月夜: '満月の夜の戦いでだけ', 共闘: '味方と並んで戦うときだけ', 敵陣: '相手の拠点に攻め込んだ戦いでだけ', 相手瀕死: '相手の霊基が4割を切っているときだけ',
@@ -420,7 +422,7 @@
   /** その効果で意味のある設定。np：宝具の効果（常時発動の宝具は false で呼ぶ）、on：選んでいる発動 */
   function fieldsFor(id, np, on) {
     const at = readAt(id), inB = at.includes('b'), opp = inB || at.includes('p');
-    if (at === 'x') return { trig: [''], cost: false, uses: false, conds: [''], vs: false, chance: id === 'self_retire', days: false, grow: false, wound: false, rgrow: false, use: false, last: false, self: false, team: false, strip: false, ail: false };
+    if (at === 'x') return { trig: [''], cost: false, uses: false, conds: [''], vs: false, chance: id === 'self_retire', days: false, grow: false, wound: false, rgrow: false, use: false, hold: false, last: false, self: false, team: false, strip: false, ail: false };
     let trig = TRIGGERS.map(([k]) => k);
     if (np) trig = trig.filter(k => k !== 'start' && k !== 'day');                       // 宝具は使ったあとに働く（戦いの始め・毎朝は無い）
     if (!inB) trig = np ? [''] : trig.filter(k => k === '' || k === 'day');              // 戦いの外で読む効果は「常に」か「毎朝」だけ
@@ -428,11 +430,13 @@
     // 戦いの外では拠点に居るので「拠点」は決まって当たる。昼にしか読まない効果に「夜」は来ない
     const conds = COND_OPTS.map(([k]) => k).filter(k => !COND_NEED[k] || (COND_NEED[k] === 'b' ? inB : opp));
     // 傷の深さ・打ち合いごとの変化は、戦いの中で読む効果だけ（戦いの外では無傷・1打ち合い目として読む）。
-    // 使った戦いだけ（use）は、持っているだけで働く種類の宝具の効果だけ（戦いの効果はもともと使った戦いの間）
-    const use = !!np && !NP_BATTLE_PHASES.includes((EFFECTS[id] || {}).phase) && !NP_USE_ONLY.includes(id) && !INSTANT.includes(id);
+    // 使った戦いだけ（use）は、持っているだけで働く種類の宝具の効果だけ（戦いの効果はもともと使った戦いの間）。
+    // 陣地（NP_USE_DEFAULT）は宝具では既定で使った戦いだけなので、逆に「持っているだけで働く」（hold）を付けられる
+    const hold = !!np && NP_USE_DEFAULT.includes(id);
+    const use = !!np && !hold && !NP_BATTLE_PHASES.includes((EFFECTS[id] || {}).phase) && !NP_USE_ONLY.includes(id) && !INSTANT.includes(id);
     // 働く期間（last）：使ったときに働く宝具の効果（戦いの効果か、「使った戦いだけ」を付けた効果）。その場で働く効果・発動のしかた付きには無い
     const last = !!np && !INSTANT.includes(id) && !on;
-    return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true, wound: inB, rgrow: inB, use, last,
+    return { trig, cost: !!on, uses: !!on && !ONCE_ONS.includes(on), conds, vs: opp, chance: true, days: true, grow: true, wound: inB, rgrow: inB, use, hold, last,
       self: SELF_IDS.includes(id), team: TEAM_IDS.includes(id), strip: STRIP_IDS.includes(id), ail: !!AILMENTS[id] };
   }
   /** 付けても働かない設定の名前の並び（編集画面の注意・点検ツール tools/fxcheck.js） */
@@ -451,8 +455,9 @@
     if ((p.grow || p.decay) && !F.grow) out.push('日ごとの変化');
     if (p.wound && !F.wound) out.push('傷が深いほど');
     if (p.rgrow && !F.rgrow) out.push('打ち合いごとの変化');
-    if (p.use && !F.use) out.push('使った戦いだけ');
-    if (p.last && (!F.last || (F.use && !p.use))) out.push('働く期間');
+    if (p.use && !F.use && !F.hold) out.push('使った戦いだけ');
+    if (p.hold && !F.hold) out.push('持っているだけで働く');
+    if (p.last && (!F.last || (F.use && !p.use) || p.hold)) out.push('働く期間');
     if (p.self && !F.self) out.push('自分に掛ける');
     if (p.nocure && !p.self) out.push('解除で消えない（自分に掛ける効果だけ）');
     if (p.team > 0 && !F.team) out.push('味方にも効く');
@@ -482,8 +487,9 @@
     if (F.days || p.dmin || p.dmax) rows.push(row('日数', `${num('dmin', p.dmin || '', '1', 'min="1" step="1"')}日目から${num('dmax', p.dmax || '', '最後', 'min="1" step="1"')}日目まで`));
     if (F.grow || p.grow || p.decay) rows.push(row('日ごとの変化', `<label>1日ごとに${num('grow', p.grow ? Math.round(p.grow * 1000) / 10 : '', '0', 'step="5"')}%</label>`
       + `<label>${num('turn', p.turn || '', '—', 'min="1" step="1"')}日目を境に</label><label>以降1日ごとに −${num('decay', p.decay ? Math.round(p.decay * 1000) / 10 : '', '0', 'min="0" step="5"')}%</label>`));
-    if (F.use || p.use || (F.last && !F.use) || p.last) rows.push(row('働く期間', (F.use || p.use ? chk('use', p.use, 'この宝具を使ったときに働く（持っているだけでは働かない。結界宝具など）') : '')
-      + ((F.last && (!F.use || p.use)) || p.last ? `<label>使ったあと<select data-e="last">${opt(LAST_OPTS, p.last || '')}</select></label>` : '')));
+    if (F.use || p.use || F.hold || p.hold || (F.last && !F.use) || p.last) rows.push(row('働く期間', (F.use || p.use ? chk('use', p.use, 'この宝具を使ったときに働く（持っているだけでは働かない。結界宝具など）') : '')
+      + (F.hold || p.hold ? chk('hold', p.hold, '持っているだけで働く（使わなくても常に。常設の陣地など。既定は使った戦いだけ）') : '')
+      + ((F.last && (!F.use || p.use) && !p.hold) || p.last ? `<label>使ったあと<select data-e="last">${opt(LAST_OPTS, p.last || '')}</select></label>` : '')));
     if (F.wound || p.wound) rows.push(row('傷の深さ', chk('wound', p.wound, '傷が深いほど強く（無傷では働かず、霊基が尽きる寸前で設定の強さ）')));
     if (F.rgrow || p.rgrow) rows.push(row('打ち合いごとの変化', `<label>打ち合いごとに${num('rgrow', p.rgrow ? Math.round(p.rgrow * 1000) / 10 : '', '0', 'step="5"')}%</label>（1打ち合い目を基準に。マイナスなら弱く）`));
     if (F.self || p.self) rows.push(row('デメリット', chk('self', p.self, '自分に掛ける') + (p.self ? chk('nocure', p.nocure, '解除で消えない') : '')));
@@ -510,6 +516,7 @@
     if (i('turn') > 0 && (p.grow || p.decay)) p.turn = i('turn');
     if (on('wound')) p.wound = true;
     if (on('use')) p.use = true;
+    if (on('hold')) p.hold = true;
     const lastV = v('last'); if (LAST_JA[lastV]) p.last = lastV;
     const rg = n('rgrow'); if (isFinite(rg) && rg) p.rgrow = Math.round(rg * 10) / 1000;
     readStrip(q, id, p); readSelf(q, id, p); if (p.self && on('nocure')) p.nocure = true; readTeam(q, id, p);
@@ -1259,5 +1266,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, okey, idOf, attrFold, attrIndex, resolveAttrs,
-    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, LAST_OPTS, LAST_JA, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse };
+    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, LAST_OPTS, LAST_JA, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse, NP_USE_DEFAULT };
 })(globalThis.HGW = globalThis.HGW || {});

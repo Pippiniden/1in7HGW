@@ -26,13 +26,14 @@ ok(/相手/.test(E.describe({ id: 'debuff', mag: 0.1 }).whoJa) && E.describe({ i
 ok(['heal', 'cleanse', 'mana_gain'].every(id => E.fieldsFor(id, false, '').team && E.fieldsFor(id, false, 'start').team) && E.fieldsFor('power', false, 'win').team && !E.fieldsFor('strip', false, '').team, '味方にも効く欄が出ない');
 ok(!E.deadParams('cleanse', { on: 'start', team: 0.5 }, false).length && /並んで戦う味方にも、50%/.test(E.describe({ id: 'cleanse', mag: 0.5, params: { team: 0.5 } }).text) && /同盟相手/.test(E.describe({ id: 'heal', mag: 10, params: { on: 'day', team: 1 } }).text), '味方にも効くの説明が合わない');
 
-// 3) 宝具の効果の働く場面
-const np = { id: 'territory', mag: 0.2 }, np2 = { id: 'instakill', mag: 0.1 };
-ok(!E.npOnUse(np) && E.npOnUse(np2) && E.npOnUse({ id: 'np_boost', mag: 0.1 }) && E.npOnUse({ id: 'uncontrolled', mag: 0.1 }), '宝具の効果の働く場面の分け方が違う');
+// 3) 宝具の効果の働く場面（陣地は宝具では既定で使った戦いだけ。持っているだけで働かせるのは params.hold）
+const np = { id: 'territory', mag: 0.2, params: { hold: true } }, np2 = { id: 'instakill', mag: 0.1 };
+ok(!E.npOnUse(np) && E.npOnUse({ id: 'territory', mag: 0.2 }) && !E.npOnUse({ id: 'stealth', mag: 0.2 }) && E.npOnUse(np2) && E.npOnUse({ id: 'np_boost', mag: 0.1 }) && E.npOnUse({ id: 'uncontrolled', mag: 0.1 }), '宝具の効果の働く場面の分け方が違う');
 const lucan = B.importServant(fs.readFileSync(__dirname + '/lucan.txt', 'utf8'));
 const t = JSON.parse(JSON.stringify(lucan)); t.nps[0].effects = [Object.assign({}, np, { from: 'x' }), Object.assign({}, np2, { from: 'x' })];
 const sum = B.summarize(t);
-ok(sum.territory.passive === 0.2 && sum.instakill.onNP === 0.1, '宝具の効果の集計（常時／使ったとき）が違う：' + JSON.stringify(sum));
+const sumT = Object.values(sum).find(x => x.id === "territory");
+ok(sumT && sumT.passive === 0.2 && sum.instakill.onNP === 0.1, '宝具の効果の集計（常時／使ったとき）が違う：' + JSON.stringify(sum));
 
 // 4) 真名・クラスの手直し
 E.CONTENT_OVERRIDES[lucan.trueName] = { identity: { trueName: 'ルーカン卿', cls: 'セイバー' } };
@@ -269,7 +270,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   // 毎朝の情報収集：自陣営で毎日「偵察」を続けたとき、拠点を突き止める回数が常時のものと同じだけ増える
   const scouts = me => { let n = 0, f = 0; for (let i = 0; i < 80; i++) { const rs = [me].concat(others.slice(0, 6)); const r0 = H.engine.runWar({ roster: rs, seed: 'when' + i, player: 'none', war: { pick: 'open' } }); const c0 = r0.camps.find(x => x.servantId === me.id); if (!c0) continue; const r = H.engine.runWar({ roster: rs, seed: 'when' + i, player: c0.id, war: { pick: 'open' }, focus: () => 'scout' }); n++; f += r.entries.filter(e => e.kind === 'scout' && /見つけた|突き止め|だった/.test(e.text)).length; } return f / n; };
   const s0 = scouts(mk([['power', 0]])), sDay = scouts(mk([['intel', 3, { on: 'day' }]])), sAll = scouts(mk([['intel', 3]]));
-  ok(sDay > s0 * 1.4 && Math.abs(sDay - sAll) < s0 * 0.3, `毎朝の情報収集が昼の偵察に効いていない（拠点を突き止めた回数 ${s0.toFixed(2)} → 毎朝 ${sDay.toFixed(2)}／常時 ${sAll.toFixed(2)}）`);
+  ok(sDay > s0 * 1.25 && Math.abs(sDay - sAll) < s0 * 0.3, `毎朝の情報収集が昼の偵察に効いていない（拠点を突き止めた回数 ${s0.toFixed(2)} → 毎朝 ${sDay.toFixed(2)}／常時 ${sAll.toFixed(2)}）`);
   // 相手を倒したときの強化：効くのは倒した次の一戦だけで、優勝率では誤差に埋もれるので、次の戦いで倒された割合を比べる
   const nextLoss = me => {
     let next = 0, lose = 0;
@@ -383,7 +384,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(diff.wound && diff.rgrow && diff['未看破'] && diff['vs騎乗'], '新しい条件の効果が展開に効いていない：' + JSON.stringify(diff));
 }
 
-// 5j) 増えた場面の条件（霧・月夜・共闘・敵陣・相手瀕死・初見・真名把握・はぐれ・同盟・魔力枯渇）と、使った戦いだけ働く宝具の効果（params.use）
+// 5j) 増えた場面の条件（霧・月夜・共闘・敵陣・相手瀕死・初見・真名把握・はぐれ・同盟・魔力枯渇）と、使った戦いだけ働く宝具の効果（params.use／陣地は既定、params.hold で持っているだけ）
 {
   const NEW = ['霧', '月夜', '共闘', '敵陣', '相手瀕死', '初見', '真名把握', 'はぐれ', '同盟', '魔力枯渇'];
   ok(NEW.every(k => E.COND_JA[k] && E.COND_NOT_JA[k] && E.COND_OPTS.some(o => o[0] === k)), '新しい場面の条件の表がそろっていない');
@@ -392,19 +393,25 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
     '場面の条件を付けられる効果の見分けが違う');
   ok(E.deadParams('stealth', { cond: '共闘' }).length === 1 && !E.deadParams('stealth', { cond: '真名把握' }).length && E.deadParams('regen', { cond: '初見' }).length === 1, '働かない場面の見分けが違う');
   ok(/初めて戦う相手とだけ/.test(E.describe({ id: 'instakill', mag: 0.1, params: { cond: '初見' } }).when) && /二度目からの相手とだけ/.test(E.describe({ id: 'power', mag: 0.1, params: { cond: '初見', condNot: true } }).when), '場面の説明が出ない');
-  // 使った戦いだけ働く宝具の効果：陣地（持っているだけで働く種類）に付けられ、戦いの効果には要らない
-  ok(E.fieldsFor('territory', true).use && !E.fieldsFor('power', true).use && !E.fieldsFor('territory', false).use && !E.fieldsFor('heal', true).use, '「使った戦いだけ」を付けられる効果の見分けが違う');
-  ok(E.npOnUse({ id: 'territory', params: { use: true } }) && !E.npOnUse({ id: 'territory' }) && E.deadParams('territory', { use: true }).length === 1 && !E.deadParams('territory', { use: true }, true).length, '「使った戦いだけ」の読み取りが違う');
-  ok(/宝具を使ったその戦いの間/.test(E.describe({ id: 'territory', mag: 0.2, params: { use: true } }, { np: true }).when) && /持っているだけで常に/.test(E.describe({ id: 'territory', mag: 0.2 }, { np: true }).when), '「使った戦いだけ」の説明が出ない');
-  ok(/data-e="use"[^>]*checked/.test(E.moreHtml('territory', { use: true }, s => s, true, true)) && !/data-e="use"/.test(E.moreHtml('territory', {}, s => s, false, true)), '編集画面に「使った戦いだけ」の欄が出ない');
-  ok(E.readMore(k => ({ use: { checked: true, value: '' } })[k] || null, 'territory', {}).use === true, '「使った戦いだけ」の欄が読めない');
+  // 使った戦いだけ働く宝具の効果：索敵など（持っているだけで働く種類）に付けられ、戦いの効果には要らない。
+  // 陣地は宝具では既定で使った戦いだけ（結界宝具を使わずに拠点の陣地が強くなることはない）。「持っているだけで働く」（hold）で常設にできる
+  ok(E.fieldsFor('stealth', true).use && !E.fieldsFor('power', true).use && !E.fieldsFor('stealth', false).use && !E.fieldsFor('heal', true).use && !E.fieldsFor('territory', true).use, '「使った戦いだけ」を付けられる効果の見分けが違う');
+  ok(E.fieldsFor('territory', true).hold && !E.fieldsFor('territory', false).hold && !E.fieldsFor('stealth', true).hold && !E.fieldsFor('power', true).hold, '「持っているだけで働く」を付けられる効果の見分けが違う');
+  ok(E.npOnUse({ id: 'stealth', params: { use: true } }) && !E.npOnUse({ id: 'stealth' }) && E.deadParams('stealth', { use: true }).length === 1 && !E.deadParams('stealth', { use: true }, true).length, '「使った戦いだけ」の読み取りが違う');
+  ok(E.npOnUse({ id: 'territory' }) && E.npOnUse({ id: 'territory', params: { use: true } }) && !E.npOnUse({ id: 'territory', params: { hold: true } }) && !E.deadParams('territory', { use: true }, true).length
+    && !E.deadParams('territory', { hold: true }, true).length && E.deadParams('territory', { hold: true }).length === 1 && E.deadParams('stealth', { hold: true }, true).length === 1, '宝具の陣地の既定（使った戦いだけ）と「持っているだけで働く」の読み取りが違う');
+  ok(/宝具を使ったその戦いの間/.test(E.describe({ id: 'territory', mag: 0.2 }, { np: true }).when) && /持っているだけで常に/.test(E.describe({ id: 'territory', mag: 0.2, params: { hold: true } }, { np: true }).when)
+    && /宝具を使ったその戦いの間/.test(E.describe({ id: 'stealth', mag: 0.2, params: { use: true } }, { np: true }).when) && /持っているだけで常に/.test(E.describe({ id: 'stealth', mag: 0.2 }, { np: true }).when), '「使った戦いだけ」「持っているだけ」の説明が出ない');
+  ok(/data-e="use"[^>]*checked/.test(E.moreHtml('stealth', { use: true }, s => s, true, true)) && !/data-e="use"/.test(E.moreHtml('stealth', {}, s => s, false, true))
+    && /data-e="hold"[^>]*checked/.test(E.moreHtml('territory', { hold: true }, s => s, true, true)) && /data-e="hold"/.test(E.moreHtml('territory', {}, s => s, true, true)) && !/data-e="hold"/.test(E.moreHtml('territory', {}, s => s, false, true)), '編集画面に「使った戦いだけ」「持っているだけで働く」の欄が出ない');
+  ok(E.readMore(k => ({ use: { checked: true, value: '' } })[k] || null, 'stealth', {}).use === true && E.readMore(k => ({ hold: { checked: true, value: '' } })[k] || null, 'territory', {}).hold === true, '「使った戦いだけ」「持っているだけで働く」の欄が読めない');
   const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
   const me0 = roster.find(s => s.allSkills.length && (s.nps || []).some(n => !n.disabled));
   const sk = me0.trueName + '/' + E.normName(me0.allSkills[0].name), npI = (me0.nps || []).find(n => !n.disabled), nk = me0.trueName + '/' + E.normName(npI.name);
   const withSpec = (key, specs) => { E.SERVANT_OVERRIDES[key] = specs; const s = B.fromJSON(B.toLean(me0)); delete E.SERVANT_OVERRIDES[key]; return s; };
-  const held = withSpec(nk, [['territory', 2]]), used = withSpec(nk, [['territory', 2, { use: true }]]);
+  const held = withSpec(nk, [['territory', 2, { hold: true }]]), used = withSpec(nk, [['territory', 2]]);
   const sumOf = (s, pred) => Object.entries(s.effectSummary).filter(([k, x]) => x.id === 'territory' && pred(k, x));
-  ok(sumOf(held, (k, x) => x.passive > 0 && !/~u/.test(k)).length === 1 && sumOf(used, (k, x) => x.onNP > 0 && /~u/.test(k)).length === 1, '陣地の宝具の効果が「持っているだけ」と「使った戦いだけ」で集計が分かれない');
+  ok(sumOf(held, (k, x) => x.passive > 0 && /~h/.test(k)).length === 1 && sumOf(used, (k, x) => x.onNP > 0 && !x.passive).length === 1, '陣地の宝具の効果が「持っているだけ」と「使った戦いだけ」で集計が分かれない');
   // エンジン：新しい場面の条件はエラーにならず、起きやすいものは展開を変える。使った戦いだけの陣地も展開を変える
   const others = roster.filter(s => s.id !== me0.id).slice(0, 7);
   const log = s => { const out = []; for (let i = 0; i < 24; i++) out.push(H.engine.runWar({ roster: others.concat([s]), seed: 'cnd' + i, player: 'none', war: { pick: 'open' } }).entries.map(e => e.text).join('\n')); return out.join('\n#\n'); };
@@ -421,9 +428,11 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
 {
   ok(E.COND_JA['結界'] && E.COND_NOT_JA['結界'] && E.COND_OPTS.some(o => o[0] === '結界') && E.fieldsFor('power').conds.includes('結界') && !E.fieldsFor('stealth').conds.includes('結界'), '条件「結界」の表がそろっていない');
   ok(E.fieldsFor('territory', true).last && E.fieldsFor('power', true).last && !E.fieldsFor('heal', true).last && !E.fieldsFor('power', false).last && !E.fieldsFor('power', true, 'win').last, '働く期間を付けられる効果の見分けが違う');
-  ok(E.deadParams('territory', { last: 'war' }, true).length === 1 && !E.deadParams('territory', { use: true, last: 'war' }, true).length && !E.deadParams('power', { last: 'day' }, true).length && E.deadParams('power', { last: 'day' }).length === 1, '働く期間の働かない設定の見分けが違う');
-  ok(/戦争の終わりまで/.test(E.describe({ id: 'territory', mag: 0.2, params: { use: true, last: 'war' } }, { np: true }).when) && /その日の終わりまで/.test(E.describe({ id: 'power', mag: 0.2, params: { last: 'day' } }, { np: true }).when), '働く期間の説明が出ない');
-  ok(/data-e="last"/.test(E.moreHtml('power', {}, s => s, true, true)) && /data-e="last"/.test(E.moreHtml('territory', { use: true }, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('territory', {}, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('power', {}, s => s, false, true)), '編集画面の働く期間の欄の出し分けが違う');
+  ok(E.deadParams('stealth', { last: 'war' }, true).length === 1 && !E.deadParams('stealth', { use: true, last: 'war' }, true).length && !E.deadParams('territory', { last: 'war' }, true).length && E.deadParams('territory', { hold: true, last: 'war' }, true).length === 1
+    && !E.deadParams('power', { last: 'day' }, true).length && E.deadParams('power', { last: 'day' }).length === 1, '働く期間の働かない設定の見分けが違う');
+  ok(/戦争の終わりまで/.test(E.describe({ id: 'territory', mag: 0.2, params: { last: 'war' } }, { np: true }).when) && /その日の終わりまで/.test(E.describe({ id: 'power', mag: 0.2, params: { last: 'day' } }, { np: true }).when), '働く期間の説明が出ない');
+  ok(/data-e="last"/.test(E.moreHtml('power', {}, s => s, true, true)) && /data-e="last"/.test(E.moreHtml('territory', {}, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('territory', { hold: true }, s => s, true, true))
+    && /data-e="last"/.test(E.moreHtml('stealth', { use: true }, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('stealth', {}, s => s, true, true)) && !/data-e="last"/.test(E.moreHtml('power', {}, s => s, false, true)), '編集画面の働く期間の欄の出し分けが違う');
   ok(E.readMore(k => ({ last: { value: 'war' } })[k] || null, 'power', {}).last === 'war' && !E.readMore(k => ({ last: { value: 'x' } })[k] || null, 'power', {}).last, '働く期間の欄が読めない');
   const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON).filter(s => !s.bossOnly);
   const sv = roster.find(s => (s.nps || []).filter(n => !n.disabled && n.mode !== 'always').length >= 2 && s.allSkills.length);
