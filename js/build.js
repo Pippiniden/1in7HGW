@@ -252,7 +252,7 @@
       const p = e.params || {};
       const on = kind === 'skill' ? E.trigOf(e) : (p.on || '');
       const key = e.id + (p.tag ? ':' + p.tag : p.stat ? ':' + p.stat : '') + (p.cond ? '@' + (p.condNot ? '!' : '') + p.cond : '') + (p.vs ? '>' + (p.vsNot ? '!' : '') + p.vs : '') + (p.chance != null ? '%' + p.chance : '') + (p.name ? '#' + p.name : '') + (p.eff ? '~' + p.eff : '') + (p.self ? '^self' : '') + (p.nocure ? '^fix' : '') + (p.team > 0 ? '&' + p.team : '')
-        + (p.dmin > 0 ? '[' + p.dmin : '') + (p.dmax > 0 ? ']' + p.dmax : '') + (p.grow ? '+g' + p.grow : '') + (p.turn > 0 ? '|t' + p.turn : '') + (p.decay ? '-d' + p.decay : '') + (p.wound ? '~w' : '') + (p.rgrow ? '~r' + p.rgrow : '') + (p.use ? '~u' : '') + (p.last ? '~l' + p.last : '')
+        + (p.dmin > 0 ? '[' + p.dmin : '') + (p.dmax > 0 ? ']' + p.dmax : '') + (p.grow ? '+g' + p.grow : '') + (p.turn > 0 ? '|t' + p.turn : '') + (p.decay ? '-d' + p.decay : '') + (p.wound ? '~w' : '') + (p.rgrow ? '~r' + p.rgrow : '') + (p.use ? '~u' : '') + (p.hold ? '~h' : '') + (p.last ? '~l' + p.last : '')
         + (on ? '!' + on : '') + (p.cost > 0 ? '$' + p.cost : '') + (p.uses > 0 ? '*' + p.uses : '');
       const o = out[key] || (out[key] = { id: e.id, name: E.EFFECTS[e.id].name, params: e.params, passive: 0, onNP: 0, from: [] });
       if (on) { o.on = on; if (kind === 'skill') o.trig = (o.trig || 0) + e.mag; else o.npTrig = (o.npTrig || 0) + e.mag; }
