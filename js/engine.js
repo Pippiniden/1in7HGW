@@ -362,7 +362,9 @@
     function eff(c, id, terrain, self, o) {
       let t = effS(c, id, terrain, self, o), u = 0;
       // 戦いの外では、毎朝発動した効果（c.dayTemp）も数える（戦いの中では戦いの始めに c.temp へ写してある）
-      for (const e of c.bx || !c.dayTemp ? c.temp : c.temp.concat(c.dayTemp)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain, o)) u += e.mag;
+      // 魔力消費（維持魔力）の増減だけは、「戦争の終わりまで」続く宝具の効果（c.hold）も戦いの外で数える（形態変化の宝具：使ったあと毎朝の維持魔力が変わる）
+      const outer = c.bx ? c.temp : (c.dayTemp ? c.temp.concat(c.dayTemp) : c.temp);
+      for (const e of c.bx || (id !== 'upkeep_up' && id !== 'upkeep_down') || !c.hold ? outer : outer.concat(c.hold)) if (e.id === id && isSelf(e.params) === !!self && condOk(c, e.params, terrain, o)) u += e.mag;
       return t + cutK(c, id, u);
     }
     const effO = (c, id, o) => eff(c, id, undefined, false, o);   // 戦いの外で相手のいる場面

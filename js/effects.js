@@ -464,6 +464,8 @@
     if (p.use && !F.use && !F.hold) out.push('使った戦いだけ');
     if (p.hold && !F.hold) out.push('持っているだけで働く');
     if (p.last && (!F.last || (F.use && !p.use) || p.hold)) out.push('働く期間');
+    // 維持魔力は戦いの外で読むので、宝具で使ったときに働かせるなら「戦争の終わりまで」でないと何も変わらない
+    if (np && (id === 'upkeep_up' || id === 'upkeep_down') && (id === 'upkeep_up' || p.use) && !p.on && p.last !== 'war') out.push('魔力消費の増減（働く期間を「戦争の終わりまで」にしたときだけ効く）');
     if (p.self && !F.self) out.push('自分に掛ける');
     if (p.nocure && !p.self) out.push('解除で消えない（自分に掛ける効果だけ）');
     if (p.team > 0 && !F.team) out.push('味方にも効く');
