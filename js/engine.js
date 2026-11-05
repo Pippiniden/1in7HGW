@@ -211,7 +211,7 @@
     // 画面に出す固定の情報（ステータス・スキル・宝具の名前）
     out.meta = camps.map(c => ({
       id: c.id, trueName: c.sv.trueName, cls: c.sv.class.label,
-      ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], R.label(c.sv.ranks[k])]),
+      ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], B.statLabel(c.sv, k)]),
       skills: (c.sv.allSkills || []).map(x => x.name).join('、'),
       nps: (c.sv.nps || []).map(n => '『' + n.name + '』').join(' '),
     }));
@@ -1454,7 +1454,7 @@
       out.camps.push({ id, label: c.label });
       out.meta.push({
         id, trueName: sv.trueName, cls: sv.class.label, boss: true,
-        ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], R.label(sv.ranks[k])]),
+        ranks: B.STAT_KEYS.map(k => [B.STAT_JA[k], B.statLabel(sv, k)]),
         skills: (sv.allSkills || []).map(x => x.name).join('、'), nps: (sv.nps || []).map(n => '『' + n.name + '』').join(' '),
         servantId: sv.id, policy: 'aggressive', policyLabel: (POLICIES.aggressive || {}).label || '', base: c.base.name,
         master: { name: c.master.name, sex: '', age: 0, origin: 'custom', originLabel: '', persona: null, personaDesc: null, stats: {}, skills: [], traits: [], catalyst: false, wish: '', cs: 0, hpMax: 1, manaMax: Math.round(bs.mana) },
