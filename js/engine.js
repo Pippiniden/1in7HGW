@@ -301,6 +301,7 @@
         const hit = k === '拠点' ? (c.bx ? !!c.bx.home : true)   // 戦いの外（昼の行動など）は拠点にいる
           : k === '瀕死' ? c.hp < ENG.pinchAt
           : k === '未看破' ? !pubName.has(c.id) && !(t && t.knowName && t.knowName.has(c.id))   // 相手に真名を知られていない（相手がいなければ、知られていない扱い）
+          : k === '結界' ? (c.bx ? (!!c.bx.ctx && c.bx.ctx.home === c) || (c.temp || []).some(e => e.id === 'territory') : true)   // 自分の陣地の中：拠点で戦うか、陣地（結界宝具など c.temp の territory）を張っている。戦いの外は拠点にいる
           : k === '相手瀕死' ? !!t && t.hp < ENG.pinchAt
           : k === '初見' ? !!t && (c.bx && t === c.bx.opp ? !!c.bx.first : !(c.met && c.met.has(t.id)))   // 戦ったことのない相手（戦いの間は、その戦いの始めの判定のまま）
           : k === '真名把握' ? !!t && (pubName.has(t.id) || c.knowName.has(t.id))
@@ -325,7 +326,10 @@
     const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, 5) : 0; };
     // 使える回数に限りのある宝具（np.limit＝{ battle, war }）は、数え終えたら選ばれない。数えるのは fireNP（c.npBattle＝この戦い、c.npWar＝戦争全体）
     const npLeft = (c, n) => !n.limit || ((!(n.limit.battle > 0) || ((c.npBattle || {})[n.name] || 0) < n.limit.battle) && (!(n.limit.war > 0) || ((c.npWar || {})[n.name] || 0) < n.limit.war));
-    const npUsable = (c, n, o, terrain) => npLeft(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
+    // 別の宝具を使ったあとでないと使えない（np.useIf.after＝{ np: 名前, n: 回数, scope: 'war'|'battle' }）。使った回数は fireNP が宝具ごとに数える（c.npWar・c.npBattle）
+    const npCount = (c, name, scope) => { const m = (scope === 'battle' ? c.npBattle : c.npWar) || {}; let t = 0; for (const k in m) if (E.normName(k) === name) t += m[k]; return t; };
+    const npAfterOk = (c, n) => !n.useIf || !n.useIf.after || npCount(c, n.useIf.after.np, n.useIf.after.scope) >= n.useIf.after.n;
+    const npUsable = (c, n, o, terrain) => npLeft(c, n) && npAfterOk(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
     // 傷の深さ（params.wound：失った霊基の割合）と打ち合いごとの変化（params.rgrow：c.bx.round。戦いの外では1打ち合い目）。
@@ -342,7 +346,7 @@
     const offW = (c, x) => { if (!c.off || !x.by || (x.params && x.params.nocure)) return 0; let t = 0; for (const n in x.by) if (offMatch(c, n, x.id)) t += x.by[n]; return t; };
     // 止めた効果を、その戦いだけの効果（と次の朝までの効果）から外す
     const keepOff = (c, e) => (e.params && e.params.nocure) || !offMatch(c, e.from, e.id);   // 解除で消えない効果は残す
-    const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => keepOff(c, e)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => keepOff(c, e)); };
+    const dropOff = c => { if (c.temp) c.temp = c.temp.filter(e => keepOff(c, e)); if (c.dayTemp) c.dayTemp = c.dayTemp.filter(e => keepOff(c, e)); if (c.hold) c.hold = c.hold.filter(e => keepOff(c, e)); };
     // 相手がその効果を持っているか（常時の分か、その戦いだけの分）
     const holds = (c, id) => (c.temp || []).some(e => e.id === id) || Object.values(c.sv.effectSummary || {}).some(x => x.id === id && x.passive);
     // self：自分に掛ける不利な効果（params.self）だけを数える。ふだん（false）は相手に掛ける分・自分のための分だけ
@@ -789,11 +793,18 @@
     // 宝具の効果の強さ（その宝具が持つ id の効果の合計）
     const npFx = (n, id) => (n.effects || []).filter(e => e.id === id).reduce((t, e) => t + e.mag, 0);
     // 選んだ宝具を放つ（魔力の支払い・宝具の威力・使ったときの効果・真名の露見・記録・反動）
+    // 使ったあとも続く宝具の効果（params.last）：day＝その日の終わりまで（c.dayTemp）、war＝戦争の終わりまで（c.hold。次の戦いの始めに c.temp へ写す）。同じ効果は重ねない
+    function npHold(c, np, e) {
+      const L = e.params && e.params.last; if (L !== 'day' && L !== 'war') return;
+      const src = 'np:' + np.name + ':' + e.id, h = Object.assign({}, e, { from: e.from || np.name, src });
+      const list = L === 'day' ? (c.dayTemp = c.dayTemp || []) : (c.hold = c.hold || []);
+      if (!list.some(x => x.src === src)) list.push(h);
+    }
     function fireNP(c, o, np, round, ctx, costMul) {
       const fx = npFx, cost = npCostOf(c, np) * (costMul || 1);
       const over = c.mana < cost;
       c.mana -= cost; c.npUses++;
-      if (np.limit) { (c.npBattle = c.npBattle || {})[np.name] = (c.npBattle[np.name] || 0) + 1; (c.npWar = c.npWar || {})[np.name] = (c.npWar[np.name] || 0) + 1; }
+      (c.npBattle = c.npBattle || {})[np.name] = (c.npBattle[np.name] || 0) + 1; (c.npWar = c.npWar || {})[np.name] = (c.npWar[np.name] || 0) + 1;   // 使った回数（回数の制限と、別の宝具のあとで使える条件に）
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
       if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; if (SG) c.lastNP.aoe = SG.aoeOf(c, np); }
       else c.usedSup.add(np.name);
@@ -801,7 +812,7 @@
       const applied = [];   // 効果の検証（trace）に知らせる、使ったときに働いた効果
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
         && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
-        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); applied.push(e.id); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
+        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); applied.push(e.id); npHold(c, np, e); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
       // 発動のしかたのある効果は、この戦いの残りでその場面のたびに発動する（c.armed）
       (np.effects || []).forEach((e, i) => {
@@ -869,7 +880,7 @@
       const side = x => [x].concat(help.get(x));
       const all = () => side(a).concat(side(b));
       for (const c of all()) {
-        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || []); c.carry = null; c.usedSup = new Set(); c.npBattle = {}; c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
+        c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || [], c.hold || []); c.carry = null; c.usedSup = new Set(); c.npBattle = {}; c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
         c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null;   // 発動する効果（fireTrig）の、この戦いの分
         c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
       }

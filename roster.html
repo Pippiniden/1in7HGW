@@ -570,6 +570,14 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <label class="hint">1回の戦いに <input id="edPerBattle" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
     <label class="hint">戦争全体で <input id="edPerWar" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
   </div>
+  <div class="row" id="edUseRow" style="margin-bottom:12px">
+    <span class="hint">使える条件：</span>
+    <label class="hint">場面 <select id="edNpCond"></select></label>
+    <label class="hint">相手 <input id="edNpVs" type="text" list="tagList" placeholder="男性・竜・騎乗など" autocomplete="off" style="width:9em"></label>
+    <label class="hint">宝具 <select id="edNpAfter"><option value="">（指定なし）</option></select> を</label>
+    <label class="hint"><select id="edNpAfterScope"><option value="war">戦争で</option><option value="battle">その戦いで</option></select></label>
+    <label class="hint"><input id="edNpAfterN" type="number" min="1" step="1" value="1" style="width:4em"> 回使ったあと</label>
+  </div>
   <div class="row" style="margin-bottom:12px">
     <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
     <label class="hint"><input type="radio" name="scope" value="global"> 同じ名前のスキルすべて</label>
@@ -1839,7 +1847,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const sum = () => { const s = div.querySelector('.emore > summary'); if (s) s.textContent = E.moreSummary(specOf(div)[2]); };
     div.addEventListener('input', () => { sum(); edExplain(div); });
     div.addEventListener('change', e => {
-      if (e.target.matches('[data-e=id], [data-e=on], [data-e=self]')) edRefill(div);
+      if (e.target.matches('[data-e=id], [data-e=on], [data-e=self], [data-e=use]')) edRefill(div);
       sum(); edExplain(div);
     });
     if (before) { $('#edRows').insertBefore(div, before); $('#edRows').insertBefore(fx, before); } else { $('#edRows').appendChild(div); $('#edRows').appendChild(fx); }
@@ -1891,7 +1899,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#edDesc').textContent = item.desc || '';
     $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(attrList(), ['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
-    $('#edAtkRow').hidden = kind !== 'n';
+    $('#edAtkRow').hidden = kind !== 'n'; $('#edUseRow').hidden = kind !== 'n';
     $('#edNote').textContent = kind === 'n'
       ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる）。` : '補助宝具。'}戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。「発動のしかた」で、AIが選んで使う代わりに、常時発動（効果はスキルと同じに常に働き、毎日の維持魔力が宝具の消費×${H.CONFIG.ENGINE.npAlwaysUpkeep}だけ増える）や、戦いの始め・瀕死・致命傷などの場面で自動で発動する（1回の戦いに一度、消費は×${H.CONFIG.ENGINE.npAutoCost}）宝具にできます。`
       : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。「発動」を選ぶと、その場面で発動します（魔力を払う・回数を限ることもできます）。回復・吸収・解除は、選ばなければ効果ごとの既定の場面で発動します。';
@@ -1902,6 +1910,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       $('#edMode').innerHTML = `<option value="__auto">読み取りのまま（${esc(item.modeBasis === 'override' ? '説明文からは読み取りなし' : auto)}）</option>` + E.NP_MODES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('');
       $('#edMode').value = o && o.mode != null ? o.mode : '__auto';
       $('#edPerBattle').value = o && o.perBattle > 0 ? o.perBattle : ''; $('#edPerWar').value = o && o.perWar > 0 ? o.perWar : '';
+      // 使える条件（場面・相手・別の宝具を使ったあと）
+      $('#edNpCond').innerHTML = E.COND_OPTS.map(([k, t]) => `<option value="${esc(k)}">${esc(t)}</option>`).join('') + (o && o.cond && !E.COND_OPTS.some(([k]) => k === o.cond) ? `<option value="${esc(o.cond)}">${esc(o.cond)}</option>` : '');
+      $('#edNpCond').value = o && o.cond ? o.cond : ''; $('#edNpVs').value = o && o.vs ? o.vs : '';
+      $('#edNpAfter').innerHTML = '<option value="">（指定なし）</option>' + sv.nps.filter(n => E.normName(n.name) !== E.normName(item.name)).map(n => `<option value="${esc(n.name)}">${esc(n.name)}</option>`).join('') + (o && o.after && !sv.nps.some(n => n.name === o.after) ? `<option value="${esc(o.after)}">${esc(o.after)}</option>` : '');
+      $('#edNpAfter').value = o && o.after ? o.after : ''; $('#edNpAfterScope').value = o && o.afterScope === 'battle' ? 'battle' : 'war'; $('#edNpAfterN').value = o && o.afterN > 0 ? o.afterN : 1;
       for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r);
     }
     // 適用範囲は、いつも「このサーヴァントだけ」から始める（以前は、全員に効く手直し由来の効果を開くと「すべて」が選ばれていて、
@@ -1941,8 +1954,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const pb = Math.floor(+$('#edPerBattle').value), pw = Math.floor(+$('#edPerWar').value);
       if (pb > 0) o.perBattle = pb;
       if (pw > 0) o.perWar = pw;
-      if (was.vs) o.vs = was.vs;     // 使う相手・場面の制限は、この画面では編集しないので引き継ぐ（overrides.json を直接書く）
-      if (was.cond) o.cond = was.cond;
+      const nc = $('#edNpCond').value, nv = $('#edNpVs').value.trim(), na = $('#edNpAfter').value, nn = Math.floor(+$('#edNpAfterN').value);
+      if (nc) o.cond = nc;
+      if (nv) o.vs = nv;
+      if (na) { o.after = na; if (nn > 1) o.afterN = nn; if ($('#edNpAfterScope').value === 'battle') o.afterScope = 'battle'; }
+      void was;
       if (Object.keys(o).length) E.NP_OVERRIDES[k.servant] = o; else delete E.NP_OVERRIDES[k.servant];
     }
     $('#ed').close(); afterEdit();
