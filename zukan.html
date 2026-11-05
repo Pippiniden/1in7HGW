@@ -269,7 +269,7 @@ details > .txt, details > .voice { margin-top: 6px; }
   }
   function detail(sv) {
     const t = sv.text || {}, p = sv.profile || {}, info = sv.info || {};
-    const stats = B.STAT_KEYS.map(k => `<div><span>${esc(B.STAT_JA[k])}</span><b>${esc((sv.stats && sv.stats[k] && sv.stats[k].raw) || '？')}</b></div>`).join('');
+    const stats = B.STAT_KEYS.map(k => `<div><span>${esc(B.STAT_JA[k])}</span><b>${esc((sv.shown && sv.shown[k]) || (sv.stats && sv.stats[k] && sv.stats[k].raw) || '？')}</b></div>`).join('');
     const facts = kv([
       ['元ネタ', sv.origin], ['性別', sv.sex], ['属性', sv.alignment], ['天地人属性', sv.attribute], ['特性', (sv.traits || []).join('、')],
       ...INFO_KEYS.filter(k => info[k] && info[k] !== sv.origin).map(k => [k, info[k]]),

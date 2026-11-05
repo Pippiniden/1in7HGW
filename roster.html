@@ -678,7 +678,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
 <dialog id="st">
   <h3 id="stTitle"></h3>
   <div class="srow" id="stRows"></div>
-  <div class="hint" style="margin:10px 0 6px">空欄の項目はWikiの値を使います。</div>
+  <div class="hint" style="margin:10px 0 6px">空欄の項目はWikiの値を使います。「画面に出す表記」だけを入れると、強さはWikiのまま表記だけが変わります（例：「弱い」意味のEXなら、強さをE・表記をEX）。</div>
   <div class="row" id="stAlts" style="margin-bottom:12px"></div>
   <div class="row">
     <button class="primary" id="stSave">保存して反映</button>
@@ -831,7 +831,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   function body(sv, i) {
     const st = B.STAT_KEYS.map(k => {
       const rk = sv.ranks[k], raw = sv.stats[k] ? sv.stats[k].raw : '', src = sv.statSource[k];
-      return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(R.label(rk))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / (H.CONFIG.STAT_SCORE || H.CONFIG.RANK_SCORE).EX * 100)}%"></i></div></div>`;
+      return `<div class="stat ${src}" title="${esc(src === 'override' ? '手直し（Wiki：' + (raw || 'なし') + '）' : raw)}"><div class="k">${B.STAT_JA[k]}</div><div class="v">${esc(B.statLabel(sv, k))}<span class="s">${rk.score}</span></div><div class="bar"><i style="width:${Math.min(100, rk.score / (H.CONFIG.STAT_SCORE || H.CONFIG.RANK_SCORE).EX * 100)}%"></i></div></div>`;
     }).join('');
     const skills = sv.allSkills.map((s, j) => `<tr><td><b>${esc(s.name)}</b> <span class="hint">${esc(R.label(s.rank))}</span>${s.group === 'class' ? '<div class="hint">クラス別</div>' : ''}${s.desc ? `<div class="desc">${esc(s.desc.length > 90 ? s.desc.slice(0, 90) + '…' : s.desc)}</div>` : ''}</td><td>${s.effects.map(e => fmtEff(e)).join('') || '<span class="hint">なし</span>'}</td><td>${srcBadge(s.effectSource)}${s.matched ? `<div class="hint">${esc(s.matched)}</div>` : ''}</td><td><button class="sm" data-ed="${i}:s:${j}">編集</button></td></tr>`).join('');
     const nps = sv.nps.map((n, j) => `<tr><td><b>${esc(n.name)}</b>${n.reading ? `<div class="hint">${esc(n.reading)}</div>` : ''}<div class="hint">${esc(R.label(n.rank))} · ${esc(n.typeRaw || '種別不明')}${n.maxTargets ? ' · 最大' + n.maxTargets + '人' : ''}</div></td><td>${n.disabled ? '<span class="chip neg">使用不可</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}${n.mode ? `<span class="chip">${esc(E.NP_MODE_JA[n.mode])}</span>` : ''}<span class="chip">消費×${n.cost}</span>${n.effects.filter(e => e.id !== 'disabled').map(e => fmtEff(e, { np: true, attack: n.attackResolved, npMode: n.mode })).join('')}</td><td>${srcBadge(n.effectSource)}${n.attackBasis === 'override' || n.modeBasis === 'override' ? '<div class="hint">扱いを手直し</div>' : ''}</td><td><button class="sm" data-ed="${i}:n:${j}">編集</button></td></tr>`).join('');
@@ -1682,7 +1682,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // 一覧のCSV（Excel で文字化けしないよう BOM を付ける）。いまのリストの全騎を、クラス順・名前順に。強さランクは一覧と同じ S〜E（ボス専用は評価しない）
   // 入れる項目は選べる（はじめは全項目。選んだ内容は hgw.roster.csvcols に残す）。スキル・宝具は入れない
   // ステータスは手直しを反映したもの（一覧・詳細と同じ表記）
-  const csvStat = k => ({ key: 'st_' + k, label: B.STAT_JA[k], get: s => s.ranks && s.ranks[k] ? R.label(s.ranks[k]) : '' });
+  const csvStat = k => ({ key: 'st_' + k, label: B.STAT_JA[k], get: s => s.ranks && s.ranks[k] ? B.statLabel(s, k) : '' });
   const CSV_COLS = [
     { key: 'name', label: '真名', get: s => s.trueName },
     { key: 'skey', label: '印', get: s => s.key || '' },
@@ -2051,18 +2051,24 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     const sv = roster[+b.dataset.st]; stCtx = sv;
     const cur = E.STAT_OVERRIDES[E.okey(sv)] || {};
     $('#stTitle').textContent = `${sv.trueName} のステータス`;
-    $('#stRows').innerHTML = B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="${esc(cur[k] || '')}" placeholder="${esc(sv.stats[k] ? sv.stats[k].raw : '')}"></label>`).join('');
+    const csh = cur.show && typeof cur.show === 'object' ? cur.show : {};
+    $('#stRows').innerHTML = '<div class="hint" style="grid-column:1/-1">ゲームでの強さ（判定に使うランク）</div>'
+      + B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-k="${k}" value="${esc(cur[k] || '')}" placeholder="${esc(sv.stats[k] ? sv.stats[k].raw : '')}"></label>`).join('')
+      + '<div class="hint" style="grid-column:1/-1;margin-top:6px">画面に出す表記（EX など。強さには影響しません）</div>'
+      + B.STAT_KEYS.map(k => `<label>${B.STAT_JA[k]}<input type="text" data-s="${k}" value="${esc(csh[k] || '')}" placeholder="${esc(sv.stats[k] ? sv.stats[k].raw : '')}"></label>`).join('');
     $('#stAlts').innerHTML = sv.statsAlt.length ? '<span class="hint">別のステータスを写す：</span>' + sv.statsAlt.map((a, i) => `<button class="sm" data-alt="${i}">${esc(a.label)}</button>`).join('') : '';
     $('#st').showModal();
   });
   $('#stAlts').addEventListener('click', e => {
     const b = e.target.closest('[data-alt]'); if (!b) return;
     const a = stCtx.statsAlt[+b.dataset.alt];
-    for (const inp of $('#stRows').querySelectorAll('input')) { const v = a.stats[inp.dataset.k]; if (v) inp.value = v.raw; }
+    for (const inp of $('#stRows').querySelectorAll('input[data-k]')) { const v = a.stats[inp.dataset.k]; if (v) inp.value = v.raw; }
   });
   $('#stCancel').onclick = () => $('#st').close();
   $('#stSave').onclick = () => {
-    const o = {}; for (const inp of $('#stRows').querySelectorAll('input')) if (inp.value.trim()) o[inp.dataset.k] = inp.value.trim();
+    const o = {}; for (const inp of $('#stRows').querySelectorAll('input[data-k]')) if (inp.value.trim()) o[inp.dataset.k] = inp.value.trim();
+    const sh = {}; for (const inp of $('#stRows').querySelectorAll('input[data-s]')) if (inp.value.trim()) sh[inp.dataset.s] = inp.value.trim();
+    if (Object.keys(sh).length) o.show = sh;
     if (Object.keys(o).length) E.STAT_OVERRIDES[E.okey(stCtx)] = o; else delete E.STAT_OVERRIDES[E.okey(stCtx)];
     $('#st').close(); afterEdit();
   };

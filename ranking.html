@@ -260,7 +260,7 @@ tr.more td { text-align: left; white-space: normal; background: rgba(3, 14, 38, 
   // 開いた行：ステータス・宝具・目立つ効果
   function more(r) {
     const s = r.sv, STJA = B.STAT_JA;
-    const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(H.rank.label(s.ranks[k]))}</b>`).join('');
+    const st = B.STAT_KEYS.map(k => `<span>${STJA[k]}</span>`).join('') + B.STAT_KEYS.map(k => `<b>${esc(B.statLabel(s, k))}</b>`).join('');
     const nps = (s.nps || []).map(n => `<li>『${esc(n.name)}』 <span class="dim">${esc(H.rank.label(n.rank))}・${esc(n.typeRaw || '種別不明')}</span> ${n.disabled ? '<span class="chip neg">使えない</span>' : n.attackResolved ? `<span class="chip">攻撃 威力${n.power}</span>` : '<span class="chip">補助</span>'}</li>`).join('') || '<li class="dim">なし</li>';
     const effs = Object.values(s.effectSummary || {}).filter(e => e.id !== 'tag' && Math.abs(e.passive) >= 0.05).sort((a, b) => Math.abs(b.passive) - Math.abs(a.passive)).slice(0, 8)
       .map(e => `<span class="chip${e.passive < 0 ? ' neg' : ''}" title="${esc((e.from || []).join('・'))}">${esc((e.params && e.params.name ? e.params.name + '（' + e.name + '）' : e.name) + (e.params && e.params.tag ? '〔' + e.params.tag + '〕' : '') + HGW.effects.condShort(e.params))}</span>`).join('') || '<span class="dim">なし</span>';

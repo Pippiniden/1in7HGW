@@ -915,7 +915,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (qs.get('f') || qs.get('c') || qs.get('k') || qs.get('dy')) start({ replay: true });
   }
   const svOf = id => rosterAll.find(s => s.id === id) || bosses.find(s => s.id === id);
-  const rk = (sv, k) => H.rank.label(sv.ranks[k]);
+  const rk = (sv, k) => H.build.statLabel(sv, k);
   function renderFormation() {
     $('#sName').textContent = lineup.name;
     $('#sRegion').textContent = lineup.region && lineup.region !== lineup.city ? lineup.region + '・' + lineup.city : lineup.city;

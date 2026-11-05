@@ -9,7 +9,7 @@
   const STAT_KEYS = ['str', 'end', 'agi', 'mag', 'luk', 'np'];
   const STAT_JA = { str: '筋力', end: '耐久', agi: '敏捷', mag: '魔力', luk: '幸運', np: '宝具' };
   // 再計算で作り直す項目（古いJSONから組み直すときに捨てる）
-  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'reviewDone', 'built', 'statSource', 'contentEdited', 'attrs', 'attrsUnknown', 'bossOnly'];
+  const DERIVED = ['attack', 'ranks', 'score', 'allSkills', 'tags', 'effectSummary', 'power', 'npPeak', 'review', 'reviewDone', 'built', 'statSource', 'shown', 'contentEdited', 'attrs', 'attrsUnknown', 'bossOnly'];
 
   // ---------- 内容の手直し（effects.js の CONTENT_OVERRIDES） ----------
   // Wiki から読んだスキル・宝具・セリフ・解説・プロフィール・因縁を、リストツールで直した内容に差し替える。
@@ -150,7 +150,8 @@
 
     // ステータス（手直しがあればそれを優先）
     const so = E.STAT_OVERRIDES[E.okey(sv)] || {};
-    sv.ranks = {}; sv.score = {}; sv.statSource = {};
+    sv.ranks = {}; sv.score = {}; sv.statSource = {}; sv.shown = {};   // shown：表示だけを変える表記（ゲームの数値は ranks のまま）
+    const showOv = so.show && typeof so.show === 'object' ? so.show : {};
     for (const k of STAT_KEYS) {
       const st = sv.stats[k];
       let rk, src = 'wiki';
@@ -163,6 +164,7 @@
       if (rk.range) review.push({ kind: 'stat', target: STAT_JA[k], why: `範囲ランク「${rk.raw}」：戦争開始時に抽選` });
       rk = Object.assign({}, rk, { score: R.statScore(rk) }); // ステータスは STAT_SCORE で数える（宝具・マスターは RANK_SCORE のまま）
       sv.ranks[k] = rk; sv.score[k] = rk.score; sv.statSource[k] = src;
+      if (showOv[k] != null && String(showOv[k]).trim() !== '') sv.shown[k] = String(showOv[k]).trim();
     }
     for (const a of sv.statsAlt || []) if (a.fromText && !Object.keys(so).length) review.push({ kind: 'stat', target: 'ステータス', why: `${a.label}、別のステータスが書かれています（どちらを使うか「ステータス編集」で選べます）` });
 
@@ -310,6 +312,8 @@
     return Math.round(s / w * (1 + (sumOf ? sumOf('power') : eff(sv, 'power', terrain))) * 10) / 10;
   }
   // ステータスの偏差：C相当（32）を0、A相当を約+1とする（−1〜+1.6）。STAT_FX の係数に掛けて使う
+  /** 画面に出すステータス表記：表示だけの手直し（STAT_OVERRIDES の show）があればそれ、無ければ判定に使うランク */
+  const statLabel = (sv, k) => (sv.shown && sv.shown[k]) || R.label(sv.ranks[k]);
   const statDev = v => Math.max(-1, Math.min(1.6, ((v == null ? 32 : v) - 32) / 30));
   // 魔力による宝具の威力の倍率（「宝具」ステータスは宝具そのものの評価なので、戦闘には使わない）
   // 守りの効果の合計を、重なるほど鈍らせる（config.js の ENGINE.defSoft。0 なら足したまま）。エンジンも同じ式を使う
@@ -569,6 +573,6 @@
     for (const [tn, s] of inList) if (!have.has(tn)) list.push(bossFromRoster(s));
     return { bosses: list, errors: b.errors };
   }
-  G.build = { loreText, loreLead, leanFromSpec, prepareBoss, bossFromRoster, prepareBosses, bossesOf, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  G.build = { statLabel, loreText, loreLead, leanFromSpec, prepareBoss, bossFromRoster, prepareBosses, bossesOf, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, INFO_SHOWN, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});
