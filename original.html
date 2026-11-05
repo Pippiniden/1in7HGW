@@ -688,13 +688,19 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     if (!(res.bosses && res.bosses.length)) { res.bosses = []; try { res.bosses = (await H.data.loadPublished('data/')).bosses || []; } catch (e) { /* ボスなしでも動く */ } }
     return res;
   }
-  async function load() {
-    try {
-      if (qs.get('data') === 'local' && H.data.hasLocal()) return dataReady(await withBosses(H.data.loadLocal()), 'local');
-      dataReady(await H.data.loadPublished('data/'), 'pub');
-    } catch (e) {
+  // 公開データを読む。通信が途切れて読めなかったときは、「再読み込み」ボタンからやり直せる
+  async function loadPub() {
+    $('#data').textContent = '読み込み中…';
+    try { dataReady(await H.data.loadPublished('data/'), 'pub'); }
+    catch (e) {
       askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : 'データを読めませんでした（' + e.message + '）。');
     }
+  }
+  async function load() {
+    if (qs.get('data') === 'local' && H.data.hasLocal()) {
+      try { return dataReady(await withBosses(H.data.loadLocal()), 'local'); } catch (e) { return askFiles('データを読めませんでした（' + e.message + '）。'); }
+    }
+    await loadPub();
   }
   function dataLinks(label) {
     const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
@@ -704,6 +710,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   function bindDataLinks() {
     const ul = $('#useLocal'); if (ul) ul.onclick = async e => { e.preventDefault(); dataReady(await withBosses(H.data.loadLocal()), 'local'); };
     const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
+    const rl = $('#reloadData'); if (rl) rl.onclick = loadPub;
   }
   function dataReady(res, label) {
     source = label;
@@ -718,7 +725,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const errs = (res.errors || []).concat(b.errors);
     dataLoaded = true;
     const err = errs.length ? `<div class="err">読めなかったもの：${esc(errs.join('、'))}</div>` : '';
-    $('#data').innerHTML = `<b>${rosterAll.length}</b> 騎のサーヴァントと <b>${bosses.length}</b> 騎のボス（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）。シナリオの敵やボスは、この中から呼ばれる。${dataLinks(label)}${err}`;
+    const retry = label === 'pub' && (rosterAll.length < 2 || errs.length) ? ` <button class="btn" type="button" id="reloadData">再読み込み</button>` : '';
+    $('#data').innerHTML = `<b>${rosterAll.length}</b> 騎のサーヴァントと <b>${bosses.length}</b> 騎のボス（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）。シナリオの敵やボスは、この中から呼ばれる。${dataLinks(label)}${err}${retry}`;
     bindDataLinks();
     // 共有リンク・記録：そのシナリオ（指紋 sh）で観測する。リンクが無ければ、前回のシナリオを選んでおく
     const m = loadScns(), sh = qs.get('sh'), ed = qs.get('edit') ? store.get(EDIT_KEY) : null;
@@ -732,7 +740,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   let urlTried = false;
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
-      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
+      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '')
+      + (location.protocol === 'file:' ? '' : ` <button class="btn" type="button" id="reloadData">再読み込み</button>`);
     $('#pick').onchange = async e => dataReady(await withBosses(await H.data.loadFiles(e.target.files)), 'files');
     bindDataLinks();
   }

@@ -940,10 +940,12 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
     const local = H.data.hasLocal() && label !== 'local' ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '';
     const pub = label === 'local' ? ` ・ <a href="#" id="usePub">公開データに戻す</a>` : '';
-    $('#data').innerHTML = roster.length >= 2 ? `<span id="castTxt"></span>（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}`
-      : `サーヴァントが足りません（${roster.length}騎）。${err}`;
+    const retry = label === 'pub' && (roster.length < 2 || (res.errors && res.errors.length)) ? ` <button class="btn" type="button" id="reloadData">再読み込み</button>` : '';
+    $('#data').innerHTML = roster.length >= 2 ? `<span id="castTxt"></span>（${label === 'local' ? 'このブラウザのリスト' : label === 'files' ? '選んだファイル' : '公開データ'}）${local}${pub}${err}${retry}`
+      : `サーヴァントが足りません（${roster.length}騎）。${err}${retry}`;
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
     const up = $('#usePub'); if (up) up.onclick = e => { e.preventDefault(); const u = new URL(location.href); u.searchParams.delete('data'); location.href = u; };
+    const rl = $('#reloadData'); if (rl) rl.onclick = loadPub;
     buildCast(); syncCast();
   }
 
@@ -1013,14 +1015,21 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
   $('#castBox').addEventListener('change', e => { const t = e.target; if (t.matches && t.matches('input[data-i]')) setCast([+t.dataset.i], t.checked); });
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
-      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '');
+      + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '')
+      + (location.protocol === 'file:' ? '' : ` <button class="btn" type="button" id="reloadData">再読み込み</button>`);
     $('#pick').onchange = async e => dataReady(await H.data.loadFiles(e.target.files), 'files');
+    const rl = $('#reloadData'); if (rl) rl.onclick = loadPub;
     const ul = $('#useLocal'); if (ul) ul.onclick = e => { e.preventDefault(); dataReady(H.data.loadLocal(), 'local'); };
+  }
+  // 公開データを読む。通信が途切れて読めなかったときは、「再読み込み」ボタンからやり直せる
+  async function loadPub() {
+    $('#data').textContent = '読み込み中…';
+    try { dataReady(await H.data.loadPublished('data/'), 'pub'); }
+    catch (e) { askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : '公開データを読めませんでした（' + e.message + '）。'); }
   }
   (async () => {
     if (qs.get('data') === 'local' && H.data.hasLocal()) return dataReady(H.data.loadLocal(), 'local');
-    try { dataReady(await H.data.loadPublished('data/'), 'pub'); }
-    catch (e) { askFiles(location.protocol === 'file:' ? 'ファイルを直接開いているため、公開データを自動で読めません。' : '公開データを読めませんでした（' + e.message + '）。'); }
+    await loadPub();
   })();
   if (qs.get('seed')) $('#seed').value = qs.get('seed');
   if (qs.get('view')) { const el = document.querySelector(`input[name=view][value="${qs.get('view')}"]`); if (el) el.checked = true; }
