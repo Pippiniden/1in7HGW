@@ -1,9 +1,12 @@
 // 軍勢召喚（summon）の試し：イスカンダル（原作キャラ。データには入れず、ここで組み立てる）が実際にどれだけ強いか
-// 使い方: node test/iskandar.js [戦争の数] [--no-summon]   … 順位は「出場した戦争での勝率」を、全員と比べる
+// 使い方: node test/iskandar.js [戦争の数] [--f=係数] [--support] [--no-summon]   … 順位は「出場した戦争での勝率」を、全員と比べる
 for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
 const fs = require('fs');
 const H = HGW, E = H.effects, B = H.build;
 const N = +process.argv.find(a => /^\d+$/.test(a)) || 1500, NOSUM = process.argv.includes('--no-summon');
+// --f=軍勢召喚の係数（既定 0.8。攻撃宝具にした『王の軍勢』で上位20%前後に収まる値）  --support=『王の軍勢』を補助宝具にする（既定は攻撃宝具。そのときの目安は係数3.5）
+const arg = k => { const a = process.argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : null; };
+const FACTOR = arg('f') != null ? +arg('f') : 0.8, ATTACK = !process.argv.includes('--support');
 const pub = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON).filter(s => !s.bossOnly);
 
 const spec = {
@@ -18,7 +21,7 @@ const spec = {
   nps: [
     { name: '遥かなる蹂躙制覇', reading: 'ヴィア・エクスプグナティオ', rankRaw: 'A+', typeRaw: '対軍宝具', rangeRaw: '2～50', maxRaw: '100人', desc: '神威の車輪による蹂躙。', attack: true },
     { name: '王の軍勢', reading: 'アイオニオン・ヘタイロイ', rankRaw: 'EX', typeRaw: '対軍宝具', rangeRaw: '1～99', maxRaw: '1000人', desc: '固有結界に生前の臣下たちを呼び出す。',
-      attack: false, effects: NOSUM ? [] : [['summon', 3.5, { tag: '王の軍勢' }]] },
+      attack: ATTACK, effects: NOSUM ? [] : [['summon', FACTOR, { tag: '王の軍勢' }]] },
   ],
 };
 const r0 = B.leanFromSpec(spec);
