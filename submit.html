@@ -418,8 +418,8 @@ h3 { font-size: 13px; color: var(--sub); margin: 14px 0 6px; font-weight: 600; }
   const specOf = e => { const p = Object.assign({}, e.params || {}); return Object.keys(p).length ? [e.id, e.factor, p] : [e.id, e.factor]; };
   // 「相手・能力」の欄：特攻・弱点・属性付与・マスター強化・自己強化解除だけ（ほかの効果でも値が入っていれば残す）。
   // その下の「発動・条件など」は effects.js の moreHtml（その効果で働く欄だけ。画面を作り直すたびに出し分けが変わる）
-  const P_LABEL = { master_buff: '上げる能力', self_strip: '止めるスキル・宝具', tag: '持つ属性', power_vs: '特攻の相手', weakness: '弱点の相手' };
-  const pField = (id, pv) => P_LABEL[id] || pv ? `<label class="ep">${esc(P_LABEL[id] || '相手・能力')}<input type="text" data-e="p" value="${esc(pv)}"${id === 'master_buff' || id === 'self_strip' ? '' : ' list="tagList"'} placeholder="${esc(E.paramHint(id))}" autocomplete="off"></label>` : '';
+  const P_LABEL = { summon: '軍勢の名前', master_buff: '上げる能力', self_strip: '止めるスキル・宝具', tag: '持つ属性', power_vs: '特攻の相手', weakness: '弱点の相手' };
+  const pField = (id, pv) => P_LABEL[id] || pv ? `<label class="ep">${esc(P_LABEL[id] || '相手・能力')}<input type="text" data-e="p" value="${esc(pv)}"${id === 'master_buff' || id === 'self_strip' || id === 'summon' ? '' : ' list="tagList"'} placeholder="${esc(E.paramHint(id))}" autocomplete="off"></label>` : '';
   const moreOpen = new Set();   // 開いている「発動・条件など」（'項目のキー:行'）。作り直しても開いたままにする
   const effOptions = sel => E.effOptionsHtml(sel, esc, id => `${E.EFFECTS[id].name}（${E.WHO_JA[(E.EFFECT_INFO[id] || {}).who] || '—'}）`);   // ジャンルごと
   function strengthOptions(f) {

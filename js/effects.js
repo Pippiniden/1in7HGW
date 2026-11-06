@@ -83,6 +83,7 @@
     heal_other:   { name: '治療',         phase: 'day',       unit: 'rate',   base: 0.10, desc: 'マスターや味方の傷を回復' },
     ws_up:        { name: '陣地段階上昇', phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, desc: '戦いの間だけ、自分の陣地の段階を上げる（拠点で戦うときは今の段階に足し、拠点でなくても足した分の段階の陣地として戦う。最大5段階）' },
     ws_break:     { name: '陣地破壊',     phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, trig: 'start', desc: '相手の陣地（工房）の段階を下げる。下げた段階は戦いのあとも戻らない' },
+    summon:       { name: '軍勢召喚',     phase: 'battle',    unit: 'rate',   base: 0.35, trig: 'start', desc: '戦いの間だけの味方（軍勢）を呼ぶ。同盟に空きがあるときだけ、空きの数（params.n で上限）だけ現れ、加勢して一撃を受け止める。params.tag が軍勢の名前' },
     territory:    { name: '陣地',         phase: 'day',       unit: 'rate',   base: 0.20, desc: '拠点で戦うときの有利と、工房強化の伸び' },
     craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '工房を強化した日に道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
     resource:     { name: '資源獲得',     phase: 'day',       unit: 'rate',   base: 0.20, desc: '資金や物資から魔力を補う。工房の強化も成功しやすい' },
@@ -117,7 +118,7 @@
     ['intel', '索敵・情報', ['stealth', 'detect', 'intel', 'reveal', 'conceal']],
     ['move', '撤退・追撃', ['escape', 'pin']],
     ['camp', '陣営・魔力', ['territory', 'ws_up', 'ws_break', 'craft', 'resource', 'upkeep_down', 'upkeep_up', 'solo', 'uncontrolled']],
-    ['team', '同盟・マスター', ['rally', 'taunt', 'negotiate', 'anti_master', 'master_guard', 'master_buff']],
+    ['team', '同盟・マスター', ['rally', 'summon', 'taunt', 'negotiate', 'anti_master', 'master_guard', 'master_buff']],
     ['other', 'その他', ['tag']],
   ];
   const GROUP_OF = {};
@@ -139,7 +140,7 @@
   const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['hit', '攻撃を受ける直前に'], ['lose', '押し負けたとき'],
     ['pinch', '瀕死になったとき'], ['np', '宝具を使ったとき'], ['kill', '相手を倒したとき'], ['day', '毎朝（戦いの外）']];
   const TRIG_JA = Object.fromEntries(TRIGGERS);
-  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither', 'ws_break'];
+  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither', 'ws_break', 'summon'];
   // 自分にも掛けられる不利な効果（params.self）。デメリットや「日ごとに弱っていく」英霊に。自分に掛けた分は防げない
   const SELF_IDS = ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'poison', 'stun', 'confuse', 'seal'];
   // 効果の発動の場面（スキル）。'' は常時。自分に掛ける衰弱は既定で毎朝
@@ -180,7 +181,7 @@
   const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative', 'heal', 'mana_gain', 'cleanse'];
   const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
-  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
+  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'summon' ? '軍勢の名前（空なら宝具・スキルの名前）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
 
   // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
   // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
@@ -263,6 +264,7 @@
     regen:        { who: 'self', fx: m => `休んだ日の霊基の回復 ${pm(m * ENG().regenHeal)}` },
     heal_other:   { who: 'master', fx: m => `休んだ日のマスターの傷の回復 ${pm(m * 60)}。同盟を組んでいれば、毎朝、同盟相手の霊基 ${pm(m * ENG().allyHeal)}（特異点では、毎朝ほかの味方全員の霊基 ${pm(m * ((G.CONFIG.SING || {}).healOther || 0))}）` },
     ws_up:        { who: 'self', fx: m => m < 0 ? `戦いの間だけ、陣地の段階 −${num(Math.abs(m))}（拠点では今の段階から引く）` : `戦いの間だけ、陣地の段階 +${num(m)}（拠点では今の段階に足す。拠点でなくても ${num(m)} 段階の陣地として戦い、陣地の戦闘力の上乗せを得る。最大5段階）` },
+    summon:       { who: 'self', fx: (m, p) => m <= 0 ? '軍勢は現れない（強さが0以下）' : `戦いの間だけの味方「${(p && p.tag) || '軍勢'}」を呼ぶ。同盟に空きがあるときだけ、空きの数${p && p.n > 0 ? `（最大${Math.floor(p.n)}体）` : ''}だけ現れる（聖杯戦争では同盟の上限 ${ENG().allianceMax} 騎のうち、いない分）。1体ごとに自分の戦闘力の ${pc(m * ENG().allyAssist)} 分を加勢として足し、押し負けた一撃を ${pc(ENG().armyCover)} の確率で受け止めて、傷つくたびに数が減る。同盟に空きが無いと何も現れない` },
     ws_break:     { who: 'enemy', fx: m => m < 0 ? `相手の陣地の段階 +${num(Math.abs(m))}（段階は最大5）` : `相手の陣地の段階を ${Math.round(m)} 下げる（0未満にはならない。下げた分は戦いのあとも戻らない）` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
     craft:        { who: 'self', fx: m => m < 0 ? less('工房を強化した日に道具を作る確率', m) : `工房を強化した日に ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）。工房の強化も選びやすい` },
