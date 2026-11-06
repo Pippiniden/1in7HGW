@@ -2101,8 +2101,12 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     d.innerHTML = `<div class="line"><select data-f="group"><option value="class"${s.group === 'class' ? ' selected' : ''}>クラス別</option><option value="own"${s.group !== 'class' ? ' selected' : ''}>保有</option></select><input type="text" data-f="name" value="${esc(s.name)}" placeholder="スキル名"><input type="text" data-f="rankRaw" value="${esc(s.rankRaw)}" placeholder="ランク"><button class="sm ghost danger" data-rm title="このスキルを消す">×</button></div><textarea data-f="desc" placeholder="説明（効果の推定に使います）">${esc(s.desc)}</textarea>`;
     return d;
   }
+  let npUid = 0;
+  // 宝具タブの今の入力から、セリフの欄に渡す宝具の一覧（追加・削除・名前の変更がセリフの欄に届く）
+  const npsNow = () => Array.from(document.querySelectorAll('#ctBody [data-p="nps"] .card')).map(c => ({ uid: c.dataset.uid, orig: c.dataset.orig, name: (c.querySelector('[data-f=name]').value || '').trim(), reading: (c.querySelector('[data-f=reading]').value || '').trim() })).filter(n => n.name);
+  function npsToVoice() { const b = document.querySelector('#ctBody [data-p="voice"] .vbox'); if (b && b._veBound && document.querySelector('#ctBody [data-p="nps"] .lst')) VE.setNps(b, npsNow()); }
   function npCard(n) {
-    const d = document.createElement('div'); d.className = 'card';
+    const d = document.createElement('div'); d.className = 'card'; d.dataset.uid = String(++npUid); d.dataset.orig = n.name || '';
     d.innerHTML = `<div class="line np"><input type="text" data-f="name" value="${esc(n.name)}" placeholder="宝具名"><input type="text" data-f="reading" value="${esc(n.reading)}" placeholder="読み"><input type="text" data-f="rankRaw" value="${esc(n.rankRaw)}" placeholder="ランク"><button class="sm ghost danger" data-rm title="この宝具を消す">×</button></div>
       <div class="line np2"><label class="f">種別<input type="text" data-f="typeRaw" value="${esc(n.typeRaw)}" placeholder="対人宝具など"></label><label class="f">レンジ<input type="text" data-f="rangeRaw" value="${esc(n.rangeRaw)}"></label><label class="f">最大捕捉<input type="text" data-f="maxRaw" value="${esc(n.maxRaw)}"></label></div>
       <textarea data-f="desc" placeholder="説明（攻撃か補助か・効果の推定に使います）">${esc(n.desc)}</textarea>`;
@@ -2135,6 +2139,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     } else if (tab === 'voice') {
       p.innerHTML = note + '<div class="vbox"></div>' + foot();
       VE.mount(p.querySelector('.vbox'), val || ctNow('voice'), { nps: ct.sv.nps });
+      npsToVoice();
     } else if (tab === 'text') {
       const t = val || ctNow('text');
       p.innerHTML = note + Object.entries(TEXT_JA).map(([k, ja]) => `<label class="f">${ja}<textarea data-k="${k}" rows="${k === 'commentary' ? 8 : 4}">${esc(t[k] || '')}</textarea></label>`).join('') + foot();
@@ -2147,6 +2152,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   // タブの今の入力から、項目ごとの内容を読む
   function ctCollect() {
     const P = tab => $(`#ctBody [data-p="${tab}"]`);
+    npsToVoice(); // 宝具の名前を変えたのにセリフのタブを開かなかった場合も、専用のセリフを付け替える
     const cards = tab => Array.from(P(tab).querySelectorAll('.card')).map(c => { const o = {}; c.querySelectorAll('[data-f]').forEach(x => { o[x.dataset.f] = x.dataset.f === 'desc' ? x.value.replace(/\s+$/, '') : x.value.trim(); }); return o; }).filter(o => o.name);
     const out = {};
     out.skills = cards('skills').map(o => ({ group: o.group === 'class' ? 'class' : 'own', name: o.name, rankRaw: o.rankRaw, desc: o.desc }));
@@ -2166,6 +2172,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     ct.tab = tab;
     for (const b of $('#ctTabs').querySelectorAll('button')) b.classList.toggle('on', b.dataset.t === tab);
     for (const p of $('#ctBody').children) p.hidden = p.dataset.p !== tab;
+    if (tab === 'voice') npsToVoice(); // 宝具タブでの追加・削除・名前の変更を反映する
   }
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-ct]'); if (!b) return;

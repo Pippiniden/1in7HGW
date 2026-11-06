@@ -356,7 +356,7 @@
   const VOICE_SLOTS = [
     { key: '召喚', aliases: ['自己紹介'], use: '開戦の日、あなたがこのサーヴァントを召喚した場面' },
     { key: '開始', aliases: ['戦闘開始'], use: '夜の戦いが始まる場面（仕掛けた側が言う）' },
-    { key: '宝具', aliases: [], use: '宝具を解放した場面。その宝具の名前（か読み）を含む行を優先し、別の宝具の名前を含む行は使わない' },
+    { key: '宝具', aliases: [], use: '宝具を解放した場面。見出しを「宝具（宝具名）」にした行はその宝具専用（セリフに名前が無くてよい）。それ以外は、その宝具の名前（か読み）を含む行を優先し、別の宝具の名前を含む行は使わない' },
     { key: '戦闘不能', aliases: ['消滅', '退場'], use: '倒れて脱落する場面。倒れて終わったときの最後の一言（結果の画面）' },
     { key: '敗北', aliases: [], use: '倒れて終わったときの最後の一言（戦闘不能が無いとき）' },
     { key: '勝利', aliases: [], use: '勝ち残ったときの最後の一言（結果の画面。聖杯についてが無ければ結末の記録にも）' },
@@ -377,7 +377,14 @@
   G.VOICE_SLOTS = VOICE_SLOTS;
   G.VOICE_UNUSED = VOICE_UNUSED;
   // 見出し → それを使う場面の key（使わない見出しは null）。「宝具2」「会話その3」のような番号付きも同じ場面
-  G.voiceSlotOf = heading => { const h = String(heading || '').trim(); return VOICE_OF[h] || VOICE_OF[h.replace(/\s*(その)?[0-9０-９]+$/, '')] || null; };
+  // 宝具専用の見出し：「宝具（名前）」「宝具『名前』」「宝具・名前」。その宝具を解放したときだけ、セリフの中に名前が無くても使う
+  const NP_HEAD = /^宝具\s*(?:[（(『「【]\s*(.+?)\s*[）)』」】]|[・･:：]\s*(.+?))\s*$/;
+  G.npHeadingName = heading => { const m = NP_HEAD.exec(String(heading || '').trim()); return m ? (m[1] || m[2]) : null; };
+  // 見出しがこの宝具の専用か（見出しの名前が、宝具の名前か読みと、空白と「・」を除いて同じ）
+  const npFlat = s => String(s == null ? '' : s).replace(/[\s・]/g, '');
+  G.npHeadingMatch = (heading, np) => { const t = G.npHeadingName(heading); return t != null && !!np && [np.name, np.reading].filter(Boolean).some(k => npFlat(k) === npFlat(t)); };
+  G.npHeading = np => '宝具（' + String((np && np.name) || '').trim() + '）';
+  G.voiceSlotOf = heading => { const h = String(heading || '').trim(); return VOICE_OF[h] || VOICE_OF[h.replace(/\s*(その)?[0-9０-９]+$/, '')] || (G.npHeadingName(h) ? '宝具' : null); };
   // その場面の見出し（代表の見出し → 別名 → 番号付きなど、ほかの見出しは Wiki の順）
   G.voiceHeadings = (voice, key) => {
     const s = VOICE_SLOTS.find(x => x.key === key), first = s ? [s.key].concat(s.aliases) : [key];
@@ -391,11 +398,19 @@
   };
   // 宝具を解放したときに使える行（その宝具の名前・読みを含む行を優先。別の宝具の名前を含む行は除く）
   G.npVoiceLines = (sv, np) => {
-    const lines = G.voiceLines(sv, '宝具');
+    const v = (sv && sv.voice) || {};
     const flat = l => String(l).replace(/[\s・]/g, '');
+    const ok = l => l && String(l).trim();
     const keys = [np.name, np.reading].filter(Boolean).map(flat);
     const others = ((sv && sv.nps) || []).filter(n => n !== np && n.name !== np.name).flatMap(n => [n.name, n.reading]).filter(x => x && x.length >= 2).map(flat);
-    const mine = lines.filter(l => keys.some(k => flat(l).includes(k)));
-    return mine.length ? { lines: mine, named: true } : { lines: lines.filter(l => !others.some(k => flat(l).includes(k))), named: false };
+    // 見出しが宝具の名前を指す行（「宝具（名前）」）は、その宝具の専用。名前はふつうの名前か読みの一部が合えばよい
+    const tagged = [], plain = [];
+    for (const h of G.voiceHeadings(v, '宝具')) {
+      const ls = (v[h] || []).filter(ok);
+      if (G.npHeadingName(h) == null) plain.push(...ls);
+      else if (G.npHeadingMatch(h, np)) tagged.push(...ls);
+    }
+    const mine = tagged.concat(plain.filter(l => keys.some(k => flat(l).includes(k))));
+    return mine.length ? { lines: mine, named: true, tagged: tagged.length } : { lines: plain.filter(l => !others.some(k => flat(l).includes(k))), named: false, tagged: 0 };
   };
 })(globalThis.HGW = globalThis.HGW || {});
