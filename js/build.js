@@ -330,9 +330,20 @@
   function npFinal(sv, n) {
     const own = (n.effects || []).filter(e => e.id === 'np_boost').reduce((t, e) => t + e.mag, 0);
     const power = n.attackResolved ? Math.round(n.power * Math.max(0, 1 + eff(sv, 'np_boost') + own) * npStatMult(sv) * 10) / 10 : null;
-    const mod = eff(sv, 'np_cost');
-    const cost = Math.round(n.cost * Math.max(0.5, 1 - G.CONFIG.STAT_FX.magCost * statDev(sv.score.mag)) * (mod ? Math.max(0.3, 1 + mod) : 1) * 100) / 100;
-    return { power, cost };
+    const CF = G.CONFIG, T = CF.NP_TYPE[n.typeKey || 'special'] || CF.NP_TYPE.special;
+    const rawBase = T.cost * ((n.rank && n.rank.mult) || 1);   // 効果をまだ数えない元の消費
+    const ownMod = (n.effects || []).filter(e => e.id === 'np_cost' && !(e.params && e.params.cond)).reduce((t, e) => t + e.mag, 0);   // その宝具自身（条件なし）
+    const skillMod = eff(sv, 'np_cost');   // スキルなど
+    const magK = Math.max(0.5, 1 - CF.STAT_FX.magCost * statDev(sv.score.mag));   // 魔力ステータスの補正
+    const cost = Math.round(n.cost * magK * (skillMod ? Math.max(0.3, 1 + skillMod) : 1) * 100) / 100;
+    const base = Math.round(rawBase * 100) / 100;
+    const parts = [];   // 元の消費からの増減の内訳
+    if (Math.abs(ownMod) > 0.0005) parts.push(['宝具自身', ownMod]);
+    if (Math.abs(skillMod) > 0.0005) parts.push(['スキル', skillMod]);
+    if (Math.abs(magK - 1) > 0.0005) parts.push(['魔力', magK - 1]);
+    const pct = v => (v > 0 ? '+' : '') + (Math.round(v * 1000) / 10) + '%';
+    const note = parts.map(x => x[0] + pct(x[1])).join('・');
+    return { power, cost, base, note };
   }
 
   /**
