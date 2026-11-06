@@ -326,6 +326,14 @@
     const own = n => (n.effects || []).filter(e => e.id === 'np_boost').reduce((t, e) => t + e.mag, 0); // その宝具自身の「宝具強化」
     return Math.round(Math.max(...atk.map(n => n.power * (1 + eff(sv, 'np_boost') + own(n)))) * npStatMult(sv) * 10) / 10;
   }
+  /** 宝具1つの最終値（表示用）：威力＝基本威力×(1＋スキルの宝具強化＋その宝具自身の宝具強化)×魔力補正、消費＝基本の消費倍率×魔力補正×(1＋スキルの宝具消費)。乱数なし */
+  function npFinal(sv, n) {
+    const own = (n.effects || []).filter(e => e.id === 'np_boost').reduce((t, e) => t + e.mag, 0);
+    const power = n.attackResolved ? Math.round(n.power * Math.max(0, 1 + eff(sv, 'np_boost') + own) * npStatMult(sv) * 10) / 10 : null;
+    const mod = eff(sv, 'np_cost');
+    const cost = Math.round(n.cost * Math.max(0.5, 1 - G.CONFIG.STAT_FX.magCost * statDev(sv.score.mag)) * (mod ? Math.max(0.3, 1 + mod) : 1) * 100) / 100;
+    return { power, cost };
+  }
 
   /**
    * 2騎の勝率の目安（本番の戦闘処理ができるまでの確認用）。
@@ -573,6 +581,6 @@
     for (const [tn, s] of inList) if (!have.has(tn)) list.push(bossFromRoster(s));
     return { bosses: list, errors: b.errors };
   }
-  G.build = { statLabel, loreText, loreLead, leanFromSpec, prepareBoss, bossFromRoster, prepareBosses, bossesOf, reviewSig, toLean, buildServant, combatPower, npPeak, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
+  G.build = { statLabel, loreText, loreLead, leanFromSpec, prepareBoss, bossFromRoster, prepareBosses, bossesOf, reviewSig, toLean, buildServant, combatPower, npPeak, npFinal, battleOdds, statDev, npStatMult, summarize, importServant, fromJSON, harvestOverrides, STAT_KEYS, STAT_JA,
     CONTENT_SECTIONS, CONTENT_JA, INFO_SHOWN, contentOf, hashOf, wikiOf, restoreWiki, pageOf, extLinkOf, linkOf, isManual, wikiName, wikiId, wikiKey, keyFromPage, keyFor, assignKey, softDef };
 })(globalThis.HGW = globalThis.HGW || {});
