@@ -83,6 +83,7 @@
     heal_other:   { name: '治療',         phase: 'day',       unit: 'rate',   base: 0.10, desc: 'マスターや味方の傷を回復' },
     ws_up:        { name: '陣地段階上昇', phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, desc: '戦いの間だけ、自分の陣地の段階を上げる（拠点で戦うときは今の段階に足し、拠点でなくても足した分の段階の陣地として戦う。最大5段階）' },
     ws_break:     { name: '陣地破壊',     phase: 'battle',    unit: 'pt',     base: 1,    fixed: true, trig: 'start', desc: '相手の陣地（工房）の段階を下げる。下げた段階は戦いのあとも戻らない' },
+    tag_foe:      { name: '属性付与（相手）', phase: 'battle', unit: 'flag',   base: 1,    fixed: true, trig: 'start', desc: '相手に特定の属性（params.tag）を付ける。その戦いの間だけ続き、相手への特攻や相手の弱点の対象になる' },
     summon:       { name: '軍勢召喚',     phase: 'battle',    unit: 'rate',   base: 0.35, trig: 'start', desc: '戦いの間だけの味方（軍勢）を呼ぶ。同盟に空きがあるときだけ、空きの数（params.n で上限）だけ現れ、加勢して一撃を受け止める。params.tag が軍勢の名前' },
     territory:    { name: '陣地',         phase: 'day',       unit: 'rate',   base: 0.20, desc: '拠点で戦うときの有利と、工房強化の伸び' },
     craft:        { name: '道具作成',     phase: 'day',       unit: 'chance', base: 0.15, desc: '工房を強化した日に道具を作る確率（道具は次の戦いで守りと戦闘力になる）。工房の強化も選びやすい' },
@@ -111,7 +112,7 @@
     ['atk', '攻め', ['power', 'power_vs', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'instakill', 'initiative']],
     ['def', '守り', ['guard', 'evade', 'dodge', 'counter', 'magic_guard', 'dmg_cut', 'guts', 'luck', 'weakness']],
     ['heal', '回復・吸収', ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'regen', 'heal_other']],
-    ['ail', '弱体・状態異常', ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal']],
+    ['ail', '弱体・状態異常', ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal', 'tag_foe']],
     ['resist', '耐性', ['ail_guard', 'mental_guard', 'cs_resist']],
     ['clear', '解除', ['strip', 'cleanse', 'self_strip']],
     ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'self_retire', 'disabled']],
@@ -140,7 +141,7 @@
   const TRIGGERS = [['', '常に'], ['start', '戦いの始めに'], ['round', '打ち合いのたびに'], ['win', '押し勝ったとき'], ['hit', '攻撃を受ける直前に'], ['lose', '押し負けたとき'],
     ['pinch', '瀕死になったとき'], ['np', '宝具を使ったとき'], ['kill', '相手を倒したとき'], ['day', '毎朝（戦いの外）']];
   const TRIG_JA = Object.fromEntries(TRIGGERS);
-  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither', 'ws_break', 'summon'];
+  const INSTANT = ['heal', 'drain_hp', 'mana_gain', 'drain_mana', 'strip', 'cleanse', 'self_strip', 'skill_seal', 'wither', 'ws_break', 'summon', 'tag_foe'];
   // 自分にも掛けられる不利な効果（params.self）。デメリットや「日ごとに弱っていく」英霊に。自分に掛けた分は防げない
   const SELF_IDS = ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'poison', 'stun', 'confuse', 'seal'];
   // 効果の発動の場面（スキル）。'' は常時。自分に掛ける衰弱は既定で毎朝
@@ -181,7 +182,7 @@
   const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative', 'heal', 'mana_gain', 'cleanse'];
   const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
-  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'summon' ? '軍勢の名前（空なら宝具・スキルの名前）' : id === 'power_vs' || id === 'weakness' || id === 'tag' ? '竜 / 男性 など' : '';
+  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'summon' ? '軍勢の名前（空なら宝具・スキルの名前）' : id === 'power_vs' || id === 'weakness' || id === 'tag' || id === 'tag_foe' ? '竜 / 男性 など' : '';
 
   // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
   // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
@@ -266,6 +267,7 @@
     ws_up:        { who: 'self', fx: m => m < 0 ? `戦いの間だけ、陣地の段階 −${num(Math.abs(m))}（拠点では今の段階から引く）` : `戦いの間だけ、陣地の段階 +${num(m)}（拠点では今の段階に足す。拠点でなくても ${num(m)} 段階の陣地として戦い、陣地の戦闘力の上乗せを得る。最大5段階）` },
     summon:       { who: 'self', fx: (m, p) => m <= 0 ? '軍勢は現れない（強さが0以下）' : `戦いの間だけの味方「${(p && p.tag) || '軍勢'}」を呼ぶ。同盟に空きがあるときだけ、空きの数${p && p.n > 0 ? `（最大${Math.floor(p.n)}体）` : ''}だけ現れる（聖杯戦争では同盟の上限 ${ENG().allianceMax} 騎のうち、いない分）。1体ごとに自分の戦闘力の ${pc(m * ENG().allyAssist)} 分を加勢として足し、押し負けた一撃を ${pc(ENG().armyCover)} の確率で受け止めて、傷つくたびに数が減る。同盟に空きが無いと何も現れない` },
     ws_break:     { who: 'enemy', fx: m => m < 0 ? `相手の陣地の段階 +${num(Math.abs(m))}（段階は最大5）` : `相手の陣地の段階を ${Math.round(m)} 下げる（0未満にはならない。下げた分は戦いのあとも戻らない）` },
+    tag_foe:      { who: 'enemy', fx: (m, p) => m <= 0 ? '属性は付かない（強さが0以下）' : `相手に「${tagOf(p)}」の属性を付ける（その戦いの間だけ続く。相手の弱点や、こちらの特攻の対象になる）` },
     territory:    { who: 'self', fx: m => `拠点で戦うとき戦闘力 ${sg(m)}、工房の強化の成功 ${sg(m)}` },
     craft:        { who: 'self', fx: m => m < 0 ? less('工房を強化した日に道具を作る確率', m) : `工房を強化した日に ${pc(m)} の確率で道具を作る（次の戦いで守りと戦闘力になる。3つまで）。工房の強化も選びやすい` },
     resource:     { who: 'master', fx: m => `毎日の魔力 ${pm(m * 10)}、工房の強化の成功 ${sg(m * 0.5)}` },
@@ -299,19 +301,22 @@
   const COND_JA = { 未看破: '相手に真名を知られていない間だけ', 水辺: '水辺・雨の夜の戦いでだけ', 森: '森での戦いでだけ', 山: '山での戦いでだけ', 夜: '夜の戦い（満月の夜を除く）でだけ',
     拠点: '自分の拠点で戦うときだけ', 瀕死: '霊基が4割を切っているときだけ', 結界: '自分の陣地の中（拠点で戦うときか、陣地を張った戦い）でだけ',
     霧: '霧の夜の戦いでだけ', 月夜: '満月の夜の戦いでだけ', 共闘: '味方と並んで戦うときだけ', 敵陣: '相手の拠点に攻め込んだ戦いでだけ', 相手瀕死: '相手の霊基が4割を切っているときだけ',
-    初見: '初めて戦う相手とだけ', 真名把握: '相手の真名を知っているときだけ', はぐれ: 'マスターを失っている間だけ', 同盟: '同盟を結んでいる間だけ', 魔力枯渇: 'マスターの魔力が2割を切っているときだけ' };
+    初見: '初めて戦う相手とだけ', 真名把握: '相手の真名を知っているときだけ', はぐれ: 'マスターを失っている間だけ', 同盟: '同盟を結んでいる間だけ', 魔力枯渇: 'マスターの魔力が2割を切っているときだけ',
+    数的不利: '相手の側の数が自分の側より多いときだけ', 三騎以上: '戦場にサーヴァントが3騎以上いるときだけ' };
   // 「〇〇以外」（params.condNot）の説明
   const COND_NOT_JA = { 未看破: '相手に真名を知られてからだけ', 水辺: '水辺・雨の夜以外でだけ', 森: '森以外でだけ', 山: '山以外でだけ', 夜: '夜の戦い以外（昼・満月の夜）でだけ',
     拠点: '自分の拠点の外で戦うときだけ', 瀕死: '霊基が4割以上あるときだけ', 結界: '自分の陣地の外（拠点でもなく、陣地も張っていない戦い）でだけ',
     霧: '霧の夜以外でだけ', 月夜: '満月の夜以外でだけ', 共闘: '一騎で戦うときだけ', 敵陣: '相手の拠点以外で戦うときだけ', 相手瀕死: '相手の霊基が4割以上あるときだけ',
-    初見: '二度目からの相手とだけ', 真名把握: '相手の真名を知らないときだけ', はぐれ: 'マスターがいる間だけ', 同盟: '同盟を結んでいない間だけ', 魔力枯渇: 'マスターの魔力が2割以上あるときだけ' };
+    初見: '二度目からの相手とだけ', 真名把握: '相手の真名を知らないときだけ', はぐれ: 'マスターがいる間だけ', 同盟: '同盟を結んでいない間だけ', 魔力枯渇: 'マスターの魔力が2割以上あるときだけ',
+    数的不利: '相手の側の数が自分の側以下のときだけ', 三騎以上: '戦場のサーヴァントが2騎以下のときだけ' };
   // 条件欄の選択肢（リストツール・申請フォーム）。[値, 表示]
   const COND_OPTS = [['', 'いつでも'], ['水辺', '水辺・雨の夜'], ['森', '森'], ['山', '山'], ['夜', '夜（満月を除く）'], ['霧', '霧の夜'], ['月夜', '満月の夜'],
     ['拠点', '自分の拠点で'], ['結界', '自分の陣地の中で（拠点か、陣地を張った戦い）'], ['敵陣', '相手の拠点に攻め込んだとき'], ['共闘', '味方と並んで戦うとき'],
     ['瀕死', '瀕死のとき（霊基4割未満）'], ['相手瀕死', '相手が瀕死のとき（霊基4割未満）'], ['初見', '初めて戦う相手'], ['真名把握', '相手の真名を知っているとき'], ['未看破', '相手に真名を知られていない間'],
-    ['はぐれ', 'マスターを失っている間'], ['同盟', '同盟を結んでいる間'], ['魔力枯渇', 'マスターの魔力が乏しいとき（2割未満）']];
+    ['はぐれ', 'マスターを失っている間'], ['同盟', '同盟を結んでいる間'], ['魔力枯渇', 'マスターの魔力が乏しいとき（2割未満）'],
+    ['数的不利', '敵の数が自分より多いとき'], ['三騎以上', '戦場にサーヴァントが3騎以上いるとき']];
   // 場面の条件が要るもの：b＝戦いの中でだけ判定できる（並んで戦う味方・戦いの場所）、p＝相手がいる場面（戦いの中か、偵察・推理などの相手のいる場面）。無いものはどこでも
-  const COND_NEED = { 拠点: 'b', 結界: 'b', 共闘: 'b', 敵陣: 'b', 夜: 'p', 霧: 'p', 月夜: 'p', 未看破: 'p', 相手瀕死: 'p', 初見: 'p', 真名把握: 'p' };
+  const COND_NEED = { 拠点: 'b', 結界: 'b', 共闘: 'b', 敵陣: 'b', 数的不利: 'b', 三騎以上: 'b', 夜: 'p', 霧: 'p', 月夜: 'p', 未看破: 'p', 相手瀕死: 'p', 初見: 'p', 真名把握: 'p' };
   const hasCond = p => !!(p && (p.cond || p.vs || (p.chance != null && p.chance < 1) || p.dmin > 0 || p.dmax > 0 || p.grow || p.decay || p.wound || p.rgrow));
   // 宝具の効果が使ったあとどこまで続くか（params.last）：'' ＝使った戦いの間、day ＝その日の終わりまで、war ＝戦争の終わりまで（張った結界が残る、など）
   const LAST_OPTS = [['', '使った戦いの間'], ['day', 'その日の終わりまで'], ['war', '戦争の終わりまで（使ったあとずっと）']];

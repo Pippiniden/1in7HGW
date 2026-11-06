@@ -17,7 +17,7 @@ for (const id of Object.keys(E.EFFECTS)) ok(new RegExp(`['"]${id}['"]`).test(src
 for (const [id, d] of Object.entries(E.EFFECTS)) {
   const inf = E.EFFECT_INFO[id];
   ok(inf && E.WHO_JA[inf.who], `効果「${d.name}」（${id}）に、誰に掛かるかが無い`);
-  const r = E.describe(E.instantiate([id, 1, id === 'master_buff' ? { stat: 'luck' } : id.endsWith('_vs') || id === 'weakness' || id === 'tag' ? { tag: '竜' } : null], H.rank.parseRank('B'), 'x', 'spec'), {});
+  const r = E.describe(E.instantiate([id, 1, id === 'master_buff' ? { stat: 'luck' } : id.endsWith('_vs') || id === 'weakness' || id === 'tag' || id === 'tag_foe' ? { tag: '竜' } : null], H.rank.parseRank('B'), 'x', 'spec'), {});
   ok(r.text && !/undefined|NaN/.test(r.text), `効果「${d.name}」の説明が組めない：${r.text}`);
 }
 ok(/相手/.test(E.describe({ id: 'debuff', mag: 0.1 }).whoJa) && E.describe({ id: 'upkeep_up', mag: 0.3 }).bad && !E.describe({ id: 'guard', mag: 0.1 }).bad && E.describe({ id: 'guard', mag: -0.1 }).bad, '有利・不利の見分けが違う');
@@ -398,7 +398,7 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
 
 // 5j) 増えた場面の条件（霧・月夜・共闘・敵陣・相手瀕死・初見・真名把握・はぐれ・同盟・魔力枯渇）と、使った戦いだけ働く宝具の効果（params.use／陣地は既定、params.hold で持っているだけ）
 {
-  const NEW = ['霧', '月夜', '共闘', '敵陣', '相手瀕死', '初見', '真名把握', 'はぐれ', '同盟', '魔力枯渇'];
+  const NEW = ['霧', '月夜', '共闘', '敵陣', '相手瀕死', '初見', '真名把握', 'はぐれ', '同盟', '魔力枯渇', '数的不利', '三騎以上'];
   ok(NEW.every(k => E.COND_JA[k] && E.COND_NOT_JA[k] && E.COND_OPTS.some(o => o[0] === k)), '新しい場面の条件の表がそろっていない');
   const fb = E.fieldsFor('power').conds, fp = E.fieldsFor('stealth').conds, fd = E.fieldsFor('regen').conds;
   ok(NEW.every(k => fb.includes(k)) && !fp.includes('共闘') && !fp.includes('敵陣') && fp.includes('初見') && fp.includes('真名把握') && fd.includes('はぐれ') && fd.includes('同盟') && fd.includes('魔力枯渇') && !fd.includes('相手瀕死') && !fd.includes('霧'),
