@@ -292,6 +292,8 @@
     // 場所の条件（水辺・森・山）：場所を渡されなければ、戦いの最中ならその戦いの場所（致命傷・撤退・マスター狙いなど）、
     //   戦いの外なら自分の拠点の場所で判定する（「水辺で偵察に長ける」なら水辺に拠点があるとき）
     //   condNot／vsNot＝「それ以外のとき」、dmin〜dmax＝その日だけ。相手の属性は、戦いの外では o（偵察・推理・索敵・交渉の相手）で判定する（o が無ければ働かない）
+    // 相手の属性：本来の属性・スキル名に加えて、その戦いの間だけ付けられた属性（tag_foe。c.temp に入るので戦いの終わりに消える）
+    const hasTagC = (x, tag) => E.hasTag(x.sv, tag) || (!!tag && (x.temp || []).some(e => e.id === 'tag_foe' && e.params && E.normName(e.params.tag) === E.normName(tag)));
     const condOk = (c, p, terrain0, o) => {
       if (!p) return true;
       const k = p.cond;
@@ -306,7 +308,9 @@
           : k === '初見' ? !!t && (c.bx && t === c.bx.opp ? !!c.bx.first : !(c.met && c.met.has(t.id)))   // 戦ったことのない相手（戦いの間は、その戦いの始めの判定のまま）
           : k === '真名把握' ? !!t && (pubName.has(t.id) || c.knowName.has(t.id))
           : k === '共闘' ? !!(c.bx && c.bx.mates && c.bx.mates().length > 1)   // 加勢・前衛の仲間と並んで戦っている
-          : k === '敵陣' ? !!(c.bx && c.bx.ctx && c.bx.opp && c.bx.ctx.home === c.bx.opp)
+          : k === '数的不利' ? !!(c.bx && c.bx.mates && c.bx.foes && c.bx.foes().filter(x => x.alive).length > c.bx.mates().filter(x => x.alive).length)   // 相手の側の数が自分の側より多い
+          : k === '三騎以上' ? !!(c.bx && c.bx.mates && c.bx.foes && c.bx.mates().concat(c.bx.foes()).filter(x => x.alive).length >= 3)   // 戦場に3騎以上
+          : k === '敵陣' ?!!(c.bx && c.bx.ctx && c.bx.opp && c.bx.ctx.home === c.bx.opp)
           : k === 'はぐれ' ? !c.masterAlive
           : k === '同盟' ? c.pact != null
           : k === '魔力枯渇' ? !!c.masterAlive && c.mana < (c.manaMax || 0) * 0.2
@@ -316,7 +320,7 @@
         if (hit === !!p.condNot) return false;
       }
       // 相手の条件：属性か、その名前のスキル・宝具を持つ相手（effects.js の hasTag）
-      if (p.vs) { const t = o || (c.bx && c.bx.opp); if (!t || E.hasTag(t.sv, p.vs) === !!p.vsNot) return false; }
+      if (p.vs) { const t = o || (c.bx && c.bx.opp); if (!t || hasTagC(t, p.vs) === !!p.vsNot) return false; }
       if ((p.dmin > 0 || p.dmax > 0) && !E.dayOk(p, day)) return false;
       return true;
     };
@@ -388,8 +392,8 @@
     }
     const effVs = (c, id, o, terrain) => {
       let t = 0;
-      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && E.hasTag(o.sv, x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
-      for (const e of c.temp) if (e.id === id && e.params && E.hasTag(o.sv, e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
+      for (const [k, x] of Object.entries(c.sv.effectSummary || {})) if (x.id === id && x.params && hasTagC(o, x.params.tag) && condOk(c, x.params, terrain)) t += (x.passive - offW(c, x)) * chanceW(c, k, x.params) * dm(x.params) * sm(c, x.params);
+      for (const e of c.temp) if (e.id === id && e.params && hasTagC(o, e.params.tag) && condOk(c, e.params, terrain)) t += e.mag;
       return t;
     };
     // ---------- 状態異常（effects.js の AILMENTS：魅了・毒・スタン・混乱・宝具封印。防ぐのは ail_guard ほか） ----------
@@ -489,6 +493,12 @@
         if (n <= 0) { say(`${sn(c)}は${src}を呼ぼうとしたが、同盟に空きが無く、何も現れなかった。`); return; }
         c.army = { name: nm0, n, hp: n * ENG.armyHp, max: n * ENG.armyHp, pw: B.combatPower(c.sv, T, x => effS(c, x, T)) * mag * ENG.allyAssist * n };
         say(`${sn(c)}の${src}が発動し、戦場に${nm0}が現れた——${n}体分の加勢が、${sn(c)}の側に並ぶ。`); return;
+      }
+      if (id === 'tag_foe') {   // 相手に属性を付ける（その戦いの間だけ。相手の c.temp に入り、戦いの終わりに消える）
+        if (!o || !o.alive || !o.temp || !p.tag || !(mag > 0)) return;
+        if (o.temp.some(e => e.id === 'tag_foe' && e.params && e.params.tag === p.tag)) return;
+        o.temp.push({ id: 'tag_foe', mag: 1, params: { tag: p.tag }, from: from || '', src: k });
+        say(`${sn(c)}の${src}が、${sn(o)}に「${p.tag}」の性質を負わせた。`); return;
       }
       if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
         if (!o || o.workshop == null) return;
@@ -916,7 +926,7 @@
       const pinch = () => { for (const x of all()) if (x.alive && !x.pinched && x.hp > 0 && x.hp < ENG.pinchAt) { x.pinched = true; fireTrig(x, opp(x), 'pinch', ctx.terrain); autoNP(x, opp(x), 'pinch', ctx); } };
       for (const x of side(a)) enterBattle(x, b, ctx.home === x);
       for (const x of side(b)) enterBattle(x, a, ctx.home === x);
-      for (const x of all()) { x.bx.ctx = ctx; x.bx.mates = () => side(side(a).includes(x) ? a : b); }   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように／味方にも効く効果（shareTrig）の相手
+      for (const x of all()) { x.bx.ctx = ctx; x.bx.mates = () => side(side(a).includes(x) ? a : b); x.bx.foes = () => side(side(a).includes(x) ? b : a); }   // 致命傷の瞬間に自動で発動する宝具（lethal）が、戦いの場所を引けるように／味方にも効く効果（shareTrig）の相手
       if (TR) for (const x of all()) trace(x, { t: 'bstart', opp: opp(x).id, home: ctx.home === x, atHome: ctx.home != null, hp: x.hp, oppHp: opp(x).hp, helper: x !== a && x !== b, mates: side(side(a).includes(x) ? a : b).length });
       // 並んで戦う味方どうしの効果：味方にも効く効果（params.team）と統率（rally）を、その戦いの間だけ分け合う（乱数は使わない）。
       //   加勢がいない一騎どうしの戦いでは何も起きない
