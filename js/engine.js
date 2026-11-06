@@ -329,7 +329,14 @@
     // 別の宝具を使ったあとでないと使えない（np.useIf.after＝{ np: 名前, n: 回数, scope: 'war'|'battle' }）。使った回数は fireNP が宝具ごとに数える（c.npWar・c.npBattle）
     const npCount = (c, name, scope) => { const m = (scope === 'battle' ? c.npBattle : c.npWar) || {}; let t = 0; for (const k in m) if (E.normName(k) === name) t += m[k]; return t; };
     const npAfterOk = (c, n) => !n.useIf || !n.useIf.after || npCount(c, n.useIf.after.np, n.useIf.after.scope) >= n.useIf.after.n;
-    const npUsable = (c, n, o, terrain) => npLeft(c, n) && npAfterOk(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
+    // 軍勢召喚（summon）：同盟の空きの数（params.n が上限。聖杯戦争では allianceMax − 今の同盟の数。特異点・大戦では同盟の枠が無いので上限まで）
+    function armySlots(c, p) {
+      const cap = p && p.n > 0 ? Math.floor(p.n) : ENG.allianceMax - 1;
+      return Math.max(0, Math.min(cap, SG || gwStage ? cap : ENG.allianceMax - pactOf(c).length));
+    }
+    // 軍勢を呼ぶだけの補助宝具は、すでに軍勢がいるときと、同盟に空きが無いときは使わない
+    const summonOk = (c, n) => { if (n.attackResolved) return true; const e = (n.effects || []).find(x => x.id === 'summon'); return !e || (!(c.army && c.army.hp > 0) && armySlots(c, e.params || {}) > 0); };
+    const npUsable = (c, n, o, terrain) => npLeft(c, n) && npAfterOk(c, n) && summonOk(c, n) && (!n.useIf || condOk(c, n.useIf, terrain, o));
     // 日ごとの強さの変化（effects.js の dayMult。params.grow／decay の無い効果は1）
     const dm = p => p && (p.grow || p.decay) ? E.dayMult(p, day) : 1;
     // 傷の深さ（params.wound：失った霊基の割合）と打ち合いごとの変化（params.rgrow：c.bx.round。戦いの外では1打ち合い目）。
@@ -476,6 +483,13 @@
       if (id === 'heal') { const v = Math.min(mag, 100 - c.hp); if (v > 0) { c.hp += v; say(`${who}傷ついた霊基を癒やした。`); } return; }
       if (id === 'drain_hp') { if (!o || !o.alive) return; const v = Math.min(mag, Math.max(0, o.hp - 1)); if (v > 0) { o.hp -= v; c.hp = Math.min(100, c.hp + v); say(`${sn(c)}の${src}が、${sn(o)}の霊基を吸い上げた。`); } return; }
       if (id === 'mana_gain') { const v = Math.min(mag, c.manaMax - c.mana); if (v > 0) { c.mana += v; say(`${who}魔力を満たした。`); } return; }
+      if (id === 'summon') {   // 戦いの間だけの味方（軍勢）を、同盟の空きの数だけ呼ぶ。戦いの外では何もしない
+        if (!c.bx || (c.army && c.army.hp > 0) || !(mag > 0)) return;
+        const nm0 = p.tag || from || '軍勢', n = armySlots(c, p);
+        if (n <= 0) { say(`${sn(c)}は${src}を呼ぼうとしたが、同盟に空きが無く、何も現れなかった。`); return; }
+        c.army = { name: nm0, n, hp: n * ENG.armyHp, max: n * ENG.armyHp, pw: B.combatPower(c.sv, T, x => effS(c, x, T)) * mag * ENG.allyAssist * n };
+        say(`${sn(c)}の${src}が発動し、戦場に${nm0}が現れた——${n}体分の加勢が、${sn(c)}の側に並ぶ。`); return;
+      }
       if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
         if (!o || o.workshop == null) return;
         const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, 5);
@@ -894,7 +908,7 @@
       for (const c of all()) {
         c.fought = true; c.battles++; c.temp = (c.dayTemp || []).concat(c.carry || [], c.hold || []); c.carry = null; c.usedSup = new Set(); c.npBattle = {}; c.lastNP = null; c.npBoost = 0; c.overUsed = false; c.ail = {}; c.openNP = null;
         c.tUsed = {}; c.tLog = new Set(); c.armed = []; c.pinched = false; c.cleanse = 0; c.off = null; c.cutFx = null;   // 発動する効果（fireTrig）の、この戦いの分
-        c.autoUsed = new Set(); c.autoQ = [];   // 自動で発動する宝具（autoNP）の、この戦いの分
+        c.autoUsed = new Set(); c.autoQ = []; c.army = null;   // 自動で発動する宝具（autoNP）の、この戦いの分／軍勢
       }
       const opp = x => (side(a).includes(x) ? b : a);
       const LK = k => (ctx.lines && ctx.lines[k]) || k;   // 文面の差し替え（特異点の昼の戦いなど。聖杯戦争では使わない）
@@ -955,9 +969,10 @@
           const T = ctx.terrain;
           t += (B.combatPower(y.sv, T, id => effS(y, id, T)) * (0.55 + 0.45 * Math.max(0, y.hp) / 100) + y.npBoost) * ENG.allyAssist * (y.assistK != null ? y.assistK : 1) * (1 + Math.max(-0.5, eff(x, 'rally', T) + eff(y, 'rally', T)));
         }
+        for (const m of side(x)) if (m.army && m.army.hp > 0 && m.alive) t += m.army.pw * m.army.hp / m.army.max;   // 呼ばれた軍勢（数が減るほど弱まる）
         return t;
       };
-      const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cutFx = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
+      const leave = (y, text) => { for (const [x, h] of help) if (h.includes(y)) help.set(x, h.filter(z => z !== y)); y.stance = null; y.army = null; y.temp = []; y.npBoost = 0; y.lastNP = null; y.bx = null; y.ail = null; y.armed = null; y.off = null; y.cutFx = null; y.cleanse = 0; y.tUsed = null; y.tLog = null; y.autoUsed = null; y.autoQ = null; if (text) log('battle', text, [y.id]); };
       for (let round = 1; round <= ENG.rounds; round++) {
         for (const c of all()) { c.npBoost = 0; if (c.bx) c.bx.round = round; if (c.temp.some(e => e.rnd)) c.temp = c.temp.filter(e => !e.rnd); }   // 打ち合いのたびの効果はその打ち合いだけ。打ち合いの番号は打ち合いごとの変化（rgrow）に
         if (TR) for (const c of all()) if (traced(c)) trace(c, { t: 'round', round, opp: opp(c).id, fx: traceFx(c, ctx.terrain) });
@@ -1042,8 +1057,15 @@
         if (tg.alive) fireTrig(tg, w, 'hit', ctx.terrain);
         const dg = eff(tg, 'dodge', ctx.terrain);
         const dodged = dg > 0 && chance(Math.min(ENG.dodgeCap, dg) * (1 - clamp(eff(w, 'sure_hit', ctx.terrain), 0, 1)));
+        const armyL = !dodged && !cover ? side(l).map(m => (m.alive ? m.army : null)).find(ar => ar && ar.hp > 0) : null;   // 軍勢が代わりに受け止める（呼ばれていなければ乱数は使わない）
+        const blocked = !!armyL && chance(ENG.armyCover);
         if (TR) { trace(w, { t: 'xw', round }); trace(tg, { t: 'xl', round, cover }); }
         if (dodged) { log('battle', `${sn(w)}が押し込んだ一撃を、${sn(tg)}は紙一重で見切った。`, [tg.id, w.id]); trace(tg, { t: 'dodge' }); }
+        else if (blocked) {
+          armyL.hp -= ENG.armyHit * (1 + clamp((ew - el) / (ew + el + 1), -0.3, 0.6));
+          if (armyL.hp <= 0) { armyL.hp = 0; log('battle', `${sn(w)}の押し込みを受け止めきれず、${armyL.name}は霧散した。`, [w.id, l.id]); }
+          else log('battle', `${armyL.name}が${sn(l)}の前に立ちはだかり、${sn(w)}の一撃を受け止めた。（残り${Math.ceil(armyL.hp / ENG.armyHp)}体分）`, [w.id, l.id]);
+        }
         else if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
           trace(w, { t: 'instakill' });
           log('battle', `${sn(w)}の一撃が、${sn(tg)}の霊核を捉えた。`, [w.id, tg.id]);
@@ -1081,7 +1103,7 @@
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
         // 押し勝った一撃に乗る状態異常：毒（翌日まで残る）・宝具封印（この戦いの間）
-        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail && !dodged) {
+        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail && !dodged && !blocked) {
           if (!tg.poison) { const p = tryAil(w, tg, 'poison', ctx.terrain); if (p) { tg.poison = { p, day }; log('battle', ailText('ailPoison', 'poison', p, w, tg), [tg.id, w.id]); } }
           if (!tg.ail.seal) { const p = tryAil(w, tg, 'seal', ctx.terrain); if (p) { tg.ail.seal = true; log('battle', ailText('ailSeal', 'seal', p, w, tg), [tg.id, w.id]); } }
         }
@@ -1128,7 +1150,7 @@
       cleanup();
       function cleanup() {
         if (TR) for (const c of [a, b].concat(helpers0)) if (c && c.bx && c.bx.opp) trace(c, { t: 'bend', opp: c.bx.opp.id, hp: c.hp, alive: c.alive, oppHp: c.bx.opp.hp, oppAlive: c.bx.opp.alive });
-        for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cutFx = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; } }
+        for (const c of [a, b].concat(helpers0)) if (c) { c.temp = []; c.npBoost = 0; c.stance = null; c.surprise = 0; c.lastNP = null; c.bx = null; c.ail = null; c.openNP = null; c.armed = null; c.off = null; c.cutFx = null; c.cleanse = 0; c.tUsed = null; c.tLog = null; c.autoUsed = null; c.autoQ = null; c.army = null; } }
     }
 
     // y の常時の効果のうち、味方にも効くもの（params.team）を x の c.temp へ（強さ×割合）。統率は x の戦闘力を 統率×rallyPower 上げる
