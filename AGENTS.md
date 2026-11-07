@@ -230,7 +230,7 @@ magnitude `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank
 | damage | `guard`, `magic_guard`, `dmg_cut`, `dodge`, `counter`, `weakness`, `master_guard` |
 | lethal / encounter / scout / retreat | `guts` / `stealth detect reveal conceal` / `intel` / `escape pin` |
 | day / upkeep / talk / master / passive | `regen heal_other territory craft resource uncontrolled`; workshop-stage effects `ws_up` (battle only: stage +n, and away from the base it still fights as an n-stage workshop; `wsStage`) / `ws_break` (instant: lowers the opponent's `workshop` by round(mag), permanent) / `upkeep_down upkeep_up solo` / `negotiate` / `cs_resist master_buff` / `luck tag` |
-| np | `np_boost np_charge np_cost backfire self_retire disabled` |
+| np | `np_boost np_charge np_cost backfire friendly_fire self_retire disabled` (`friendly_fire`: using the NP also costs the mates fighting beside the user `mag × 40` HP, floored at 1 so it never kills; no mates = nothing happens; no `rnd()`) |
 
 `E.EFFECT_GROUPS`/`GROUP_OF` group them into genres for the editors. `test/effects.js` fails if a primitive is not read by engine/build or lacks an `EFFECT_INFO` description (`E.describe` text must also read correctly for a **negative** magnitude).
 

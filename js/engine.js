@@ -815,6 +815,7 @@
         if (hidden && !pressed) w *= 1 - Math.min(0.6, (n.exposure || 0) * 0.4);
         if (retire > 0 && retire < 0.5) w *= 1 - retire;
         if (fx(n, 'backfire') > 0 && !pressed) w *= 0.6;
+        if (fx(n, 'friendly_fire') > 0 && !pressed && mateOf(c).length) w *= 0.6;   // 味方を巻き込むので、並んで戦っているときはためらう
         if (retire >= 0.5) w *= 0.3;   // 追い詰められても、使うのはまれ
         return Math.max(0, w);
       };
@@ -832,6 +833,7 @@
       const list = L === 'day' ? (c.dayTemp = c.dayTemp || []) : (c.hold = c.hold || []);
       if (!list.some(x => x.src === src)) list.push(h);
     }
+    const mateOf = c => (c.bx && c.bx.mates ? c.bx.mates() : []).filter(y => y !== c && y.alive);   // 今の戦いで並んで戦っている味方（自分を除く）
     function fireNP(c, o, np, round, ctx, costMul) {
       const fx = npFx, cost = npCostOf(c, np) * (costMul || 1);
       const over = c.mana < cost;
@@ -842,7 +844,7 @@
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       const applied = [];   // 効果の検証（trace）に知らせる、使ったときに働いた効果
-      for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
+      for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'friendly_fire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
         && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
         && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); applied.push(e.id); npHold(c, np, e); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
@@ -866,6 +868,12 @@
         log('battle', SG || !c.masterAlive ? `${sn(c)}は残りの魔力も顧みずに宝具を放った——足りない分を賄うように、自らの霊基が削り取られていく。` : `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
       const bf = (np.effects || []).filter(e => e.id === 'backfire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0) + skillFx(c, 'backfire', ctx.terrain);   // スキルの反動も
       if (bf > 0) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
+      // 巻き添え：並んで戦う味方（同盟の加勢・特異点の前衛・大聖杯戦争の同じ陣営）の霊基も削る。味方がいなければ何も起きない（乱数は使わない）。倒れはしない（霊基は1で止まる）
+      const ffm = (np.effects || []).filter(e => e.id === 'friendly_fire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0), ffAlly = ffm > 0 ? mateOf(c) : [];
+      if (ffAlly.length) {
+        for (const y of ffAlly) y.hp = Math.max(1, y.hp - ffm * 40);
+        log('battle', `『${np.name}』は味方をも巻き込んだ——${ffAlly.map(sn).join('・')}が傷を負う。`, [c.id].concat(ffAlly.map(y => y.id)));
+      }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');
       if (sr && chance(E.retireP(sr))) c.pendingRetire = np.name;
     }
