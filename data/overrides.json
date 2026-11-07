@@ -4384,10 +4384,10 @@
    ],
    [
     "debuff",
-    2.5,
+    0.75,
     {
-     "dmin": 7,
-     "grow": -0.18,
+     "dmin": 8,
+     "grow": 0.12,
      "self": true,
      "nocure": true
     }
