@@ -103,6 +103,7 @@
     np_charge:    { name: '宝具チャージ', phase: 'np',        unit: 'chance', base: 0.15, desc: '打ち合いごとに宝具を放つ確率を上げる' },
     np_cost:      { name: '宝具消費',     phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具の魔力消費の増減（マイナスで軽くなる）' },
     backfire:     { name: '反動',         phase: 'np',        unit: 'rate',   base: 0.30, desc: '宝具を使うと自分も傷つく' },
+    friendly_fire:{ name: '巻き添え',     phase: 'np',        unit: 'rate',   base: 0.20, desc: '宝具を使うと、並んで戦う味方（同盟の加勢・特異点の前衛・大聖杯戦争の同じ陣営）も傷つく。味方がいない戦いでは何も起きない' },
     self_retire:  { name: '自滅',         phase: 'np',        unit: 'chance', base: 1.0, fixed: true, desc: '宝具を使うと自分が脱落する確率（params.chance があれば、それを掛ける）' },
     disabled:     { name: '使用不可',     phase: 'np',        unit: 'flag',   base: 1, fixed: true, desc: 'この宝具は今回の召喚では使えない' },
   };
@@ -115,7 +116,7 @@
     ['ail', '弱体・状態異常', ['debuff', 'debuff_mind', 'debuff_body', 'wither', 'charm', 'poison', 'stun', 'confuse', 'seal', 'skill_seal', 'tag_foe']],
     ['resist', '耐性', ['ail_guard', 'mental_guard', 'cs_resist']],
     ['clear', '解除', ['strip', 'cleanse', 'self_strip']],
-    ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'self_retire', 'disabled']],
+    ['np', '宝具', ['np_boost', 'np_charge', 'np_cost', 'backfire', 'friendly_fire', 'self_retire', 'disabled']],
     ['intel', '索敵・情報', ['stealth', 'detect', 'intel', 'reveal', 'conceal']],
     ['move', '撤退・追撃', ['escape', 'pin']],
     ['camp', '陣営・魔力', ['territory', 'ws_up', 'ws_break', 'craft', 'resource', 'upkeep_down', 'upkeep_up', 'solo', 'uncontrolled']],
@@ -283,6 +284,7 @@
     np_boost:     { who: 'self', fx: m => `攻撃宝具の威力 ${sg(m)}` },
     np_cost:      { who: 'self', fx: m => `宝具の魔力消費 ${sg(m)}` },
     backfire:     { who: 'self', bad: true, fx: m => `宝具を使うと自分の霊基 ${pm(-m * 40)}` },
+    friendly_fire:{ who: 'ally', bad: true, fx: m => `宝具を使うと、並んで戦う味方の霊基 ${pm(-m * 40)}（倒れはしない。味方がいない戦いでは何も起きない）` },
     self_retire:  { who: 'self', bad: true, fx: (m, p) => m < 0 ? '宝具を使っても脱落しない（マイナスの値は働かない）' : `宝具を使うと ${pc(retireP({ mag: m, params: p }))} の確率で自分が脱落` },
     disabled:     { who: 'none', bad: true, fx: () => 'この宝具は使えない' },
   };
