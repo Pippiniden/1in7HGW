@@ -274,8 +274,11 @@ details > .txt, details > .voice { margin-top: 6px; }
       ['元ネタ', sv.origin], ['性別', sv.sex], ['属性', sv.alignment], ['天地人属性', sv.attribute], ['特性', (sv.traits || []).join('、')],
       ...INFO_KEYS.filter(k => info[k] && info[k] !== sv.origin).map(k => [k, info[k]]),
     ]);
-    const commentary = longText(t.commentary, 500, sv.voice), person = longText(t.personality, 400, sv.voice);
     const prof = kv(PROFILE_JA.map(([k, l]) => [l, p[k]]));
+    // 一人称・好きなもの等は下の項目欄に出すので、本文側に残った同じ行は表示から外す（データは変えない）
+    const profLine = /^\s*(一人称|二人称|三人称|イメージカラー|特技|好きな(?:もの|物)|好物|嫌いな(?:もの|物)|苦手|天敵|願い|聖杯への願い|聖杯にかける願い)\s*[:：]/;
+    const personText = prof ? String(t.personality || '').split('\n').filter(l => !profLine.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').trim() : t.personality;
+    const commentary = longText(t.commentary, 500, sv.voice), person = longText(personText, 400, sv.voice);
     const cls = sv.classSkills || [], own = sv.skills || [], nps = sv.nps || [], ws = sv.weapons || [], rels = sv.relations || [];
     const extra = [['comment', 'コメント'], ['other', 'その他']].map(([k, l]) => { const x = B.loreText(t[k], sv.voice); return x ? `<details><summary>${l}</summary>${para(x)}</details>` : ''; }).join('');
     // 同じクラスの中で前後の英霊へ
