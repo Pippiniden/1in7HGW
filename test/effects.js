@@ -477,5 +477,49 @@ delete E.CONTENT_OVERRIDES[lucan.trueName]; delete E.STAT_OVERRIDES['ルーカ�
   ok(counted, '宝具が一度も使われなかった（数え方の確認ができない）');
 }
 
-console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手／増えた場面の条件・使った戦いだけ働く宝具の効果／結界の条件・働く期間・宝具の使える条件`);
+// 5j) 相手の条件の AND・OR（vs／特攻 power_vs・弱点 weakness の tag：「A&B」「A|B」）
+{
+  const fake = (tags, skills, nps) => ({ tags, allSkills: (skills || []).map(name => ({ name })), nps: (nps || []).map(name => ({ name })) });
+  const gm = fake(['ギリシャ', '男性', '人型']), gf = fake(['ギリシャ', '女性', '人型']), jm = fake(['日本', '男性']);
+  ok(E.hasTag(gm, 'ギリシャ') && E.hasTag(gm, '男性') && !E.hasTag(jm, 'ギリシャ'), '名前一つの条件が違う');
+  ok(E.hasTag(gm, 'ギリシャ&男性') && !E.hasTag(gf, 'ギリシャ&男性') && !E.hasTag(jm, 'ギリシャ&男性'), 'AND（&）が違う');
+  ok(E.hasTag(gf, '男性|女性') && E.hasTag(jm, 'ギリシャ|日本') && !E.hasTag(fake(['王']), 'ギリシャ|日本'), 'OR（|）が違う');
+  ok(E.hasTag(jm, 'ギリシャ&女性|日本&男性') && !E.hasTag(jm, 'ギリシャ&男性|日本&女性') && E.hasTag(gm, 'ギリシャ&男性|日本&女性'), '& が | より先に結ばれていない');
+  ok(E.hasTag(gm, 'ギリシャ＆男性') && E.hasTag(gm, '日本｜男性') && E.hasTag(gm, ' ギリシャ & 男性 '), '全角・空白の書き方が通らない');
+  // スキル・宝具の名前も式の中で使える。かっこの中の & | は区切りにしない
+  const rd = fake(['男性'], ['騎乗'], ['約束された勝利の剣']);
+  ok(E.hasTag(rd, '男性&騎乗') && !E.hasTag(rd, '女性&騎乗') && E.hasTag(rd, '竜|約束された勝利の剣'), 'スキル・宝具の名前が式の中で当たらない');
+  ok(JSON.stringify(E.tagExpr('黄金律(富＆体)')) === JSON.stringify([['黄金律(富＆体)']]) && E.tagExpr('A&B|C&D').length === 2 && !E.tagExpr('').length && !E.tagExpr('&|').length, '式の読み取りが違う：' + JSON.stringify(E.tagExpr('A&B|C&D')));
+  ok(!E.hasTag(gm, '') && !E.hasTag(gm, null) && !E.hasTag(null, '男性') && !E.hasTag(gm, '&'), '空の条件が当たってしまう');
+  // extra：戦いの間だけ付いた属性（tag_foe）も、式の名前ごとに当たる
+  ok(E.hasTag(jm, '日本&竜', n => n === '竜') && !E.hasTag(jm, '日本&竜|獣&王', n => n === '魔性') && E.hasTag(jm, '竜', n => n === '竜'), 'extra が式の名前ごとに効かない');
+  // 表示
+  ok(E.tagJa('ギリシャ&男性') === 'ギリシャ かつ 男性' && E.tagJa('竜|獣') === '竜 または 獣' && E.tagJa('竜') === '竜' && E.tagJa('') === '', '式の表示が違う');
+  ok(/「ギリシャ かつ 男性」の相手/.test(E.describe({ id: 'power_vs', mag: 0.3, params: { tag: 'ギリシャ&男性' } }).text)
+    && /「竜 または 獣」の相手/.test(E.describe({ id: 'power', mag: 0.2, params: { vs: '竜|獣' } }).when) && E.condShort({ vs: '竜|獣' }) === '〔対 竜 または 獣〕', '式が説明に出ない');
+  // 戦いの見積もり：&＝両方に当たる相手にだけ、|＝どちらかに当たる相手に効く
+  const roster = JSON.parse(fs.readFileSync(__dirname + '/../data/servants.json', 'utf8')).servants.map(B.fromJSON);
+  const foe0 = roster[0], me = B.fromJSON(B.toLean(roster[1]));
+  const key = me.trueName + '/' + E.normName(me.allSkills[0].name);
+  const withSpec = spec => { E.SERVANT_OVERRIDES[key] = [spec]; const sv = B.fromJSON(B.toLean(me)); delete E.SERVANT_OVERRIDES[key]; return sv; };
+  const as = tags => Object.assign({}, foe0, { tags }), odds = (a, b) => B.battleOdds(a, b, {}).a;
+  const both = as(['テスト属性甲', 'テスト属性乙']), onlyA = as(['テスト属性甲']), none = as([]);
+  const plain = withSpec(['guard', 0.0001]);
+  const andP = withSpec(['power', 5, { vs: 'テスト属性甲&テスト属性乙' }]), orP = withSpec(['power', 5, { vs: 'テスト属性乙|テスト属性甲' }]);
+  const andT = withSpec(['power_vs', 5, { tag: 'テスト属性甲&テスト属性乙' }]), orT = withSpec(['power_vs', 5, { tag: 'テスト属性乙|テスト属性甲' }]);
+  for (const [nm, a, o] of [['vs', andP, orP], ['特攻', andT, orT]]) {
+    ok(odds(a, both) > odds(plain, both) * 1.2 && Math.abs(odds(a, onlyA) - odds(plain, onlyA)) < 1e-9 && Math.abs(odds(a, none) - odds(plain, none)) < 1e-9, `${nm}：AND が両方持つ相手にだけ効いていない`);
+    ok(odds(o, both) > odds(plain, both) * 1.2 && odds(o, onlyA) > odds(plain, onlyA) * 1.2 && Math.abs(odds(o, none) - odds(plain, none)) < 1e-9, `${nm}：OR がどちらかを持つ相手に効いていない`);
+  }
+  // エンジン：誰も持たない式が条件の効果は、戦争の展開を変えない（判定に乱数を使わない）
+  const ros = roster.filter(s => s.id !== me.id), sig = r => r.winner + ':' + r.days + ':' + r.entries.length;
+  const ghost = withSpec(['power', 5, { vs: 'テスト属性甲&テスト属性乙|テスト属性丙' }]);
+  let same = true, errs = 0;
+  for (let i = 0; i < 10; i++) {
+    try { const a = H.engine.runWar({ roster: ros.concat([plain]), seed: 'ao' + i }), g = H.engine.runWar({ roster: ros.concat([ghost]), seed: 'ao' + i }); if (sig(a) !== sig(g)) same = false; } catch (e) { errs++; console.error(e); }
+  }
+  ok(!errs && same, '誰も持たない AND・OR の条件が戦争の展開を変えた（エラー ' + errs + '）');
+}
+
+console.log(fail ? `NG ${fail}件` : `OK：効果の部品 ${Object.keys(E.EFFECTS).length}種がすべてゲームに届き、説明がある／真名・クラスの手直し／効果の条件／状態異常／開幕の宝具／発動する効果／宝具の発動のしかた／弱体化の種類・衰弱・見切り・反撃・自分に掛ける効果／発動の場面（毎朝・相手を倒したとき・戦いの外）／要確認の消し込み／条件の「それ以外」・日数・日ごとの変化・解除で消えない効果／傷の深さ・打ち合いごとの変化・真名の条件・スキル名で当たる相手／増えた場面の条件・使った戦いだけ働く宝具の効果／結界の条件・働く期間・宝具の使える条件／相手の条件の AND・OR`);
 process.exitCode = fail ? 1 : 0;

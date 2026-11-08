@@ -293,7 +293,7 @@
     //   戦いの外なら自分の拠点の場所で判定する（「水辺で偵察に長ける」なら水辺に拠点があるとき）
     //   condNot／vsNot＝「それ以外のとき」、dmin〜dmax＝その日だけ。相手の属性は、戦いの外では o（偵察・推理・索敵・交渉の相手）で判定する（o が無ければ働かない）
     // 相手の属性：本来の属性・スキル名に加えて、その戦いの間だけ付けられた属性（tag_foe。c.temp に入るので戦いの終わりに消える）
-    const hasTagC = (x, tag) => E.hasTag(x.sv, tag) || (!!tag && (x.temp || []).some(e => e.id === 'tag_foe' && e.params && E.normName(e.params.tag) === E.normName(tag)));
+    const hasTagC = (x, tag) => E.hasTag(x.sv, tag, n => (x.temp || []).some(e => e.id === 'tag_foe' && e.params && E.normName(e.params.tag) === E.normName(n)));   // tag は式（A&B・A|B）。戦いの間だけ付いた属性（tag_foe）は式の名前ごとに見る
     const condOk = (c, p, terrain0, o) => {
       if (!p) return true;
       const k = p.cond;

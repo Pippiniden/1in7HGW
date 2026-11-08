@@ -573,7 +573,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <div class="row" id="edUseRow" style="margin-bottom:12px">
     <span class="hint">使える条件：</span>
     <label class="hint">場面 <select id="edNpCond"></select></label>
-    <label class="hint">相手 <input id="edNpVs" type="text" list="tagList" placeholder="男性・竜・騎乗など" autocomplete="off" style="width:9em"></label>
+    <label class="hint">相手 <input id="edNpVs" type="text" list="tagList" placeholder="男性・竜・騎乗など" title="名前を &（すべてに当たる）や |（どれかに当たる）でつなげます。例：ギリシャ&男性、竜|獣" autocomplete="off" style="width:9em"></label>
     <label class="hint">宝具 <select id="edNpAfter"><option value="">（指定なし）</option></select> を</label>
     <label class="hint"><select id="edNpAfterScope"><option value="war">戦争で</option><option value="battle">その戦いで</option></select></label>
     <label class="hint"><input id="edNpAfterN" type="number" min="1" step="1" value="1" style="width:4em"> 回使ったあと</label>
