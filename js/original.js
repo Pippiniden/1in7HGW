@@ -184,7 +184,7 @@
           const c = mkCamp(sv, camps.length, 'party', start, rnd);
           c.knowName = shared.knowName; c.knowLoc = shared.knowLoc; c.clues = shared.clues;
           for (const k of ['master', 'mana', 'manaMax', 'cs', 'mhp', 'mhpMax', 'masterAlive', 'items']) Object.defineProperty(c, k, { get: () => P[k], set: v => { P[k] = v; }, enumerable: true });
-          Object.defineProperty(c, 'workshop', { get: () => P.camp * S.campEdge / 0.05, set: () => {}, enumerable: true });
+          Object.defineProperty(c, 'workshop', { get: () => P.camp * S.campEdge / 0.025, set: () => {}, enumerable: true });
           c.you = true; c.assistK = S.frontAssist;
           camps.push(c); party.push(c);
         });

@@ -74,7 +74,8 @@
       npCost: 18,           // 宝具の魔力消費＝宝具の消費倍率×npCost
       npPowerK: 0.5,        // 宝具の威力を戦闘力に足すときの係数
       npSplash: { anti_army: 0.4, anti_fort: 0.5, anti_nation: 0.6, anti_world: 0.6 },   // 対軍以上の宝具で押し勝ったとき、その戦いの相手側の加勢役にも届く傷の割合（相手本人が受けた傷に対して）。聖杯戦争のみ（特異点は SING.aoe）
-      npBreak: { anti_fort: 1, anti_nation: 1, anti_world: 1 },   // 対城以上の宝具を放つと、相手の工房がこの段数だけ下がる（戻らない。聖杯戦争のみ）
+      npBreak: { anti_fort: 2, anti_nation: 2, anti_world: 2 },   // 対城以上の宝具を放つと、相手の工房がこの段数だけ下がる（内部10段階の2＝従来の1段。戻らない。聖杯戦争のみ）
+      wsMax: 10,   // 陣地（工房）の内部段階の上限。表示は半分（従来の5段階）
       huntBase: 0.56,        // 夜に出撃する基本確率
       findBase: 0.4,        // 出撃して相手を見つける基本確率
       rounds: 4,            // 1回の戦闘の打ち合い回数

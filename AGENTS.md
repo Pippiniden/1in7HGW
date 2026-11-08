@@ -32,7 +32,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 | クラス | `class.key` | saber, archer, … (`CLASS_DEFS`) |
 | 宝具 | NP (`nps`) | Noble Phantasm |
 | 令呪 | `cs` | Command seals (3) |
-| 霊基 / 魔力 / 絆 / 工房 / 拠点 | `hp` / `mana` / `bond` / `workshop` / `base` | Servant HP 0–100 / Master mana pool / bond 0–100 / fortification 0–5 / home place |
+| 霊基 / 魔力 / 絆 / 工房 / 拠点 | `hp` / `mana` / `bond` / `workshop` / `base` | Servant HP 0–100 / Master mana pool / bond 0–100 / fortification (internal 0–10, `ENGINE.wsMax`; the UI shows half, rounded up = the old 0–5) / home place |
 | 方針 | focus | Player's daily stance (UI term 方針) |
 | 戦略 | policy | Camp's long-term strategy (AI and the player's "auto") |
 | 作戦会議 | council | Big decision every `councilEvery` days |
@@ -229,7 +229,7 @@ magnitude `mag = base × factor × rank.mult` (`fixed` → no rank mult; `byRank
 | battle | `power`, `power_vs`(`params.tag`), `debuff`/`debuff_mind`/`debuff_body`, `wither`, `crit`, `pierce`, `sure_hit`, `dmg_plus`, `instakill`, `evade`, `initiative`, `charm`, `rally`, `taunt`, `anti_master`, `mental_guard`; ailments `poison stun confuse seal skill_seal` + `ail_guard`; instants `heal drain_hp mana_gain drain_mana strip cleanse self_strip summon tag_foe` (`tag_foe`: gives the opponent the tag `params.tag` for that battle only, as a `c.temp` entry on the opponent; read through the engine's `hasTagC`, so it feeds `vs`, `power_vs` and `weakness`) |
 | damage | `guard`, `magic_guard`, `dmg_cut`, `dodge`, `counter`, `weakness`, `master_guard` |
 | lethal / encounter / scout / retreat | `guts` / `stealth detect reveal conceal` / `intel` / `escape pin` |
-| day / upkeep / talk / master / passive | `regen heal_other territory craft resource uncontrolled`; workshop-stage effects `ws_up` (battle only: stage +n, and away from the base it still fights as an n-stage workshop; `wsStage`) / `ws_break` (instant: lowers the opponent's `workshop` by round(mag), permanent) / `upkeep_down upkeep_up solo` / `negotiate` / `cs_resist master_buff` / `luck tag` |
+| day / upkeep / talk / master / passive | `regen heal_other territory craft resource uncontrolled`; workshop-stage effects `ws_up` (battle only: internal stage +n (10-step scale; 2 = one displayed stage), and away from the base it still fights as an n-stage workshop; `wsStage`) / `ws_break` (instant: lowers the opponent's `workshop` by round(mag) internal steps, permanent) / `upkeep_down upkeep_up solo` / `negotiate` / `cs_resist master_buff` / `luck tag` |
 | np | `np_boost np_charge np_cost backfire friendly_fire self_retire disabled` (`friendly_fire`: using the NP also costs the mates fighting beside the user `mag × 40` HP, floored at 1 so it never kills; no mates = nothing happens; no `rnd()`) |
 
 `E.EFFECT_GROUPS`/`GROUP_OF` group them into genres for the editors. `test/effects.js` fails if a primitive is not read by engine/build or lacks an `EFFECT_INFO` description (`E.describe` text must also read correctly for a **negative** magnitude).
