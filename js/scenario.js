@@ -45,6 +45,13 @@
   };
   // はぐれサーヴァントの現れ方
   const STRAY_APPEAR = { random: '道中の出来事としてランダムに', day: '決まった日に', event: '自作の出来事（効果「はぐれ」）でだけ' };
+  // はぐれサーヴァントの無敵（味方に加わったあとの扱い）。キーはシナリオに残るので名前を変えない
+  const STRAY_GUARD = {
+    '': '通常と同じ（傷を負い、倒れることもある）',
+    noBattle: '戦いに加わらない（控えのように後ろから支えるだけ。傷を負わない）',
+    noDamage: '戦いに加わるが、傷を負わない（かばうことはある）',
+    noTarget: '戦いに加わるが、敵の攻撃の的にならない（かばわず、全体攻撃も届かない）',
+  };
 
   // ---------- 自作の出来事の効果 ----------
   // fields: amount（数値）/ target（all 全員・front 前衛・one 一騎）/ enemy（敵の key。空ならランダム）/ name（文字）
@@ -175,6 +182,7 @@
       stray: null,
       events: { defaults: true, list: [] },
       lines: {},
+      servants: [],
     };
   }
 
@@ -229,8 +237,9 @@
       return st;
     });
     if (s.stray && (str(s.stray.servant) || s.stray.pick === 'random')) {
-      const y = Object.assign({ pick: 'fixed', servant: '', from: [], appear: 'random', day: null, after: null, label: '', intro: [] }, s.stray);
+      const y = Object.assign({ pick: 'fixed', servant: '', from: [], appear: 'random', day: null, after: null, label: '', intro: [], guard: '' }, s.stray);
       y.pick = y.pick === 'random' ? 'random' : 'fixed';
+      if (typeof y.guard !== 'string' || !y.guard || !Object.prototype.hasOwnProperty.call(STRAY_GUARD, y.guard)) delete y.guard;   // 通常なら書かない（指紋を変えない）
       y.servant = str(y.servant); y.from = textList(y.from); y.label = str(y.label); y.intro = textList(y.intro);
       if (!STRAY_APPEAR[y.appear]) y.appear = 'random';
       y.day = y.day == null || y.day === '' ? null : Math.round(num(y.day, null));
@@ -240,6 +249,9 @@
     const ev = s.events && typeof s.events === 'object' ? s.events : {};
     s.events = { defaults: ev.defaults !== false, list: arr(ev.list).map((e, i) => normEvent(e, i)) };
     s.lines = s.lines && typeof s.lines === 'object' ? s.lines : {};
+    // 新しい欄は、使っていなければ書かない（指紋 hashOf が変わらず、前からのシナリオの記録・共有リンクがそのまま使える）
+    const bundled = bundleOf(s.servants);
+    if (bundled.length) s.servants = bundled; else delete s.servants;
     return s;
   }
   function normEffects(list) {
@@ -259,6 +271,112 @@
     e.choices = arr(e.choices).filter(Boolean).slice(0, 3).map(c => ({ label: str(c.label) || '選ぶ', sub: str(c.sub), text: textList(c.text), effects: normEffects(c.effects) }));
     e.auto = Math.max(0, Math.min(e.choices.length - 1, Math.round(num(e.auto, 0))));
     return e;
+  }
+
+  // ---------- シナリオ専用のサーヴァント ----------
+  // scn.servants = [{ servant: 公開用の軽いデータ（lean）, overrides?: { 表の名前: { キー: 値 } } }]。
+  //   サーヴァントエディタの「この騎をJSONで書き出す」の形（hgw-servants の servants と overrides）をそのまま同梱できる。
+  //   このシナリオの中でだけ名簿に加わる（聖杯戦争・特異点攻略には出ない）。名簿に同じ id の英霊がいれば、このシナリオではこちらに置き換わる。
+  //   名指し（味方の候補・敵・ボス・はぐれ）でだけ呼ばれ、候補を空にしたランダムの抽選には入らない。
+  //   手直し（overrides）は組み立てるあいだだけ手直し表に入れて、終われば元に戻す（ほかの英霊には効かない）
+  const OWN_TABLES = ['servant', 'np', 'stats', 'content', 'attrOf', 'boss', 'pages', 'reviewed'];
+  /** 同梱の形をそろえる：{ servant, overrides? } の配列。素の lean・hgw-servants のファイル（servants と overrides）も受け付ける */
+  function bundleOf(v) {
+    const out = [];
+    for (const x of arr(v)) {
+      if (!x || typeof x !== 'object') continue;
+      if (x.format === 'hgw-servants' && Array.isArray(x.servants)) { for (const sv of x.servants) if (sv && sv.trueName) out.push(entry(sv, ovFor(x.overrides, sv))); continue; }
+      if (x.servant && typeof x.servant === 'object') out.push(entry(x.servant, x.overrides));
+      else if (x.trueName) out.push(entry(x, null));
+    }
+    return out;
+  }
+  const entry = (sv, ov) => (ov && typeof ov === 'object' && Object.keys(ov).length ? { servant: sv, overrides: ov } : { servant: sv });
+  // 何騎も入ったファイルの手直しから、その騎のものだけを取り出す
+  function ovFor(ov, sv) {
+    if (!ov || typeof ov !== 'object') return null;
+    const E = G.effects, dn = E.okey(sv), wn = G.build.wikiKey(sv), o = {};
+    for (const t of OWN_TABLES) for (const [k, v] of Object.entries(ov[t] || {})) if (k === dn || k === wn || k.startsWith(dn + '/')) (o[t] = o[t] || {})[k] = v;
+    return o;
+  }
+  /** 名簿の英霊に付いている手直しを集める（「名簿から写す」用。全員に効く手直しは入れない） */
+  function overridesOf(sv) {
+    const E = G.effects, T = E.OVERRIDE_TABLES, dn = E.okey(sv), wn = G.build.wikiKey(sv), o = {};
+    const put = (t, k) => { (o[t] = o[t] || {})[k] = JSON.parse(JSON.stringify(T[t][k])); };
+    if (T.content[wn]) put('content', wn);
+    for (const t of ['servant', 'np']) for (const k of Object.keys(T[t])) if (k.startsWith(dn + '/')) put(t, k);
+    for (const t of ['stats', 'attrOf', 'boss', 'pages']) if (T[t][dn] != null) put(t, dn);
+    return o;
+  }
+  /** 名簿の英霊（またはボス）を、シナリオに同梱できる形にする */
+  function bundleFrom(sv) {
+    const ov = overridesOf(sv), dn = G.effects.okey(sv);
+    // bosses.json のボスは設定を sv.boss に持っている（手直し表 boss には無い）
+    if (sv.bossOnly && sv.boss && !(ov.boss && ov.boss[dn])) {
+      const b = JSON.parse(JSON.stringify(sv.boss));
+      if (b.aoe && !Object.keys(b.aoe).length) delete b.aoe;
+      if (Object.keys(b).length) ov.boss = { [dn]: b };
+    }
+    return entry(G.build.toLean(sv), ov);
+  }
+  /** data/bosses.json の形（hgw-bosses の一騎）を同梱の形にする（効果・宝具の扱い・ボスの設定は手直しとして添える） */
+  function bundleFromSpec(spec) {
+    const r = G.build.leanFromSpec(spec), tn = r.lean.trueName, ov = {};
+    if (Object.keys(r.servantOv).length) ov.servant = r.servantOv;
+    if (Object.keys(r.npOv).length) ov.np = r.npOv;
+    const b = Object.assign({}, spec.boss || {});
+    if (Object.keys(r.aoe).length) b.aoe = r.aoe;
+    if (Object.keys(b).length) ov.boss = { [tn]: b };
+    return entry(r.lean, ov);
+  }
+  const builtCache = new Map();
+  /** 同梱のサーヴァントを組み立てる → { list: [サーヴァント|null（組み立てられなかった）], errors: [{ i, msg }] }。同じ中身なら前に組み立てたものを返す */
+  function buildBundle(entries) {
+    entries = bundleOf(entries);
+    if (!entries.length) return { list: [], errors: [] };
+    const sig = JSON.stringify(entries);
+    if (builtCache.has(sig)) return builtCache.get(sig);
+    const B = G.build, E = G.effects, list = [], errors = [];
+    entries.forEach((x, i) => {
+      const saved = [];
+      try {
+        for (const [t, tab] of Object.entries(x.overrides || {})) {
+          const T = E.OVERRIDE_TABLES[t];
+          if (!OWN_TABLES.includes(t) || !T || !tab || typeof tab !== 'object') continue;
+          for (const [k, v] of Object.entries(tab)) { saved.push([T, k, Object.prototype.hasOwnProperty.call(T, k), T[k]]); T[k] = JSON.parse(JSON.stringify(v)); }
+        }
+        if (!str(x.servant.trueName) || !x.servant.stats) throw new Error('真名（trueName）と能力（stats）が要ります');
+        let sv = B.fromJSON(x.servant);
+        if (sv.bossOnly) sv = B.bossFromRoster(sv);
+        sv.scenarioOnly = true;
+        list.push(sv);
+      } catch (e) { list.push(null); errors.push({ i, msg: `${str(x.servant.trueName) || '（真名なし）'}：組み立てられません（${e.message}）` }); }
+      finally { for (const [T, k, had, v] of saved.reverse()) { if (had) T[k] = v; else delete T[k]; } }
+    });
+    const r = { list, errors };
+    if (builtCache.size >= 16) builtCache.delete(builtCache.keys().next().value);
+    builtCache.set(sig, r);
+    return r;
+  }
+  /**
+   * 名簿とボスに、シナリオ専用のサーヴァントを加えた写しを返す → { roster, bosses, extra（同梱の英霊）, errors }。
+   * 同じ id の英霊は同じ場所で置き換え、ほかは後ろに足す（名簿の並び・番号は変わらない）。ボス専用の英霊は bosses に入る。
+   * 何度かけても同じ結果になる。同梱が無ければ、渡した配列をそのまま返す
+   */
+  function withServants(scn, roster, bosses) {
+    const b = buildBundle(scn && scn.servants);
+    const extra = b.list.filter(Boolean);
+    if (!extra.length) return { roster: roster || [], bosses: bosses || [], extra, errors: b.errors };
+    const put = (base, add) => {
+      const out = base.slice(), at = new Map(out.map((s, i) => [s.id, i]));
+      for (const s of add) { if (at.has(s.id)) out[at.get(s.id)] = s; else { at.set(s.id, out.length); out.push(s); } }
+      return out;
+    };
+    const byId = new Map(extra.map(s => [s.id, s]));
+    // 同じ id がもう一方（名簿⇔ボス）にあれば外してから、ボス専用かどうかで振り分ける
+    const r = put((roster || []).filter(s => !byId.has(s.id) || !byId.get(s.id).bossOnly), extra.filter(s => !s.bossOnly));
+    const bo = put((bosses || []).filter(s => !byId.has(s.id) || byId.get(s.id).bossOnly), extra.filter(s => s.bossOnly));
+    return { roster: r, bosses: bo, extra, errors: b.errors };
   }
 
   // ---------- サーヴァントの指定 ----------
@@ -290,7 +408,18 @@
     if (raw.format && raw.format !== FORMAT) E('format', `形式が違います（${raw.format}）。オリジナル特異点のシナリオ（${FORMAT}）を読み込んでください`);
     if (raw.version != null && +raw.version > VERSION) W('version', `新しい版（${raw.version}）のシナリオです。一部が読めないかもしれません`);
     const n = normalize(raw);
-    const roster = (data.roster || []).filter(s => s && s.score), bosses = (data.bosses || []).filter(s => s && s.score);
+    // シナリオ専用のサーヴァント（同梱）を名簿に加えてから確かめる
+    const wd = withServants(n, data.roster, data.bosses);
+    const roster = wd.roster.filter(s => s && s.score), bosses = wd.bosses.filter(s => s && s.score);
+    for (const e of wd.errors) E(`servants[${e.i}]`, e.msg);
+    {
+      const seen = new Map(), base = new Set((data.roster || []).concat(data.bosses || []).map(s => s && s.id));
+      buildBundle(n.servants).list.forEach((s, i) => {
+        if (!s) return;
+        if (seen.has(s.id)) E(`servants[${i}]`, `シナリオ専用の英霊「${s.trueName}」（${s.id}）が二つあります（${seen.get(s.id) + 1}番目と${i + 1}番目）`); else seen.set(s.id, i);
+        if (base.has(s.id)) W(`servants[${i}]`, `シナリオ専用の英霊「${s.trueName}」は名簿にもいます。このシナリオでは、同梱した方に置き換わります`);
+      });
+    }
     const players = roster.filter(s => !s.bossOnly);
     if (!str(raw.title)) E('title', '特異点の名前がありません');
     if (!(n.days >= 1 && n.days <= 365)) E('days', '期限（日数）は 1〜365 にしてください');
@@ -364,7 +493,7 @@
     // 味方に回せる英霊の数（敵・ボス・はぐれに名指しされた英霊は味方にしない）
     const fromIds = new Set(n.party.from.map(x => (resolve(x, players).sv || {}).id).filter(Boolean));
     const exIds = new Set(n.party.exclude.map(x => (resolve(x, players).sv || {}).id).filter(Boolean));
-    const avail = players.filter(s => (!fromIds.size || fromIds.has(s.id)) && !exIds.has(s.id) && !fixedIds.has(s.id));
+    const avail = players.filter(s => (fromIds.size ? fromIds.has(s.id) : !s.scenarioOnly) && !exIds.has(s.id) && !fixedIds.has(s.id));
     if (players.length && avail.length < n.party.size) E('party', `味方に選べる英霊が足りません（${avail.length}騎／${n.party.size}騎）`);
     // 出来事
     const evIds = new Set();
@@ -402,9 +531,9 @@
     const ok = new Set(vars || []);
     for (const t of list || []) for (const m of String(t).matchAll(/\{(\w+)\}/g)) if (!ok.has(m[1])) { W(path, `「{${m[1]}}」はここでは使えません（使えるのは ${vars.length ? vars.map(v => '{' + v + '}').join(' ') : 'なし'}）`); return; }
   }
-  // ランダムの候補（from が空ならリストの全員。classes でクラスを絞る）
+  // ランダムの候補（from が空ならリストの全員。シナリオ専用の英霊は名指ししたときだけ。classes でクラスを絞る）
   function poolOf(e, roster, bosses) {
-    const all = (roster || []).filter(s => s && s.score && !s.bossOnly);
+    const all = (roster || []).filter(s => s && s.score && !s.bossOnly && !s.scenarioOnly);
     let pool = e.from && e.from.length ? e.from.map(x => resolve(x, roster, bosses).sv).filter(Boolean) : all;
     if (e.classes && e.classes.length) pool = pool.filter(s => e.classes.includes(s.class.key) || e.classes.includes(s.class.label));
     return [...new Map(pool.map(s => [s.id, s])).values()];
@@ -442,5 +571,5 @@
     return (h >>> 0).toString(36);
   }
 
-  G.scenario = { FORMAT, VERSION, SETTINGS, SETTING_KEYS, BOSS_KEYS, MEET, STRAY_APPEAR, EFFECTS, TARGETS, LINE_DEFS, ITEM_VARS, blank, normalize, resolve, poolOf, check, linesOf, defaultLines, hashOf };
+  G.scenario = { FORMAT, VERSION, SETTINGS, SETTING_KEYS, BOSS_KEYS, MEET, STRAY_APPEAR, STRAY_GUARD, bundleOf, bundleFrom, bundleFromSpec, overridesOf, buildBundle, withServants, EFFECTS, TARGETS, LINE_DEFS, ITEM_VARS, blank, normalize, resolve, poolOf, check, linesOf, defaultLines, hashOf };
 })(globalThis.HGW = globalThis.HGW || {});

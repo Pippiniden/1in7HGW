@@ -161,9 +161,10 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
       <div class="tools" style="margin-top:8px"><button class="btn" id="jsonApply" type="button">この JSON を反映する</button><button class="btn" id="jsonCopy" type="button">コピー</button></div>
     </div>
   </details>
-  <p class="foot">編集中のシナリオは、このブラウザに自動で残ります（「遊ぶページで試す」もこれを使う）。人に渡すときや、別の端末で続きを書くときは「JSONで保存」してください。サーヴァントの指定は、真名（同じ真名が何騎もいれば「クラス:真名」の id）で書きます。敵・ボス・はぐれに指定できるのは、サーヴァントのリストにいる英霊と、公開しているボスだけです。</p>
+  <p class="foot">編集中のシナリオは、このブラウザに自動で残ります（「遊ぶページで試す」もこれを使う）。人に渡すときや、別の端末で続きを書くときは「JSONで保存」してください。サーヴァントの指定は、真名（同じ真名が何騎もいれば「クラス:真名」の id）で書きます。敵・ボス・はぐれに指定できるのは、サーヴァントのリストにいる英霊と、公開しているボス、そして「シナリオ専用のサーヴァント」に同梱した英霊です。</p>
 </div>
 <datalist id="svList"></datalist>
+<datalist id="rosterList"></datalist>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script src="js/config.js"></script>
@@ -221,13 +222,17 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
   }
   let statusBase = '';
   function setStatus(t, base) { if (base) statusBase = t; $('#status').innerHTML = base ? t : statusBase + (t ? ' ・ ' + esc(t) : ''); }
+  // 名簿とボスに、シナリオ専用のサーヴァント（同梱）を加えたもの
+  const merged = () => SC.withServants(S, roster, bosses);
   // 同じ真名が何騎もいる英霊は id で、そうでなければ真名で候補に出す
-  function refOf(s) { const all = roster.concat(bosses); return all.filter(x => x.trueName === s.trueName).length > 1 ? s.id : s.trueName; }
+  function refOf(s, all) { return all.filter(x => x.trueName === s.trueName).length > 1 ? s.id : s.trueName; }
   function fillSvList() {
-    const seen = new Set();
-    $('#svList').innerHTML = roster.concat(bosses.filter(b => !roster.some(s => s.id === b.id))).map(s => { const v = refOf(s); if (seen.has(v)) return ''; seen.add(v); return `<option value="${esc(v)}">${esc(s.class.label)}${s.bossOnly ? '（ボス専用）' : ''}</option>`; }).join('');
+    const seen = new Set(), m = merged(), all = m.roster.concat(m.bosses);
+    $('#svList').innerHTML = m.roster.concat(m.bosses.filter(b => !m.roster.some(s => s.id === b.id))).map(s => { const v = refOf(s, all); if (seen.has(v)) return ''; seen.add(v); return `<option value="${esc(v)}">${esc(s.class.label)}${s.scenarioOnly ? '（このシナリオ専用）' : ''}${s.bossOnly ? '（ボス専用）' : ''}</option>`; }).join('');
+    // 「名簿から写す」の候補は、名簿とボスだけ
+    $('#rosterList').innerHTML = roster.concat(bosses.filter(b => !roster.some(s => s.id === b.id))).map(s => `<option value="${esc(s.id)}">${esc(s.trueName)}${s.bossOnly ? '（ボス専用）' : ''}</option>`).join('');
   }
-  const okRef = v => !dataLoaded || !!SC.resolve(v, roster, bosses).sv;
+  const okRef = v => { if (!dataLoaded) return true; const m = merged(); return !!SC.resolve(v, m.roster, m.bosses).sv; };
 
   // ---------- 編集中のシナリオ ----------
   // S は生のシナリオ（JSON に書き出す形そのまま）。画面に必要な欄だけ、ここで形をそろえる（空の欄を消したりはしない）
@@ -235,7 +240,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
   const ENEMY = () => ({ key: '', pick: 'random', servant: '', from: [], classes: [], count: 1, meet: 'mixed', day: null, label: '', revealed: false, power: null, intro: [], defeat: [] });
   const BOSS = () => ({ pick: 'fixed', servant: '', from: [], label: '', revealed: true, intro: [], defeat: [] });
   const STAGE = n => ({ name: '第' + n + '節', days: null, intro: [], clear: [], places: [], enemies: [], boss: null });
-  const STRAY = () => ({ pick: 'random', servant: '', from: [], appear: 'random', day: null, after: null, label: '', intro: [] });
+  const STRAY = () => ({ pick: 'random', servant: '', from: [], appear: 'random', day: null, after: null, label: '', intro: [], guard: '' });
   const EVENT = () => ({ id: '', title: '', day: null, from: null, to: null, stage: null, after: '', chance: null, weight: 1, once: true, text: [], effects: [], choices: [], auto: 0 });
   const EFFECT = () => ({ type: 'heal', amount: 20, target: 'all', enemy: '', name: '' });
   const CHOICE = () => ({ label: '', sub: '', text: [], effects: [] });
@@ -259,6 +264,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     const ev = s.events && typeof s.events === 'object' ? s.events : {};
     s.events = { defaults: ev.defaults !== false, list: arr(ev.list).map(e => { e = Object.assign(EVENT(), e); e.text = arr(e.text); e.effects = arr(e.effects).map(x => Object.assign(EFFECT(), x)); e.choices = arr(e.choices).map(c => { c = Object.assign(CHOICE(), c); c.text = arr(c.text); c.effects = arr(c.effects).map(x => Object.assign(EFFECT(), x)); return c; }); return e; }) };
     s.lines = s.lines && typeof s.lines === 'object' ? s.lines : {};
+    s.servants = SC.bundleOf(s.servants);
     fixKeys(s);
     return s;
   }
@@ -290,7 +296,8 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     if (!S) return;
     const r = SC.check(S, { roster, bosses });
     lastChk = r;
-    if (!dataLoaded) r.errors = r.errors.filter(e => !/サーヴァントリストにいません|足りません|候補が一騎も/.test(e.msg));
+    // 名簿を読めていないときは、名簿にいるかどうかの誤りは出さない（同梱の英霊だけで動くシナリオは、そのまま確かめられる）
+    if (!dataLoaded && !merged().extra.length) r.errors = r.errors.filter(e => !/サーヴァントリストにいません|足りません|候補が一騎も/.test(e.msg));
     const n = r.errors.length, w = r.warnings.length;
     $('#chkSum').textContent = n ? `誤り ${n}件${w ? '・注意 ' + w + '件' : ''}` : w ? `注意 ${w}件` : '問題なし';
     $('#chk').innerHTML = n + w ? `<ul class="chk">${r.errors.map(e => `<li class="e" data-go="${esc(dotPath(e.path))}">誤り：${esc(e.msg)}</li>`).join('')}${r.warnings.map(x => `<li class="w" data-go="${esc(dotPath(x.path))}">注意：${esc(x.msg)}</li>`).join('')}</ul><p class="hint">押すと、その欄へ移ります。誤りがあるシナリオは遊べません。</p>`
@@ -428,9 +435,31 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
       ${def.length ? `<details><summary>既定の文（${def.length}）</summary><ul>${def.map(t => `<li>${esc(t)}</li>`).join('')}</ul></details>` : ''}</div>`;
   }
 
+  // シナリオ専用のサーヴァント（同梱）
+  function ownBox() {
+    const b = SC.buildBundle(S.servants), n = S.servants.length;
+    const errAt = new Map(b.errors.map(e => [e.i, e.msg]));
+    const base = new Set(roster.concat(bosses).map(s => s.id));
+    const card = (x, i) => {
+      const sv = b.list[i], p = `servants.${i}`, ov = x.overrides ? Object.values(x.overrides).reduce((t, o) => t + Object.keys(o || {}).length, 0) : 0;
+      const head = sv ? `${esc(sv.class.label)}｜${esc(sv.trueName)}` : esc(x.servant && x.servant.trueName || '（真名なし）');
+      const info = sv ? [`id：${sv.id}`, `戦闘力 ${Math.round(sv.power)}`, sv.npPeak ? `宝具 ${Math.round(sv.npPeak)}` : '', sv.bossOnly ? 'ボス専用' : '', ov ? `手直し ${ov}件` : '', base.has(sv.id) ? '名簿の同じ英霊と置き換わる' : ''].filter(Boolean).join(' ・ ') : '';
+      return `<div class="card own" data-box="${p}"><div class="ch"><b>${head}</b>${moveBtns(p, i, n)}${btn('own-out', p, '書き出す')}</div>
+        ${info ? `<p class="hint" style="margin:4px 0 0">${esc(info)}</p>` : ''}${errAt.has(i) ? `<p class="err" style="margin:4px 0 0">${esc(errAt.get(i))}</p>` : ''}</div>`;
+    };
+    return `<p class="hint" style="margin-top:0">このシナリオにだけ登場するサーヴァントを、シナリオのファイルに同梱します。通常の聖杯戦争や特異点攻略には出ません。<a href="roster.html">サーヴァントエディタ</a>の「この騎をJSONで書き出す」で出したファイル（「英霊を一から作る」で作った騎も）を読み込むか、名簿の英霊を写して使います。属性に「ボス専用」があればボスとして使えます。</p>
+      <p class="hint">同梱した英霊は、味方の候補・敵・ボス・はぐれに名前を挙げたときだけ呼ばれます（候補を空にしたランダムの抽選には入りません）。名簿と同じ id の英霊は、このシナリオでは同梱した方に置き換わります。同梱した英霊だけで味方・敵をそろえれば、サーヴァントのリストが無くても遊べます。</p>
+      ${S.servants.map(card).join('')}
+      <div class="tools" style="margin-top:10px;align-items:end">
+        <label class="btn sm" for="ownFile">ファイルから読み込む</label><input type="file" id="ownFile" accept=".json,application/json" multiple hidden>
+        <span class="chipin" style="flex:1;min-width:220px;margin:0"><input type="text" list="rosterList" placeholder="名簿の英霊（真名か id）" id="ownCopyIn"><button class="btn sm" type="button" data-a="own-copy" data-p="servants">名簿から写す</button></span>
+      </div>`;
+  }
+
   // ---------- 画面全体 ----------
   function render() {
     if (!S) return;
+    fillSvList();
     const openSet = new Set([...document.querySelectorAll('#form details[data-sec]')].filter(d => d.open).map(d => d.dataset.sec));
     const opened = k => (document.querySelector('#form details[data-sec]') ? openSet.has(k) : ['basic', 'stages'].includes(k)) ? ' open' : '';
     const st = H.CONFIG.SING;
@@ -460,6 +489,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
         ${chips('party.from', '候補（空ならリストの全員）')}
         ${chips('party.exclude', '味方にしない英霊')}
       </div>`)
+      + sec('servants', 'Own Servants', `シナリオ専用のサーヴァント（${S.servants.length}）`, ownBox())
       + sec('settings', 'Balance', '数値の上書き', `<p class="hint" style="margin-top:0">空欄は既定の値（薄い字）。</p><div class="grid">${SC.SETTINGS.map(d => num('settings.' + d.k, d.label + (d.note ? `（${d.note}）` : ''), { step: d.step, min: d.min, max: d.max, ph: st[d.k] != null ? String(st[d.k]) : '' })).join('')}</div>`)
       + sec('places', 'Places', '場所', `<p class="hint" style="margin-top:0">一行が探索で巡る場所。空なら特異点攻略と同じ場所を使います。地形は効果の条件（水辺・森・山・夜）に、情景は背景の画像になります。</p>${placesBox('places', '')}`)
       + `<details class="panel" data-sec="stages"${opened('stages')}><summary class="hd"><i class="chev"></i><span class="en">Stages</span><span class="ja">節と敵（${S.stages.length}節）</span></summary><div class="body"><p class="hint" style="margin-top:0">節を順に越えていきます。節の敵をすべて倒すとその節のボスが現れ、ボスを倒せば次の節へ。最後の節を越えれば人理修復は成功です。</p>
@@ -470,6 +500,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
         ${sel('stray.appear', '現れ方', Object.entries(SC.STRAY_APPEAR), { rerender: true })}
         ${S.stray.appear === 'day' ? num('stray.day', '現れる日', { int: true, min: 1, max: S.days }) : S.stray.appear === 'random' ? num('stray.after', 'この日より後に現れうる', { int: true, min: 0, max: S.days, ph: '既定 ' + st.strayAfter }) : ''}
         ${txt('stray.label', '呼び名', { ph: '空欄なら『はぐれの○○』' })}
+        ${sel('stray.guard', '無敵（加わったあとの扱い）', Object.entries(SC.STRAY_GUARD), { full: true })}
         ${lines('stray.intro', '現れたときの文（空欄なら既定の文）', SC.ITEM_VARS.stray)}
       </div><div style="margin-top:10px">${btn('stray-off', 'stray', 'はぐれサーヴァントをなくす', 'del')}</div>` : `<p class="hint" style="margin-top:0">一行とは別に、共に戦ってくれる英霊が一騎現れることがあります（魔力を使わない、控えめな加勢）。</p>${btn('stray-on', 'stray', 'はぐれサーヴァントを置く')}`)
       + sec('events', 'Events', `出来事（${S.events.list.length}）`, `${bool('events.defaults', '既定の出来事（霊脈・罠・雑魚・待ち伏せなど）も起こす', { rerender: true })}
@@ -497,8 +528,39 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     if (el.dataset.p && el.dataset.t && el.tagName !== 'SELECT' && el.type !== 'checkbox') { readInput(el); changed(false); }
     else if (el.dataset.a === 'line-text') { const v = S.lines[el.dataset.key], list = el.value.split('\n').map(x => x.trim()).filter(Boolean); if (Array.isArray(v)) S.lines[el.dataset.key] = list; else S.lines[el.dataset.key] = { add: list }; changed(false); }
   });
+  // 同梱の英霊を足す（同じ id がもうあれば置き換える）
+  function addOwn(list) {
+    let add = 0, rep = 0;
+    for (const x of list) {
+      const one = SC.buildBundle([x]).list[0];
+      const cur = S.servants.findIndex((y, k) => { const s = SC.buildBundle(S.servants).list[k]; return s && one && s.id === one.id; });
+      if (cur >= 0) { S.servants[cur] = x; rep++; } else { S.servants.push(x); add++; }
+    }
+    changed(true);
+    toast(add + rep ? `シナリオ専用のサーヴァントを${add ? add + '騎足しました' : ''}${add && rep ? '・' : ''}${rep ? rep + '騎置き換えました' : ''}` : '足せるサーヴァントがありませんでした');
+  }
+  // 読み込めるもの：サーヴァントエディタの書き出し（hgw-servants。一騎でもリストでも）、素の騎のデータ、data/bosses.json の形（hgw-bosses）
+  async function readOwnFiles(files) {
+    const got = [];
+    for (const f of files) {
+      let j; try { j = JSON.parse(await f.text()); } catch (e) { toast(`${f.name}：JSON として読めませんでした`); continue; }
+      if (j && j.format === 'hgw-bosses' && Array.isArray(j.bosses)) { for (const b of j.bosses) { try { got.push(SC.bundleFromSpec(b)); } catch (e) { toast(`${f.name}：${e.message}`); } } continue; }
+      const list = SC.bundleOf(Array.isArray(j) ? j : [j]);
+      if (!list.length) { toast(`${f.name}：サーヴァントのデータではありません`); continue; }
+      if (list.length > 20 && !confirm(`${f.name} には ${list.length}騎入っています。すべて同梱しますか？（シナリオのファイルが大きくなります）`)) continue;
+      got.push(...list);
+    }
+    if (got.length) addOwn(got);
+  }
+  function download(name, obj) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(obj, null, 1) + '\n'], { type: 'application/json' }));
+    a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
   $('#form').addEventListener('change', e => {
     const el = e.target;
+    if (el.id === 'ownFile') { const fs = [...el.files]; el.value = ''; if (fs.length) readOwnFiles(fs); return; }
     if (el.dataset.a === 'line-mode') {
       const k = el.dataset.key, cur = S.lines[k], list = Array.isArray(cur) ? cur : cur && cur.add ? cur.add : [];
       if (!el.value) delete S.lines[k];
@@ -537,12 +599,27 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
     const parent = p.includes('.') ? p.slice(0, p.lastIndexOf('.')) : '', i = +p.slice(p.lastIndexOf('.') + 1), l = parent ? at(parent) : null;
     if (a === 'del' && Array.isArray(l)) {
       if (parent === 'stages' && l.length <= 1) return toast('節は一つ以上必要です');
-      if ((parent === 'stages' || /enemies$|events\.list$/.test(parent)) && !confirm('消します。よろしいですか？')) return;
+      if ((parent === 'stages' || parent === 'servants' || /enemies$|events\.list$/.test(parent)) && !confirm('消します。よろしいですか？')) return;
       l.splice(i, 1); return changed(true);
     }
     if ((a === 'up' || a === 'down') && Array.isArray(l)) { const j = a === 'up' ? i - 1 : i + 1; if (j < 0 || j >= l.length) return; [l[i], l[j]] = [l[j], l[i]]; return changed(true); }
     if (a === 'boss-on') { at(p).boss = BOSS(); return changed(true); }
     if (a === 'boss-off') { if (!confirm('この節のボスをなくします。よろしいですか？')) return; at(p).boss = null; return changed(true); }
+    if (a === 'own-out') {
+      const x = S.servants[i]; if (!x) return;
+      const out = { format: 'hgw-servants', version: 2, lean: true, single: true, at: new Date().toISOString(), servants: [x.servant] };
+      if (x.overrides) out.overrides = x.overrides;
+      const sv = SC.buildBundle(S.servants).list[i];
+      download(`${sv ? sv.class.label : 'servant'}_${x.servant.trueName || 'noname'}.json`.replace(/[\\/:*?"<>|\s]/g, '_'), out);
+      return toast(`${x.servant.trueName}を書き出しました（サーヴァントエディタの「ファイルを読む」で取り込めます）`);
+    }
+    if (a === 'own-copy') {
+      const v = $('#ownCopyIn').value.trim(); if (!v) return;
+      if (!dataLoaded) return toast('サーヴァントのデータを読めていません');
+      const r = SC.resolve(v, roster, bosses);
+      if (!r.sv) return toast(r.error);
+      return addOwn([SC.bundleFrom(r.sv)]);
+    }
     if (a === 'stray-on') { S.stray = STRAY(); return changed(true); }
     if (a === 'stray-off') { S.stray = null; return changed(true); }
   });
@@ -576,7 +653,7 @@ input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
 
   // ---------- 全自動で試す ----------
   $('#simBtn').onclick = () => {
-    if (!dataLoaded) return toast('サーヴァントのデータを読めていません');
+    if (!dataLoaded && !merged().extra.length) return toast('サーヴァントのデータを読めていません');
     if (lastChk && lastChk.errors.length) return toast('誤りを直してから試してください');
     const N = +$('#simN').value, scn = JSON.parse(JSON.stringify(S)), t = { clear: 0, wipe: 0, master: 0, timeout: 0 }, days = [], stg = [], slain = [];
     let i = 0, err = 0, errMsg = '';

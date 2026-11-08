@@ -52,9 +52,10 @@
    */
   function compose(o) {
     const n = o.scenario, S = settingsOf(n);
-    const all = (o.roster || []).filter(s => s && s.score);
+    const wd = SC.withServants(n, o.roster, o.bosses);   // シナリオ専用のサーヴァントを加える（無ければそのまま）
+    const all = wd.roster.filter(s => s && s.score);
     const players = all.filter(s => !s.bossOnly);
-    const bosses = (o.bosses || []).filter(s => s && s.score);
+    const bosses = wd.bosses.filter(s => s && s.score);
     const rnd = G.engine.makeRng(String(o.seed) + ':顔ぶれ');
     const pickN = a => a[Math.floor(rnd() * a.length)];
     const res = ref => SC.resolve(ref, all, bosses).sv || null;
@@ -68,7 +69,7 @@
     // 味方：候補（無ければ全員）から除外と名指しを外し、聖杯戦争と同じ組み方（クラスごとに一騎）で引く
     const from = new Set(n.party.from.map(x => (res(x) || {}).id).filter(Boolean));
     const ex = new Set(n.party.exclude.map(x => (res(x) || {}).id).filter(Boolean));
-    const pool = players.filter(s => (!from.size || from.has(s.id)) && !ex.has(s.id) && !fixed.has(s.id));
+    const pool = players.filter(s => (from.size ? from.has(s.id) : !s.scenarioOnly) && !ex.has(s.id) && !fixed.has(s.id));   // シナリオ専用の英霊は候補に名指ししたときだけ
     const used = new Set();
     const got = [];
     const comp = pool.length >= 2 ? G.war.composeWar(pool, rnd).filter(x => x.servant).map(x => x.servant) : pool.slice();
@@ -92,7 +93,7 @@
         for (let k = 0; k < e.count; k++) { const s = draw(e); if (s) enemies.push({ key: e.key, id: s.id }); }
       }
       let boss = null;
-      if (st.boss) { const s = st.boss.pick === 'fixed' ? res(st.boss.servant) : draw(st.boss, st.boss.from.length ? [] : bosses); if (s) boss = s.id; }
+      if (st.boss) { const s = st.boss.pick === 'fixed' ? res(st.boss.servant) : draw(st.boss, st.boss.from.length ? [] : bosses.filter(b => !b.scenarioOnly)); if (s) boss = s.id; }
       return { enemies, boss };
     });
     let stray = null;
@@ -229,6 +230,10 @@
             const c = mkCamp(sv, camps.length, 'stray', start, rnd);
             Object.assign(c, { master: NONE, masterAlive: true, noMaster: true, cs: 0, mhp: 1, mhpMax: 1, mana: S.strayMana, manaMax: S.strayMana, workshop: 0, assistK: S.strayAssist * S.frontAssist });
             c.label = (n.stray && n.stray.label) || 'はぐれの' + sv.class.label;
+            // 無敵（SC.STRAY_GUARD）：noBattle 戦いに加わらず後ろから支える／noDamage 傷を負わない（engine の nodmg）／noTarget 敵の攻撃の的にならない（engine の nohit）
+            c.guard = (n.stray && n.stray.guard) || '';
+            if (c.guard === 'noDamage') c.nodmg = true;
+            if (c.guard === 'noTarget') c.nohit = true;
             camps.push(c); stray = c;
           }
         }
@@ -491,7 +496,8 @@
         const fr = frontAlive(), en = group.filter(c => c.alive);
         if (!fr.length || !en.length) break;
         const me = chooseMain(fr), foe = en[0];
-        const helpP = fr.filter(x => x !== me).concat(strayReady() && stray.hp >= 30 ? [stray] : []), helpF = en.slice(1);
+        const strayBack = strayReady() && stray.guard === 'noBattle';   // 戦いに加わらないはぐれは、控えと同じく後ろから支える
+        const helpP = fr.filter(x => x !== me).concat(strayReady() && !strayBack && stray.hp >= 30 ? [stray] : []), helpF = en.slice(1);
         const raid = how === 'raid' || how === 'ambush';
         if (bout === 1) {
           if (raid) { const v = clamp(0.12 - Math.max(0, partyDetect()) * 0.15, 0, 0.12); if (v > 0) foe.surprise = (foe.surprise || 0) + v; }
@@ -499,12 +505,14 @@
         }
         const place = P.place;
         const home = how === 'raid' && (P.camp > 0 || F === 'defend') ? me : null;
-        const sup = reserveAlive().filter(x => !helpP.includes(x) && x !== me);
+        const sup = reserveAlive().filter(x => !helpP.includes(x) && x !== me).concat(strayBack ? [stray] : []);
+        const strayHp = stray ? stray.hp : 0;
         const ctx = { place, home, terrain: A.tonight.rain ? '水辺' : place.terrain, rain: A.tonight.rain,
           teamK: S.teamBoost, supportK: S.reserveSupport, weak: { ref: mean(party.map(c => c.sv.power)), bonus: S.weakBonus, min: S.weakMin, max: S.weakMax },
           lines: A.phase === 'night' ? null : { clash: 'sgClashDay', retreat: 'sgRetreatDay', dawn: 'sgDawnDay' } };
         if (raid) yield* A.battle(foe, me, Object.assign(ctx, { helpA: helpF, helpB: helpP, supportB: sup }));
         else yield* A.battle(me, foe, Object.assign(ctx, { helpA: helpP, helpB: helpF, supportA: sup }));
+        if (stray && stray.nodmg && stray.alive && stray.hp < strayHp) stray.hp = strayHp;   // 傷を負わないはぐれ（宝具の反動など、戦いの外から来る傷も残さない）
         for (const c of [me, foe].concat(helpP, helpF)) if (c.alive) c.fought = true;
         yield* checkWipe();
         if (over()) break;
@@ -782,7 +790,7 @@
       const k = yield* A.ask(party[0], 'stray', {
         title: 'はぐれサーヴァント',
         body: `${c.label}が力を貸すと言っている。契約はできないが、戦いに加わってくれる。`,
-        options: [{ k: 'yes', label: '共に戦う', sub: '魔力は使わないが、加勢の力は控えめ' }, { k: 'no', label: '断る', sub: `${party.length}騎だけで進む` }],
+        options: [{ k: 'yes', label: '共に戦う', sub: { noBattle: '魔力は使わない。戦いには加わらず、後ろから支えてくれる', noDamage: '魔力は使わない。加勢の力は控えめだが、傷を負わない', noTarget: '魔力は使わない。加勢の力は控えめだが、敵の攻撃の的にならない' }[c.guard] || '魔力は使わないが、加勢の力は控えめ' }, { k: 'no', label: '断る', sub: `${party.length}騎だけで進む` }],
       }, () => 'yes');
       if (k === 'yes') { P.strayJoined = true; c.knowName.add(party[0].id); for (const x of party) x.knowName.add(c.id); A.log('ally', A.line('ogStrayJoin', { T: A.nm(c) }), [c.id], { big: true }); }
       else A.log('event', A.line('ogStrayLeave', { T: c.label }), [c.id]);
@@ -845,7 +853,7 @@
       for (const c of party) A.log('summon', A.line('ogSummon', { S: A.nm(c) }), [c.id], { quote: A.say(c, ['召喚']) });
       A.log('summon', A.line('ogFormation', { front: frontAlive().map(A.sn).join('・'), reserve: reserveAlive().map(A.sn).join('・') || 'なし', days: maxDays }), P.front.slice());
       Object.assign(A.out, { orig: { title: n.title, city: L.city, days: maxDays, stages: n.stages.map(s => s.name) } });
-      for (const c of camps) Object.assign(A.out.meta[c.id], { side: c.side, label: c.label, servantId: c.sv.id, stage: c.stage != null ? c.stage : null, key: c.key || null, meet: c.meet || null, master: c.party ? { name: P.master.name, sex: P.master.sex, age: P.master.age, origin: P.master.origin, originLabel: P.master.originLabel, persona: P.master.persona, skills: P.master.skills, traits: P.master.traits, catalyst: P.master.catalyst, wish: P.master.wish, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
+      for (const c of camps) Object.assign(A.out.meta[c.id], c.guard ? { guard: c.guard } : {}, { side: c.side, label: c.label, servantId: c.sv.id, stage: c.stage != null ? c.stage : null, key: c.key || null, meet: c.meet || null, master: c.party ? { name: P.master.name, sex: P.master.sex, age: P.master.age, origin: P.master.origin, originLabel: P.master.originLabel, persona: P.master.persona, skills: P.master.skills, traits: P.master.traits, catalyst: P.master.catalyst, wish: P.master.wish, stats: Object.fromEntries(Object.entries(P.master.stats).map(([k, v]) => [k, Math.round(v)])), hpMax: P.mhpMax, manaMax: P.manaMax } : null });
       A.day = 1;
       startStage();
 
@@ -960,6 +968,9 @@
     const chk = SC.check(opts.scenario, { roster: opts.roster, bosses: opts.bosses });
     if (chk.errors.length) throw new Error('シナリオに誤りがあります：' + chk.errors.map(e => e.msg).join('／'));
     const n = chk.n;
+    // シナリオ専用のサーヴァント（同梱）を名簿とボスに加える。ここから先（顔ぶれ・進行・エンジン）はこの名簿を使う
+    const wd = SC.withServants(n, opts.roster, opts.bosses);
+    opts.roster = wd.roster; opts.bosses = wd.bosses;
     const lineup = opts.lineup || compose({ scenario: n, roster: opts.roster, bosses: opts.bosses, seed: opts.seed });
     const LN = SC.linesOf(n);
     const plugin = makePlugin(opts, n, lineup, LN);
