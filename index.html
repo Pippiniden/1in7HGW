@@ -1441,7 +1441,7 @@ body.observer .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 310px); gr
     if (ails.length) good.push(`相手を${ails.join('・')}にする状態異常を持つ`);
     if (eff('ail_guard') >= 0.3) good.push('状態異常に強い');
     if (eff('solo') >= 2) good.push('マスターを失っても長く現界できる');
-    const vs = Object.values(sv.effectSummary || {}).filter(e => e.id === 'power_vs' && e.passive > 0).map(e => e.params.tag);
+    const vs = Object.values(sv.effectSummary || {}).filter(e => e.id === 'power_vs' && e.passive > 0).map(e => H.effects.tagJa(e.params.tag));
     if (vs.length) good.push(`〔${vs.slice(0, 2).join('〕〔')}〕への特攻を持つ`);
     if (!atk) bad.push('攻撃に使える宝具を持たない（決め手に欠ける）');
     if (eff('uncontrolled') > 0) bad.push('制御が難しく、勝手に動くことがある');

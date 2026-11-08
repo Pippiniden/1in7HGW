@@ -183,7 +183,7 @@
   const TEAM_IDS = ['power', 'power_vs', 'guard', 'evade', 'magic_guard', 'mental_guard', 'ail_guard', 'crit', 'pierce', 'sure_hit', 'dmg_plus', 'dmg_cut', 'dodge', 'counter', 'guts', 'luck', 'np_boost', 'np_charge', 'escape', 'initiative', 'heal', 'mana_gain', 'cleanse'];
   const readTeam = (q, id, p) => { if (!TEAM_IDS.includes(id) || !q('team')) return; const v = parseFloat(q('team').value); if (isFinite(v) && v > 0) p.team = Math.min(1, Math.round(v) / 100); };
   // 「特攻・弱点の相手」欄の書き方の例（自己強化解除は止めるスキル・宝具の名前）
-  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'summon' ? '軍勢の名前（空なら宝具・スキルの名前）' : id === 'power_vs' || id === 'weakness' || id === 'tag' || id === 'tag_foe' ? '竜 / 男性 など' : '';
+  const paramHint = id => id === 'master_buff' ? 'mana / craft / body / mind / luck' : id === 'self_strip' ? '止めるスキル・宝具の名前（空ならどれでも）' : id === 'summon' ? '軍勢の名前（空なら宝具・スキルの名前）' : id === 'power_vs' || id === 'weakness' ? '竜 / 男性 / ギリシャ&男性（両方）/ 竜|獣（どちらか）' : id === 'tag' || id === 'tag_foe' ? '竜 / 男性 など' : '';
 
   // ---------- 効果の意味（リストツール・申請フォームの表示用） ----------
   // who: 誰に掛かるか（self=自分 / enemy=相手 / ally=同盟相手 / master=自分のマスター / enemyMaster=相手のマスター / none=—）
@@ -195,6 +195,7 @@
   const sg = v => (v < 0 ? '−' : '+') + pc(v);
   const num = v => Math.round(v * 10) / 10;
   const tagOf = p => (p && p.tag) || '特定の相手';
+  const vsOf = p => (p && p.tag) ? tagJa(p.tag) : '特定の相手';   // 特攻・弱点の相手（「A&B」「A|B」の式を読みやすく）
   const ENG = () => G.CONFIG.ENGINE;
   // 状態異常：既定の名前と、確率の上限（engine.js も同じ表を使う）。params.name があればその名前で呼ぶ
   const AILMENTS = { charm: '魅了', poison: '毒', stun: 'スタン', confuse: '混乱', seal: '宝具封印' };
@@ -208,7 +209,7 @@
   const effName = id => (EFFECTS[id] || {}).name || id;
   const EFFECT_INFO = {
     power:        { who: 'self', fx: m => `戦闘力 ${sg(m)}` },
-    power_vs:     { who: 'self', fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
+    power_vs:     { who: 'self', fx: (m, p) => `「${vsOf(p)}」の相手と戦うとき戦闘力 ${sg(m)}` },
     debuff:       { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（相手の精神耐性で少し減り、相手マスターの精神で増減する。弱体化は合わせて最大50%）` },
     debuff_mind:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（心への干渉。相手の精神耐性と相手マスターの精神で防がれる。弱体化は合わせて最大50%）` },
     debuff_body:  { who: 'enemy', fx: m => `相手の戦闘力 ${m < 0 ? '+' : '−'}${pc(Math.min(0.5, m))}（体への干渉。相手の耐久と対魔力で防がれる。弱体化は合わせて最大50%）` },
@@ -254,7 +255,7 @@
       return `相手の魅了・混乱を ${pc(Math.min(0.95, m))} の確率で防ぐ` + (more.length ? `。${more.join('、')}（ほかの精神耐性と重なると鈍る）` : '');
     } },
     guts:         { who: 'self', fx: m => m < 0 ? `倒れるはずの一撃で踏みとどまる確率 −${pc(m)}（絆・耐久・幸運と合わせて0%未満にはならない）` : `倒れるはずの一撃で ${pc(Math.min(0.85, m))} の確率で踏みとどまる（絆・耐久・幸運でも上がる）` },
-    weakness:     { who: 'self', bad: true, fx: (m, p) => `「${tagOf(p)}」の相手と戦うとき戦闘力 ${m < 0 ? '+' : '−'}${pc(m * 0.5)}` },
+    weakness:     { who: 'self', bad: true, fx: (m, p) => `「${vsOf(p)}」の相手と戦うとき戦闘力 ${m < 0 ? '+' : '−'}${pc(m * 0.5)}` },
     master_guard: { who: 'master', fx: m => m < 0 ? `自分のマスターの守り −${pc(m)}（工房・幸運などの守りを打ち消す。守りが0%を下回ることはない）` : `自分のマスターが狙われたとき、刃が届く確率 −${pc(Math.min(0.8, m))}` },
     stealth:      { who: 'self', fx: m => `夜に相手に見つかる確率 ${m < 0 ? '+' : '−'}${pc(m * 0.7)}、偵察・使い魔にも見つかり${m < 0 ? 'やすい' : 'にくい'}` },
     detect:       { who: 'self', fx: m => `夜に相手を見つける確率 ${sg(m * ENG().detectFind)}、迫る相手に気づいて見つかる確率 ${m < 0 ? '+0%' : '−' + pc(m * ENG().detectWary)}、先に見つけて仕掛けたとき戦闘力 +${pc(Math.max(0, Math.min(ENG().detectEdgeCap, m * ENG().detectEdge)))}（相手の索敵で減る）、マスターを狙う奇襲を見抜き${m < 0 ? 'にくい' : 'やすい'}` },
@@ -327,14 +328,45 @@
   const woundMult = (p, hp) => !p || !p.wound ? 1 : Math.max(0, Math.min(1, (100 - (hp == null ? 100 : hp)) / 100));
   // 打ち合いごとの変化（params.rgrow）：1打ち合い目を1倍として、打ち合いごとに rgrow ずつ増える（マイナスなら減る。「戦いが長引くほど」）。0倍〜GROW_MAX倍。戦いの外では1倍
   const roundMult = (p, round) => !p || !p.rgrow ? 1 : Math.max(0, Math.min(GROW_MAX, 1 + p.rgrow * (Math.max(1, round || 1) - 1)));
-  // 相手の条件（params.vs・特攻の tag）に当たるか：属性（sv.tags）のほかに、その名前のスキル・宝具を持っていれば当たる（「騎乗スキルを持つ者」「神性を持つ者」）
-  const hasTag = (sv, tag) => {
-    if (!sv || !tag) return false;
-    if ((sv.tags || []).includes(tag)) return true;
-    const t = baseName(normName(tag)); if (!t) return false;
+  // 相手の条件（params.vs・特攻 power_vs／弱点 weakness の tag）の書き方：
+  //   「竜」          その名前に当たる相手
+  //   「ギリシャ&男性」  & でつないだ名前のすべてに当たる相手（AND）
+  //   「竜|獣」        | でつないだ名前のどれかに当たる相手（OR）。& は | より先に結ぶ（「A&B|C」＝「AかつB」または「C」）
+  // 全角の ＆ ｜ も同じ。かっこ（半角・全角）の中の & | は区切りにしない（「黄金律(富＆体)」のようなスキル名のため）。かっこでまとめる書き方は無い
+  // （「(A|B)&C」は「A&C|B&C」と書く）。属性を付ける側（効果 tag・tag_foe の params.tag）は式ではなく、名前そのまま
+  function splitOuter(s, re) {
+    const out = []; let depth = 0, cur = '';
+    for (const ch of s) {
+      if (ch === '(' || ch === '（') depth++; else if (ch === ')' || ch === '）') depth = Math.max(0, depth - 1);
+      if (!depth && re.test(ch)) { out.push(cur); cur = ''; } else cur += ch;
+    }
+    out.push(cur);
+    return out.map(x => x.trim()).filter(Boolean);
+  }
+  const tagExprCache = new Map();
+  /** 相手の条件の式 → [[すべてに当たる名前…], …（どれか）]。名前が一つなら [[名前]]、空なら [] */
+  function tagExpr(tag) {
+    const s = String(tag == null ? '' : tag).trim(); if (!s) return [];
+    let r = tagExprCache.get(s);
+    if (!r) {
+      r = splitOuter(s, /[|｜]/).map(g => splitOuter(g, /[&＆]/)).filter(g => g.length);
+      if (tagExprCache.size > 500) tagExprCache.clear();
+      tagExprCache.set(s, r);
+    }
+    return r;
+  }
+  /** 式の表示用：「ギリシャ かつ 男性」「竜 または 獣」（名前が一つならそのまま） */
+  const tagJa = tag => { const g = tagExpr(tag); return g.length ? g.map(a => a.join(' かつ ')).join(' または ') : String(tag == null ? '' : tag); };
+  // 名前一つが相手に当たるか：属性（sv.tags）のほかに、その名前のスキル・宝具を持っていれば当たる（「騎乗スキルを持つ者」「神性を持つ者」）
+  const hasName = (sv, name) => {
+    if (!sv || !name) return false;
+    if ((sv.tags || []).includes(name)) return true;
+    const t = baseName(normName(name)); if (!t) return false;
     const same = it => it && it.name && baseName(normName(it.name)) === t;
     return (sv.allSkills || (sv.classSkills || []).concat(sv.skills || [])).some(same) || (sv.nps || []).some(same);
   };
+  /** 相手の条件（式）に当たるか。extra(名前) は属性・スキル・宝具のほかに「当たる」とみなす名前（戦いの間だけ付いた属性 tag_foe など） */
+  const hasTag = (sv, tag, extra) => tagExpr(tag).some(g => g.every(n => hasName(sv, n) || (!!extra && !!extra(n))));
   // 日数の条件（params.dmin〜dmax：その日だけ働く。どちらか片方でもよい）と、日ごとの強さの変化（params.grow／turn／decay）。
   //   強さの倍率＝1日目を1倍として、1日ごとに grow ずつ増え（マイナスなら減り）、turn 日目を過ぎると1日ごとに decay ずつ減る
   //   （turn が無ければ decay は1日目から）。0倍〜GROW_MAX倍。engine.js（condOk・dayMult）と build.js（condW）が使う
@@ -363,11 +395,11 @@
     if (!p) return '';
     const each = p.on || (id && EFFECTS[id] && EFFECTS[id].trig);
     return [p.cond ? (p.condNot ? COND_NOT_JA[p.cond] || p.cond + '以外でだけ' : COND_JA[p.cond] || p.cond + 'でだけ') : '',
-      p.vs ? `「${p.vs}」${p.vsNot ? '以外の' : 'の'}相手${/スキル|宝具/.test(p.vs) ? '' : '（その属性か、その名前のスキル・宝具を持つ相手）'}と戦うときだけ` : '', dayText(p),
+      p.vs ? `「${tagJa(p.vs)}」${p.vsNot ? '以外の' : 'の'}相手${/スキル|宝具/.test(p.vs) ? '' : '（その属性か、その名前のスキル・宝具を持つ相手）'}と戦うときだけ` : '', dayText(p),
       p.chance != null && p.chance < 1 ? `${each ? '発動のたびに' : '戦いごとに'} ${pc(Math.max(0, p.chance))} の確率で${each ? '' : '発動'}` : '', growText(p), woundText(p), rgrowText(p)].filter(Boolean).join('・');
   }
   // 短い表記（一覧の札など）：（水辺）〔対 竜〕（30%）
-  const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + (p.uses > 0 ? '・' + p.uses + '回' : '') + '〉' : '') + (p.cond ? '（' + p.cond + (p.condNot ? '以外' : '') + '）' : '') + (p.vs ? '〔対 ' + p.vs + (p.vsNot ? '以外' : '') + '〕' : '')
+  const condShort = p => !p ? '' : (p.on ? '〈' + TRIG_JA[p.on] + (p.cost > 0 ? '・魔力' + p.cost : '') + (p.uses > 0 ? '・' + p.uses + '回' : '') + '〉' : '') + (p.cond ? '（' + p.cond + (p.condNot ? '以外' : '') + '）' : '') + (p.vs ? '〔対 ' + tagJa(p.vs) + (p.vsNot ? '以外' : '') + '〕' : '')
     + (p.dmin > 0 || p.dmax > 0 ? '（' + dayText(p) + '）' : '') + (p.chance != null && p.chance < 1 ? '（' + pc(Math.max(0, p.chance)) + '）' : '') + (p.grow || p.decay ? '（日ごとに変化）' : '')
     + (p.wound ? '（傷が深いほど）' : '') + (p.rgrow ? '（打ち合いごとに変化）' : '') + (p.use ? '（使った戦いだけ）' : '') + (LAST_JA[p.last] ? '（' + LAST_JA[p.last] + '）' : '')
     + (p.self ? '（自分に）' : '') + (p.nocure ? '（解除不可）' : '') + (p.team > 0 ? '（味方' + Math.round(p.team * 100) + '%）' : '');
@@ -500,7 +532,7 @@
       + (F.uses || p.uses > 0 ? `<label>${num('uses', p.uses > 0 ? p.uses : '', '制限なし', 'min="0" step="1"')}${p.on === 'day' ? '回（朝）まで' : '回まで（1回の戦いで）'}</label>` : '')));
     const conds = F.conds.concat(p.cond && !F.conds.includes(p.cond) ? [p.cond] : []);
     if (conds.length > 1) rows.push(row('場面', `<select data-e="cond">${opt(conds.map(k => [k, ((COND_OPTS.find(o => o[0] === k) || [k, k])[1]) + (F.conds.includes(k) ? '' : '（働かない）')]), p.cond)}</select>` + chk('condNot', p.condNot, 'それ以外のとき')));
-    if (F.vs || p.vs) rows.push(row('相手の属性', `<input type="text" data-e="vs" list="tagList" value="${V(p.vs)}" placeholder="男性・竜・騎乗（スキル名でも）" autocomplete="off">` + chk('vsNot', p.vsNot, 'それ以外の相手')));
+    if (F.vs || p.vs) rows.push(row('相手の属性', `<input type="text" data-e="vs" list="tagList" value="${V(p.vs)}" placeholder="男性・竜・騎乗（スキル名でも）。ギリシャ&男性＝両方、竜|獣＝どちらか" title="名前を &（すべてに当たる）や |（どれかに当たる）でつなげます。例：ギリシャ&男性、竜|獣、神性&王|魔性" autocomplete="off">` + chk('vsNot', p.vsNot, 'それ以外の相手')));
     if (F.chance || p.chance != null) rows.push(row('確率', `${num('chance', p.chance != null && p.chance < 1 ? Math.round(p.chance * 1000) / 10 : '', '100', 'min="0" max="100" step="5"')}%`));
     if (F.days || p.dmin || p.dmax) rows.push(row('日数', `${num('dmin', p.dmin || '', '1', 'min="1" step="1"')}日目から${num('dmax', p.dmax || '', '最後', 'min="1" step="1"')}日目まで`));
     if (F.grow || p.grow || p.decay) rows.push(row('日ごとの変化', `<label>1日ごとに${num('grow', p.grow ? Math.round(p.grow * 1000) / 10 : '', '0', 'step="5"')}%</label>`
@@ -1285,5 +1317,5 @@
   }
 
   G.effects = { EFFECTS, SKILL_DICT, RULES, CONDS, TAG_CANON, SKILL_OVERRIDES, SERVANT_OVERRIDES, STAT_OVERRIDES, NP_OVERRIDES, CONTENT_OVERRIDES, PAGE_OVERRIDES, REVIEWED, OVERRIDE_TABLES, ATTR_MASTER, ATTR_OF, BOSS_PARAMS, BOSS_ATTR, okey, idOf, attrFold, attrIndex, resolveAttrs,
-    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, LAST_OPTS, LAST_JA, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse, NP_USE_DEFAULT };
+    COND_JA, COND_NOT_JA, COND_OPTS, COND_NEED, LAST_OPTS, LAST_JA, condText, condShort, hasCond, dayOk, dayMult, GROW_MAX, woundMult, roundMult, hasTag, tagExpr, tagJa, READ_AT, readAt, fieldsFor, deadParams, moreHtml, moreSummary, readMore, retireP, npRetire, NP_MODES, NP_MODE_JA, NP_MODE_W, EFFECT_GROUPS, GROUP_OF, TRIGGERS, TRIG_JA, TRIG_W, INSTANT, trigOf, trigText, effOptionsHtml, readTrig, paramHint, STRIP_IDS, readStrip, SELF_IDS, readSelf, TEAM_IDS, readTeam, AILMENTS, AIL_CAP, AIL_MSG_HINT, normName, lookupDict, resolveSkill, resolveNP, instantiate, analyzeText, compoundSpecs, canonTag, EFFECT_INFO, WHO_JA, describe, npOnUse, NP_USE_DEFAULT };
 })(globalThis.HGW = globalThis.HGW || {});
