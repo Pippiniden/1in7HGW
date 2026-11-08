@@ -1300,12 +1300,17 @@
     // 使える相手・場面の制限（手直し表の vs＝相手が持つ属性、cond＝場所・時間。condOk と同じ書き方）。「男性にしか使えない」など
     // 使える回数の制限（手直し表の perBattle＝1回の戦いに何回まで、perWar＝戦争全体で何回まで。engine.js の npUsable が数える）
     const limit = npo && (npo.perBattle > 0 || npo.perWar > 0) ? Object.assign({}, npo.perBattle > 0 ? { battle: Math.floor(npo.perBattle) } : null, npo.perWar > 0 ? { war: Math.floor(npo.perWar) } : null) : null;
+    // 使うたびに威力・効果の大きさが変わる宝具（手直し表の varyMin／varyMax＝倍率の下限・上限、varyChance＝変動が起きる確率 0〜1（既定1）。engine.js の fireNP が振る）
+    const vary = npo && (npo.varyMin > 0 || npo.varyMax > 0) && !(npo.varyMin === 1 && npo.varyMax === 1) ? (() => {
+      const a = npo.varyMin > 0 ? +npo.varyMin : 1, b = npo.varyMax > 0 ? +npo.varyMax : 1, ch = npo.varyChance > 0 && npo.varyChance < 1 ? +npo.varyChance : 1;
+      return { min: Math.min(a, b), max: Math.max(a, b), chance: ch };
+    })() : null;
     // 別の宝具を使ったあとでないと使えない（手直し表の after＝宝具の名前、afterN＝何回（既定1）、afterScope＝'war'（戦争全体。既定）か 'battle'（その戦い）。engine.js の npUsable が数える）
     const after = npo && npo.after ? { np: normName(npo.after), n: npo.afterN > 0 ? Math.floor(npo.afterN) : 1, scope: npo.afterScope === 'battle' ? 'battle' : 'war' } : null;
     const useIf = npo && (npo.vs || npo.cond || after) ? Object.assign({}, npo.vs ? { vs: npo.vs } : null, npo.cond ? { cond: npo.cond } : null, after ? { after } : null) : null;
     return {
       attack, basis,
-      disabled, useIf, limit,
+      disabled, useIf, limit, vary,
       power: attack ? Math.round(rk.score * T.power * 10) / 10 : 0,   // 攻撃宝具の威力（ステータススコアと同じ尺度）
       burst: rk.burst,
       cost: Math.round(Math.max(0.1, T.cost * rk.mult * (1 + costMod)) * 100) / 100, // 魔力消費（1.0=標準）

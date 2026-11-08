@@ -839,20 +839,26 @@
       const over = c.mana < cost;
       c.mana -= cost; c.npUses++;
       (c.npBattle = c.npBattle || {})[np.name] = (c.npBattle[np.name] || 0) + 1; (c.npWar = c.npWar || {})[np.name] = (c.npWar[np.name] || 0) + 1;   // 使った回数（回数の制限と、別の宝具のあとで使える条件に）
+      // ランクが範囲（E~A など）の宝具は、使うたびに格を振り直す（威力と効果の大きさが、その格の比で変わる。範囲でない宝具は乱数を使わない）
+      let rkS = 1, rkM = 1;
+      const nr = np.rank;
+      if (np.vary) { if (np.vary.chance >= 1 || chance(np.vary.chance)) rkS = rkM = np.vary.min + (np.vary.max - np.vary.min) * rnd(); }   // 手直し表の変動（倍率の範囲と、変動が起きる確率）が、ランクの範囲より優先
+      else if (nr && nr.range && nr.score > 0 && nr.mult > 0) { const st = nr.range[0].step + (nr.range[1].step - nr.range[0].step) * rnd(); rkS = R.scoreAt(st) / nr.score; rkM = R.multAt(st) / nr.mult; }
+      const sf = e => rkM === 1 || (E.EFFECTS[e.id] && E.EFFECTS[e.id].fixed) ? e : Object.assign({}, e, { mag: e.mag * rkM });
       // 宝具強化：常時の効果（と、先に使った補助宝具の効果）＋この宝具自身の効果
-      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1); c.lastNP = { name: np.name, round }; c.lastNP.aoe = SG ? SG.aoeOf(c, np) : (ENG.npSplash[np.typeKey] || 0); }
+      if (np.attackResolved) { c.npBoost = np.power * ENG.npPowerK * B.npStatMult(c.sv) * (1 + eff(c, 'np_boost') + fx(np, 'np_boost')) * (np.burst > 1 ? 1 + (np.burst - 1) * rnd() * 0.5 : 1) * rkS; c.lastNP = { name: np.name, round }; c.lastNP.aoe = SG ? SG.aoeOf(c, np) : (ENG.npSplash[np.typeKey] || 0); }
       else c.usedSup.add(np.name);
       // 宝具を使ったその戦いの間だけ働く効果（昼・偵察などの効果は持っているだけで常に働くので、ここでは足さない）
       const applied = [];   // 効果の検証（trace）に知らせる、使ったときに働いた効果
       for (const e of np.effects || []) if (E.npOnUse(e) && !['np_cost', 'self_retire', 'backfire', 'friendly_fire', 'disabled', 'np_charge'].includes(e.id) && (e.id !== 'np_boost' || !np.attackResolved)
         && !(e.params && e.params.on) && !E.INSTANT.includes(e.id) && !offMatch(c, e.from || np.name, e.id)
-        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { c.temp.push(e); applied.push(e.id); npHold(c, np, e); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, e.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
+        && (!e.params || e.params.chance == null || e.params.chance >= 1 || chance(e.params.chance))) { const ee = sf(e); c.temp.push(ee); applied.push(e.id); npHold(c, np, ee); if (e.params && e.params.team > 0) shareTrig(c, 'np:' + np.name + ':' + e.id, e.id, ee.mag, e.params, np.name, 'np', ctx.terrain); }   // 発動確率のある効果は、使ったときに判定
       // 回復・吸収・解除など、その場で働く効果（発動のしかたの無いもの）は使ったときに働かせ、
       // 発動のしかたのある効果は、この戦いの残りでその場面のたびに発動する（c.armed）
       (np.effects || []).forEach((e, i) => {
         const p = e.params || {};
-        if (p.on) { const k = 'np:' + np.name + ':' + i; if (c.armed && !c.armed.some(a => a.k === k)) c.armed.push({ k, on: p.on, id: e.id, mag: e.mag, params: p, from: np.name }); }
-        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) { applied.push(e.id); applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); shareTrig(c, 'np:' + np.name + ':' + i, e.id, e.mag, p, np.name, 'np', ctx.terrain); }
+        if (p.on) { const k = 'np:' + np.name + ':' + i; if (c.armed && !c.armed.some(a => a.k === k)) c.armed.push({ k, on: p.on, id: e.id, mag: sf(e).mag, params: p, from: np.name }); }
+        else if (E.INSTANT.includes(e.id) && (p.chance == null || p.chance >= 1 || chance(Math.max(0, p.chance)))) { applied.push(e.id); applyTrig(c, o, 'np:' + np.name + ':' + i, e.id, sf(e).mag, p, np.name, 'np', ctx.terrain); shareTrig(c, 'np:' + np.name + ':' + i, e.id, sf(e).mag, p, np.name, 'np', ctx.terrain); }
       });
       trace(c, { t: 'np', name: np.name, round, attack: !!np.attackResolved, cost, over, boost: c.npBoost || 0, effects: applied });
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);

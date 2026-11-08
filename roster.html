@@ -569,6 +569,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <label class="hint">発動のしかた <select id="edMode"></select></label>
     <label class="hint">1回の戦いに <input id="edPerBattle" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
     <label class="hint">戦争全体で <input id="edPerWar" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
+    <label class="hint">使うたびの威力の変動 <input id="edVaryMin" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em">〜<input id="edVaryMax" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em"> %（100＝本来の威力）</label>
+    <label class="hint">変動が起きる確率 <input id="edVaryChance" type="number" min="1" max="100" step="1" placeholder="100" style="width:5em"> %</label>
   </div>
   <div class="row" id="edUseRow" style="margin-bottom:12px">
     <span class="hint">使える条件：</span>
@@ -1911,6 +1913,8 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       $('#edMode').innerHTML = `<option value="__auto">読み取りのまま（${esc(item.modeBasis === 'override' ? '説明文からは読み取りなし' : auto)}）</option>` + E.NP_MODES.map(([k, t]) => `<option value="${k}">${esc(t)}</option>`).join('');
       $('#edMode').value = o && o.mode != null ? o.mode : '__auto';
       $('#edPerBattle').value = o && o.perBattle > 0 ? o.perBattle : ''; $('#edPerWar').value = o && o.perWar > 0 ? o.perWar : '';
+      $('#edVaryMin').value = o && o.varyMin > 0 ? Math.round(o.varyMin * 100) : ''; $('#edVaryMax').value = o && o.varyMax > 0 ? Math.round(o.varyMax * 100) : '';
+      $('#edVaryChance').value = o && o.varyChance > 0 && o.varyChance < 1 ? Math.round(o.varyChance * 100) : '';
       // 使える条件（場面・相手・別の宝具を使ったあと）
       $('#edNpCond').innerHTML = E.COND_OPTS.map(([k, t]) => `<option value="${esc(k)}">${esc(t)}</option>`).join('') + (o && o.cond && !E.COND_OPTS.some(([k]) => k === o.cond) ? `<option value="${esc(o.cond)}">${esc(o.cond)}</option>` : '');
       $('#edNpCond').value = o && o.cond ? o.cond : ''; $('#edNpVs').value = o && o.vs ? o.vs : '';
@@ -1955,6 +1959,11 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       const pb = Math.floor(+$('#edPerBattle').value), pw = Math.floor(+$('#edPerWar').value);
       if (pb > 0) o.perBattle = pb;
       if (pw > 0) o.perWar = pw;
+      const vlo = +$('#edVaryMin').value, vhi = +$('#edVaryMax').value, vch = +$('#edVaryChance').value;   // 変動：片方だけなら、もう片方は100％（本来の威力）
+      if (vlo > 0 || vhi > 0) {
+        const a = (vlo > 0 ? vlo : 100) / 100, b = (vhi > 0 ? vhi : 100) / 100;
+        if (a !== 1 || b !== 1) { o.varyMin = Math.min(a, b); o.varyMax = Math.max(a, b); if (vch > 0 && vch < 100) o.varyChance = vch / 100; }
+      }
       const nc = $('#edNpCond').value, nv = $('#edNpVs').value.trim(), na = $('#edNpAfter').value, nn = Math.floor(+$('#edNpAfterN').value);
       if (nc) o.cond = nc;
       if (nv) o.vs = nv;
