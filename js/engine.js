@@ -123,7 +123,7 @@
         id: i, slot: x.slot, substitute: x.substitute, extra: x.extra, sv, master: m, labelBase: base, label: base,
         hp: 100, mhp: 0, mhpMax: 0, mana: 0, manaMax: 0, cs: m.commandSpells,
         alive: true, masterAlive: true, out: false, fate: null, soloLeft: null, inChurch: false, merged: false,
-        base: places[i % places.length], workshop: m.resources.workshop || 0, items: 0, pact: null, op: null,
+        base: places[i % places.length], workshop: (m.resources.workshop || 0) * 2, items: 0, pact: null, op: null,
         knowName: new Set([i]), knowLoc: new Set([i]), temp: [], npBoost: 0, kills: [], npUses: 0, battles: 0,
         hunting: false, hidden: false, wander: false, fought: false, stance: null, usedSup: new Set(),
         bond: 30 + (m.catalyst ? 10 : 0), policy: 'balanced', plan: null, warned: 0, bounty: false, dreams: 0, lifeSeen: new Set(),
@@ -325,9 +325,11 @@
       return true;
     };
     // 使える相手・場面が決まっている宝具（NP_OVERRIDES の vs／cond → np.useIf）。AI が選ぶときも、先手・自動で放つときも見る
-    // 陣地の段階（工房）。ws_up はその戦いの間だけ段階を上げ、拠点でなくても足した分の陣地として戦える。上限5（c.workshop は変えない）
+    // 陣地の段階（工房）。内部は0〜WSM（10）の細かい段階で、表示（従来の5段階）はその半分。1段 = 従来の0.5段。
+    // ws_up はその戦いの間だけ段階を上げ、拠点でなくても足した分の陣地として戦える（c.workshop は変えない）
+    const WSM = ENG.wsMax || 10;
     const wsUp = (c, T) => Math.round(eff(c, 'ws_up', T));
-    const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, 5) : 0; };
+    const wsStage = (c, ctx) => { const u = wsUp(c, ctx.terrain); return ctx.home === c || u > 0 ? clamp((ctx.home === c ? c.workshop || 0 : 0) + u, 0, WSM) : 0; };
     // 使える回数に限りのある宝具（np.limit＝{ battle, war }）は、数え終えたら選ばれない。数えるのは fireNP（c.npBattle＝この戦い、c.npWar＝戦争全体）
     const npLeft = (c, n) => !n.limit || ((!(n.limit.battle > 0) || ((c.npBattle || {})[n.name] || 0) < n.limit.battle) && (!(n.limit.war > 0) || ((c.npWar || {})[n.name] || 0) < n.limit.war));
     // 別の宝具を使ったあとでないと使えない（np.useIf.after＝{ np: 名前, n: 回数, scope: 'war'|'battle' }）。使った回数は fireNP が宝具ごとに数える（c.npWar・c.npBattle）
@@ -502,7 +504,7 @@
       }
       if (id === 'ws_break') {   // 相手の陣地の段階を下げる（戦いのあとも戻らない。マイナスなら上がる）
         if (!o || o.workshop == null) return;
-        const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, 5);
+        const before = o.workshop, v = Math.round(mag); o.workshop = clamp(before - v, 0, WSM);
         if (o.workshop < before) say(`${sn(c)}の${src}が、${sn(o)}の陣地を打ち崩した。`);
         return;
       }
@@ -673,7 +675,7 @@
       if (selfDeb) p *= 1 - clamp(selfDeb, -0.5, 0.5);
       if (c.wither || c.witherSelf || c.witherFix) p *= 1 - Math.min(ENG.witherCap, (c.wither || 0) + (c.witherSelf || 0) + (c.witherFix || 0));
       // 拠点か、陣地の段階を上げる効果（ws_up）を持つとき。使った戦いだけ働く陣地の効果（結界宝具など、c.temp の territory）があれば、その場に陣地を張ったものとして拠点の外でも数える
-      if (ctx.home === c || wsUp(c, T) || c.temp.some(e => e.id === 'territory')) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.05;
+      if (ctx.home === c || wsUp(c, T) || c.temp.some(e => e.id === 'territory')) p *= 1 + eff(c, 'territory', T) + wsStage(c, ctx) * 0.025;
       if (c.knowName.has(o.id)) p *= ENG.knowNameMult;   // 真名を知っている相手には、弱点や伝承を突いて有利に戦える
       p *= 1 - 0.45 * (1 - Math.max(0, c.hp) / 100) * (1 - clamp(mgd * ENG.mentalWound, -0.5, 0.6));
       if (!c.masterAlive) p *= 0.9;
@@ -863,7 +865,7 @@
       trace(c, { t: 'np', name: np.name, round, attack: !!np.attackResolved, cost, over, boost: c.npBoost || 0, effects: applied });
       if (chance(0.3 + np.exposure * 0.7)) o.knowName.add(c.id); else clue(o, c, 2);
       if (!SG && np.attackResolved && ENG.npBreak[np.typeKey] && o.workshop > 0) {   // 対城以上：相手の工房を打ち崩す
-        const before = o.workshop; o.workshop = clamp(before - ENG.npBreak[np.typeKey], 0, 5);
+        const before = o.workshop; o.workshop = clamp(before - ENG.npBreak[np.typeKey], 0, WSM);
         if (o.workshop < before) log('battle', `『${np.name}』の余波が、${sn(o)}の陣地を打ち崩した。`, [c.id, o.id]);
       }
       if (np.exposure >= 1) pubName.add(c.id);
@@ -1141,7 +1143,7 @@
         if (outcome === 'dead' || outcome === 'escaped' || !a.alive || !b.alive) break;
         // まれに、勝った側の刃が相手のマスターに届く（気配を断てるサーヴァントや暗殺を好むマスターほど起きやすい）
         if (l.masterAlive && w.alive && !l.noMaster) {   // noMaster：特異点の敵（聖杯が呼んだ英霊）には狙えるマスターがいない
-          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + wsStage(l, ctx) * 0.04 + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
+          const pm = (ENG.masterStrike + eff(w, 'anti_master') * 0.3 + Math.max(0, perv(w, 'ambush')) * 0.03) * (1 - clamp(eff(l, 'master_guard') + wsStage(l, ctx) * 0.02 + FX.mLuckHide * md(l, 'luck'), 0, 0.8));
           if (chance(Math.min(0.15, pm))) {
             l.mhp -= 30 + rnd() * 50 - l.master.stats.body * 0.3;
             if (l.mhp <= 0) {
@@ -1197,7 +1199,7 @@
     }
 
     function* ambushMaster(h, t) {
-      const guard = eff(t, 'master_guard') + eff(t, 'detect') * 0.5 + t.workshop * 0.06 + FX.mLuckHide * md(t, 'luck');
+      const guard = eff(t, 'master_guard') + eff(t, 'detect') * 0.5 + t.workshop * 0.03 + FX.mLuckHide * md(t, 'luck');
       if (chance(clamp(guard, 0, 0.85))) { log('battle', `${mn(t)}を狙った刃は、${sn(t)}に阻まれた。`, [h.id, t.id]); return false; }
       t.mhp -= 40 + rnd() * 60 - t.master.stats.body * 0.3;
       if (t.mhp <= 0) {
@@ -1654,7 +1656,7 @@
         const P = POLICIES[c.policy] || POLICIES.balanced;
         const w = {
           scout: 1 + eff(c, 'intel') * 3 + eff(c, 'detect') * ENG.detectScout,   // 索敵は偵察に向くが、偵察ばかりにならないように
-          fortify: c.workshop >= 5 ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
+          fortify: c.workshop >= WSM ? 0.1 : 0.5 + eff(c, 'territory') * 4 + eff(c, 'craft') * 3 + (c.sv.class.key === 'caster' ? 1 : 0),
           rest: 0.3 + (100 - c.hp) / 30 + (c.mana < c.manaMax * 0.4 ? 1.5 : 0) + (c.mhp < c.mhpMax * 0.5 && upk(c) > 1.2 ? 1.5 : 0),
           ally: alive.some(x => canPact(c, x, alive)) ? Math.max(0, ENG.allyActW + Math.max(0, eff(c, 'negotiate')) * 3 + perv(c, 'ally') * 2) + (leader && leader !== c && !isAlly(c, leader) ? ENG.coalitionAllyW : 0) : 0,
           hide: eff(c, 'stealth') * 2 + (c.hp < 50 ? 0.5 : 0),
@@ -1676,7 +1678,7 @@
         const cost = ENG.upkeep * upk(c) * (c.spirit ? ENG.spiritSave : 1) + always;
         c.spirit = false;
         c.mhp = Math.min(c.mhpMax, c.mhp + 5);
-        c.mana = Math.min(c.manaMax, c.mana + ENG.manaRegen + c.master.stats.mana * 0.15 + c.workshop * 2 + eff(c, 'resource') * 10) - cost;
+        c.mana = Math.min(c.manaMax, c.mana + ENG.manaRegen + c.master.stats.mana * 0.15 + c.workshop + eff(c, 'resource') * 10) - cost;
         drain(c);
         if (c.alive && c.hp <= 0) servantDown(c, `魔力が尽き、${day}日目に消滅した`);
       }
@@ -1731,8 +1733,8 @@
         } else if (c.you) log('day', line('scoutFail', { S: sn(c) }), [c.id]);
       } else if (act === 'fortify') {
         if (chance(clamp(0.5 + eff(c, 'territory') + eff(c, 'resource') * 0.5 + FX.mCraftFort * md(c, 'craft'), 0.2, 0.95))) {
-          c.workshop = Math.min(5, c.workshop + 1);
-          if (c.you || c.workshop >= 3) log('day', line('fortify', { S: sn(c), base: c.base.name, ws: c.workshop }), [c.id]);
+          c.workshop = Math.min(WSM, c.workshop + 2);   // 1回の強化 = 従来の1段 = 内部の2段
+          if (c.you || c.workshop >= 6) log('day', line('fortify', { S: sn(c), base: c.base.name, ws: Math.ceil(c.workshop / 2) }), [c.id]);
         } else if (c.you) log('day', line('fortifyFail', { S: sn(c) }), [c.id]);
         if (c.items < 3 && chance(eff(c, 'craft'))) { c.items++; if (c.you) log('day', `${sn(c)}が戦いに役立つ道具を用意した。`, [c.id]); }
       } else if (act === 'rest') {
