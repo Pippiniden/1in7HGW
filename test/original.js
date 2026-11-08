@@ -149,4 +149,69 @@ if (ierr || mismatch) bad('対話式', { ierr, mismatch });
   const w = H.engine.runWar({ roster, seed: 'leak0' });
   if (w.entries.some(e => /^《/.test(e.text))) bad('聖杯戦争に差し替えた文面が漏れた');
 }
+// ---------- シナリオ専用のサーヴァント（同梱）とはぐれの無敵 ----------
+{
+  const mk = (tn, cls, st) => H.build.leanFromSpec({ trueName: tn, class: cls, plain: true, stats: { str: st, end: st, agi: st, mag: st, luk: st, np: st },
+    skills: [{ name: '試験の剣技', rankRaw: 'A', desc: '剣の技量。' }], nps: [{ name: '試験の一撃', rankRaw: 'A', typeRaw: '対人宝具', desc: '敵を斬る。' }] }).lean;
+  const own = ['剣の試験英霊', '弓の試験英霊', '槍の試験英霊'].map((tn, i) => ({ servant: mk(tn, ['セイバー', 'アーチャー', 'ランサー'][i], 'B') }));
+  // 手直し（ステータス）を同梱：組み立てるあいだだけ効き、ほかには残らない
+  own[0].overrides = { stats: { '剣の試験英霊': { str: 'EX' } } };
+  const foe = { servant: mk('試験の魔物', 'バーサーカー', 'C') };
+  const boss = { servant: Object.assign(mk('試験の主', 'ビースト', 'A'), { traits: ['ボス専用'] }), overrides: { boss: { '試験の主': { gauges: 2 } } } };
+  const scn = SC.blank(); scn.title = '同梱だけ'; scn.days = 30; scn.party = { size: 3, front: 2, from: own.map(x => x.servant.trueName), exclude: [] };
+  scn.stages = [{ name: '一', enemies: [{ key: 'm', pick: 'fixed', servant: '試験の魔物', meet: 'mixed' }, { key: 'm2', pick: 'fixed', servant: '試験の魔物', meet: 'raid' }], boss: { pick: 'fixed', servant: '試験の主' } }];
+  scn.stray = { pick: 'fixed', servant: '試験の加勢', appear: 'day', day: 1, guard: 'noDamage' };
+  scn.servants = own.concat([foe, boss, { servant: mk('試験の加勢', 'ライダー', 'B') }]);
+  // 名簿もボスも無くても、同梱の英霊だけで整合性チェックを通り、最後まで動く
+  const c0 = SC.check(scn, { roster: [], bosses: [] });
+  if (c0.errors.length) bad('同梱だけのシナリオに誤り', c0.errors);
+  if (E.STAT_OVERRIDES['剣の試験英霊']) bad('同梱の手直しが手直し表に残った');
+  const w0 = SC.withServants(SC.normalize(scn), [], []);
+  const sw = w0.roster.find(s => s.trueName === '剣の試験英霊');
+  if (!sw || sw.ranks.str.raw !== 'EX') bad('同梱の手直しが効かない', sw && sw.ranks.str);
+  if (!w0.bosses.some(s => s.trueName === '試験の主' && s.boss && s.boss.gauges === 2)) bad('同梱のボス専用がボスにならない');
+  let errs = 0, strayHurt = 0, strayIn = 0;
+  for (let i = 0; i < 20; i++) {
+    try {
+      const r = H.original.run({ scenario: scn, roster: [], bosses: [], seed: 'own' + i });
+      if (!r.party.every(c => /試験英霊/.test(c.trueName))) bad('同梱の味方が使われない');
+      if (r.stray && r.strayJoined) { strayIn++; if (!r.stray.alive || r.stray.hp < 100) strayHurt++; }
+    } catch (e) { errs++; if (errs < 3) console.error(e); }
+  }
+  if (errs) bad('同梱だけのシナリオでエラー', errs);
+  if (!strayIn) bad('はぐれが加わらない');
+  if (strayHurt) bad('傷を負わないはぐれが傷を負った', strayHurt);
+  // 名簿と一緒でも、同梱の英霊は候補を空にした抽選には入らない（名指ししたときだけ）。名簿の顔ぶれは変わらない
+  const s2 = clone(sample); s2.servants = [{ servant: mk('抽選に出ない英霊', 'セイバー', 'A') }];
+  if (chk(s2).errors.length) bad('同梱つきのサンプルに誤り', chk(s2).errors);
+  for (let i = 0; i < 30; i++) {
+    const L = H.original.compose({ scenario: SC.normalize(s2), roster, bosses, seed: 'pool' + i });
+    const L0 = H.original.compose({ scenario: SC.normalize(sample), roster, bosses, seed: 'pool' + i });
+    if (JSON.stringify(L) !== JSON.stringify(L0)) { bad('同梱の英霊がランダムの抽選に入った／顔ぶれが変わった', 'pool' + i); break; }
+  }
+  // 名簿と同じ id なら、このシナリオでは同梱の方に置き換わる（名簿の並びは変わらない）
+  const base = roster.find(s => !s.bossOnly), copy = SC.bundleFrom(base); copy.servant = Object.assign({}, copy.servant, { stats: Object.assign({}, copy.servant.stats, { str: { raw: 'EX' } }) });
+  const w1 = SC.withServants({ servants: [copy] }, roster, bosses);
+  if (w1.roster.length !== roster.length || w1.roster.findIndex(s => s.id === base.id) !== roster.indexOf(base) || !w1.roster.find(s => s.id === base.id).scenarioOnly) bad('同じ id の置き換えがおかしい');
+  if (!SC.check({ ...clone(sample), servants: [copy] }, { roster, bosses }).warnings.some(w => /名簿にもいます/.test(w.msg))) bad('名簿と同じ id の注意が出ない');
+  // 指紋：同梱も無敵も使わないシナリオの指紋は変わらない（空の欄は書かない）
+  if (SC.hashOf(sample) !== SC.hashOf(Object.assign(clone(sample), { servants: [] }))) bad('空の servants で指紋が変わる');
+  // 無敵の4通り：どれも誤りなく動き、noBattle・noTarget では戦いの記録が通常と違ってくる
+  const gs = {};
+  for (const g of ['', 'noBattle', 'noDamage', 'noTarget']) {
+    const v = clone(sample); v.stray = { pick: 'fixed', servant: '雑賀孫市', appear: 'day', day: 1, guard: g };
+    if (chk(v).errors.length) { bad('無敵の設定で誤り', g, chk(v).errors); continue; }
+    let hurt = 0, dead = 0, aided = 0, t = '';
+    for (let i = 0; i < 15; i++) {
+      const r = H.original.run({ scenario: v, roster, bosses, seed: 'gd' + i });
+      t += r.entries.map(e => e.text).join('');
+      if (r.stray && r.strayJoined) { if (!r.stray.alive) dead++; if (r.stray.hp < 100) hurt++; if (r.stray.battles) aided++; }
+    }
+    gs[g || 'normal'] = { hurt, dead, aided };
+    if (g === 'noBattle' && aided) bad('戦いに加わらないはぐれが戦った', aided);
+    if ((g === 'noBattle' || g === 'noDamage') && (hurt || dead)) bad('無敵のはぐれが傷を負った', g, { hurt, dead });
+  }
+  console.log({ strayGuard: gs });
+}
+
 if (fail) { console.error('NG', fail); process.exitCode = 1; } else console.log('OK');

@@ -681,8 +681,15 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   };
 
   // ---------- データ ----------
-  // rosterAll … 読み込んだ全員（ボス専用を除く）。ボス専用は bosses に入る
-  let rosterAll = [], roster = [], bosses = [], source = '', dataLoaded = false;
+  // rosterAll … 読み込んだ全員（ボス専用を除く）。ボス専用は bosses に入る。
+  //   選んだシナリオにシナリオ専用のサーヴァント（同梱）があれば、それも加えたもの（baseRoster・baseBosses が読み込んだまま）
+  let rosterAll = [], roster = [], bosses = [], baseRoster = [], baseBosses = [], source = '', dataLoaded = false;
+  // シナリオ専用のサーヴァントを加える（名簿の並び・番号は変わらず、増えた英霊は後ろに付く）
+  function mergeScn(s) {
+    const m = SC.withServants(s ? SC.normalize(s) : null, baseRoster, baseBosses);
+    rosterAll = roster = m.roster; bosses = m.bosses;
+    return m.extra.length;
+  }
   async function withBosses(res) {
     // リストツールのリスト・選んだファイルにボスが無ければ、公開中のボスを借りる
     if (!(res.bosses && res.bosses.length)) { res.bosses = []; try { res.bosses = (await H.data.loadPublished('data/')).bosses || []; } catch (e) { /* ボスなしでも動く */ } }
@@ -722,6 +729,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     bosses = bosses.map(x => inList.has(x.trueName) ? H.build.bossFromRoster(inList.get(x.trueName)) : x);
     const have = new Set(bosses.map(x => x.trueName));
     for (const [tn, s] of inList) if (!have.has(tn)) bosses.push(H.build.bossFromRoster(s));
+    baseRoster = rosterAll; baseBosses = bosses;
+    mergeScn(scn);   // いま選んでいるシナリオの同梱を加え直す（下でシナリオを選び直せば、そこでもう一度）
     const errs = (res.errors || []).concat(b.errors);
     dataLoaded = true;
     const err = errs.length ? `<div class="err">読めなかったもの：${esc(errs.join('、'))}</div>` : '';
@@ -769,7 +778,9 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   }
   function setScenario(s, quiet) {
     scn = s; scnHash = s ? keepScn(s) : ''; scnChk = null; scnN = null;
-    if (s && dataLoaded) { scnChk = SC.check(s, { roster: rosterAll, bosses }); if (!scnChk.errors.length) scnN = scnChk.n; }
+    const own = mergeScn(s);
+    // 同梱の英霊があれば、サーヴァントのデータを読めていなくても確かめる（同梱の英霊だけで動くシナリオがある）
+    if (s && (dataLoaded || own)) { scnChk = SC.check(s, { roster: baseRoster, bosses: baseBosses }); if (!scnChk.errors.length) scnN = scnChk.n; }
     if (s) store.set(LAST_KEY, scnHash);
     CFG = scnN ? OG.settingsOf(scnN) : Object.assign({}, CFG0);
     trimScns(); formationStale(quiet); renderScn(); renderMaster();
@@ -809,7 +820,7 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
     const list = chk ? chk.errors.map(e => `<li class="e">誤り：${esc(e.msg)}</li>`).concat(chk.warnings.map(w => `<li class="w">注意：${esc(w.msg)}</li>`)) : [];
     info.innerHTML = `<h3>${esc(n.title)}</h3><p class="hint">${[n.author && '作：' + n.author, '期限 ' + n.days + '日', n.stages.map(s => s.name).join(' → '), '味方 ' + n.party.size + '騎'].filter(Boolean).map(esc).join(' ・ ')}</p>`
       + (n.description ? `<p>${esc(n.description)}</p>` : '')
-      + (!dataLoaded ? '<p class="hint">サーヴァントのデータを読み込んだあとで、整合性を確かめます。</p>'
+      + (!chk ? '<p class="hint">サーヴァントのデータを読み込んだあとで、整合性を確かめます。</p>'
         : list.length ? `<ul class="chk">${list.join('')}</ul>` : '<p class="chk-ok">整合性チェック：問題ありません。</p>')
       + (chk && chk.errors.length ? '<p class="hint">誤りがあるシナリオでは始められません。シナリオエディタで直してください。</p>' : '');
     $('#observe').disabled = !scnN;

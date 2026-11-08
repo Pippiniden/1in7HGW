@@ -68,7 +68,7 @@
     const trace = (c, ev) => { if (traced(c)) TR.on(Object.assign({ day, phase, camp: c.id }, ev)); };
 
     const roster = (opts.roster || []).filter(s => s && s.score && !s.bossOnly);   // ボス専用の英霊（特異点のボス）は聖杯戦争に呼ばない
-    if (roster.length < 2) throw new Error('サーヴァントが2騎以上必要です');
+    if (roster.length < 2 && !opts.sing) throw new Error('サーヴァントが2騎以上必要です');   // 特異点のモードは顔ぶれを自分で決める（オリジナル特異点はシナリオ専用の英霊だけでも動く）
     // 特異点（singularity.js）：舞台・陣営・進行を差し替える。聖杯戦争では null で、ここから下の動きは何も変わらない
     const SG = opts.sing || null;
     const sInit = SG ? SG.init({ rnd, chance, pick, wpick, shuffle, ENG, seed, roster }) : null;
@@ -867,11 +867,11 @@
       if (over) { c.overUsed = true; // 魔力を肩代わりする主がいない（はぐれ）か、特異点で蓄えを英霊の霊基が肩代わりするときは、自分自身の霊基を削る文面にする
         log('battle', SG || !c.masterAlive ? `${sn(c)}は残りの魔力も顧みずに宝具を放った——足りない分を賄うように、自らの霊基が削り取られていく。` : `${sn(c)}は残りの魔力も顧みずに宝具を放った——${mn(c)}の体から、生命力が引きずり出されていく。`, [c.id, o.id]); drain(c); }
       const bf = (np.effects || []).filter(e => e.id === 'backfire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0) + skillFx(c, 'backfire', ctx.terrain);   // スキルの反動も
-      if (bf > 0) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
+      if (bf > 0 && !c.nodmg) { c.hp -= bf * 40; log('battle', `反動が${sn(c)}自身を蝕む。`, [c.id]); }
       // 巻き添え：並んで戦う味方（同盟の加勢・特異点の前衛・大聖杯戦争の同じ陣営）の霊基も削る。味方がいなければ何も起きない（乱数は使わない）。倒れはしない（霊基は1で止まる）
       const ffm = (np.effects || []).filter(e => e.id === 'friendly_fire' && condOk(c, e.params, ctx.terrain)).reduce((t, e) => t + e.mag, 0), ffAlly = ffm > 0 ? mateOf(c) : [];
       if (ffAlly.length) {
-        for (const y of ffAlly) y.hp = Math.max(1, y.hp - ffm * 40);
+        for (const y of ffAlly) if (!y.nodmg) y.hp = Math.max(1, y.hp - ffm * 40);
         log('battle', `『${np.name}』は味方をも巻き込んだ——${ffAlly.map(sn).join('・')}が傷を負う。`, [c.id].concat(ffAlly.map(y => y.id)));
       }
       const sr = (np.effects || []).find(e => e.id === 'self_retire');
@@ -1065,7 +1065,7 @@
         const [w, l, ew, el] = chance(p) ? [a, b, ea, eb] : [b, a, eb, ea];
         // 負けた側に加勢がいれば、その一撃を味方が受けることもある
         // かばうのは、加勢のうちいちばん前に出たがる者（かばうスキル→霊基の残り。乱数は使わない）
-        const lhs = help.get(l).filter(y => y.alive);
+        const lhs = help.get(l).filter(y => y.alive && !y.nohit);   // nohit：敵の攻撃の的にならない加勢（オリジナル特異点の無敵のはぐれ）はかばわない
         const lh = lhs.length > 1 ? lhs.reduce((p, q) => (eff(q, 'taunt', ctx.terrain) + q.hp / 1000 > eff(p, 'taunt', ctx.terrain) + p.hp / 1000 ? q : p)) : lhs[0] || null;
         const cover = lh && chance(clamp(ENG.allyCover + eff(lh, 'taunt', ctx.terrain), 0, 0.9));   // かばう（taunt）
         const tg = cover ? lh : l;
@@ -1084,7 +1084,7 @@
           if (armyL.hp <= 0) { armyL.hp = 0; log('battle', `${sn(w)}の押し込みを受け止めきれず、${armyL.name}は霧散した。`, [w.id, l.id]); }
           else log('battle', `${armyL.name}が${sn(l)}の前に立ちはだかり、${sn(w)}の一撃を受け止めた。（残り${Math.ceil(armyL.hp / ENG.armyHp)}体分）`, [w.id, l.id]);
         }
-        else if (chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
+        else if (!tg.nodmg && chance(Math.min(0.4, eff(w, 'instakill', ctx.terrain)) * Math.max(0, 1 - FX.lukInstakill * sd(tg, 'luk')) * (1 - clamp(eff(tg, 'luck'), -0.5, 0.9)))) {
           trace(w, { t: 'instakill' });
           log('battle', `${sn(w)}の一撃が、${sn(tg)}の霊核を捉えた。`, [w.id, tg.id]);
           tg.hp = 0; o3 = yield* lethal(tg, w, 'instakill', round);
@@ -1098,17 +1098,18 @@
           const flat = eff(w, 'dmg_plus', ctx.terrain) - eff(tg, 'dmg_cut', ctx.terrain);   // ダメージプラス・ダメージカット（固定値）
           if (flat) dmg = Math.max(1, dmg + flat);
           // 負けた側も一矢報いる：戦闘力が拮抗しているほど返す傷は大きい（rnd は増やさない）
-          tg.hp -= dmg; w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
+          if (!tg.nodmg) tg.hp -= dmg;   // nodmg：傷を負わない加勢（オリジナル特異点の無敵のはぐれ）
+          w.hp -= rnd() * 8 + dmg * ENG.counterDmg * (el / (ew + 1));
           // 反撃：傷を受けても立っていれば、その傷の一部を返す
           const ctr = tg.hp > 0 ? eff(tg, 'counter', ctx.terrain) : 0;
           if (ctr > 0) { w.hp -= dmg * Math.min(1, ctr); trace(tg, { t: 'counter', dmg: dmg * Math.min(1, ctr) }); if (tg.tLog && !tg.tLog.has('#counter')) { tg.tLog.add('#counter'); log('battle', `${sn(tg)}は退かず、すかさず反撃を返した。`, [tg.id, w.id]); } }
           if (TR) { trace(w, { t: 'dmg', dealt: dmg }); trace(tg, { t: 'dmg', taken: dmg }); }
-          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
+          log('battle', `${round === 1 ? '' : round === ENG.rounds ? '最後の打ち合い。' : '再び刃が交わる。'}${crit ? 'クリティカルヒット。' : ''}${sn(w)}が押し勝ち、${sn(tg)}は${tg.nodmg ? '一撃を受け止めたが、傷一つ負わなかった' : dmg > 32 ? '深手を負った' : '傷を負った'}。`, [w.id, tg.id]);
           if (tg.hp <= 0) o3 = yield* lethal(tg, w, 'battle', round);
           tg.critHit = false;
           // 全体攻撃の宝具で押し勝った打ち合いでは、傷が相手の側の全員に広がる（聖杯戦争では対軍以上の宝具で、その戦いに居る加勢役まで）
           if (w.alive && w.lastNP && w.lastNP.round === round && w.lastNP.aoe > 0) {
-            const hit = side(l).filter(y => y !== tg && y.alive);
+            const hit = side(l).filter(y => y !== tg && y.alive && !y.nohit && !y.nodmg);   // 無敵の加勢には全体攻撃も届かない
             if (hit.length) log('battle', `宝具の奔流は${sn(tg)}だけでは止まらず、${hit.map(sn).join('・')}をも呑み込んだ。`, [w.id].concat(hit.map(y => y.id)));
             for (const y of hit) {
               y.hp -= dmg * w.lastNP.aoe;
@@ -1121,7 +1122,7 @@
           if (w.hp <= 0 && w.alive) { const o2 = yield* lethal(w, tg, o3 === 'dead' ? 'mutual' : 'battle', round); if (o2 !== 'guts' && o2 !== 'rallied') outcome = o2; }
         }
         // 押し勝った一撃に乗る状態異常：毒（翌日まで残る）・宝具封印（この戦いの間）
-        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail && !dodged && !blocked) {
+        if (tg.alive && w.alive && o3 !== 'escaped' && tg.ail && !dodged && !blocked && !tg.nodmg) {
           if (!tg.poison) { const p = tryAil(w, tg, 'poison', ctx.terrain); if (p) { tg.poison = { p, day }; log('battle', ailText('ailPoison', 'poison', p, w, tg), [tg.id, w.id]); } }
           if (!tg.ail.seal) { const p = tryAil(w, tg, 'seal', ctx.terrain); if (p) { tg.ail.seal = true; log('battle', ailText('ailSeal', 'seal', p, w, tg), [tg.id, w.id]); } }
         }
