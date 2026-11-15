@@ -1512,7 +1512,7 @@
       if ($('#svFace').dataset.face !== faceOf(youNow.id)) { $('#svFace').dataset.face = faceOf(youNow.id); $('#svFace').hidden = true; $('#svFace').removeAttribute('src'); }
       fillFaces($('#svFace').parentNode);
       const svNow = servantOf(youNow.id), clsKey = svNow ? svNow.class.key : '';
-      $('#svRanks').innerHTML = meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], clsKey)}><span>${k}</span><b>${esc(v)}</b></div>`).join('');
+      $('#svRanks').innerHTML = meta.ranks.map(([k, v]) => `<div${tipAttr('sv.' + STAT_KEY_BY_JA[k], clsKey)} data-r="${(/EX|[A-E]/.exec(String(v)) || ['-'])[0]}"><span>${k}</span><b>${esc(v)}</b></div>`).join('');
       $('#svSkills').innerHTML = `<b>スキル</b>${esc(meta.skills)}<br><b>宝具</b>${esc(meta.nps)}`;
       const bars = [['霊基', youNow.alive ? youNow.hp : 0, 'var(--hp)', 'st.hp'], ['魔力', youNow.masterAlive ? youNow.mana : 0, 'var(--mana)', 'st.mana'], ['絆', youNow.bond, 'var(--bond)', 'st.bond'], ['工房', youNow.workshop * 10, 'var(--ws)', 'st.ws']];
       $('#bars').innerHTML = bars.map(([k, v, c, t]) => `<div${tipAttr(t)}><span>${k}</span><span class="bar"><i style="width:${v}%;background:${c};color:${c}"></i></span><span>${k === '工房' ? Math.ceil(youNow.workshop / 2) : v}</span></div>`).join('');
