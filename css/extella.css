@@ -102,8 +102,8 @@ html::before {
   -webkit-mask-image: radial-gradient(ellipse at 100% 0, #000 0, rgba(0, 0, 0, .55) 38%, transparent 72%);
   mask-image: radial-gradient(ellipse at 100% 0, #000 0, rgba(0, 0, 0, .55) 38%, transparent 72%);
 }
-/* 題の右下に四角の群れ */
-.title::after { content: ""; position: absolute; right: 0; bottom: 8px; width: 90px; height: 60px; pointer-events: none; opacity: .7; background: var(--fx-tiles) 0 0 / 90px 60px no-repeat; transform: scaleX(-1); }
+/* 題の右上に四角の群れ（題が折り返しても文字に重ならないよう、上に置く） */
+.title::after { content: ""; position: absolute; right: 0; top: -6px; width: 90px; height: 60px; pointer-events: none; opacity: .7; background: var(--fx-tiles) 0 0 / 90px 60px no-repeat; transform: scaleX(-1); }
 
 /* 情景の枠：右上と左に回路のような光の線 */
 .view::before, .view::after { content: ""; position: absolute; z-index: 1; pointer-events: none; filter: drop-shadow(0 0 4px rgba(62, 230, 255, .7)); }
@@ -158,6 +158,33 @@ html::before {
     linear-gradient(90deg, rgba(3, 14, 38, .78), rgba(3, 14, 38, .18));
 }
 
+/* 台詞の窓：話し手の札（と、真名を知っている英霊の顔）を添える。札つきの台詞では、かぎ括弧は台詞の文だけに付ける */
+.log .q.say::before, .log .q.say::after { content: none; }
+.log .q .qt::before { content: "「"; } .log .q .qt::after { content: "」"; }
+.log .q.say { display: flex; gap: 10px; align-items: flex-start; }
+.log .q .qface { display: none; flex: none; }
+.log .q .qface.has { display: block; }
+.log .q .qface .face { display: block; width: 52px; height: 52px; }
+.log .q .qbody { display: grid; gap: 3px; min-width: 0; justify-items: start; }
+.log .q .qwho { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 12px/1.6 var(--gothic); letter-spacing: .04em; }
+/* 台詞の話し手：斜めに切った名前の札 */
+.log .q .qwho { padding: 0 18px 0 10px; color: var(--sel-ink); background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.log .k-death .q .qwho { background: linear-gradient(90deg, var(--seal), #ff9db1); }
+.log .k-np .q .qwho, .log .k-end .q .qwho { background: linear-gradient(90deg, var(--gold), #fff3c4); }
+.log .q.say { padding-left: 12px; }
+/* 顔：角を落としたシアンの枠 */
+.log .q .qface .face, .camps .cf .face, .face.lg {
+  border: 0; border-radius: 0; box-shadow: none;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.log .q .qface, .camps .cf .fic.has, .svbody > .face.lg { filter: drop-shadow(0 0 0 var(--cyan)) drop-shadow(0 0 5px rgba(62, 230, 255, .55)); }
+.camps .cf .fic { display: block; width: 38px; height: 38px; }
+.camps .cf .fic:not(.has) { display: grid; place-items: center; }
+.camps .cf { background: var(--inset); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+.camps .cf:has(.fic.has) { background: none; box-shadow: none; clip-path: none; }
+/* 自分のサーヴァントの顔は大きく */
+.face.lg { width: 96px; height: 96px; }
+
 /* 問いの題：名前の札 */
 .dlg h4 {
   padding: 7px 14px 7px 12px; margin: 6px 16px 10px; border-left: 3px solid var(--cyan);
@@ -175,6 +202,7 @@ html::before {
 .rowsel [data-f]:hover { box-shadow: inset 0 3px 0 var(--fc), inset 0 0 0 1px var(--cyan); }
 .rowsel [data-f][aria-pressed="true"] { box-shadow: inset 0 3px 0 var(--fc), 0 0 16px rgba(62, 230, 255, .45); }
 .rowsel [data-f="attack"] { --fc: var(--f-attack); } .rowsel [data-f="defend"] { --fc: var(--f-defend); } .rowsel [data-f="scout"] { --fc: var(--f-scout); }
+.rowsel [data-f="advance"] { --fc: var(--f-attack); } .rowsel [data-f="search"] { --fc: var(--f-scout); } .rowsel [data-f="stealth"] { --fc: var(--f-hide); } /* 特異点の方針 */
 .rowsel [data-f="rest"] { --fc: var(--f-rest); } .rowsel [data-f="hide"] { --fc: var(--f-hide); } .rowsel [data-f="ally"] { --fc: var(--f-ally); }
 .focus .rowsel [data-f], .sheet .rowsel [data-f] { clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); }
 

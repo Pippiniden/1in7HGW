@@ -772,6 +772,12 @@
       im.hidden = false; if (im.parentNode && im.parentNode.classList) im.parentNode.classList.add('has');
     }
   }
+  // 記録の台詞：話し手の札をつけ、その時点で真名を知っている英霊（と自分の英霊）には顔も出す。話し手は ids の先頭
+  function quoteHtml(e) {
+    const q = e.quote, id = e.ids && e.ids[0], c = id != null && e.snap ? e.snap[id] : null;
+    const known = !!c && (!!c.name || c.you) && !!servantOf(id) && !!q.who && q.who.indexOf(c.label) >= 0;
+    return `<span class="q say">${known ? `<span class="qface"><img class="face" data-face="${esc(faceOf(id))}" alt="" hidden></span>` : ''}<span class="qbody">${q.who ? `<span class="qwho">${esc(q.who)}</span>` : ''}<span class="qt">${esc(q.text)}</span></span></span>`;
+  }
   const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   const KIND_JA = { prologue: '開幕', summon: '召喚', day: '昼の行動', night: '夜の行動', battle: '戦闘', np: '宝具', cs: '令呪', death: '脱落', event: '出来事',
     world: '街の出来事', life: '日常', scout: '偵察', ally: '同盟', council: '作戦会議', choice: '決断', quiet: '静かな日', end: '終幕' };
@@ -788,7 +794,8 @@
     const hl = hlCheck(e);
     const li = document.createElement('li');
     li.className = ['k-' + e.kind, e.you ? 'is-you' : '', hl ? 'hl' : '', e.fin && e.fin.np ? 'fin-np' : '', fast ? '' : 'new'].filter(Boolean).join(' ');
-    li.innerHTML = `<span class="when">${e.day ? `<b>D${String(e.day).padStart(2, '0')}</b>` : '<b>—</b>'}<span>${PH[e.phase] || ''}</span></span><div class="txt">${hl && logFilter !== 'hl' ? '<span class="hlmark" title="ハイライト">★</span>' : ''}${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</div>`;
+    li.innerHTML = `<span class="when">${e.day ? `<b>D${String(e.day).padStart(2, '0')}</b>` : '<b>—</b>'}<span>${PH[e.phase] || ''}</span></span><div class="txt">${hl && logFilter !== 'hl' ? '<span class="hlmark" title="ハイライト">★</span>' : ''}${esc(e.text)}${e.quote ? quoteHtml(e) : ''}</div>`;
+    if (e.quote) fillFaces(li);
     $('#log').prepend(li);
     for (const w of words) if (w.at === idx) putWord(w, fast); // この記録のあとに残した一言
     if (!fast) {
@@ -1530,7 +1537,8 @@
       const st = win ? winText() : c.overseer ? (c.alive ? '裁定者' : '討たれた') : c.boss ? (c.alive ? '汚染された英霊' : '討たれた') : c.alive ? (!c.masterAlive ? `はぐれ（あと${c.soloLeft}日）` : c.bounty ? '討伐令' : '健在') : (c.fate ? c.fate.replace(/^(\d+日目).*$/, '$1に脱落') : '脱落');
       const can = canLore(c.id);
       return groupHead + `<li${sideStyle} class="${c.side != null ? 'sided ' : ''}${c.you ? 'you' : ''}${c.alive ? '' : ' down'}${win ? ' win' : ''}${c.boss || c.overseer ? ' boss' : ''}${can ? ' can' : ''}"${can ? ` data-lore="${c.id}" tabindex="0" role="button" aria-label="${esc(c.label + '「' + c.name + '」の解説')}"` : ''}>
-        <div class="row1"><b>${can ? fic(faceOf(c.id), keyOf(c.id)) : ci(keyOf(c.id))}${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
+        <div class="cf">${can ? fic(faceOf(c.id), keyOf(c.id), true) : ci(keyOf(c.id), true)}</div>
+        <div class="row1"><b>${esc(c.label)}${c.name ? '「' + esc(c.name) + '」' : ''}</b><span class="st">${esc(st)}</span></div>
         <div class="sub">${c.overseer ? 'マスターなし' : esc(c.master)}${c.you ? ' ・ あなた' : c.persona ? '（' + esc(c.persona) + '）' : ''}${!c.name && c.clues && c.alive ? ' ・ 手がかり' + c.clues : ''}${(() => { const al = (c.allies && c.allies.length ? c.allies : c.ally != null ? [c.ally] : []).filter(i => e.snap[i]); return !inWar && al.length ? ' ・ ' + al.map(i => esc(e.snap[i].label)).join('・') + 'と同盟' : ''; })()} ${c.boss || c.overseer ? '' : sealsInline(c.cs)}</div>
         ${c.alive ? `<div class="hpb"><i style="width:${c.hp}%"></i></div>` : ''}
       </li>`;

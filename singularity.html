@@ -1369,13 +1369,21 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   $('#queue').addEventListener('click', e => { const a = e.target.closest('[data-q]'); if (!a) return; e.preventDefault(); queue.splice(+a.dataset.q, 1); renderQueue(); renderOrders(); });
 
   // ---------- 表示 ----------
+  // 記録の台詞：話し手の札をつけ、味方と、その時点で真名を知っている敵には顔も出す。話し手は ids の先頭
+  function quoteHtml(e) {
+    const q = e.quote, id = e.ids && e.ids[0], c = id != null && e.snap && e.snap.c ? e.snap.c.find(x => x.id === id) : null;
+    const known = !!c && !!q.who && (c.side === 'party' || (!!c.name && q.who.indexOf(c.name) >= 0));
+    const face = known ? faceOf(id) : '';
+    return `<span class="q say">${face ? `<span class="qface"><img class="face" data-face="${esc(face)}" alt="" hidden></span>` : ''}<span class="qbody">${q.who ? `<span class="qwho">${esc(q.who)}</span>` : ''}<span class="qt">${esc(q.text)}</span></span></span>`;
+  }
   const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   function show(e, fast) {
     const li = document.createElement('li');
     li.className = `k-${e.kind}${e.you ? ' is-you' : ''}${fast ? '' : ' new'}${isHL(e) ? ' hl' : ''}${FB.includes(e.kind) ? ' fb' : ''}`;
     curDay = e.day || curDay;
     if (e.kind === 'dayhead') li.innerHTML = `<span class="txt">${esc(e.text)}</span>`;
-    else li.innerHTML = `<span class="when">${e.day ? 'D' + e.day : ''}<span>${PH[e.phase] || ''}</span></span><span class="txt">${esc(e.text)}${e.quote ? `<span class="q">${esc(e.quote.text)}</span>` : ''}</span>`;
+    else li.innerHTML = `<span class="when">${e.day ? 'D' + e.day : ''}<span>${PH[e.phase] || ''}</span></span><span class="txt">${esc(e.text)}${e.quote ? quoteHtml(e) : ''}</span>`;
+    if (e.quote) fillFaces(li);
     $('#log').prepend(li);
     while ($('#log').children.length > 400) $('#log').lastChild.remove();
     if (e.snap) board(e);
