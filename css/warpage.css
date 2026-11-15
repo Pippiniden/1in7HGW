@@ -312,6 +312,13 @@ body.watching .war { display: block; }
 .camps { list-style: none; margin: 0; padding: 0 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; }
 .camps li, .camps .row1 b { min-width: 0; }
 .camps li { position: relative; padding: 7px 12px 8px; background: linear-gradient(90deg, rgba(20, 70, 150, .45), rgba(10, 36, 86, .35)); box-shadow: inset 0 0 0 1px var(--line); clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%); }
+/* 左に顔（無ければクラスのアイコン）。色の見出しの行には無い */
+.camps li:not(.sidehead) { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 0 10px; align-items: center; }
+.camps .cf { grid-row: 1 / span 3; align-self: start; width: 38px; height: 38px; display: grid; place-items: center; }
+.camps .cf .ci, .camps .cf .face { width: 38px; height: 38px; margin: 0; vertical-align: 0; display: block; }
+.camps .cf .ci { width: 28px; height: 28px; }
+.camps .cf .fic.has .ci { display: none; }
+.camps .row1, .camps .sub, .camps .hpb { grid-column: 2; }
 .camps .row1 { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
 .camps b { font-weight: 700; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .camps .st { font-size: 12px; color: var(--mute); white-space: nowrap; }
