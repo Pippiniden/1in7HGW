@@ -1,0 +1,121 @@
+/* ============================================================
+   エディタ（roster.html・submit.html）の意匠
+   各ページの <style> のあとに読む。ゲーム側（css/extella.css）と同じ文法
+   ——紺とシアン、角の括弧、四角の群れ、目盛りつきのゲージ——を、作業画面向けに控えめに当てる。
+   色は各ページの :root の名前（--bg・--panel・--accent など）をここで上書きする。
+   明るい配色（OSがライト）でも暗い配色でも読めるよう、両方の色をここに置く。
+   見た目だけで、データ・保存・書き出しには関わらない。
+   ============================================================ */
+:root {
+  --bg: #edf2f9; --panel: #ffffff; --ink: #0f1f38; --sub: #54688a; --rule: #cbd8ea;
+  --accent: #0a6cb4; --accent-ink: #ffffff; --bar: #1790d8; --bar-bg: #dde7f3;
+  --chip: #e4edf8; --hover: #f1f7fd;
+  --ed-gold: #c9951a; --ed-grid: rgba(10, 108, 180, .055); --ed-glow: rgba(10, 108, 180, 0); --ed-tick: rgba(255, 255, 255, .85);
+  --ed-wash: linear-gradient(180deg, #f7fafe, #edf2f9);
+  --ed-tiles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40' fill='%230a6cb4'%3E%3Crect width='8' height='8' fill-opacity='.9'/%3E%3Crect x='10' width='8' height='8' fill-opacity='.45'/%3E%3Crect x='10' y='10' width='8' height='8' fill-opacity='.3'/%3E%3Crect x='20' y='10' width='8' height='8' fill-opacity='.8'/%3E%3Crect x='30' y='10' width='8' height='8' fill-opacity='.5'/%3E%3Crect y='20' width='8' height='8' fill-opacity='.2'/%3E%3Crect x='20' y='20' width='8' height='8' fill-opacity='.9'/%3E%3Crect x='30' y='20' width='8' height='8' fill-opacity='.35'/%3E%3Crect x='40' y='20' width='8' height='8' fill-opacity='.6'/%3E%3Crect x='40' y='30' width='8' height='8' fill-opacity='.25'/%3E%3Crect x='50' y='30' width='8' height='8' fill-opacity='.5'/%3E%3C/svg%3E");
+  --ed-tiles-op: .22;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #050d22; --panel: #0a1d45; --ink: #e8f7ff; --sub: #8daed4; --rule: #1f4a85;
+    --accent: #3ee6ff; --accent-ink: #04152e; --bar: #3ee6ff; --bar-bg: #06163a;
+    --warn-bg: #3a3212; --warn-ink: #ffd84a; --err-bg: #3d1524; --err-ink: #ff9db1;
+    --ok: #4ef0c0; --chip: #12306a; --neg: #ff8a9d; --hover: #10306c;
+    --ed-gold: #ffd84a; --ed-grid: rgba(62, 230, 255, .04); --ed-glow: rgba(62, 230, 255, .45); --ed-tick: rgba(3, 10, 28, .8);
+    --ed-wash: radial-gradient(1100px 620px at 78% -8%, #15367a 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%);
+    --ed-tiles: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='40' fill='%233ee6ff'%3E%3Crect width='8' height='8' fill-opacity='.9'/%3E%3Crect x='10' width='8' height='8' fill-opacity='.45'/%3E%3Crect x='10' y='10' width='8' height='8' fill-opacity='.3'/%3E%3Crect x='20' y='10' width='8' height='8' fill-opacity='.8'/%3E%3Crect x='30' y='10' width='8' height='8' fill-opacity='.5'/%3E%3Crect y='20' width='8' height='8' fill-opacity='.2'/%3E%3Crect x='20' y='20' width='8' height='8' fill-opacity='.9'/%3E%3Crect x='30' y='20' width='8' height='8' fill-opacity='.35'/%3E%3Crect x='40' y='20' width='8' height='8' fill-opacity='.6'/%3E%3Crect x='40' y='30' width='8' height='8' fill-opacity='.25'/%3E%3Crect x='50' y='30' width='8' height='8' fill-opacity='.5'/%3E%3C/svg%3E");
+    --ed-tiles-op: .4;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #050d22; --panel: #0a1d45; --ink: #e8f7ff; --sub: #8daed4; --rule: #1f4a85;
+  --accent: #3ee6ff; --accent-ink: #04152e; --bar: #3ee6ff; --bar-bg: #06163a;
+  --warn-bg: #3a3212; --warn-ink: #ffd84a; --err-bg: #3d1524; --err-ink: #ff9db1;
+  --ok: #4ef0c0; --chip: #12306a; --neg: #ff8a9d; --hover: #10306c;
+  --ed-gold: #ffd84a; --ed-grid: rgba(62, 230, 255, .04); --ed-glow: rgba(62, 230, 255, .45); --ed-tick: rgba(3, 10, 28, .8);
+  --ed-wash: radial-gradient(1100px 620px at 78% -8%, #15367a 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%);
+  --ed-tiles-op: .4;
+  color-scheme: dark;
+}
+
+/* 地：細い方眼と、奥の光 */
+body {
+  background:
+    repeating-linear-gradient(0deg, var(--ed-grid) 0 1px, transparent 1px 48px),
+    repeating-linear-gradient(90deg, var(--ed-grid) 0 1px, transparent 1px 48px),
+    var(--ed-wash), var(--bg);
+  background-attachment: fixed;
+}
+/* 画面の上端：金とアクセントの細い光の線 */
+body::after {
+  content: ""; position: fixed; left: 0; right: 0; top: 0; height: 2px; z-index: 60; pointer-events: none;
+  background: linear-gradient(90deg, var(--ed-gold) 0 96px, var(--accent) 96px 45%, transparent);
+  box-shadow: 0 0 10px var(--ed-glow);
+}
+/* 画面の右上：四角の群れ */
+html::before {
+  content: ""; position: fixed; right: 0; top: 0; width: min(46vw, 520px); height: 320px; z-index: -1; pointer-events: none; opacity: var(--ed-tiles-op);
+  background: var(--ed-tiles) right 24px top 40px / 210px 140px no-repeat, var(--ed-tiles) right 230px top 20px / 105px 70px no-repeat;
+  -webkit-mask-image: radial-gradient(ellipse at 100% 0, #000 0, rgba(0, 0, 0, .5) 40%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 100% 0, #000 0, rgba(0, 0, 0, .5) 40%, transparent 72%);
+}
+html { scrollbar-width: thin; scrollbar-color: var(--accent) transparent; }
+:focus-visible { outline: 2px solid var(--ed-gold); outline-offset: 2px; }
+
+/* 題：金の短い帯とアクセントの線 */
+header { position: relative; }
+header h1 { letter-spacing: .08em; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid transparent; border-image: linear-gradient(90deg, var(--ed-gold) 0 56px, var(--accent) 56px 55%, transparent) 1; text-shadow: 0 0 18px var(--ed-glow); }
+
+/* 枠：角を立て、左上と右下に括弧 */
+.panel, .dpane, dialog, .card, .svr, .stat, .banner, .labwrap, .pagebox, .dmenu-pop, textarea { border-radius: 2px; }
+.panel, dialog {
+  background-color: var(--panel);
+  background-image:
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent)),
+    linear-gradient(var(--accent), var(--accent)), linear-gradient(var(--accent), var(--accent));
+  background-repeat: no-repeat;
+  background-size: 14px 2px, 2px 14px, 14px 2px, 2px 14px;
+  background-position: left top, left top, right bottom, right bottom;
+}
+dialog { box-shadow: 0 0 60px var(--ed-glow), 0 24px 60px rgba(0, 0, 0, .35); border-top: 2px solid var(--accent); }
+dialog::backdrop { background: rgba(2, 8, 22, .6); }
+/* 小見出し：左にアクセントの印 */
+.panel > h2, h3 { border-left: 3px solid var(--accent); padding-left: 8px; letter-spacing: .08em; }
+dialog h3 { border-left: 0; padding-left: 0; padding-bottom: 6px; border-bottom: 1px solid transparent; border-image: linear-gradient(90deg, var(--accent), transparent 80%) 1; }
+
+/* 画面の切り替え：選んでいる札が光る */
+.views button[aria-selected="true"] { color: var(--accent); text-shadow: 0 0 10px var(--ed-glow); background: linear-gradient(180deg, transparent, var(--hover)); }
+
+/* ボタンと入力欄：角を立てる。主ボタンは斜めの細い光 */
+button, .btn, select, input[type=number], input[type=text], .views .hist button, .dmenu summary, .labf input { border-radius: 2px; }
+button:hover, .btn:hover { border-color: var(--accent); filter: none; }
+.views button:hover { border-color: transparent; color: var(--ink); }
+button.primary, .filters button.on, .tabs button.on {
+  background-image: repeating-linear-gradient(-60deg, transparent 0 7px, rgba(255, 255, 255, .16) 7px 8px);
+  box-shadow: 0 0 12px var(--ed-glow);
+}
+select:focus, input:focus, textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+/* 一覧の行：選んでいる行は左から光る */
+.svr[aria-selected="true"] { background: linear-gradient(90deg, var(--hover), var(--panel)); box-shadow: inset 3px 0 0 var(--accent), 0 0 12px var(--ed-glow); }
+/* クラスの札：斜めに切る */
+.cls:not(.ex) { border-radius: 0; padding: 1px 12px; clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); }
+.cls.ex { border-radius: 0; }
+.attr, .badge, .labch { border-radius: 2px; }
+
+/* 能力値：ステータス画面ふうに、下に目盛りつきのゲージ */
+.stat { border: 1px solid var(--rule); background: var(--bg); }
+.stat .v { letter-spacing: .04em; }
+.stat .bar, .labbar, .labtbl .lbar { position: relative; border-radius: 0; }
+.stat .bar::after, .labbar::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--ed-tick) calc(10% - 1px) 10%);
+}
+.stat .bar i, .labbar i { box-shadow: 0 0 8px var(--ed-glow); }
+
+.toast { border-radius: 2px; box-shadow: 0 0 0 1px var(--accent), 0 4px 16px rgba(0, 0, 0, .3); }
+
+@media (max-width: 820px) {
+  html::before { width: 70vw; height: 220px; opacity: calc(var(--ed-tiles-op) * .7); }
+}

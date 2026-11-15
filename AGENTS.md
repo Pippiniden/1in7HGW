@@ -74,7 +74,8 @@ taisen.html         Great Holy Grail War (test feature, §7.13): its own markup,
 original.html       Original singularity (test feature, §7.14): pick/load a scenario, check it, set the Master, play; derived from singularity.html but independent
 scenario.html       Original-singularity scenario editor: path-bound form (`data-p`), live check, auto-save to `hgw.orig.edit`, JSON export, auto-run trial
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
-css/extella.css     Shared Fate/EXTELLA-style ornaments (left lattice, top light line, header bands, selection cursor, key legend bar); linked after each dark page's inline `<style>` (index/taisen: after `css/warpage.css`) (not roster/submit); uses each page's `:root` tokens
+css/extella.css     Shared Fate/EXTELLA-style ornaments (left lattice, top light line, header bands, selection cursor, key legend bar; plus the cyberspace layer: square clusters and binary digits top-right, scene frame, rank gauges via `data-r`, dialogue-window quotes, focus chips coloured by `data-f`); linked after each dark page's inline `<style>` (index/taisen: after `css/warpage.css`) (not roster/submit); uses each page's `:root` tokens
+css/editor.css      Look of the editors (roster.html / submit.html), linked after their inline `<style>`: overrides their `:root` tokens (light and dark) with the same navy/cyan language and adds brackets, gauges and tabs; appearance only
 data/
   manifest.json     Which data files to load
   servants.json     Servant pack (hgw-servants, lean). ~1.2M chars — NEVER read it whole; use tools/servant.js (§4.6)
