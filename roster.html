@@ -74,6 +74,9 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 /* 画面の切り替え */
 .views { position: sticky; top: 0; z-index: 20; background: var(--bg); max-width: 1240px; margin: 0 auto; padding: 6px 16px 0; display: flex; gap: 2px; overflow-x: auto; border-bottom: 1px solid var(--rule); scrollbar-width: none; }
 .views::-webkit-scrollbar { display: none; }
+.views .hist { margin-left: auto; display: flex; gap: 4px; align-items: center; padding: 0 0 4px 12px; position: sticky; right: 0; background: var(--bg); }
+.views .hist button { border: 1px solid var(--rule); border-radius: 7px; background: var(--panel); padding: 3px 8px; font-size: 12px; color: var(--ink); }
+.views .hist button:disabled { opacity: .4; cursor: default; }
 .views button { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 8px 12px; font-size: 14px; color: var(--sub); white-space: nowrap; }
 .views button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 .views button i { font-style: normal; font-size: 11px; margin-left: 4px; padding: 0 6px; border-radius: 99px; background: var(--warn-bg); color: var(--warn-ink); }
@@ -107,9 +110,17 @@ main { max-width: 1240px; margin: 0 auto; padding: 8px 16px 48px; }
 .facebox img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--rule); flex: none; }
 .facebox code { overflow-wrap: anywhere; }
 .pagebox.warn p { color: var(--warn-ink); }
-.dacts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; font-size: 12px; }
+.dacts { margin-top: 8px; font-size: 12px; display: grid; gap: 6px; }
+.dgrp { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.dgrp .dlab { flex: none; width: 2.6em; color: var(--sub); font-size: 11px; }
+.dmenu { position: relative; }
+.dmenu summary { list-style: none; cursor: pointer; font-size: 12px; padding: 3px 8px; border-radius: 7px; border: 1px solid var(--rule); background: var(--panel); color: var(--ink); user-select: none; }
+.dmenu summary::-webkit-details-marker { display: none; }
+.dmenu-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 15; min-width: 210px; display: grid; gap: 2px; padding: 6px; background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
+.dmenu-pop button { text-align: left; border-color: transparent; padding: 6px 8px; white-space: nowrap; }
+.dmenu-pop hr { width: 100%; border: 0; border-top: 1px solid var(--rule); margin: 2px 0; }
 .dacts a { color: var(--accent); }
-.dacts .sp { flex: 1; }
+.dgrp .sp { flex: 1; }
 @media (max-width: 900px) {
   .browse { grid-template-columns: minmax(0, 1fr); }
   .lpane { position: static; max-height: none; }
@@ -251,6 +262,13 @@ dialog h3 { margin-top: 0; color: var(--ink); font-size: 15px; }
 .efx:empty { display: none; }
 .ed-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 12px; }
 .ed-toolbar select { max-width: 100%; }
+.npmore { margin: 0 0 12px; border: 1px solid var(--rule); border-radius: 8px; padding: 6px 10px; }
+.npmore summary { cursor: pointer; font-size: 12px; color: var(--sub); }
+.npmore summary .chip { color: var(--ink); margin-left: 4px; }
+.npgrid { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 8px 10px; align-items: center; margin-top: 8px; }
+.npgrid .nplab { font-size: 12px; color: var(--sub); }
+.npgrid .row { min-width: 0; } .npgrid label:has(select), #edAtkRow label:has(select) { display: flex; align-items: center; gap: 4px; max-width: 100%; min-width: 0; white-space: nowrap; } .npgrid select, #edAtkRow select { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+@media (max-width: 560px) { .npgrid { grid-template-columns: minmax(0, 1fr); gap: 4px; } .npgrid .nplab { margin-top: 6px; font-weight: 600; } }
 .ed-foot { position: sticky; bottom: -16px; margin: 12px -16px -16px; padding: 10px 16px 14px; background: var(--panel); border-top: 1px solid var(--rule); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .ed-foot .sp { flex: 1; }
 .ed-top { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: baseline; margin-bottom: 6px; }
@@ -392,6 +410,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   <button role="tab" data-v="lab" aria-selected="false">聖杯戦争で試す</button>
   <button role="tab" data-v="save" aria-selected="false">公開・保存<i id="saveBadge" hidden></i></button>
   <button role="tab" data-v="pool" aria-selected="false">人数・組み合わせ</button>
+  <span class="hist"><button class="sm" id="undo" type="button" disabled title="直前の変更（編集・取り込み・削除・そろえる）を元に戻す（Ctrl+Z）">↶ 元に戻す</button><button class="sm" id="redo" type="button" disabled title="戻した変更をやり直す（Ctrl+Y）">↷</button></span>
 </nav>
 <main>
   <section class="view" data-view="roster">
@@ -561,25 +580,31 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     <button class="sm ghost" id="edAuto" type="button" title="辞書・説明文からの自動の読み取り結果を行に並べる（いまの行は置き換える）">自動の読み取りを並べる</button>
     <span class="hint">各行の ⚙ で発動・場面・相手・確率・日数・日ごとの変化などを付けられます（その効果で働く欄だけが出ます）。状態異常の「記録の文」では {S}＝掛けた側、{O}＝掛けられた側、{N}＝名前。</span>
   </div>
-  <div class="row" id="edAtkRow" style="margin-bottom:12px">
+  <div class="row" id="edAtkRow" style="margin-bottom:8px">
     <span class="hint">宝具の扱い：</span>
     <label class="hint"><input type="radio" name="atk" value="auto" checked> 自動</label>
     <label class="hint"><input type="radio" name="atk" value="yes"> 攻撃宝具</label>
     <label class="hint"><input type="radio" name="atk" value="no"> 補助宝具</label>
     <label class="hint">発動のしかた <select id="edMode"></select></label>
-    <label class="hint">1回の戦いに <input id="edPerBattle" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
-    <label class="hint">戦争全体で <input id="edPerWar" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
-    <label class="hint">使うたびの威力の変動 <input id="edVaryMin" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em">〜<input id="edVaryMax" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em"> %（100＝本来の威力）</label>
-    <label class="hint">変動が起きる確率 <input id="edVaryChance" type="number" min="1" max="100" step="1" placeholder="100" style="width:5em"> %</label>
   </div>
-  <div class="row" id="edUseRow" style="margin-bottom:12px">
-    <span class="hint">使える条件：</span>
-    <label class="hint">場面 <select id="edNpCond"></select></label>
-    <label class="hint">相手 <input id="edNpVs" type="text" list="tagList" placeholder="男性・竜・騎乗など" title="名前を &（すべてに当たる）や |（どれかに当たる）でつなげます。例：ギリシャ&男性、竜|獣" autocomplete="off" style="width:9em"></label>
-    <label class="hint">宝具 <select id="edNpAfter"><option value="">（指定なし）</option></select> を</label>
-    <label class="hint"><select id="edNpAfterScope"><option value="war">戦争で</option><option value="battle">その戦いで</option></select></label>
-    <label class="hint"><input id="edNpAfterN" type="number" min="1" step="1" value="1" style="width:4em"> 回使ったあと</label>
-  </div>
+  <details class="npmore" id="edUseRow">
+    <summary>回数・威力の変動・使える条件 <span id="edNpSum"></span></summary>
+    <div class="npgrid">
+      <span class="nplab">使える回数</span>
+      <div class="row"><label class="hint">1回の戦いに <input id="edPerBattle" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label>
+        <label class="hint">戦争全体で <input id="edPerWar" type="number" min="1" step="1" placeholder="制限なし" style="width:5em"> 回まで</label></div>
+      <span class="nplab">威力の変動</span>
+      <div class="row"><label class="hint">使うたびに <input id="edVaryMin" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em">〜<input id="edVaryMax" type="number" min="1" max="500" step="1" placeholder="なし" style="width:5em"> %（100＝本来の威力）</label>
+        <label class="hint">変動が起きる確率 <input id="edVaryChance" type="number" min="1" max="100" step="1" placeholder="100" style="width:5em"> %</label></div>
+      <span class="nplab">使える条件</span>
+      <div class="row"><label class="hint">場面 <select id="edNpCond"></select></label>
+        <label class="hint">相手 <input id="edNpVs" type="text" list="tagList" placeholder="男性・竜・騎乗など" title="名前を &（すべてに当たる）や |（どれかに当たる）でつなげます。例：ギリシャ&男性、竜|獣" autocomplete="off" style="width:9em"></label></div>
+      <span class="nplab">ほかの宝具のあと</span>
+      <div class="row"><label class="hint">宝具 <select id="edNpAfter"><option value="">（指定なし）</option></select> を</label>
+        <label class="hint"><select id="edNpAfterScope"><option value="war">戦争で</option><option value="battle">その戦いで</option></select></label>
+        <label class="hint"><input id="edNpAfterN" type="number" min="1" step="1" value="1" style="width:4em"> 回使ったあと</label></div>
+    </div>
+  </details>
   <div class="row" style="margin-bottom:12px">
     <label class="hint"><input type="radio" name="scope" value="servant" checked> このサーヴァントだけ</label>
     <label class="hint"><input type="radio" name="scope" value="global"> 同じ名前のスキルすべて</label>
@@ -739,7 +764,29 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   ovSet(store.get(OV_KEY, null));
 
   // リストは「解析済みの元データ」（公開用と同じ軽い形）を保存し、表示のたびに今の規則で組み直す
-  function save() { rosterVer++; if (!store.set(ROSTER_KEY, roster.map(B.toLean))) status('ブラウザの保存領域がいっぱいでリストを保存できませんでした。JSONで保存してください'); syncInfo(); }
+  function save() { rosterVer++; const lean = roster.map(B.toLean); histPush(lean); if (!store.set(ROSTER_KEY, lean)) status('ブラウザの保存領域がいっぱいでリストを保存できませんでした。JSONで保存してください'); syncInfo(); }
+  // ---------- 元に戻す・やり直す ----------
+  // リストと手直し表（と、公開中とそろえた時点の控え）をまるごと覚えておく。保存 save() のたびに直前の状態を積むので、編集・取り込み・削除・そろえる、のどれも戻せる。
+  // このページを開いている間だけ（ブラウザには残さない）
+  const HIST_MAX = 10, undoStack = [], redoStack = [];
+  let histCur = null, histOff = false;
+  const histSnap = lean => ({ r: JSON.stringify(lean), o: JSON.stringify(ovGet()), b: JSON.stringify(base) });
+  function histPush(lean) {
+    const s = histSnap(lean); // 空のリストへは戻さない（開いた直後の自動の読み込みなど）
+    if (!histOff && histCur && histCur.r !== '[]' && (s.r !== histCur.r || s.o !== histCur.o)) { undoStack.push(histCur); if (undoStack.length > HIST_MAX) undoStack.shift(); redoStack.length = 0; }
+    histCur = s; histUi();
+  }
+  function histUi() { $('#undo').disabled = !undoStack.length; $('#redo').disabled = !redoStack.length; }
+  function histGo(from, to, msg) {
+    if (!from.length || !histCur || document.querySelector('dialog[open]')) return;
+    const s = from.pop(); to.push(histCur);
+    ovSet(JSON.parse(s.o)); ovStore(); ovVer++;
+    roster = JSON.parse(s.r).map(x => { try { return B.fromJSON(x); } catch (e) { console.error(e); return x; } });
+    base = JSON.parse(s.b); store.set(BASE_KEY, base); planCache = null;
+    histOff = true; try { save(); } finally { histOff = false; }
+    render(); status(msg);
+  }
+  const undo = () => histGo(undoStack, redoStack, '直前の変更を元に戻しました'), redo = () => histGo(redoStack, undoStack, '戻した変更をやり直しました');
   function rebuildAll() { rosterVer++; roster = roster.map(s => { try { return B.fromJSON(s); } catch (e) { console.error(e); return s; } }); }
   function upsert(list) {
     let add = 0, rep = 0;
@@ -857,8 +904,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       <div class="meta">${esc([sv.class.raw && sv.class.raw !== sv.class.label ? 'Wikiのクラス表記：' + sv.class.raw : '', sv.origin, sv.alignment, sv.attribute && sv.attribute + '属性', (sv.traits || []).length && (sv.attrs || []).join('・') !== sv.traits.join('・') ? 'Wikiの特性：' + sv.traits.join('・') : ''].filter(Boolean).join(' · '))}${sv.bossOnly ? ' <span class="chip">聖杯戦争には呼ばれません（特異点攻略のボス）</span>' : ''}</div>
       <div class="stats">${st}</div>
       <div class="kpi"><span>戦闘力<b>${sv.power}</b></span><span>宝具の最大威力<b>${sv.npPeak || '—'}</b></span>${sv.bossOnly ? '<span>評価<b>対象外</b>（ボス）</span>' : `<span>評価<b>${gradeOf(sv)}</b>（平均勝率 ${Math.round(rateOf(sv) * 100)}%）</span>`}</div>
-      <div class="dacts"><button class="sm" data-idd="${i}">真名・クラスを変える</button><button class="sm" data-attr="${i}">属性を編集</button><button class="sm" data-verify="${i}" title="この騎を必ず含む七騎で全自動の聖杯戦争を回し、スキル・宝具の効果が実際にどう働いたかを数えます">効果の検証</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button><button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
-        ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">設定元リンク</a>` : ''}<span class="sp"></span><button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button><button class="sm ghost danger" data-del="${i}">リストから外す</button></div>
+      <div class="dacts">
+        <div class="dgrp"><span class="dlab">編集</span><button class="sm" data-ct="${i}">内容を編集</button><button class="sm" data-st="${i}">ステータス編集</button><button class="sm" data-attr="${i}">属性を編集</button><button class="sm" data-idd="${i}">真名・クラスを変える</button>${sv.bossOnly ? `<button class="sm" data-boss="${i}">ボスの設定</button>` : ''}</div>
+        <div class="dgrp"><span class="dlab">試す</span><button class="sm" data-verify="${i}" title="この騎を必ず含む七騎で全自動の聖杯戦争を回し、スキル・宝具の効果が実際にどう働いたかを数えます">効果の検証</button>${sv.bossOnly ? `<button class="sm" data-bt="${i}" title="このボスとランダムな味方の六騎で特異点を回し、人理修復の成功率を見ます">ボスを試す</button>` : ''}<button class="sm" data-cmp="A:${i}">試し戦いの左に</button><button class="sm" data-cmp="B:${i}">試し戦いの右に</button>
+          <span class="sp"></span>${wikiUrl(sv) ? `<a href="${esc(wikiUrl(sv))}" target="_blank" rel="noopener">設定元リンク</a>` : ''}
+          <details class="dmenu"><summary>その他 ▾</summary><div class="dmenu-pop">
+            <button class="sm ghost" data-one="${i}" title="この騎だけをJSONで書き出します（この騎に付いた手直しも含む）。別のブラウザの「ファイルを読む」で取り込めます">この騎をJSONで書き出す</button>
+            ${B.isManual(sv) ? '' : `<button class="sm ghost" data-refetch="${i}" title="ページ名をコピーして、GitHub の「kagemiya から取り込み」を開きます">Wikiから取り直す</button>`}
+            <hr>
+            <button class="sm ghost danger" data-wipe="${i}" title="別のページを取り込んでしまったときなどに。この騎に付いた手直し（内容・効果・宝具の扱い・ステータス・確認済み・真名とクラスの変更）をまとめて消します">この騎の手直しをすべて消す</button>
+            <button class="sm ghost danger" data-del="${i}">リストから外す</button>
+          </div></details></div>
+      </div>
       ${pageBox(sv, i)}
       ${idBox(sv)}
       ${pubDiffHtml(sv)}
@@ -1028,6 +1085,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (e.key === 'ArrowDown' || e.key === 'j') { e.preventDefault(); step(1); }
     else if (e.key === 'ArrowUp' || e.key === 'k') { e.preventDefault(); step(-1); }
   });
+  document.addEventListener('click', e => { for (const d of document.querySelectorAll('details.dmenu[open]')) if (!d.contains(e.target) || e.target.closest('.dmenu-pop button')) d.open = false; });
   $('#q').addEventListener('input', e => { query = e.target.value.trim(); renderList(); if (shownIds.length && !shownIds.includes(sel)) select(shownIds[0], { scrollList: false }); });
   $('#q').addEventListener('keydown', e => {
     // Enter：一覧の先頭の騎を開く
@@ -1035,6 +1093,13 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     if (e.key === 'Escape') { e.target.value = ''; query = ''; renderList(); }
   });
   $('#sort').addEventListener('change', e => { sortBy = e.target.value; renderList(); renderDetail(); });
+  // Ctrl+Z で元に戻す、Ctrl+Y / Ctrl+Shift+Z でやり直す（入力中・編集の窓を開いている間は、その欄の取り消しに任せる）
+  $('#undo').onclick = undo; $('#redo').onclick = redo;
+  document.addEventListener('keydown', e => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.target.closest('input, textarea, select, dialog, [contenteditable]')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); } else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+  });
   // 「/」で検索欄へ（入力中は除く）
   document.addEventListener('keydown', e => { if (e.key === '/' && !e.target.closest('input, textarea, select, dialog')) { e.preventDefault(); showView('roster'); $('#browse').classList.remove('show'); $('#q').focus(); $('#q').select(); } });
   // リストの1騎へ移る（申請・取り込み・試し戦いの一覧などから）
@@ -1831,6 +1896,18 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       + `${pField(id, p ? p.tag || p.stat || '' : '')}${E.moreHtml(id, p, esc, edNp(), open)}`;
   }
   const edRefill = div => { const d = div.querySelector('.emore'); edFill(div, specOf(div), !!(d && d.open)); };
+  // 宝具の「回数・威力の変動・使える条件」：折りたたんだままでも、付いている設定を見出しに出す
+  function edNpSum() {
+    const v = id => $('#' + id).value.trim(), out = [];
+    if (+v('edPerBattle') > 0) out.push('1戦' + Math.floor(+v('edPerBattle')) + '回まで');
+    if (+v('edPerWar') > 0) out.push('戦争で' + Math.floor(+v('edPerWar')) + '回まで');
+    if (+v('edVaryMin') > 0 || +v('edVaryMax') > 0) out.push('威力 ' + (+v('edVaryMin') || 100) + '〜' + (+v('edVaryMax') || 100) + '%' + (+v('edVaryChance') > 0 && +v('edVaryChance') < 100 ? '（' + (+v('edVaryChance')) + '%で）' : ''));
+    if (v('edNpCond')) out.push('場面：' + $('#edNpCond').selectedOptions[0].textContent);
+    if (v('edNpVs')) out.push('相手：' + v('edNpVs'));
+    if (v('edNpAfter')) out.push('「' + v('edNpAfter') + '」のあと');
+    $('#edNpSum').innerHTML = out.length ? out.map(t => `<span class="chip">${esc(t)}</span>`).join('') : '<span class="hint">（設定なし）</span>';
+  }
+  $('#edUseRow').addEventListener('input', edNpSum);
   $('#edMode').addEventListener('change', () => { for (const r of $('#edRows').querySelectorAll('.erow')) { edRefill(r); edExplain(r); } });
   function edRow(spec, before) {
     const div = document.createElement('div'); div.className = 'erow';
@@ -1902,7 +1979,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
     $('#edDesc').textContent = item.desc || '';
     $('#tagList').innerHTML = Array.from(new Set(roster.flatMap(s => s.tags || []).concat(attrList(), ['男性', '女性', '神性', '竜', '魔性', '人型', '王', '英雄']))).sort().map(t => `<option value="${esc(t)}">`).join('');
     $('#edRows').innerHTML = ''; (item.effects || []).forEach(e => edRow([e.id, e.factor, e.params])); if (!item.effects.length) edRow();
-    $('#edAtkRow').hidden = kind !== 'n'; $('#edUseRow').hidden = kind !== 'n';
+    $('#edAtkRow').hidden = kind !== 'n'; $('#edUseRow').hidden = kind !== 'n'; $('#edUseRow').open = false;
     $('#edNote').textContent = kind === 'n'
       ? `${item.attackResolved ? `攻撃宝具（威力 ${item.power}・ランクと種別で決まる${B.npFinal(sv, item).power !== item.power ? `。宝具強化・魔力を含めた最終は ${B.npFinal(sv, item).power}` : ''}）。` : '補助宝具。'}消費は元が×${B.npFinal(sv, item).base}${B.npFinal(sv, item).note ? `、${B.npFinal(sv, item).note}で最終は×${B.npFinal(sv, item).cost}` : ''}。戦いの効果は、この宝具を使ったその戦いの間だけ働きます。昼・偵察・交渉・維持魔力などの効果は、宝具を持っているだけで常に働きます。「発動」を選んだ効果は、使ったあと、その戦いの間その場面のたびに発動します（「押し勝ったとき」なら押し勝ってから）。「発動のしかた」で、AIが選んで使う代わりに、常時発動（効果はスキルと同じに常に働き、毎日の維持魔力が宝具の消費×${H.CONFIG.ENGINE.npAlwaysUpkeep}だけ増える）や、戦いの始め・瀕死・致命傷などの場面で自動で発動する（1回の戦いに一度、消費は×${H.CONFIG.ENGINE.npAutoCost}）宝具にできます。`
       : 'スキルの効果は常に働きます（条件を付けたものは、その条件のときだけ）。「発動」を選ぶと、その場面で発動します（魔力を払う・回数を限ることもできます）。回復・吸収・解除は、選ばなければ効果ごとの既定の場面で発動します。';
@@ -1919,7 +1996,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
       $('#edNpCond').innerHTML = E.COND_OPTS.map(([k, t]) => `<option value="${esc(k)}">${esc(t)}</option>`).join('') + (o && o.cond && !E.COND_OPTS.some(([k]) => k === o.cond) ? `<option value="${esc(o.cond)}">${esc(o.cond)}</option>` : '');
       $('#edNpCond').value = o && o.cond ? o.cond : ''; $('#edNpVs').value = o && o.vs ? o.vs : '';
       $('#edNpAfter').innerHTML = '<option value="">（指定なし）</option>' + sv.nps.filter(n => E.normName(n.name) !== E.normName(item.name)).map(n => `<option value="${esc(n.name)}">${esc(n.name)}</option>`).join('') + (o && o.after && !sv.nps.some(n => n.name === o.after) ? `<option value="${esc(o.after)}">${esc(o.after)}</option>` : '');
-      $('#edNpAfter').value = o && o.after ? o.after : ''; $('#edNpAfterScope').value = o && o.afterScope === 'battle' ? 'battle' : 'war'; $('#edNpAfterN').value = o && o.afterN > 0 ? o.afterN : 1;
+      $('#edNpAfter').value = o && o.after ? o.after : ''; $('#edNpAfterScope').value = o && o.afterScope === 'battle' ? 'battle' : 'war'; $('#edNpAfterN').value = o && o.afterN > 0 ? o.afterN : 1; edNpSum();
       for (const r of $('#edRows').querySelectorAll('.erow')) edExplain(r);
     }
     // 適用範囲は、いつも「このサーヴァントだけ」から始める（以前は、全員に効く手直し由来の効果を開くと「すべて」が選ばれていて、
@@ -2503,6 +2580,7 @@ dialog.wide { width: min(880px, calc(100vw - 24px)); max-height: calc(100vh - 32
   roster = store.get(ROSTER_KEY, []);
   sel = store.get(SEL_KEY, null);
   rebuildAll(); render();
+  histCur = histSnap(roster.map(B.toLean)); // 元に戻すの出発点
   showView(store.get(VIEW_KEY, 'roster'));
   if (roster.length) $('#status').textContent = `このリストに ${roster.length}騎`;
   loadPub();
