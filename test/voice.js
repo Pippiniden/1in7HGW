@@ -1,6 +1,6 @@
 // セリフの場面（config.js の VOICE_SLOTS）を確かめる
 // 使い方: node test/voice.js
-//  1) engine.js・index.html が使う場面の名前が、すべて VOICE_SLOTS にある
+//  1) engine.js・js/warpage.js（index.html の画面）が使う場面の名前が、すべて VOICE_SLOTS にある
 //  2) 見出しが二つの場面にまたがらない／使わない見出しの表と重ならない
 //  3) セリフを足したり消したりしても、戦争の展開（勝敗・脱落・戦いの数）は変わらない
 //  4) いまのデータで、ゲームで使う場面ごとに何騎がセリフを持っているか
@@ -15,7 +15,7 @@ const slots = new Set(H.VOICE_SLOTS.map(s => s.key));
 const keysIn = (src, re) => [...src.matchAll(re)].flatMap(m => [...m[1].matchAll(/'([^']+)'/g)].map(x => x[1]));
 const eng = fs.readFileSync(__dirname + '/../js/engine.js', 'utf8');
 const used = new Set(keysIn(eng, /\bsay\(\w+, \[([^\]]*)\]\)/g).concat(keysIn(eng, /(?<![.\w])has\(('[^']+')\)/g)));
-const html = fs.readFileSync(__dirname + '/../index.html', 'utf8');
+const html = fs.readFileSync(__dirname + '/../js/warpage.js', 'utf8');
 const fq = html.slice(html.indexOf('function finalQuote'), html.indexOf('function lastWordHtml'));
 for (const k of keysIn(fq, /(\[[^\]]*\])/g)) used.add(k);
 ok(used.size >= 8, 'コードから場面の名前を読めていない：' + [...used].join(','));
