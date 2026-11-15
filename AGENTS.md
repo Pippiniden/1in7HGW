@@ -52,7 +52,7 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 3. **Script load order matters:** `config → rank → parser → effects → fgoskills → build → master → war → names → scenes → personas → engine → data → survival`.
    `index.html`/`ranking.html` load all of them; `roster.html` and `submit.html` load subsets plus `voiceedit` (roster also `simlab`);
    `singularity.html` loads up to `data` (no `survival`) then `singdata → singularity`; `original.html` and `scenario.html` load up to `data` then `singdata → scenario → original`.
-   `sealmark` and `sealdata` are UI-only (index.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`). `js/topnav.js` runs at the top of `<body>`: it inserts the mode menu first and appends the 「開発者向け」 menu at `DOMContentLoaded` so it lands at the bottom of the page, followed by the credits bar and dialog (`ORIGINAL`/`CREDITS`/`DERIVATIVE` in topnav.js) that satisfy LICENSE §5 — never remove the original author's credit.
+   `sealmark`, `sealdata` and `warpage` (the page script of index.html / taisen.html, loaded last) are UI-only (index.html, taisen.html and `PRECACHE`). When you add a file, add it to **index.html, roster.html (if needed), test/sim.js, test/interactive.js and `PRECACHE` in `sw.js`** (then bump `VERSION`). `js/topnav.js` runs at the top of `<body>`: it inserts the mode menu first and appends the 「開発者向け」 menu at `DOMContentLoaded` so it lands at the bottom of the page, followed by the credits bar and dialog (`ORIGINAL`/`CREDITS`/`DERIVATIVE` in topnav.js) that satisfy LICENSE §5 — never remove the original author's credit.
 4. **Determinism.** A war is fully determined by *(data, seed, focus per day, decision answers)*. All randomness inside `warGen` goes
    through its seeded `rnd()` (`chance`, `pick`, `wpick`, `shuffle`); never `Math.random()` in the engine. Adding/removing/reordering
    `rnd()` calls changes every seed's outcome (acceptable, but old shared links replay differently). Never iterate `Set`/object keys in
@@ -65,16 +65,16 @@ player watches a chronicle, changes a light **focus** any time and makes **big d
 ## 3. Repository map
 
 ```
-index.html          Game (inline CSS + UI script)          ranking.html   Strength ranking (spoiler page)
+index.html          Game (markup only; look in `css/warpage.css`, UI script in `js/warpage.js`)          ranking.html   Strength ranking (spoiler page)
 zukan.html          Servant encyclopedia (spoiler page): class tabs → wiki lore, skills, NPs, relations, voice; `#<id>` opens one; a last 「ボス専用」 tab lists `bossOnly` servants (roster ones + `bosses.json` via `prepareBosses`); loads up to `singularity` (no `survival`)
 roster.html         Admin tool: import, review, edit, export   submit.html    Player request form (no server)
 logview.html        Standalone CSV chronicle viewer (reads the CSVs of index.html / singularity.html; no game scripts)
 singularity.html    Singularity mode (test feature, §7.11)
-taisen.html         Great Holy Grail War (test feature, §7.13): a mirror of index.html with its own storage keys; same scripts as index.html
+taisen.html         Great Holy Grail War (test feature, §7.13): its own markup, then `window.HGW_PAGE = { gw: true }` and the same `css/warpage.css` / `js/warpage.js` as index.html (own storage keys)
 original.html       Original singularity (test feature, §7.14): pick/load a scenario, check it, set the Master, play; derived from singularity.html but independent
 scenario.html       Original-singularity scenario editor: path-bound form (`data-p`), live check, auto-save to `hgw.orig.edit`, JSON export, auto-run trial
 sw.js, manifest.webmanifest   PWA                          icons/ img/    App icons, class icons, optional faces/scenes (each has README.md)
-css/extella.css     Shared Fate/EXTELLA-style ornaments (left lattice, top light line, header bands, selection cursor, key legend bar); linked after each dark page's inline `<style>` (not roster/submit); uses each page's `:root` tokens
+css/extella.css     Shared Fate/EXTELLA-style ornaments (left lattice, top light line, header bands, selection cursor, key legend bar); linked after each dark page's inline `<style>` (index/taisen: after `css/warpage.css`) (not roster/submit); uses each page's `:root` tokens
 data/
   manifest.json     Which data files to load
   servants.json     Servant pack (hgw-servants, lean). ~1.2M chars — NEVER read it whole; use tools/servant.js (§4.6)
@@ -99,6 +99,7 @@ js/
   scenario.js       Original singularity (§7.14): scenario format, LINE_DEFS (og* default lines), check(), linesOf()
   original.js       Original singularity: compose + engine plugin (stages, custom events); separate from singularity.js
   sealmark.js       Player's command-seal emblem: reads a command-spell-maker SVG (`data-kaku` = stroke) into validated paths and redraws it; never inserts the SVG itself. `defaultFor(seed)` picks a default emblem by hash, not `rnd()`
+  warpage.js        UI script shared by index.html and taisen.html (one IIFE; `GW` = `window.HGW_PAGE.gw` switches the Great War parts: wording `WAR`/`TITLE`/`N_JA`, storage prefix `NS`, record format `REC_FMT`, colour board, `presentGWEnd`). Change the page behaviour here once; only markup differs between the two pages
   sealdata.js       GENERATED by tools/sealdata.js (default emblems `G.SEAL_DEFAULTS`); do not hand-edit
   simlab.js, simworker.js, voiceedit.js   roster.html "聖杯戦争で試す" core + worker; per-scene voice editor
 tools/              sealdata.js (SVGs → js/sealdata.js), servant.js (per-servant CLI), fxcheck.js (effects whose settings do nothing / tags nobody has), kagemiya.js (fetch pages), incoming.js (apply uploads), datadiff.js, survival.js, datalib.js, chaldea.js
@@ -331,7 +332,7 @@ Rules worth knowing before changing anything here:
 - **Ailments** (`E.AILMENTS`, caps `E.AIL_CAP`): `tryAil` rolls min(cap, Σmag) (no `rnd()` for holders without one) then the target's `ailResist`; ailments never kill (hp floors at 1). Debuffs come in kinds (`debuff_mind` resisted by mind, `debuff_body` by end/magic_guard, plain `debuff`), capped at 0.5 total; `wither` stacks, persists, fades by `witherFade`.
 - **Triggers** (`fireTrig(c, o, on, T)` → `applyTrig`) hook into battle start, each round, after each exchange, `fireNP`, and each morning; battle-scoped state (`tUsed, tLog, armed, pinched, cleanse, off, ail`) is reset in `cleanup`/`leave`/day end.
 - **Stat roles** (`CONFIG.STAT_FX`, `d = B.statDev(score)`, C≈0, A≈+1): 筋力 damage dealt, 耐久 damage taken/guts, 敏捷 retreat and night finding, 魔力 NP cost and NP power, 幸運 crit/instakill/guts; Master 魔術/精神/幸運 smaller effects. None of these add `rnd()` calls.
-  The 宝具 stat is an appraisal only and is **not** used in combat. If a stat's role changes, update `TIPS` in `index.html` (texts contain **no numbers or formulas**).
+  The 宝具 stat is an appraisal only and is **not** used in combat. If a stat's role changes, update `TIPS` in `js/warpage.js` (texts contain **no numbers or formulas**).
 - **NP type roles** (Holy Grail War; `ENGINE.npSplash`, `ENGINE.npBreak`, `NP_TYPE`): the bigger types are not just stronger. An attack NP of 対軍 or above that wins an exchange also hurts the other fighters on the loser's side (`lastNP.aoe`, the same splash branch singularity uses via `SING.aoe`; here the fraction comes from `npSplash`, so only the helper of an alliance fight is hit). 対城 or above also lowers the opponent's `workshop` by `npBreak` when fired (permanent). Their `power` multipliers are kept modest and `cost`/`exposure` high; 対人 is the cheap, quiet single-target type. No extra `rnd()` calls.
 - **Summoned army** (`summon` instant, e.g. 王の軍勢; `ENGINE.armyHp/armyHit/armyCover`): when it fires in a battle (NP use, or a skill with a trigger) and the camp's alliance has free slots (`armySlots`: `allianceMax − pactOf(c).length`, capped by `params.n`; singularity / Great War have no alliance slots, so only the cap applies), a battle-only `c.army = { name, n, hp, max, pw }` is created (`params.tag` = its name). It adds `pw × hp/max` to the side's `assist`, and when its side loses an exchange (and no real helper covers) it absorbs the blow with `armyCover` and loses `armyHit`; it is cleared at battle end. A support NP whose only job is to summon is not chosen by the AI when the army already stands or there is no free slot (`summonOk`). `rnd()` is used only while an army exists; `battleOdds` ignores it. Test: `node test/summon.js`.
 - **Alliances** (`c.pact`, up to `allianceMax` camps, `canPact/formPact/leavePact`): allies may join a fight (`joinAlly`, one helper), run **joint operations** (`pactOps`), support each other each morning (`pactSupport`), and a **coalition** forms against a kill leader (`leaderOf`).
@@ -400,7 +401,7 @@ Two colours of 7 camps each plus an overseer Ruler. Every hook is behind `GW`/`g
 - **Shift** (`gwToWar`): pacts cleared, survivors healed (HP, mana, Master HP), command seals and knowledge kept, `ENG.maxDays = warDays`, `day` restarts at 1, ordinary alliance rules apply. Same generator and city. Boss intrusion is off for the whole war. Ticks carry `abs` (running day count); the page indexes its focus log by it because `day` repeats. The log entry at the shift has `shift: true`.
 - **Pace.** `GREAT_WAR.huntAdj` is added to the night hunt chance while `gwStage` (twice the camps would otherwise settle too early). `underdog`/`underdogCap`: a camp whose colour has fewer camps than the other gets power × (1 + min(cap, difference × underdog)) in `power()` while `gwStage`, against colour camps only (no `rnd()`), to keep the war from snowballing.
 - **Prescribed days.** `GREAT_WAR.days` = the shortest of 30/40/50 days whose decided rate exceeds 80 %; re-measure with `node test/greatwar.js 500` after balance changes.
-- **Page.** `taisen.html` is a copy of index.html: keys `hgw.gw.save.v1`, `hgw.gw.history.v1`, `hgw.gw.settings`, `hgw.gw.exclude.v1`; export format `hgw-gw-records`; same URL parameters except that `bj`/`bf` have no effect; `ask:'big'` for observers too. Great Wars are not part of survival tallies or rankings.
+- **Page.** `taisen.html` shares `js/warpage.js` and `css/warpage.css` with index.html (`GW` branches; keep new Great-War-only behaviour behind `GW` so index.html is unchanged): keys `hgw.gw.save.v1`, `hgw.gw.history.v1`, `hgw.gw.settings`, `hgw.gw.exclude.v1`; export format `hgw-gw-records`; same URL parameters except that `bj`/`bf` have no effect; `ask:'big'` for observers too. Great Wars are not part of survival tallies or rankings.
 
 ### 7.14 Original singularity (test feature: `scenario.js`, `original.js`)
 

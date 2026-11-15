@@ -1,8 +1,8 @@
-// 最初の方針のおすすめ（index.html の REC_FOCUS）が、本当に勝ちやすいかを確かめる
+// 最初の方針のおすすめ（js/warpage.js の REC_FOCUS）が、本当に勝ちやすいかを確かめる
 // 使い方: node test/focus.js [シードの数=1000]
 //
 // 同じシード（同じ顔ぶれ・同じプレイヤーの陣営）で、方針だけを七通りに変えて全自動で戦わせる（方針は最後まで変えない。
-// 大きな決断はおまかせ）。プレイヤーのサーヴァントの評価（S〜E。index.html の evaluate と同じ式）ごとに、方針ごとの勝率と
+// 大きな決断はおまかせ）。プレイヤーのサーヴァントの評価（S〜E。js/warpage.js の evaluate と同じ式）ごとに、方針ごとの勝率と
 // 生き残った日数を出し、おすすめが「最も勝ちやすい方針」より誤差を超えて劣っていないかを見る。
 // エンジンや config.js の数値を変えたら、これを回して REC_FOCUS を見直す。シード1000で約40秒。
 for (const f of ['config', 'rank', 'parser', 'effects', 'fgoskills', 'build', 'master', 'war', 'names', 'scenes', 'personas', 'engine']) require('../js/' + f + '.js');
@@ -15,10 +15,10 @@ H.build.harvestOverrides(raw);
 const byId = new Map(); for (const s of raw) { const b = H.build.fromJSON(s); byId.set(b.id, b); }
 const roster = [...byId.values()];
 
-// index.html からおすすめの表を読む
-const html = fs.readFileSync(ROOT + '/index.html', 'utf8');
+// 画面のスクリプト（js/warpage.js）からおすすめの表を読む
+const html = fs.readFileSync(ROOT + '/js/warpage.js', 'utf8');
 const REC = {}; for (const m of html.slice(html.indexOf('const REC_FOCUS')).split('};')[0].matchAll(/([A-Z]): \['(\w+)'/g)) REC[m[1]] = m[2];
-// 評価（index.html の strengthTable・evaluate と同じ。リストの全騎との1対1の平均勝率の順位で S〜E。区切りは config.js の GRADES）
+// 評価（js/warpage.js の strengthTable・evaluate と同じ。リストの全騎との1対1の平均勝率の順位で S〜E。区切りは config.js の GRADES）
 const B = H.build, rates = new Map();
 for (const a of roster) { let t = 0, n = 0; for (const b of roster) { if (a === b) continue; t += (B.battleOdds(a, b, {}).pA + B.battleOdds(a, b, { np: true }).pA) / 2; n++; } rates.set(a.id, n ? t / n : 0.5); }
 const sorted = [...rates.values()].sort((x, y) => y - x);
