@@ -127,6 +127,12 @@
       <div id="castList"></div>
       <label class="cast-force"><input type="checkbox" id="intrForce"> ボス乱入の条件（生き残りが三陣営で同盟が組まれている）を満たしたら、必ずボス戦を発生させる</label>
       <p>外したサーヴァントは、七騎の抽選にも、クラスの代役にも呼ばれません。クラスの全員を外すと、その席は別のクラスの英霊が代役で埋めます。設定はこのブラウザに残り、共有リンク（<code>ex=</code>）・中断中の戦争・これまでの記録にも、その戦争の分が一緒に保存されます。</p>
+      <div class="cast-zk">
+        <b>英霊図鑑の見え方</b>
+        <p>英霊図鑑には、戦いの中で真名を知った英霊だけが載ります（どのモードで知っても同じ図鑑に載ります）。<span id="zkSum" aria-live="polite"></span></p>
+        <label class="cast-force"><input type="checkbox" id="zkOpen"> 英霊図鑑を全公開にする（まだ出会っていない英霊の真名と解説も読める）</label>
+        <div class="cast-acts"><button class="btn" id="zkReset" type="button">図鑑の発見をすべて消して、最初からにする</button><a class="btn" href="zukan.html">英霊図鑑を開く</a></div>
+      </div>
     </div>
   </details>
 </section>

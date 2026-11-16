@@ -1405,6 +1405,8 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
   }
   function board(e) {
     const sn = e.snap; lastSnap = sn;
+    // 真名を知った英霊（味方を含む）は英霊図鑑に載せる（表示だけ。展開には関わらない）
+    { const ids = []; for (const c of sn.c || []) if (c && (c.side === 'party' || c.name)) { const id = (out.meta[c.id] || {}).servantId; if (id) ids.push(id); } if (ids.length) H.data.zukan.add(ids); }
     const p = sn.p;
     $('#hudDay').textContent = `DAY ${e.day || 0} / ${maxDays}`;
     // その日の進み具合（1日で満タン、翌日は0から。ログ件数ごとの階段にならないよう滑らかに追う）

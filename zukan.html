@@ -51,92 +51,148 @@ header p { color: var(--mute); margin: 6px 0 0; font-size: 13px; }
 .panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
 .panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
 .status { color: var(--mute); font-size: 12px; margin: 0 0 8px; }
+.note { margin: 14px 0; border: 1px solid var(--line); background: var(--inset); padding: 10px 12px; font-size: 13px; }
+.note b { color: var(--gold); font: 700 15px var(--en); }
+/* 探す道具（クラスの見出し・検索・並べ替え）は、一覧を動かしても上に残す */
+.bar2 { position: sticky; top: 0; z-index: 5; margin: 10px -16px 12px; padding: 6px 16px 8px; background: linear-gradient(180deg, rgba(5, 13, 34, .97), rgba(5, 13, 34, .90)); border-bottom: 1px solid var(--line); }
 /* クラスの見出し（狭い画面では横に動かす） */
-.tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 2px 8px; margin: 14px 0 4px; scrollbar-width: thin; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding: 2px 2px 8px; scrollbar-width: thin; }
 .tab { flex: none; display: flex; align-items: center; gap: 6px; background: var(--inset); border: 1px solid var(--line); padding: 5px 12px 5px 8px; cursor: pointer; font-size: 13px; white-space: nowrap; }
 .tab img { width: 22px; height: 22px; }
 .tab .n { font: 600 12px/1 var(--en); color: var(--mute); }
 .tab[aria-selected="true"] { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); border-color: var(--cyan); font-weight: 700; }
 .tab[aria-selected="true"] .n { color: var(--sel-ink); }
-.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 4px 0 12px; }
-.tools input { flex: 1 1 220px; min-width: 0; background: var(--inset); border: 1px solid var(--line); padding: 7px 10px; }
-.tools .cnt { color: var(--mute); font-size: 12px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tools input[type=search] { flex: 1 1 220px; min-width: 0; background: var(--inset); border: 1px solid var(--line); padding: 7px 10px; }
+.tools select { background: var(--inset); border: 1px solid var(--line); padding: 7px 8px; max-width: 100%; }
+.tools label.chk { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; white-space: nowrap; }
+.tools .cnt { color: var(--mute); font-size: 12px; margin-left: auto; white-space: nowrap; }
+.hint { color: var(--mute); font-size: 12px; margin: 0 0 8px; }
 /* 一覧 */
 .sec-h { font: 700 17px/1.4 var(--mincho); margin: 18px 0 8px; display: flex; align-items: center; gap: 8px; letter-spacing: .06em; }
 .sec-h img { width: 26px; height: 26px; }
 .sec-h .n { font: 600 13px/1 var(--en); color: var(--mute); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
 .card { display: flex; align-items: center; gap: 10px; text-align: left; background: linear-gradient(180deg, rgba(14, 44, 104, .55), rgba(6, 22, 58, .75)); border: 1px solid var(--line); padding: 8px 10px; cursor: pointer; min-width: 0; }
 .card:hover { border-color: var(--line-hi); background: linear-gradient(180deg, rgba(30, 70, 140, .7), rgba(8, 30, 74, .85)); }
-.card .pic { flex: none; width: 48px; height: 48px; display: grid; place-items: center; background: rgba(3, 14, 38, .8); border: 1px solid rgba(80, 196, 255, .2); overflow: hidden; }
-.card .pic img { width: 30px; height: 30px; opacity: .8; }
+.card .pic { flex: none; width: 56px; height: 56px; display: grid; place-items: center; background: rgba(3, 14, 38, .8); border: 1px solid rgba(80, 196, 255, .2); overflow: hidden; }
+.card .pic img { width: 32px; height: 32px; opacity: .8; }
 .card .pic img.face { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
-.card .tx { min-width: 0; display: flex; flex-direction: column; line-height: 1.35; }
+.card .tx { min-width: 0; flex: 1; display: flex; flex-direction: column; line-height: 1.35; }
 .card .t { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card .s { font-size: 11px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 一覧の札に添える六つの能力値（文字だけ。EX は金） */
+.mini { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: 4px; max-width: 150px; }
+.mini i { font: 700 11px/1.5 var(--en); font-style: normal; text-align: center; color: var(--cyan-2); background: rgba(3, 14, 38, .7); }
+.mini i[data-r="EX"] { color: var(--gold); }
+.mini i[data-r="-"] { color: var(--mute); }
+.card.lock { cursor: default; border-style: dashed; background: rgba(3, 14, 38, .5); color: var(--mute); }
+.card.lock:hover { border-color: var(--line); background: rgba(3, 14, 38, .5); }
+.card.lock .pic img { opacity: .35; }
+.card.lock .t { font-family: var(--en); letter-spacing: .2em; }
 .empty { color: var(--mute); padding: 20px 0; }
 @media (max-width: 560px) {
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .card { padding: 6px 8px; gap: 8px; } .card .pic { width: 40px; height: 40px; } header h1 { font-size: 22px; }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; } .card { padding: 6px 8px; gap: 8px; } .card .pic { width: 44px; height: 44px; } header h1 { font-size: 22px; }
   /* 狭い画面では長い真名を2行まで出す */
   .card .t { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; font-size: 13px; }
+  .tools .cnt { margin-left: 0; }
 }
 /* 詳しい内容（重ねて開く。狭い画面では全面） */
-.dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: flex-start; justify-content: center; background: rgba(2, 8, 22, .78); padding: 4vh 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.dlg { position: fixed; inset: 0; z-index: 20; display: none; align-items: flex-start; justify-content: center; background: rgba(2, 8, 22, .78); padding: 0 16px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .dlg.on { display: flex; }
 .dlg .sheet { background: linear-gradient(180deg, #0c2860, #061636); }
-.sheet { width: min(860px, 100%); padding: 18px 20px 24px; }
-.sheet .close { position: sticky; top: 0; float: right; margin: -6px -8px 0 8px; z-index: 2; background: var(--inset); border: 1px solid var(--line); width: 36px; height: 36px; cursor: pointer; font-size: 18px; line-height: 1; }
-.hero { display: flex; gap: 16px; align-items: flex-start; }
-.hero .pic { flex: none; width: 120px; height: 120px; display: grid; place-items: center; background: rgba(3, 14, 38, .8); border: 1px solid var(--line); overflow: hidden; }
-.hero .pic img { width: 64px; height: 64px; opacity: .85; }
-.hero .pic img.face { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
-.hero .cl { color: var(--cyan); font-size: 13px; letter-spacing: .1em; }
-.hero h2 { font: 700 24px/1.35 var(--mincho); margin: 2px 0 4px; letter-spacing: .04em; overflow-wrap: anywhere; }
-.hero .al { color: var(--mute); font-size: 12px; overflow-wrap: anywhere; }
+.sheet { width: min(1080px, 100%); margin: 4vh 0; padding: 0 20px 24px; }   /* 余白は .dlg ではなくここに取る（上の帯が画面の上端に付くように） */
+/* 上に残る帯：前後の英霊・閉じる・節への移動 */
+.dbar { position: sticky; top: 0; z-index: 3; margin: 0 -20px 14px; padding: 8px 20px 0; background: linear-gradient(180deg, #0c2860 70%, rgba(12, 40, 96, .94)); border-bottom: 1px solid var(--line); }
+.dbar .row { display: flex; align-items: center; gap: 8px; }
+.dbar .pos { font: 600 13px/1 var(--en); color: var(--mute); white-space: nowrap; }
+.dbar .who { flex: 1; min-width: 0; font: 700 14px/1.3 var(--mincho); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; opacity: 0; transition: opacity .15s; }
+.dbar.stuck .who { opacity: 1; }
+.dbar .close { flex: none; background: var(--inset); border: 1px solid var(--line); width: 34px; height: 34px; cursor: pointer; font-size: 18px; line-height: 1; }
+.btn { --cut: 8px; display: inline-flex; align-items: center; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; color: var(--ice); text-decoration: none;
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn:disabled { opacity: .35; cursor: default; }
+.dbar .nv { flex: none; white-space: nowrap; }
+.secnav { display: flex; gap: 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; margin-top: 6px; }
+.secnav::-webkit-scrollbar { display: none; }
+.secnav button { flex: none; background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 12px; cursor: pointer; font-size: 13px; color: var(--mute); white-space: nowrap; }
+.secnav button:hover { color: var(--ice); }
+.secnav button[aria-current="true"] { color: var(--cyan); border-bottom-color: var(--cyan); font-weight: 700; }
+/* 広い画面では、左に顔と能力値、右に本文 */
+.dgrid { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 24px; align-items: start; }
+.side { position: sticky; top: 100px; max-height: calc(100vh - 116px); overflow-y: auto; scrollbar-width: thin; min-width: 0; }
+.side .pic { width: 100%; aspect-ratio: 1; display: grid; place-items: center; background: rgba(3, 14, 38, .8); border: 1px solid var(--line); overflow: hidden; }
+.side .pic img { width: 96px; height: 96px; opacity: .85; }
+.side .pic img.face { width: 100%; height: 100%; object-fit: cover; opacity: 1; }
+.side .cl { color: var(--cyan); font-size: 13px; letter-spacing: .1em; margin-top: 10px; display: flex; align-items: center; gap: 6px; }
+.side .cl img { width: 20px; height: 20px; }
+.side h2 { font: 700 24px/1.35 var(--mincho); margin: 2px 0 4px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.side .al { color: var(--mute); font-size: 12px; overflow-wrap: anywhere; }
 .kv { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 3px 12px; margin: 10px 0 0; font-size: 13px; }
 .kv dt { color: var(--mute); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
-.stl { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; margin-top: 14px; border: 1px solid var(--line); background: var(--inset); max-width: 480px; }
-.stl div { text-align: center; padding: 4px 2px; border-right: 1px solid rgba(80, 196, 255, .14); }
-.stl div:last-child { border-right: 0; }
-.stl span { display: block; font-size: 11px; color: var(--mute); }
-.stl b { font: 700 17px/1.3 var(--en); }
-.sheet h3 { font: 700 16px/1.4 var(--mincho); color: var(--gold); margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); letter-spacing: .08em; }
+.side .kv { grid-template-columns: 6em minmax(0, 1fr); font-size: 12px; }
+.side .more { margin: 8px 0 0; }
+.side .more .kv { margin-top: 4px; }
+/* 能力値（目盛りは css/extella.css の .ranks） */
+.ranks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 12px; border: 1px solid var(--line); background: var(--inset); }
+.ranks div { border-right: 1px solid rgba(80, 196, 255, .14); border-bottom: 1px solid rgba(80, 196, 255, .14); min-width: 0; }
+.ranks div > span { display: block; }
+.ranks div b { font-family: var(--en); font-weight: 700; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.main { min-width: 0; }
+.sec { scroll-margin-top: 100px; }
+.sec h3 { font: 700 16px/1.4 var(--mincho); color: var(--gold); margin: 22px 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line); letter-spacing: .08em; }
+.sec:first-child h3 { margin-top: 0; }
 .txt { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 .item { margin: 0 0 12px; padding: 8px 12px; background: var(--inset); border-left: 2px solid var(--cyan); }
 .item .nm { font-weight: 700; overflow-wrap: anywhere; }
 .item .nm .rk { font: 700 15px/1 var(--en); color: var(--gold); margin-left: 8px; }
 .item .rd { font-size: 12px; color: var(--mute); margin-left: 6px; }
-.item .meta { font-size: 12px; color: var(--mute); margin: 2px 0 4px; overflow-wrap: anywhere; }
+.item .meta { display: flex; flex-wrap: wrap; gap: 4px 6px; margin: 4px 0; }
+.item .meta span { font-size: 12px; color: var(--ice); background: rgba(62, 230, 255, .08); border: 1px solid rgba(80, 196, 255, .2); padding: 0 6px; overflow-wrap: anywhere; }
+.item .meta span small { color: var(--mute); margin-right: 4px; font-size: 11px; }
 .item .txt { font-size: 13px; margin-top: 4px; }
+.item.np { border-left-color: var(--gold); }
 .sub { font-size: 12px; color: var(--mute); margin: 10px 0 6px; }
 details { margin: 8px 0; }
 summary { cursor: pointer; color: var(--cyan); font-size: 13px; }
-details > .txt, details > .voice { margin-top: 6px; }
-.voice h4 { font-size: 12px; color: var(--mute); font-weight: 500; margin: 10px 0 2px; }
-.voice p { margin: 0 0 4px; font-size: 13px; overflow-wrap: anywhere; }
+details > .txt { margin-top: 6px; }
+.voice h4 { font-size: 12px; color: var(--cyan); font-weight: 500; margin: 12px 0 4px; }
+.voice p { margin: 0 0 4px; font: 500 13px/1.8 var(--mincho); overflow-wrap: anywhere; padding-left: 10px; border-left: 1px solid rgba(80, 196, 255, .25); }
 .rel { margin: 0 0 8px; }
 .rel .who { font-weight: 700; }
 .rel button.who { background: none; border: 0; padding: 0; color: var(--cyan); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
 .rel .txt { font-size: 13px; color: var(--ice); }
 .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
-.btn { --cut: 8px; display: inline-flex; align-items: center; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; color: var(--ice); text-decoration: none;
-  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
-.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
 .nav2 { display: flex; justify-content: space-between; gap: 8px; margin-top: 16px; }
 .nav2 .btn { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; line-height: 22px; }
 .none { color: var(--mute); font-size: 13px; }
+@media (max-width: 900px) {
+  .dgrid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .side { position: static; max-height: none; overflow: visible; display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 0 14px; align-items: start; margin-bottom: 18px; }
+  .side .pic { grid-row: span 3; }
+  .side .cl { margin-top: 0; }
+  .side .ranks, .side .kv, .side .more { grid-column: 1 / -1; }
+  .side .ranks { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .side .kv { grid-template-columns: 7.5em minmax(0, 1fr); font-size: 13px; }
+}
 @media (max-width: 820px) {
   .dlg { padding: 0; }
-  .sheet { width: 100%; min-height: 100%; padding: max(14px, env(safe-area-inset-top)) 16px max(28px, env(safe-area-inset-bottom)); }
+  .sheet { width: 100%; min-height: 100%; margin: 0; padding: 0 16px max(28px, env(safe-area-inset-bottom)); }
   .sheet::before, .sheet::after { display: none; }
+  .dbar { margin: 0 -16px 12px; padding: max(8px, env(safe-area-inset-top)) 16px 0; }
+  .dbar .nv span { display: none; }
+  .dbar .nv { padding: 6px 12px; }
+  .bar2 { position: static; background: none; border-bottom: 0; padding-bottom: 0; }   /* 狭い画面では場所を取るので、上に残さない */
 }
 @media (max-width: 560px) {
-  .hero { gap: 12px; }
-  .hero .pic { width: 84px; height: 84px; }
-  .hero h2 { font-size: 20px; }
-  .kv { grid-template-columns: 6.5em minmax(0, 1fr); }
-  .stl b { font-size: 15px; }
+  .side { grid-template-columns: 88px minmax(0, 1fr); gap: 0 12px; }
+  .side h2 { font-size: 20px; }
+  .side .ranks div[data-r] { padding: 3px 2px 8px; text-align: center; }
+  .side .ranks div[data-r] b { font-size: 16px; }
+  .side .ranks div[data-r]::after { left: 4px; right: 4px; }
+  .kv, .side .kv { grid-template-columns: 6.5em minmax(0, 1fr); }
 }
 
 </style>
@@ -150,14 +206,19 @@ details > .txt, details > .voice { margin-top: 6px; }
     <h1>英霊図鑑</h1>
     <p><a href="submit.html">申請フォーム</a></p>
   </header>
-  <p class="warn">このページには、すべての英霊の真名と解説が載っています。戦争の中で真名を推し量る楽しみを残したいときは、見ないでおいてください。</p>
+  <p class="note" id="mode" hidden></p>
 
-  <nav class="tabs" id="tabs" role="tablist" aria-label="クラス"></nav>
-  <div class="tools">
-    <input type="search" id="q" placeholder="真名・異名・元ネタで探す" autocomplete="off" aria-label="探す">
-    <span class="cnt" id="cnt"></span>
+  <div class="bar2">
+    <nav class="tabs" id="tabs" role="tablist" aria-label="クラス"></nav>
+    <div class="tools">
+      <input type="search" id="q" placeholder="真名・異名・元ネタ・スキル・宝具で探す" autocomplete="off" aria-label="探す">
+      <select id="sort" aria-label="並べ方"><option value="class">クラスごと</option><option value="name">名前の順</option><option value="found" id="optFound">発見した順（新しい順）</option></select>
+      <select id="sex" aria-label="性別"><option value="">性別：すべて</option><option value="m">男性</option><option value="f">女性</option><option value="x">そのほか</option></select>
+      <span class="cnt" id="cnt"></span>
+    </div>
   </div>
   <p class="status" id="status">読み込んでいます…</p>
+  <p class="hint" id="hint" hidden></p>
   <div id="list"></div>
 </div>
 
@@ -183,12 +244,20 @@ details > .txt, details > .voice { margin-top: 6px; }
 <script>
 (function () {
   'use strict';
-  const H = window.HGW, B = H.build;
+  const H = window.HGW, B = H.build, ZK = H.data.zukan;
   const $ = s => document.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const norm = s => String(s || '').normalize('NFKC').toLowerCase();
-  let roster = [], groups = [], tab = '', openSv = null;
+  let roster = [], groups = [], openSv = null;
   const BOSS_KEY = 'boss';
+  // 図鑑に載るのは、戦いの中で真名を知った英霊だけ（js/data.js の zukan）。全公開にしていれば全員
+  const openAll = ZK.isOpen(), found = ZK.load();
+  const seen = sv => openAll || found.has(sv.id);
+  // 見ている場所（クラス・検索・並べ方）は、このタブを閉じるまで覚えておく
+  const VIEW_KEY = 'hgw.zukan.view';
+  const view = { tab: '', q: '', sort: 'class', sex: '' };
+  try { const v = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null'); if (v && typeof v === 'object') for (const k of Object.keys(view)) if (typeof v[k] === 'string') view[k] = v[k]; } catch (e) { /* 覚えられなくても動く */ }
+  const saveView = () => { try { sessionStorage.setItem(VIEW_KEY, JSON.stringify(view)); } catch (e) { /* 同上 */ } };
 
   // ---------- クラスの分け方 ----------
   // CLASS_DEFS の順に並べる。どのクラスにも当たらないもの（Wikiのクラス名のまま）は「その他のクラス」にまとめる
@@ -203,23 +272,54 @@ details > .txt, details > .voice { margin-top: 6px; }
     if (bs.length) gs.push({ key: BOSS_KEY, label: 'ボス専用', list: bs });
     return gs;
   }
+  const groupOf = sv => groups.find(g => g.list.includes(sv));
 
   // ---------- 一覧 ----------
+  const nSeen = list => list.filter(seen).length;
+  const frac = list => openAll ? String(list.length) : `${nSeen(list)}<small>/${list.length}</small>`;
   function renderTabs() {
-    const all = `<button class="tab" role="tab" data-tab="" aria-selected="${tab === ''}">すべて<span class="n">${roster.length}</span></button>`;
-    $('#tabs').innerHTML = all + groups.map(g => `<button class="tab" role="tab" data-tab="${esc(g.key)}" aria-selected="${tab === g.key}"><img src="${H.classIcon(g.key)}" alt="">${esc(g.label)}<span class="n">${g.list.length}</span></button>`).join('');
+    if (view.tab && !groups.some(g => g.key === view.tab)) view.tab = '';
+    const all = `<button class="tab" role="tab" data-tab="" aria-selected="${view.tab === ''}">すべて<span class="n">${frac(roster)}</span></button>`;
+    $('#tabs').innerHTML = all + groups.map(g => `<button class="tab" role="tab" data-tab="${esc(g.key)}" aria-selected="${view.tab === g.key}"><img src="${H.classIcon(g.key)}" alt="">${esc(g.label)}<span class="n">${frac(g.list)}</span></button>`).join('');
+    const cur = $('#tabs [aria-selected="true"]'); if (cur && cur.scrollIntoView) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
-  const matches = (sv, q) => !q || norm([sv.trueName, sv.class.label, sv.origin, (sv.aliases || []).join(' ')].join(' ')).includes(q);
-  // クラスの見出しの下ではクラス名を繰り返さない（「その他のクラス」ではWikiのクラス名を出す）
-  const card = (sv, g) => `<button class="card" data-id="${esc(sv.id)}"><span class="pic"><img src="${H.classIcon(sv.class.key)}" alt="" data-face="${esc(H.faceNameOf(sv))}"></span>`
-    + `<span class="tx"><span class="t" title="${esc(sv.trueName)}">${esc(sv.trueName || '（真名不明）')}</span><span class="s">${esc([g.key === 'extra' || g.key === BOSS_KEY ? sv.class.label : '', sv.origin].filter(Boolean).join('・'))}</span></span></button>`;
+  // 探す文字は、真名・クラス・元ネタ・異名のほか、スキルと宝具の名前（読みも）に当てる
+  const hay = new WeakMap();
+  const hayOf = sv => { let h = hay.get(sv); if (h == null) { h = norm([sv.trueName, sv.class.label, sv.origin, (sv.aliases || []).join(' '), (sv.classSkills || []).concat(sv.skills || []).map(s => s.name).join(' '), (sv.nps || []).map(n => n.name + ' ' + (n.reading || '')).join(' ')].join(' ')); hay.set(sv, h); } return h; };
+  const sexOf = sv => { const s = String(sv.sex || ''), m = /男|雄/.test(s), f = /女|雌/.test(s); return m && !f ? 'm' : f && !m ? 'f' : 'x'; };
+  const statRaw = (sv, k) => (sv.shown && sv.shown[k]) || (sv.stats && sv.stats[k] && sv.stats[k].raw) || '？';
+  const rankKey = raw => { const m = norm(raw).toUpperCase().match(/EX|[A-E]/); return m ? m[0] : '-'; };
+  const mini = sv => `<span class="mini" aria-hidden="true">${B.STAT_KEYS.map(k => { const r = rankKey(statRaw(sv, k)); return `<i data-r="${r}">${r}</i>`; }).join('')}</span>`;
+  // クラスの見出しの下ではクラス名を繰り返さない（「その他のクラス」と、クラスで分けない並べ方では出す）
+  const card = (sv, withCls) => `<button class="card" data-id="${esc(sv.id)}"><span class="pic"><img src="${H.classIcon(sv.class.key)}" alt="" data-face="${esc(H.faceNameOf(sv))}"></span>`
+    + `<span class="tx"><span class="t" title="${esc(sv.trueName)}">${esc(sv.trueName || '（真名不明）')}</span><span class="s">${esc([withCls ? sv.class.label : '', sv.origin].filter(Boolean).join('・'))}</span>${mini(sv)}</span></button>`;
+  const lockCard = (n, key) => n ? `<div class="card lock"><span class="pic"><img src="${H.classIcon(key)}" alt=""></span><span class="tx"><span class="t">？？？</span><span class="s">未発見 ${n}騎</span></span></div>` : '';
+  let order = [];   // いま一覧に出ている英霊（詳しい内容の「前・次」はこの順）
   function renderList() {
-    const q = norm($('#q').value.trim());
-    const gs = groups.filter(g => !tab || g.key === tab).map(g => ({ g, list: g.list.filter(sv => matches(sv, q)) })).filter(x => x.list.length);
-    const n = gs.reduce((t, x) => t + x.list.length, 0);
+    const q = norm(view.q.trim()), filtering = !!q || !!view.sex;
+    const ok = sv => seen(sv) && (!q || hayOf(sv).includes(q)) && (!view.sex || sexOf(sv) === view.sex);
+    // 文字で探すときは、選んでいるクラスに限らず全体から探す
+    const scope = groups.filter(g => q || !view.tab || g.key === view.tab);
+    let html = '', n = 0; order = [];
+    if (view.sort === 'class') {
+      for (const g of scope) {
+        const list = g.list.filter(ok), locked = filtering ? 0 : g.list.length - nSeen(g.list);
+        if (!list.length && !locked) continue;
+        n += list.length; order.push(...list);
+        html += `<section><h2 class="sec-h"><img src="${H.classIcon(g.key)}" alt="">${esc(g.label)}<span class="n">${openAll || filtering ? list.length : `${list.length} / ${g.list.length}`}</span></h2><div class="grid">${list.map(sv => card(sv, g.key === 'extra' || g.key === BOSS_KEY)).join('')}${lockCard(locked, g.key)}</div></section>`;
+      }
+    } else {
+      const all = [].concat(...scope.map(g => g.list)), list = all.filter(ok);
+      if (view.sort === 'found' && !openAll) { const at = new Map([...found].map((id, i) => [id, i])); list.sort((a, b) => (at.get(b.id) || 0) - (at.get(a.id) || 0)); }
+      else list.sort((a, b) => a.trueName.localeCompare(b.trueName, 'ja'));
+      const locked = filtering ? 0 : all.length - nSeen(all);
+      n = list.length; order = list;
+      if (list.length || locked) html = `<div class="grid">${list.map(sv => card(sv, true)).join('')}${lockCard(locked, 'extra')}</div>`;
+    }
     $('#cnt').textContent = `${n}騎`;
-    $('#list').innerHTML = gs.map(({ g, list }) => `<section><h2 class="sec-h"><img src="${H.classIcon(g.key)}" alt="">${esc(g.label)}<span class="n">${list.length}</span></h2><div class="grid">${list.map(sv => card(sv, g)).join('')}</div></section>`).join('')
-      || '<p class="empty">当てはまる英霊はいません。</p>';
+    const hint = $('#hint'), tabG = groups.find(g => g.key === view.tab);
+    hint.hidden = !(q && tabG); if (!hint.hidden) hint.textContent = `文字で探しているあいだは、「${tabG.label}」に限らず、すべてのクラスから探します。`;
+    $('#list').innerHTML = html || `<p class="empty">${!openAll && !found.size ? 'まだ、どの英霊とも出会っていません。<a href="index.html">聖杯戦争</a>で真名を知った英霊が、ここに載っていきます。' : '当てはまる英霊はいません。'}</p>`;
     watchFaces($('#list'));
   }
   // 顔の画像は見えたものから探す（無い英霊はクラスのアイコンのまま）
@@ -245,60 +345,84 @@ details > .txt, details > .voice { margin-top: 6px; }
     return `<div class="item"><div class="nm">${esc(s.name)}${s.rankRaw ? `<span class="rk">${esc(s.rankRaw)}</span>` : ''}</div>${s.desc ? `<p class="txt">${esc(s.desc)}</p>` : ''}</div>`;
   }
   function npItem(n) {
-    const meta = [n.rankRaw && 'ランク：' + n.rankRaw, n.typeRaw && '種別：' + n.typeRaw, n.rangeRaw && 'レンジ：' + n.rangeRaw, n.maxRaw && '最大捕捉：' + n.maxRaw].filter(Boolean).join('　');
-    return `<div class="item"><div class="nm">『${esc(n.name)}』${n.reading ? `<span class="rd">${esc(n.reading)}</span>` : ''}</div>${meta ? `<div class="meta">${esc(meta)}</div>` : ''}${n.desc ? `<p class="txt">${esc(n.desc)}</p>` : ''}</div>`;
+    const meta = [['ランク', n.rankRaw], ['種別', n.typeRaw], ['レンジ', n.rangeRaw], ['最大捕捉', n.maxRaw]].filter(([, v]) => v).map(([k, v]) => `<span><small>${k}</small>${esc(v)}</span>`).join('');
+    return `<div class="item np"><div class="nm">『${esc(n.name)}』${n.reading ? `<span class="rd">${esc(n.reading)}</span>` : ''}</div>${meta ? `<div class="meta">${meta}</div>` : ''}${n.desc ? `<p class="txt">${esc(n.desc)}</p>` : ''}</div>`;
   }
   function weaponItem(w) {
     return `<div class="item"><div class="nm">${esc(w.name)}${w.reading ? `<span class="rd">${esc(w.reading)}</span>` : ''}</div>${w.desc ? `<p class="txt">${esc(w.desc)}</p>` : ''}</div>`;
   }
-  // 因縁の相手が図鑑にいれば、押してその英霊を開けるようにする
+  // 因縁の相手が図鑑に載っていれば、押してその英霊を開けるようにする（まだ出会っていない相手は開けない）
   const findByName = name => {
     const n = norm(String(name || '').replace(/[（(〔\[【].*?[)）〕\]】]/g, '').trim()); if (!n) return null;
     return roster.find(s => norm(s.trueName) === n) || roster.find(s => (s.aliases || []).some(a => norm(a) === n)) || null;
   };
   function relItem(r) {
     const to = findByName(r.name);
-    const who = to && to !== openSv ? `<button class="who" data-id="${esc(to.id)}">${esc(r.name)}</button>` : `<span class="who">${esc(r.name)}</span>`;
+    const who = to && to !== openSv && seen(to) ? `<button class="who" data-id="${esc(to.id)}">${esc(r.name)}</button>` : `<span class="who">${esc(r.name)}</span>`;
     return `<div class="rel">${who}${r.text ? `<p class="txt">${esc(r.text)}</p>` : ''}</div>`;
   }
   // ゲームで使う場面（config.js の VOICE_SLOTS）の見出しだけ出す
   function voiceBlock(voice) {
     const hs = Object.keys(voice || {}).filter(h => (voice[h] || []).length && H.voiceSlotOf(h));
     if (!hs.length) return '';
-    return `<h3>セリフ</h3><details><summary>セリフを読む（${hs.length}場面）</summary><div class="voice">${hs.map(h => `<h4>${esc(h)}</h4>${voice[h].map(l => `<p>${esc(l)}</p>`).join('')}`).join('')}</div></details>`;
+    return `<details><summary>セリフを読む（${hs.length}場面）</summary><div class="voice">${hs.map(h => `<h4>${esc(h)}</h4>${voice[h].map(l => `<p>${esc(l)}</p>`).join('')}`).join('')}</div></details>`;
+  }
+  // 前・次：一覧に出ている順。一覧に無い英霊（因縁やリンクから開いた）は、同じクラスの発見済みの中で
+  function neighbors(sv) {
+    let list = order.includes(sv) ? order : ((groupOf(sv) || { list: [] }).list.filter(seen));
+    const i = list.indexOf(sv);
+    return { prev: list[i - 1] || null, next: list[i + 1] || null, i, n: list.length };
   }
   function detail(sv) {
     const t = sv.text || {}, p = sv.profile || {}, info = sv.info || {};
-    const stats = B.STAT_KEYS.map(k => `<div><span>${esc(B.STAT_JA[k])}</span><b>${esc((sv.shown && sv.shown[k]) || (sv.stats && sv.stats[k] && sv.stats[k].raw) || '？')}</b></div>`).join('');
+    const stats = B.STAT_KEYS.map(k => { const raw = statRaw(sv, k); return `<div data-r="${rankKey(raw)}"><span>${esc(B.STAT_JA[k])}</span><b title="${esc(raw)}">${esc(raw)}</b></div>`; }).join('');
     const facts = kv([
       ['元ネタ', sv.origin], ['性別', sv.sex], ['属性', sv.alignment], ['天地人属性', sv.attribute], ['特性', (sv.traits || []).join('、')],
-      ...INFO_KEYS.filter(k => info[k] && info[k] !== sv.origin).map(k => [k, info[k]]),
     ]);
+    // 外見などの細かい項目は、狭い画面では畳んでおく（解説までが遠くならないように）
+    const more = kv(INFO_KEYS.filter(k => info[k] && info[k] !== sv.origin).map(k => [k, info[k]]));
+    const moreHtml = more ? `<details class="more"${matchMedia('(min-width: 901px)').matches ? ' open' : ''}><summary>出典・外見などの項目</summary>${more}</details>` : '';
     const prof = kv(PROFILE_JA.map(([k, l]) => [l, p[k]]));
     // 一人称・好きなもの等は下の項目欄に出すので、本文側に残った同じ行は表示から外す（データは変えない）
     const profLine = /^\s*(一人称|二人称|三人称|イメージカラー|特技|好きな(?:もの|物)|好物|嫌いな(?:もの|物)|苦手|天敵|願い|聖杯への願い|聖杯にかける願い)\s*[:：]/;
     const personText = prof ? String(t.personality || '').split('\n').filter(l => !profLine.test(l)).join('\n').replace(/\n{3,}/g, '\n\n').trim() : t.personality;
     const commentary = longText(t.commentary, 500, sv.voice), person = longText(personText, 400, sv.voice);
     const cls = sv.classSkills || [], own = sv.skills || [], nps = sv.nps || [], ws = sv.weapons || [], rels = sv.relations || [];
+    const voice = voiceBlock(sv.voice);
     const extra = [['comment', 'コメント'], ['other', 'その他']].map(([k, l]) => { const x = B.loreText(t[k], sv.voice); return x ? `<details><summary>${l}</summary>${para(x)}</details>` : ''; }).join('');
-    // 同じクラスの中で前後の英霊へ
-    const g = groups.find(x => x.list.includes(sv)), i = g ? g.list.indexOf(sv) : -1;
-    const prev = g && g.list[i - 1], next = g && g.list[i + 1];
-    return `<button class="close" id="dClose" aria-label="閉じる">×</button>
-      <div class="hero"><div class="pic"><img src="${H.classIcon(sv.class.key)}" alt="" data-face="${esc(H.faceNameOf(sv))}"></div>
-        <div style="min-width:0"><div class="cl">${esc(sv.class.label)}</div><h2 id="dName">${esc(sv.trueName || '（真名不明）')}</h2>${(sv.aliases || []).length ? `<div class="al">${esc(sv.aliases.join('、'))}</div>` : ''}</div></div>
-      <div class="stl">${stats}</div>
-      ${facts}
-      <h3>解説</h3>${commentary || '<p class="none">解説はありません。</p>'}
-      ${person || prof ? `<h3>人物・性格</h3>${person}${prof}` : ''}
-      ${cls.length || own.length ? `<h3>スキル</h3>${cls.length ? `<div class="sub">クラス別スキル</div>${cls.map(skillItem).join('')}` : ''}${own.length ? `<div class="sub">保有スキル</div>${own.map(skillItem).join('')}` : ''}` : ''}
-      <h3>宝具</h3>${nps.length ? nps.map(npItem).join('') : '<p class="none">宝具の記述はありません。</p>'}
-      ${ws.length ? `<h3>武装</h3>${ws.map(weaponItem).join('')}` : ''}
-      ${rels.length ? `<h3>因縁キャラ</h3>${rels.map(relItem).join('')}` : ''}
-      ${voiceBlock(sv.voice)}
-      ${extra ? `<h3>そのほかの記述</h3>${extra}` : ''}
-      ${links(sv)}
-      <div class="nav2">${prev ? `<button class="btn" data-id="${esc(prev.id)}">← ${esc(prev.trueName)}</button>` : '<span></span>'}${next ? `<button class="btn" data-id="${esc(next.id)}">${esc(next.trueName)} →</button>` : '<span></span>'}</div>`;
+    // 節（あるものだけ）。上の帯から飛べる
+    const secs = [
+      ['lore', '解説', commentary || '<p class="none">解説はありません。</p>'],
+      ['person', '人物', person || prof ? `${person}${prof}` : ''],
+      ['skill', 'スキル', cls.length || own.length ? `${cls.length ? `<div class="sub">クラス別スキル</div>${cls.map(skillItem).join('')}` : ''}${own.length ? `<div class="sub">保有スキル</div>${own.map(skillItem).join('')}` : ''}` : ''],
+      ['np', '宝具', nps.length ? nps.map(npItem).join('') : '<p class="none">宝具の記述はありません。</p>'],
+      ['weapon', '武装', ws.map(weaponItem).join('')],
+      ['rel', '因縁', rels.map(relItem).join('')],
+      ['voice', 'セリフ', voice],
+      ['etc', 'ほか', extra],
+    ].filter(x => x[2]);
+    const FULL = { person: '人物・性格', rel: '因縁キャラ', etc: 'そのほかの記述' };
+    const nb = neighbors(sv);
+    const navBtn = (to, dir) => `<button class="btn nv" data-id="${to ? esc(to.id) : ''}" data-step="1"${to ? ` title="${esc(to.trueName)}"` : ' disabled'} aria-label="${dir < 0 ? '前の英霊' : '次の英霊'}">${dir < 0 ? '←<span>&nbsp;前</span>' : '<span>次&nbsp;</span>→'}</button>`;
+    return `<div class="dbar" id="dbar">
+        <div class="row">${navBtn(nb.prev, -1)}<span class="pos">${nb.i >= 0 ? `${nb.i + 1} / ${nb.n}` : ''}</span>${navBtn(nb.next, 1)}<span class="who" aria-hidden="true">${esc(sv.trueName)}</span><button class="close" id="dClose" aria-label="閉じる">×</button></div>
+        <nav class="secnav" id="secnav" aria-label="節">${secs.map(([k, l]) => `<button type="button" data-sec="${k}">${l}</button>`).join('')}</nav>
+      </div>
+      <div class="dgrid">
+        <aside class="side">
+          <div class="pic"><img src="${H.classIcon(sv.class.key)}" alt="" data-face="${esc(H.faceNameOf(sv))}"></div>
+          <div class="cl"><img src="${H.classIcon(sv.class.key)}" alt="">${esc(sv.class.label)}</div>
+          <div><h2 id="dName">${esc(sv.trueName || '（真名不明）')}</h2>${(sv.aliases || []).length ? `<div class="al">${esc(sv.aliases.join('、'))}</div>` : ''}</div>
+          <div class="ranks">${stats}</div>
+          ${facts}
+          ${moreHtml}
+        </aside>
+        <div class="main">
+          ${secs.map(([k, l, body]) => `<section class="sec" id="s-${k}"><h3>${FULL[k] || l}</h3>${body}</section>`).join('')}
+          ${links(sv)}
+          <div class="nav2">${nb.prev ? `<button class="btn" data-id="${esc(nb.prev.id)}" data-step="1">← ${esc(nb.prev.trueName)}</button>` : '<span></span>'}${nb.next ? `<button class="btn" data-id="${esc(nb.next.id)}" data-step="1">${esc(nb.next.trueName)} →</button>` : '<span></span>'}</div>
+        </div>
+      </div>`;
   }
   // kagemiya のページの住所は EUC-JP で書く（index.html の解説と同じ）
   let eucMap = null;
@@ -333,6 +457,7 @@ details > .txt, details > .voice { margin-top: 6px; }
     watchFaces($('#sheet'));
     const dlg = $('#dlg');
     dlg.classList.add('on'); document.body.classList.add('dlg-on'); dlg.scrollTop = 0;
+    syncSec();
     $('#dClose').focus({ preventScroll: true });
   }
   let opener = null, depth = 0;   // depth：図鑑の中で開いた英霊の数（閉じるときにその分だけ戻る）
@@ -340,24 +465,70 @@ details > .txt, details > .voice { margin-top: 6px; }
     if (!openSv) return;
     const id = openSv.id; openSv = null;
     $('#dlg').classList.remove('on'); document.body.classList.remove('dlg-on');
-    const c = opener || $(`#list .card[data-id="${CSS.escape(id)}"]`); opener = null;
-    if (c) c.focus({ preventScroll: true });
+    const c = $(`#list .card[data-id="${CSS.escape(id)}"]`) || opener; opener = null;
+    if (c && c.isConnected) c.focus({ preventScroll: true });
   }
   const idOfHash = () => { try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ''; } };
-  function syncHash() { depth = (history.state && history.state.zk) || 0; const sv = byId(idOfHash()); if (sv) show(sv); else hide(); }
+  function syncHash() {
+    depth = (history.state && history.state.zk) || 0;
+    const id = idOfHash(), sv = byId(id);
+    if (sv && seen(sv)) return show(sv);
+    hide();
+    // まだ出会っていない英霊へのリンクは開かない（真名を伏せたままにする）
+    if (sv) { history.replaceState(null, '', location.pathname + location.search); $('#status').textContent = 'リンク先の英霊とは、まだ出会っていません。'; $('#status').hidden = false; }
+  }
   function open(id) { if (idOfHash() === id) syncHash(); else location.hash = encodeURIComponent(id); }
+  // 前・次は履歴を増やさずに入れ替える（何騎めくっても、戻るボタン一度で一覧に戻れる）
+  function step(id) { if (!byId(id)) return; history.replaceState(history.state, '', '#' + encodeURIComponent(id)); syncHash(); }
   function close() { if (!openSv) return; if (depth > 0) history.go(-depth); else { history.replaceState(null, '', location.pathname + location.search); hide(); } }
   // 図鑑の中で新しく開いたときだけ、何番目かを覚えておく（戻る・進むのときはそのまま）
   addEventListener('hashchange', () => { if (idOfHash() && !history.state) history.replaceState({ zk: depth + 1 }, ''); syncHash(); });
 
-  $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; tab = b.dataset.tab; renderTabs(); renderList(); });
-  $('#q').addEventListener('input', renderList);
-  $('#list').addEventListener('click', e => { const c = e.target.closest('.card[data-id]'); if (c) { opener = c; open(c.dataset.id); } });
+  // 節への移動と、いま読んでいる節の印
+  function syncSec() {
+    const bar = $('#dbar'); if (!bar || !openSv) return;
+    const line = bar.getBoundingClientRect().bottom + 16;
+    let cur = null;
+    for (const s of document.querySelectorAll('#sheet .sec')) if (s.getBoundingClientRect().top <= line) cur = s;
+    const dlg = $('#dlg');
+    if (dlg.scrollTop + dlg.clientHeight >= dlg.scrollHeight - 4) { const all = document.querySelectorAll('#sheet .sec'); cur = all[all.length - 1] || cur; }
+    const key = cur ? cur.id.slice(2) : '';
+    for (const b of document.querySelectorAll('#secnav button')) { const on = b.dataset.sec === key; if (on !== (b.getAttribute('aria-current') === 'true')) { if (on) { b.setAttribute('aria-current', 'true'); b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } else b.removeAttribute('aria-current'); } }
+    bar.classList.toggle('stuck', dlg.scrollTop > 120);
+  }
+  let secRaf = 0;
+  $('#dlg').addEventListener('scroll', () => { if (!secRaf) secRaf = requestAnimationFrame(() => { secRaf = 0; syncSec(); }); }, { passive: true });
+
+  const setView = (k, v) => { view[k] = v; saveView(); };
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (!b) return; setView('tab', b.dataset.tab); renderTabs(); renderList(); });
+  $('#q').addEventListener('input', e => { setView('q', e.target.value); renderList(); });
+  $('#sort').addEventListener('change', e => { setView('sort', e.target.value); renderList(); });
+  $('#sex').addEventListener('change', e => { setView('sex', e.target.value); renderList(); });
+  $('#list').addEventListener('click', e => { const c = e.target.closest('button.card[data-id]'); if (c) { opener = c; open(c.dataset.id); } });
   $('#dlg').addEventListener('click', e => {
     if (e.target.id === 'dlg' || e.target.closest('#dClose')) return close();
-    const b = e.target.closest('[data-id]'); if (b) open(b.dataset.id);
+    const s = e.target.closest('[data-sec]');
+    if (s) { const el = document.getElementById('s-' + s.dataset.sec); if (el) el.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' }); return; }
+    const b = e.target.closest('[data-id]'); if (!b || !b.dataset.id) return;
+    if (b.dataset.step) step(b.dataset.id); else open(b.dataset.id);
   });
-  addEventListener('keydown', e => { if (e.key === 'Escape' && openSv) close(); });
+  addEventListener('keydown', e => {
+    if (!openSv) return;
+    if (e.key === 'Escape') return close();
+    if (e.altKey || e.ctrlKey || e.metaKey || /^(INPUT|TEXTAREA|SELECT)$/.test((e.target && e.target.tagName) || '')) return;
+    const nb = neighbors(openSv), to = e.key === 'ArrowLeft' ? nb.prev : e.key === 'ArrowRight' ? nb.next : null;
+    if (to) { e.preventDefault(); step(to.id); }
+  });
+  // 指で横に払うと前・次の英霊へ（節の帯を横に動かしているときは除く）
+  let sw = null;
+  $('#dlg').addEventListener('touchstart', e => { sw = e.touches.length === 1 && !e.target.closest('.secnav') ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null; }, { passive: true });
+  $('#dlg').addEventListener('touchend', e => {
+    if (!sw || !openSv) return;
+    const t = e.changedTouches[0], dx = t.clientX - sw.x, dy = t.clientY - sw.y; sw = null;
+    if (Math.abs(dx) < 80 || Math.abs(dx) < Math.abs(dy) * 2.5) return;
+    const nb = neighbors(openSv), to = dx > 0 ? nb.prev : nb.next;
+    if (to) step(to.id);
+  }, { passive: true });
 
   // ---------- 読み込み ----------
   (async () => {
@@ -379,6 +550,13 @@ details > .txt, details > .voice { margin-top: 6px; }
     if (!roster.length) { $('#status').textContent = '英霊がいません'; return; }
     groups = grouping();
     $('#status').textContent = label; $('#status').hidden = !label;
+    // 見え方の案内（発見した英霊だけ／全公開）
+    const mode = $('#mode'); mode.hidden = false;
+    if (openAll) { mode.className = 'warn'; mode.textContent = '全公開にしています。このページには、すべての英霊の真名と解説が載っています。戦争の中で真名を推し量る楽しみを残したいときは、聖杯戦争の最初の画面の「参戦サーヴァントの設定」で、発見した英霊だけの表示に戻せます。'; }
+    else mode.innerHTML = `戦いの中で真名を知った英霊だけが、この図鑑に載ります。いま発見しているのは <b>${nSeen(roster)}</b> / ${roster.length} 騎。すべての英霊を読みたいときは、<a href="index.html">聖杯戦争</a>の最初の画面の「参戦サーヴァントの設定」で全公開に切り替えられます。`;
+    if (openAll) { $('#optFound').remove(); if (view.sort === 'found') view.sort = 'class'; }
+    if (!['class', 'name', 'found'].includes(view.sort)) view.sort = 'class';
+    $('#q').value = view.q; $('#sort').value = view.sort; $('#sex').value = view.sex; if ($('#sex').value !== view.sex) view.sex = '';
     renderTabs(); renderList(); syncHash();
   })();
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

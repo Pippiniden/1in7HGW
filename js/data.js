@@ -69,5 +69,29 @@
     return { servants: Array.from(byId.values()), masters: [], bosses, files: Array.from(fileList).map(f => f.name), errors };
   }
 
-  G.data = { loadPublished, loadLocal, hasLocal, loadFiles, applyOverrides };
+  // ---------- 英霊図鑑の発見（戦いの中で真名を知った英霊） ----------
+  // hgw.zukan.v1：発見した英霊の id の配列（どのモードで知っても同じ図鑑に載る）／ hgw.zukan.open：'1' なら全公開
+  // 表示だけに使う。戦争の中身・URL・記録には関わらない
+  const ZK_KEY = 'hgw.zukan.v1', ZK_OPEN = 'hgw.zukan.open';
+  let zkSet = null;
+  const zukan = {
+    load() {
+      if (zkSet) return zkSet;
+      zkSet = new Set();
+      try { const a = JSON.parse(localStorage.getItem(ZK_KEY) || '[]'); if (Array.isArray(a)) for (const x of a) if (typeof x === 'string') zkSet.add(x); } catch (e) { /* 保存が使えなくても動く */ }
+      return zkSet;
+    },
+    /** 発見した英霊を足す。新しく足した数を返す（増えたときだけ保存する） */
+    add(ids) {
+      const s = zukan.load(); let n = 0;
+      for (const id of ids || []) if (typeof id === 'string' && id && !s.has(id)) { s.add(id); n++; }
+      if (n) try { localStorage.setItem(ZK_KEY, JSON.stringify([...s])); } catch (e) { /* 保存できなくても動く */ }
+      return n;
+    },
+    reset() { zkSet = new Set(); try { localStorage.removeItem(ZK_KEY); } catch (e) { /* 同上 */ } },
+    isOpen() { try { return localStorage.getItem(ZK_OPEN) === '1'; } catch (e) { return false; } },
+    setOpen(on) { try { if (on) localStorage.setItem(ZK_OPEN, '1'); else localStorage.removeItem(ZK_OPEN); } catch (e) { /* 同上 */ } },
+  };
+
+  G.data = { loadPublished, loadLocal, hasLocal, loadFiles, applyOverrides, zukan };
 })(globalThis.HGW = globalThis.HGW || {});
