@@ -99,6 +99,30 @@
     else if (b.dataset.g != null && castG[+b.dataset.g]) setCast(castG[+b.dataset.g].idx, b.dataset.on === '1');
   });
   $('#castBox').addEventListener('change', e => { const t = e.target; if (t.matches && t.matches('input[data-i]')) setCast([+t.dataset.i], t.checked); });
+  // ---------- 英霊図鑑の見え方（発見した英霊だけ／全公開）。表示だけの設定で、戦争には関わらない ----------
+  const ZK = H.data.zukan;
+  function syncZukan() {
+    const el = $('#zkSum'); if (!el) return;
+    const found = ZK.load(), all = roster.concat(bossPool.filter(b => !roster.includes(b)));
+    const n = all.filter(s => found.has(s.id)).length;
+    el.textContent = all.length ? `いま発見しているのは ${n} 騎（全 ${all.length} 騎）です。` : '';
+    $('#zkOpen').checked = ZK.isOpen();
+    $('#zkReset').disabled = !found.size;
+  }
+  if ($('#zkOpen')) {
+    $('#zkOpen').addEventListener('change', e => { ZK.setOpen(e.target.checked); toast(e.target.checked ? '英霊図鑑を全公開にしました' : '英霊図鑑を、発見した英霊だけの表示に戻しました'); });
+    $('#zkReset').addEventListener('click', () => {
+      if (!confirm('英霊図鑑の発見をすべて消して、最初からにします。元には戻せません（戦争の記録や中断中の戦争は消えません）。よろしいですか？')) return;
+      ZK.reset(); syncZukan(); toast('英霊図鑑の発見を消しました');
+    });
+    $('#castBox').addEventListener('toggle', syncZukan);
+  }
+  // 真名を知った英霊（自分のサーヴァントを含む）を図鑑に載せる
+  function discover(sn) {
+    const ids = [];
+    for (const c of sn || []) if (c && (c.name || c.you)) { const id = metaOf(c.id).servantId; if (id) ids.push(id); }
+    if (ids.length) ZK.add(ids);
+  }
   function askFiles(msg) {
     $('#data').innerHTML = `${esc(msg)} <label class="file" for="pick">データのJSONファイルを選ぶ</label><input type="file" id="pick" accept=".json" multiple>`
       + (H.data.hasLocal() ? ` ・ <a href="#" id="useLocal">リストツールで作ったリスト（${H.data.hasLocal()}騎）を使う</a>` : '')
@@ -1491,6 +1515,7 @@
   function board(e) {
     if (!e || !e.snap) return;
     lastSnap = e.snap;
+    discover(e.snap);
     curDay = e.day || curDay;
     $('#dayNo').textContent = String(curDay).padStart(2, '0');
     const youNow = e.snap.find(c => c.you) || (youId != null ? e.snap[youId] : null);
@@ -1577,6 +1602,7 @@
       <table><tr><th>CLASS</th><th>真名</th><th>MASTER</th><th>結末</th></tr>
         ${result.camps.map(c => `<tr class="${isWin(c.id) ? 'win' : ''}"><td>${canLore(c.id) ? fic(H.faceNameOfId(c.servantId) || c.trueName, String(c.servantId || '').split(':')[0]) : ci(String(c.servantId || '').split(':')[0])}${esc(c.label)}</td><td>${canLore(c.id) ? `<button class="namebtn" data-lore="${c.id}" title="解説を見る">${esc(c.trueName)}</button>` : esc(c.trueName)}</td><td>${esc(c.master)}<br><small>${esc(c.origin)}${c.persona ? '・' + esc(c.persona) : ''}</small></td><td>${esc(isWin(c.id) ? winText() : c.fate ? c.fate.text : '')}${c.kills.length ? `<br><small>倒した相手：${esc(c.kills.join('、'))}</small>` : ''}</td></tr>`).join('')}
       </table>
+      ${reviewSection()}
       ${purposeSection()}
       ${bondSection()}
       ${decisionSection()}
@@ -1591,6 +1617,8 @@
     // 終わった戦争は記録に残し、中断の保存は消す
     store.set(SAVE_KEY, null);
     addHistory();
+    // 結末の表で全員の真名が明かされるので、参戦した英霊はみな図鑑に載せる
+    ZK.add(result.camps.map(c => c.servantId));
     $('#csv2').onclick = exportCsv;
     $('#cardBtn').onclick = openImages;
     const mine = $('#mine'); if (mine) mine.onclick = () => { setLogFilter('you'); $('#logWrap').classList.add('open'); $('#logMore').setAttribute('aria-expanded', 'true'); syncLog(); $('#logWrap').scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); };
@@ -1625,11 +1653,108 @@
     return `<details class="rsec"><summary><h5>あなたが残した言葉（${words.length}）</h5></summary><ol class="wordlist">${words.map(w =>
       `<li><b>${w.day ? 'D' + String(w.day).padStart(2, '0') : '開戦'}</b><span><span class="wq">${esc(w.q || '')}</span><span class="wt">「${esc(w.text)}」</span></span></li>`).join('')}</ol></details>`;
   }
+  // ---------- 戦後の振り返り（数字・戦況の推移・転機・目立った陣営） ----------
+  // 記録（out.entries）と結末（result）から作る。表示だけで、戦争の中身には関わらない
+  function reviewData() {
+    // 通しの日数（聖杯大戦は、聖杯戦争へ移ると日付が1日目に戻る）
+    const abs = new Map(); let off = 0, prev = 0, shiftAbs = null;
+    for (const e of out.entries) {
+      const d = e.day || 0;
+      if (d >= 1 && d < prev) { off += prev; if (shiftAbs == null) shiftAbs = off; }
+      if (d) prev = d;
+      abs.set(e, off + (d || prev));
+    }
+    const total = off + prev;
+    const dayJa = a => !a ? '開戦' : shiftAbs != null && a > shiftAbs ? `聖杯戦争${a - shiftAbs}日目` : `${a}日目`;
+    // 日ごとの様子（その日の最後の記録のもの）：残っている英霊の数と、あなたのサーヴァントの霊基
+    const days = [];
+    for (const e of out.entries) {
+      if (!e.snap) continue;
+      const me = e.snap.find(c => c.you);
+      days[abs.get(e)] = { alive: e.snap.filter(c => c.alive && !c.boss && !c.overseer).length, hp: me && me.alive ? me.hp : me ? 0 : null };
+    }
+    let last = null; for (let d = 0; d <= total; d++) { if (days[d]) last = days[d]; else if (last) days[d] = last; }
+    const deaths = out.entries.filter(e => e.kind === 'death');
+    return { abs, total, shiftAbs, dayJa, days, deaths };
+  }
+  function reviewSection() {
+    if (!out || !out.entries.length || !result) return '';
+    const R = reviewData(), E = out.entries, n = Math.max(1, R.total);
+    const camps = result.camps.filter(c => !c.overseer), you = result.you != null ? result.camps[result.you] : null;
+    const cnt = f => E.filter(f).length;
+    const tiles = [
+      ['戦いの日数', R.total, '日'],
+      ['戦闘', cnt(e => e.kind === 'battle' && e.head), '回'],
+      ['宝具の解放', cnt(e => e.kind === 'np'), '回'],
+      ['令呪', cnt(e => e.kind === 'cs'), '画'],
+      ['消えた英霊', camps.filter(c => !c.alive).length, '騎'],
+    ];
+    // ---- 転機（古い順） ----
+    const turns = [];
+    const put = (e, tag, text, cls) => { if (e && !turns.some(t => t.e === e)) turns.push({ e, a: R.abs.get(e) || 0, tag, text: text || e.text, cls: cls || '' }); };
+    put(R.deaths[0], '最初の脱落');
+    const perDay = {}; for (const e of R.deaths) { const a = R.abs.get(e); (perDay[a] = perDay[a] || []).push(e); }
+    const worst = Object.keys(perDay).map(Number).sort((a, b) => perDay[b].length - perDay[a].length || a - b)[0];
+    if (worst != null && perDay[worst].length >= 2) put(perDay[worst][perDay[worst].length - 1], '最も多くが斃れた日', `${R.dayJa(worst)}のうちに、${perDay[worst].length}騎の英霊が消えた。`, 'bad');
+    if (you) {
+      put(E.find(e => e.kind === 'cs' && e.you), 'あなたの令呪', '', 'you');
+      // 霊基が最も削られた日（消滅した日は別に出るので、生きて越えた日だけ）
+      let low = null;
+      for (const e of E) { if (!e.snap || !e.day) continue; const me = e.snap.find(c => c.you); if (me && me.alive && me.hp > 0 && (!low || me.hp < low.hp)) low = { e, hp: me.hp }; }
+      if (low && low.hp <= 40) put(low.e, 'あなたの最大の危機', `${R.dayJa(R.abs.get(low.e))}、あなたのサーヴァントの霊基は ${low.hp} まで削られた。`, 'you');
+      put(E.find(e => e.kind === 'death' && e.you && e.snap && e.snap.some(c => c.you && !c.alive && e.ids[0] === c.id)), 'あなたのサーヴァントの消滅', '', 'bad');
+    }
+    if (R.deaths.length > 1) put(R.deaths[R.deaths.length - 1], result.winner != null || result.winners ? '決着' : '最後の脱落', '', 'end');
+    turns.sort((a, b) => a.a - b.a || E.indexOf(a.e) - E.indexOf(b.e));
+    // ---- 目立った陣営 ----
+    const who = c => `${c.label}「${c.trueName}」`;
+    const top = (f, min) => { const m = Math.max(...camps.map(f)); return m >= min ? { m, list: camps.filter(c => f(c) === m) } : null; };
+    const names = t => t.list.slice(0, 3).map(who).join('、') + (t.list.length > 3 ? ' ほか' : '');
+    const recs = [];
+    const tk = top(c => c.kills.length, 1); if (tk) recs.push(['最も多く倒した', `${names(tk)}（${tk.m}騎）`]);
+    const tb = top(c => c.battles, 1); if (tb) recs.push(['最も多く戦った', `${names(tb)}（${tb.m}戦）`]);
+    const tn = top(c => c.npUses, 1); if (tn) recs.push(['宝具を最も放った', `${names(tn)}（${tn.m}回）`]);
+    const still = camps.filter(c => c.alive && c.battles === 0);
+    if (still.length) recs.push(['一度も戦わずに残った', still.slice(0, 3).map(who).join('、')]);
+    if (you) recs.push(['あなたの陣営', `${you.battles}戦・宝具${you.npUses}回${you.kills.length ? `・倒した相手：${you.kills.join('、')}` : '・倒した相手はなし'}`]);
+    // ---- 戦況の推移（残っている英霊の数の階段と、あなたの霊基の線） ----
+    const narrow = matchMedia('(max-width: 820px)').matches;
+    const W = narrow ? 360 : 600, Hh = narrow ? 170 : 180, L = 28, Rm = you ? 30 : 10, T = 12, Bm = 24, iw = W - L - Rm, ih = Hh - T - Bm;
+    const max = Math.max(1, ...R.days.filter(Boolean).map(d => d.alive));
+    const x = d => L + d / n * iw, yA = v => T + (1 - v / max) * ih, yH = v => T + (1 - v / 100) * ih;
+    const gStep = max > 8 ? Math.ceil(max / 4) : max > 4 ? 2 : 1;
+    let grid = ''; for (let v = 0; v <= max; v += gStep) grid += `<line x1="${L}" x2="${W - Rm}" y1="${yA(v)}" y2="${yA(v)}" stroke="rgba(141,174,212,.18)" stroke-width="1"/><text x="${L - 6}" y="${yA(v) + 4}" text-anchor="end" fill="var(--mute)" font-size="10">${v}</text>`;
+    const step = n > 40 ? 10 : n > 20 ? 5 : n > 10 ? 2 : 1;
+    let xt = ''; for (let d = 0; d <= n; d += step) xt += `<text x="${x(d)}" y="${Hh - 6}" text-anchor="middle" fill="var(--mute)" font-size="10">${d === 0 ? '開戦' : d}</text>`;
+    let pa = '', ph = '', seg = false;
+    for (let d = 0; d <= R.total; d++) {
+      const v = R.days[d]; if (!v) continue;
+      pa += pa ? `H${x(d).toFixed(1)}V${yA(v.alive).toFixed(1)}` : `M${x(d).toFixed(1)},${yA(v.alive).toFixed(1)}`;
+      if (v.hp != null) { ph += `${seg ? 'L' : 'M'}${x(d).toFixed(1)},${yH(v.hp).toFixed(1)}`; seg = true; }
+    }
+    const marks = R.deaths.map(e => { const a = R.abs.get(e), v = R.days[a]; return v ? `<circle cx="${x(a).toFixed(1)}" cy="${yA(v.alive).toFixed(1)}" r="3" fill="var(--seal)" stroke="var(--void)" stroke-width="1"/>` : ''; }).join('');
+    const shift = R.shiftAbs != null ? `<line x1="${x(R.shiftAbs)}" x2="${x(R.shiftAbs)}" y1="${T}" y2="${T + ih}" stroke="var(--gold)" stroke-width="1" stroke-dasharray="3 3"/><text x="${x(R.shiftAbs) + 4}" y="${T + 10}" fill="var(--gold)" font-size="10">聖杯戦争へ</text>` : '';
+    const hpAxis = ph ? [0, 50, 100].map(v => `<text x="${W - Rm + 6}" y="${yH(v) + 4}" fill="var(--gold)" font-size="10">${v}</text>`).join('') : '';
+    const first = R.days.find(Boolean) || { alive: 0 }, lastD = R.days[R.total] || first;
+    const chart = `<div class="revbox"><svg viewBox="0 0 ${W} ${Hh}" role="img" aria-label="戦況の推移。開戦時は${first.alive}騎、結末では${lastD.alive}騎が残った">
+        ${grid}${xt}${hpAxis}${shift}
+        ${ph ? `<path d="${ph}" fill="none" stroke="var(--gold)" stroke-opacity=".8" stroke-width="1.5" stroke-linejoin="round"/>` : ''}
+        <path d="${pa}" fill="none" stroke="var(--cyan)" stroke-width="2"/>${marks}
+      </svg></div>
+      <p class="revkey"><span class="k-a">残っている英霊の数</span><span class="k-d">英霊の消滅</span>${ph ? '<span class="k-h">あなたのサーヴァントの霊基（右の目盛り）</span>' : ''}</p>`;
+    return `<div class="rev" aria-label="戦後の振り返り">
+      <h5>戦後の振り返り</h5>
+      <ul class="revtiles">${tiles.map(([l, v, u]) => `<li><span>${l}</span><b>${v}</b><i>${u}</i></li>`).join('')}</ul>
+      <h6>戦況の推移</h6>${chart}
+      ${turns.length ? `<h6>転機</h6><ol class="revturn">${turns.map(t => `<li class="${t.cls}"><b>${esc(R.dayJa(t.a))}</b><span><em>${esc(t.tag)}</em>${esc(t.text)}</span></li>`).join('')}</ol>` : ''}
+      ${recs.length ? `<h6>目立った陣営</h6><dl class="revrec">${recs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+    </div>`;
+  }
   // 結末の画面に出す振り返り（ハイライトを古い順に）
   function hlTimeline() {
     const list = shownEntries().filter(e => hlCheck(e));
     if (!list.length) return '';
-    return `<details class="hl"><summary><h5 style="display:inline">この${WAR}の振り返り（${list.length}件）</h5></summary><ol>${list.map(e =>
+    return `<details class="hl"><summary><h5 style="display:inline">主な出来事を順に読む（${list.length}件）</h5></summary><ol>${list.map(e =>
       `<li class="k-${e.kind}${e.you ? ' is-you' : ''}"><b>${e.day ? 'D' + String(e.day).padStart(2, '0') + ' ' + (PH[e.phase] || '') : '開戦'}</b><span>${esc(e.text)}</span></li>`).join('')}</ol></details>`;
   }
   // ---------- 画像にする（結末のまとめ・呼んだサーヴァントの評価） ----------
