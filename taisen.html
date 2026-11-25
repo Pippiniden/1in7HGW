@@ -63,6 +63,14 @@
         </div>
         <p class="hint"><a href="https://pippiniden.github.io/command-spell-maker/" target="_blank" rel="noopener">令呪デザイナー</a>で書き出したSVGを、あなたの令呪として手の甲に刻める。読み込まなければ、戦争ごとに8種類の紋様のどれかが刻まれる。見た目だけで、戦争の展開は変わらない。</p>
       </div>
+      <div class="field mmfield" id="mmField"><span class="lbl">マイマスター</span>
+        <div class="rowsel choices2" role="radiogroup">
+          <label><input type="radio" name="mm" value="0" checked><span class="ico"></span>毎回ランダム</label>
+          <label><input type="radio" name="mm" value="1"><span class="ico"></span>保存したマスターで</label>
+        </div>
+        <div class="row"><select id="mmSel" aria-label="使うマスター"></select><button class="btn" id="mmEdit" type="button">編集する</button><button class="btn" id="mmNew" type="button">新しく作る</button></div>
+        <p class="hint" id="mmHint">名前・性別・年齢・属性・出自・能力値・性格・願い・経歴を自分で決めたマスターを保存しておき、新しい戦争の既定にできる。決めなかった項目は、今まで通りランダムで決まる。</p>
+      </div>
       <div class="field"><span class="lbl">一言を残す</span>
         <div class="rowsel choices2" role="radiogroup">
           <label><input type="radio" name="words" value="1" checked><span class="ico"></span>節目で聞く</label>
@@ -274,6 +282,15 @@
       <label class="wordin"><span class="lbl">あなたの一言（60字まで。残さなくてもよい）</span><input type="text" id="wordText" maxlength="60" autocomplete="off" enterkeyhint="done"></label>
     </div>
     <div class="dlg-foot"><button class="btn" id="wordOff">これからは聞かない</button><button class="btn" id="wordSkip">やめておく</button><button class="btn primary" id="wordOk">残す</button></div>
+  </section>
+</div>
+<div class="dlg opening mmdlg" id="mmDlg" role="dialog" aria-modal="true" aria-labelledby="mmTitle">
+  <section class="dlg-in panel">
+    <div class="dlg-head"><i class="chev"></i><span class="en">My Master</span><span class="step" id="mmCount"></span></div>
+    <div class="band">マイマスター</div>
+    <h4 id="mmTitle"></h4>
+    <div class="opbody" id="mmBody"></div>
+    <div class="dlg-foot"><button class="btn" id="mmDel" type="button">このマスターを消す</button><button class="btn" id="mmCancel" type="button">閉じる</button><button class="btn primary" id="mmSave" type="button">保存する</button></div>
   </section>
 </div>
 <div class="dlg opening" id="sealDlg" role="dialog" aria-modal="true" aria-labelledby="sealDlgTitle">
