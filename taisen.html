@@ -96,6 +96,15 @@
         </div>
         <p class="hint">七つのクラスの外の英霊が、どこかの席に紛れ込むことがある（ルーラーを除く）。加えないなら、代役としても呼ばれない。</p>
       </div>
+      <div class="field"><span class="lbl">マスター</span>
+        <div class="rowsel choices3" role="radiogroup">
+          <label><input type="radio" name="mpool" value="random"><span class="ico"></span>すべてランダム</label>
+          <label><input type="radio" name="mpool" value="mix" checked><span class="ico"></span>登録マスターも含める</label>
+          <label><input type="radio" name="mpool" value="only"><span class="ico"></span>登録マスターだけ</label>
+        </div>
+        <div class="daysel" id="mrandRow" style="margin-top:10px"><span class="lbl" id="mrandLbl" style="font-size:13px;white-space:nowrap">ランダムのマスター</span><input type="range" id="mrand" min="10" max="90" step="10" value="50" aria-labelledby="mrandLbl"><output id="mrandOut" for="mrand">50%</output></div>
+        <p class="hint">「登録マスターも含める」では、それぞれの陣営が上の割合でランダムのマスターに、残りの割合で登録されたマスターと結ばれる。「登録マスターだけ」では、登録マスターが尽きるまで必ずその中から選ばれ、足りない席だけランダムになる。<span id="mpoolNote"></span></p>
+      </div>
       <div class="field" style="display:none"><span class="lbl">ボス乱入</span>
         <div class="rowsel choices2" role="radiogroup">
           <label><input type="radio" name="intr" value="1" checked><span class="ico"></span>起こりうる</label>

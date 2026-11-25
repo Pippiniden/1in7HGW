@@ -380,6 +380,28 @@
   for (const s of VOICE_SLOTS) for (const h of [s.key].concat(s.aliases)) VOICE_OF[h] = s.key;
   G.VOICE_SLOTS = VOICE_SLOTS;
   G.VOICE_UNUSED = VOICE_UNUSED;
+  // 登録マスター（data の masters）のセリフの場面。サーヴァントと同じ「見出し：「セリフ」」の形で、マスターの voice に書く。
+  // 無ければ何も言わない（ランダムのマスターは喋らない）。選び方はサーヴァントと同じく乱数を使わないので、展開は変わらない
+  const MASTER_VOICE_SLOTS = [
+    { key: '令呪', aliases: ['令呪使用'], use: '令呪を切る場面すべて（下の二つが無いときも。呼び戻す・魔力に換えるはこれだけ）' },
+    { key: '令呪（撤退）', aliases: ['撤退指示'], use: '令呪でサーヴァントを戦場から退かせる場面' },
+    { key: '令呪（強化）', aliases: ['宝具開帳指示'], use: '令呪で崩れかけたサーヴァントを立たせる・力を与える場面' },
+    { key: '脱落', aliases: ['死亡', '最期'], use: 'マスター自身が命を落とす場面' },
+    { key: '魂喰い', aliases: ['魂食い'], use: 'サーヴァントに魂喰いをさせる場面' },
+    { key: '同盟', aliases: ['同盟締結'], use: '同盟を受け入れる・加わる場面' },
+    { key: '接触', aliases: ['敵マスター'], use: '昼の街で声をかけられ、言葉を交わす場面（このマスターだけが喋る）' },
+    { key: '勝利', aliases: ['終幕'], use: '勝ち残り、聖杯が降臨する結末' },
+  ];
+  const MVOICE_OF = {};
+  for (const s of MASTER_VOICE_SLOTS) for (const h of [s.key].concat(s.aliases)) MVOICE_OF[h] = s.key;
+  G.MASTER_VOICE_SLOTS = MASTER_VOICE_SLOTS;
+  // マスターの場面の行をすべて（代表の見出し → 別名 → 「令呪2」のような番号付き）
+  G.masterVoiceLines = (m, key) => {
+    const v = (m && m.voice) || {};
+    const s = MASTER_VOICE_SLOTS.find(x => x.key === key), first = s ? [s.key].concat(s.aliases) : [key];
+    const hs = first.filter(h => v[h]).concat(Object.keys(v).filter(h => !first.includes(h) && MVOICE_OF[String(h).trim().replace(/\s*(その)?[0-9０-９]+$/, '')] === key));
+    return [].concat(...hs.map(h => v[h] || [])).filter(l => l && String(l).trim());
+  };
   // 見出し → それを使う場面の key（使わない見出しは null）。「宝具2」「会話その3」のような番号付きも同じ場面
   // 宝具専用の見出し：「宝具（名前）」「宝具『名前』」「宝具・名前」。その宝具を解放したときだけ、セリフの中に名前が無くても使う
   const NP_HEAD = /^宝具\s*(?:[（(『「【]\s*(.+?)\s*[）)』」】]|[・･:：]\s*(.+?))\s*$/;
