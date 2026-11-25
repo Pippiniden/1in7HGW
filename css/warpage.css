@@ -427,6 +427,18 @@ body.locked { position: fixed; left: 0; right: 0; overflow: hidden; }
 .namefield .btn { min-height: 34px; font-size: 12px; --cut: 7px; white-space: normal; max-width: 100%; text-align: left; line-height: 1.5; }
 .namefield .hint2 { font-size: 12px; color: var(--mute); margin: 0; }
 .wordin { display: grid; gap: 6px; margin: 0 0 4px; }
+/* マイマスター（開戦の準備の欄と、編集のダイアログ） */
+.mmfield .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.mmfield select { flex: 1 1 180px; min-width: 0; max-width: 320px; background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 10px; font: 15px var(--gothic); }
+.mmfield select:disabled, .mmfield .btn:disabled { opacity: .5; }
+.mmstats { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 6px 10px; }
+.mmstats label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px; align-items: center; font-size: 13px; }
+.mmstats select { width: 100%; padding: 6px 8px; font-size: 15px; }
+.namefield textarea { width: 100%; min-width: 0; resize: vertical; background: rgba(3, 14, 38, .9); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 9px 12px; font: 15px/1.7 var(--mincho); }
+.namefield textarea:focus { outline: none; box-shadow: inset 0 0 0 2px var(--cyan); }
+.mmdlg .dlg-foot #mmDel { margin-right: auto; }
+.mmbadge { margin: 0 0 10px; padding: 6px 10px; font-size: 13px; color: var(--gold); box-shadow: inset 2px 0 0 var(--gold); background: rgba(255, 210, 120, .06); }
+.opkv dd.mmpast { white-space: pre-wrap; }
 .words .dlg-foot #wordOff { margin-right: auto; }
 /* 画像のプレビュー */
 .imgdlg { background: rgba(2, 6, 16, .86); }

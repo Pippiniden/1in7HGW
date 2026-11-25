@@ -160,6 +160,32 @@
         }
       }
     }
+    // プレイヤーが決めたマスターの中身（opts.playerMaster = { origin, originLabel, stats: { mana: 'B', … }, persona, wish, past }）。
+    //   抽選が済んだあとで書いた項目だけを上書きするので、乱数の使い方は変わらない（書いていない項目はランダムのまま）。
+    //   出自（工房）・能力値・性格は展開を変える。呼び名・願い・経歴は文面だけ。特異点では使わない
+    const PM = !SG && you && opts.playerMaster && typeof opts.playerMaster === 'object' ? opts.playerMaster : null;
+    if (PM) {
+      const m = you.master, txt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, n);
+      if (PM.origin && G.master.ORIGINS[PM.origin]) {
+        m.origin = PM.origin; m.originLabel = G.master.ORIGINS[PM.origin].name;
+        m.resources.workshop = PM.origin === 'noble' ? 1 : 0; you.workshop = m.resources.workshop * 2;
+      }
+      const ol = txt(PM.originLabel, 30); if (ol) m.originLabel = ol;
+      // 能力値：サーヴァントの「マスターを強める」効果は、決めた値の上に載せ直す
+      const buff = {};
+      for (const e of Object.values(you.sv.effectSummary || {})) if (e.id === 'master_buff' && e.params && e.params.stat && e.passive) buff[e.params.stat] = (buff[e.params.stat] || 0) + e.passive;
+      let statSet = false;
+      for (const k of Object.keys(G.master.MASTER_STATS)) {
+        const v = PM.stats && PM.stats[k], s = v == null || v === '' ? null : R.toScore(v);
+        if (s == null) continue;
+        m.stats[k] = s + (buff[k] || 0); m.statSource[k] = 'player'; statSet = true;
+      }
+      if (statSet) { you.mhpMax = you.mhp = Math.round(50 + m.stats.body * 0.8); you.manaMax = you.mana = Math.round(ENG.manaBase + m.stats.mana); }
+      if (PM.persona && G.PERSONAS[PM.persona]) m.persona = PM.persona;
+      const wi = txt(PM.wish, 60); if (wi) m.wish = wi;
+      const pa = txt(PM.past, 200); if (pa) m.past = pa;
+      m.custom = Object.assign({}, m.custom, { player: true });
+    }
     const pubName = new Set();
     if (GW) {
       // 同じ色の中では、最初から真名も拠点も知らせ合っている
@@ -1958,6 +1984,7 @@
           stats: Object.fromEntries(Object.entries(m.stats).map(([k, v]) => [k, Math.round(v)])),
           skills: (m.skills || []).map(x => x.name + (x.rankRaw ? '：' + x.rankRaw : '')), traits: m.traits || [],
           catalyst: !!m.catalyst, wish: m.wish, cs: c.cs, hpMax: c.mhpMax, manaMax: c.manaMax,
+          ...(m.past ? { past: m.past } : {}),
         },
       });
     }

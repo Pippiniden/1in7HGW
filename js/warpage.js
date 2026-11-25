@@ -219,7 +219,7 @@
   let idx = 0, timer = null, speed = [1, 2, 4, 8].includes(+settings0.speed) ? +settings0.speed : 2, paused = false, view = 'you', seed = '';
   let choices = [], replay = [], focus = 'auto', focusLog = '', replayFocus = '', autoAll = settings0.auto === true, youId = null, curDay = 0, mode = 'new';
   // playerName：プレイヤーが付けた名前（空ならランダムで決まった名前）。words：残した一言 [{ key, at: 何件目の記録のあとか, day, q, text }]
-  let playerName = '', playerSex = '', playerAge = 0, playerAli = '', words = [], wordAsked = new Set(), wordArm = [], wordsOn = true, catching = false;
+  let playerName = '', playerSex = '', playerAge = 0, playerAli = '', playerPM = null, playerMM = '', words = [], wordAsked = new Set(), wordArm = [], wordsOn = true, catching = false;
   const DELAY = { quiet: 900, death: 2200, np: 1800, end: 1900, cs: 1600, summon: 1100, prologue: 1300, choice: 500, council: 900, life: 1400, world: 1400, ally: 1400 };
 
   function pump(answer) {
@@ -233,11 +233,55 @@
   const cleanAge = v => { const n = Math.round(Number(v)); return isFinite(n) && n >= 10 && n <= 99 ? n : 0; };
   // 属性（'LG' など2字、空ならランダム）。URL では al=lg
   const cleanAli = v => H.master.ALIGN.clean(v);
+  // ---------- マイマスター（自分で決めたマスターの中身） ----------
+  // 出自・出自の呼び名・能力値（ランク）・性格・願い・経歴。書いていない項目はランダムのまま（engine.js の playerMaster）。
+  //   出自・能力値・性格は戦争の展開を変えるので、URL（mo ol ms mp wi pa）・中断・記録に一緒に残し、記録の照合（recordSig）にも入れる
+  const MM_RANKS = ['EX', 'A+', 'A', 'B+', 'B', 'C+', 'C', 'D+', 'D', 'E+', 'E'];
+  const MM_STATS = Object.keys(H.master.MASTER_STATS);
+  const cleanRank = v => { const t = String(v == null ? '' : v).trim().toUpperCase(); return MM_RANKS.includes(t) ? t : ''; };
+  const cleanTxt = (v, n) => String(v == null ? '' : v).replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, '').trim().slice(0, n);
+  function cleanPM(p) {
+    if (!p || typeof p !== 'object') return null;
+    const st = {}; for (const k of MM_STATS) { const r = cleanRank(p.stats && p.stats[k]); if (r) st[k] = r; }
+    const o = { origin: H.master.ORIGINS[p.origin] ? p.origin : '', originLabel: cleanTxt(p.originLabel, 30), stats: st, persona: H.PERSONAS[p.persona] ? p.persona : '', wish: cleanTxt(p.wish, 60), past: cleanTxt(p.past, 200) };
+    const r = {}; for (const [k, v] of Object.entries(o)) if (k === 'stats' ? Object.keys(v).length : v) r[k] = v;
+    return Object.keys(r).length ? r : null;
+  }
+  // 展開を変える部分だけ（記録の照合用）
+  const pmSig = pm => { pm = cleanPM(pm); if (!pm || !(pm.origin || pm.stats || pm.persona)) return ''; return 'pm:' + (pm.origin || '') + '/' + MM_STATS.map(k => (pm.stats && pm.stats[k]) || '').join('.') + '/' + (pm.persona || ''); };
+  function pmFromQs() {
+    const ms = String(qs.get('ms') || '').split('.');
+    return cleanPM({ origin: qs.get('mo'), originLabel: qs.get('ol'), stats: Object.fromEntries(MM_STATS.map((k, i) => [k, ms[i]])), persona: qs.get('mp'), wish: qs.get('wi'), past: qs.get('pa') });
+  }
+  function pmToUrl(url, pm) {
+    pm = pm || {};
+    const set = (k, v) => { if (v) url.searchParams.set(k, v); else url.searchParams.delete(k); };
+    const ms = MM_STATS.map(k => (pm.stats && pm.stats[k]) || '').join('.');
+    set('mo', pm.origin); set('ol', pm.originLabel); set('ms', ms.replace(/\./g, '') ? ms : ''); set('mp', pm.persona); set('wi', pm.wish); set('pa', pm.past);
+  }
+  // 保存したマスターの一覧（聖杯戦争と聖杯大戦で共有）。{ on: 新しい戦争で使うか, sel: 使う一人の id, list: [{ id, name, sex, age, ali, pm }] }
+  const MM_KEY = 'hgw.mymaster.v1', MM_MAX = 12;
+  function cleanProfile(p) {
+    if (!p || typeof p !== 'object') return null;
+    return { id: cleanTxt(p.id, 20) || Math.random().toString(36).slice(2, 10), name: cleanPName(p.name), sex: cleanSex(p.sex), age: cleanAge(p.age), ali: cleanAli(p.ali), pm: cleanPM(p.pm) };
+  }
+  function loadMM() {
+    let s = null; try { s = JSON.parse(localStorage.getItem(MM_KEY) || 'null'); } catch (e) { /* 読めなくてもよい */ }
+    const list = (s && Array.isArray(s.list) ? s.list : []).map(cleanProfile).filter(Boolean).slice(0, MM_MAX);
+    const sel = s && list.some(p => p.id === s.sel) ? s.sel : (list[0] || {}).id || '';
+    return { on: !!(s && s.on) && !!list.length, sel, list };
+  }
+  let mm = loadMM();
+  const saveMM = () => { try { localStorage.setItem(MM_KEY, JSON.stringify(mm)); } catch (e) { /* 保存できなくても動く */ } };
+  const mmCur = () => mm.list.find(p => p.id === mm.sel) || null;
+  const mmTitle = p => p.name || '名無しのマスター';
+  // 新しく開戦するときのマスター（マイマスターを使う設定なら、その中身）
+  const mmStartOpts = () => { const p = mm.on ? mmCur() : null; return p ? { name: p.name, sex: p.sex, age: p.age, ali: p.ali, pm: p.pm, mm: p.id } : {}; };
   const validWord = w => w && typeof w.text === 'string' && w.text && typeof w.at === 'number';
   // 戦争を組み立てる（名前を付け直すときも、同じシードで組み直す。名前は乱数を使わないので展開は変わらない）
   function makeGen() {
     out = {};
-    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: GW || view !== 'all' ? 'big' : 'never', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), ...(GW ? { greatWar: true } : { intrude: { on: intrOn, force: intrForce, bosses: bossPool } }), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerAlign: playerAli || undefined, playerName: playerName || undefined });
+    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: GW || view !== 'all' ? 'big' : 'never', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), ...(GW ? { greatWar: true } : { intrude: { on: intrOn, force: intrForce, bosses: bossPool } }), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerAlign: playerAli || undefined, playerName: playerName || undefined, playerMaster: playerPM || undefined });
     pump();
   }
   // o: { seed, view, speed, days: 戦争の長さ, extra: エクストラクラスを加えるか, c: 決断の列, f: 方針の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode,
@@ -264,6 +308,7 @@
     choices = []; focusLog = ''; focus = 'auto'; out = {}; done = false; result = null; pending = null; idx = 0; paused = false; curDay = 0;
     playerName = view === 'all' ? '' : cleanPName(o.name);
     playerSex = view === 'all' ? '' : cleanSex(o.sex); playerAge = view === 'all' ? 0 : cleanAge(o.age); playerAli = view === 'all' ? '' : cleanAli(o.ali);
+    playerPM = view === 'all' ? null : cleanPM(o.pm); playerMM = view === 'all' ? '' : o.mm || '';
     words = Array.isArray(o.words) ? o.words.filter(validWord) : []; wordAsked = new Set(words.map(w => w.key)); wordArm = [];
     // 一言は、記録の再生や共有リンクの再現では聞かない（残っている言葉は出す）
     wordsOn = formWords() && view !== 'all' && mode !== 'replay' && !(mode === 'url' && (replay.length || replayFocus));
@@ -295,7 +340,7 @@
   }
   $('#go').onclick = () => {
     const same = qs.get('seed') && qs.get('seed') === $('#seed').value.trim();
-    start(same ? { mode: 'url', c: qs.get('c') ? qs.get('c').split('.') : [], f: qs.get('f') || '', name: qs.get('n') || '', sex: qs.get('sx'), age: qs.get('ag'), ali: qs.get('al') } : {});
+    start(same ? { mode: 'url', c: qs.get('c') ? qs.get('c').split('.') : [], f: qs.get('f') || '', name: qs.get('n') || '', sex: qs.get('sx'), age: qs.get('ag'), ali: qs.get('al'), pm: pmFromQs() } : mmStartOpts());
   };
   // 記録を target 件目まで、待たずに表示する（途中の決断は replay から答える）
   function catchUp(target) {
@@ -327,6 +372,7 @@
     if (playerSex) url.searchParams.set('sx', playerSex === '女' ? 'f' : 'm'); else url.searchParams.delete('sx');
     if (playerAge) url.searchParams.set('ag', playerAge); else url.searchParams.delete('ag');
     if (playerAli) url.searchParams.set('al', playerAli.toLowerCase()); else url.searchParams.delete('al');
+    pmToUrl(url, playerPM);
     history.replaceState(null, '', url);
   }
 
@@ -458,6 +504,7 @@
   $('#dlgAuto').onclick = () => { autoAll = true; syncCtl(); rememberCtl(); answer('auto'); toast('これからの決断はおまかせで進みます。上の「決断をおまかせ」で戻せます'); };
   document.addEventListener('keydown', e => {
     if (e.target.closest('input, textarea')) return;
+    if ($('#mmDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeMM(); } return; }
     if ($('#sealDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeSealDlg(); } return; }
     if ($('#imgDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeImg(); } return; }
     if ($('#wordDlg').classList.contains('on')) { if (e.key === 'Escape') { e.preventDefault(); closeWord(''); } return; }
@@ -613,7 +660,8 @@
       $('#opTitle').textContent = m.name || snap.master;
       const stats = Object.entries(m.stats || {}).map(([k, v]) => `<div${tipAttr('m.' + k)}><span>${esc(H.master.MASTER_STATS[k].name)}</span><b>${esc(scoreRank(v))}</b><span class="bar"><i style="width:${Math.max(3, Math.min(100, v / 80 * 100))}%;background:var(--mana);color:var(--mana)"></i></span></div>`).join('');
       const lm = lastMaster();
-      $('#opBody').innerHTML = `<div class="namefield"><label class="lbl" for="opName">マスターの呼び名（20字まで。空欄にすると、ランダムで決まったものになる）</label>
+      const mine = playerMM && mm.list.find(x => x.id === playerMM);
+      $('#opBody').innerHTML = `${playerPM || mine ? `<p class="mmbadge">マイマスター${mine ? `「${esc(mmTitle(mine))}」` : ''}の設定で${WAR}に臨む。決めていない項目はランダムで決まった。</p>` : ''}<div class="namefield"><label class="lbl" for="opName">マスターの呼び名（20字まで。空欄にすると、ランダムで決まったものになる）</label>
           <div class="row"><input type="text" id="opName" name="hgw-handle" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="next" value="${esc(m.name || snap.master)}">
             ${playerName ? '<button class="btn" id="opNameReset" type="button">ランダムな名前に戻す</button>' : ''}
             ${lm && !sameMaster(lm) ? `<button class="btn" id="opNameLast" type="button">前回のマスター設定「${esc(masterBrief(lm))}」</button>` : ''}</div>
@@ -630,11 +678,13 @@
           <dt>出自</dt><dd><b>${esc(m.originLabel || snap.origin)}</b>${ORIGIN_DESC[m.origin] ? '<br>' + esc(ORIGIN_DESC[m.origin]) : ''}</dd>
           ${m.persona ? `<dt>性格</dt><dd><b>${esc(m.persona)}</b>${m.personaDesc ? '<br>' + esc(m.personaDesc) : ''}</dd>` : ''}
           <dt>願い</dt><dd>${esc(m.wish || snap.wish)}</dd>
+          ${m.past ? `<dt>経歴</dt><dd class="mmpast">${esc(m.past)}</dd>` : ''}
           <dt>触媒</dt><dd>${m.catalyst ? '縁の品を用意して召喚に臨んだ（サーヴァントとの絆が深まりやすい）' : '触媒なしの召喚。応えたのは、相性で選ばれた英霊だ'}</dd>
           ${m.skills && m.skills.length ? `<dt>スキル</dt><dd>${esc(m.skills.join('、'))}</dd>` : ''}
           ${m.traits && m.traits.length ? `<dt>特徴</dt><dd>${esc(m.traits.join('、'))}</dd>` : ''}
         </dl>
         <div class="opstats">${stats}</div>
+        <div class="links"><button class="btn" id="opSaveMM" type="button">このマスターをマイマスターとして保存する</button></div>
         <p class="note2">能力値やステータスにマウスを重ねる・タップすると、戦いの何に効くかが出ます。</p>
         <p class="note2">方針を「おまかせ」にしている日は、陣営の戦略「${esc(meta.policyLabel || '臨機応変')}」に沿って動く。</p>`;
     } else if (step === 2) {
@@ -723,12 +773,130 @@
   $('#opBack').onclick = () => { if (op && op.step > 1) { op.step--; renderOpening(); } };
   $('#opBody').addEventListener('click', e => {
     if (e.target.closest('#opLore')) { const me = lastSnap.find(c => c.you); if (me) openLore(me.id); return; }
+    if (e.target.closest('#opSaveMM')) { if ($('#opName')) { applyMaster(opFields()); renderOpening(); } openMM(null, profileFromOpening()); return; }
     if (e.target.closest('#opProfReset')) { applyMaster({ sex: '', age: 0, ali: '' }); renderOpening(); $('#opSex').focus(); return; }
     if (e.target.closest('#opNameReset')) { applyName(''); renderOpening(); $('#opName').focus(); return; }
     if (e.target.closest('#opNameLast')) { applyMaster(lastMaster()); renderOpening(); $('#opName').focus(); return; }
     const b = e.target.closest('#opFocus [data-f]'); if (b) opPick(b.dataset.f);
   });
   $('#opBody').addEventListener('dblclick', e => { const b = e.target.closest('#opFocus [data-f]'); if (b) { opPick(b.dataset.f); opNext(); } });
+
+  // ---------- マイマスターの設定（開戦の準備の欄と、編集のダイアログ） ----------
+  const PERSONA_KEYS = Object.keys(H.PERSONAS);
+  const toRank = v => { const r = scoreRank(v); return cleanRank(r) || cleanRank(r.replace(/[+-]$/, '')) || 'E'; };
+  // 一言で：名前・素性・出自・性格・決めた能力値
+  function mmBrief(p) {
+    const pm = p.pm || {}, st = pm.stats || {};
+    const ks = MM_STATS.filter(k => st[k]);
+    return [p.sex, p.age ? p.age + '歳' : '', H.master.ALIGN.label(p.ali), pm.originLabel || (pm.origin ? H.master.ORIGINS[pm.origin].name : ''), pm.persona ? H.PERSONAS[pm.persona].label : '',
+      ks.length ? ks.map(k => H.master.MASTER_STATS[k].name + st[k]).join(' ') : ''].filter(Boolean).join('・');
+  }
+  function renderMMField() {
+    const has = mm.list.length;
+    $('#mmSel').innerHTML = has ? mm.list.map(p => `<option value="${esc(p.id)}"${p.id === mm.sel ? ' selected' : ''}>${esc(mmTitle(p))}</option>`).join('') : '<option value="">（まだいない）</option>';
+    $('#mmSel').disabled = !has; $('#mmEdit').disabled = !has;
+    $('#mmNew').disabled = has >= MM_MAX;
+    const r = document.querySelector(`input[name=mm][value="${mm.on ? 1 : 0}"]`); if (r) r.checked = true;
+    const p = mmCur();
+    $('#mmHint').textContent = mm.on && p
+      ? `新しい戦争は「${mmTitle(p)}」${mmBrief(p) ? `（${mmBrief(p)}）` : ''}として始まる。決めていない項目はランダム。観測者のときと、共有リンク・記録の再生では使わない。`
+      : `名前・性別・年齢・属性・出自・能力値・性格・願い・経歴を自分で決めたマスターを${MM_MAX}人まで保存しておき、新しい戦争の既定にできる。決めなかった項目は、今まで通りランダムで決まる。`;
+  }
+  document.querySelectorAll('input[name=mm]').forEach(r => r.addEventListener('change', () => {
+    const on = document.querySelector('input[name=mm]:checked').value === '1';
+    if (on && !mm.list.length) { const r0 = document.querySelector('input[name=mm][value="0"]'); if (r0) r0.checked = true; openMM(null); return; }
+    mm.on = on; saveMM(); renderMMField();
+  }));
+  $('#mmSel').addEventListener('change', () => { mm.sel = $('#mmSel').value; saveMM(); renderMMField(); });
+  $('#mmEdit').onclick = () => openMM(mmCur());
+  $('#mmNew').onclick = () => openMM(null);
+
+  // 編集のダイアログ。p が null なら新しく作る（init があればそれを下書きにする）
+  let mmEdit = null; // { id: 編集中の id（新しいなら null） }
+  function openMM(p, init) {
+    if (!p && mm.list.length >= MM_MAX) { toast(`マイマスターは${MM_MAX}人までです`); return; }
+    mmEdit = { id: p ? p.id : null };
+    const d = p || init || { name: '', sex: '', age: 0, ali: '', pm: null }, pm = d.pm || {}, st = pm.stats || {};
+    const opt = (v, label, cur) => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(label)}</option>`;
+    $('#mmCount').textContent = p ? '' : `${mm.list.length + 1} / ${MM_MAX}`;
+    $('#mmTitle').textContent = p ? `「${mmTitle(p)}」を編集` : '新しいマイマスター';
+    $('#mmDel').hidden = !p;
+    $('#mmBody').innerHTML = `<p class="say">空欄や「ランダム」のままの項目は、戦争ごとにランダムで決まる。名前・性別・年齢・属性・出自の呼び名・願い・経歴は文面だけ、出自・能力値・性格は戦いの展開も変える。</p>
+      <div class="namefield">
+        <label class="lbl" for="mmName">呼び名（20字まで）</label>
+        <div class="row"><input type="text" id="mmName" maxlength="20" autocomplete="off" spellcheck="false" value="${esc(d.name)}" placeholder="空欄ならランダム"></div>
+        <div class="row"><label class="lbl" for="mmSex">性別</label><select id="mmSex">${opt('', 'ランダム', d.sex)}${opt('男', '男', d.sex)}${opt('女', '女', d.sex)}</select>
+          <label class="lbl" for="mmAge">年齢</label><input type="number" id="mmAge" min="10" max="99" step="1" inputmode="numeric" value="${d.age || ''}" placeholder="ランダム">
+          <label class="lbl" for="mmAli">属性</label><select id="mmAli">${opt('', 'ランダム', d.ali)}${H.master.ALIGN.all.map(a => opt(a, H.master.ALIGN.label(a), d.ali)).join('')}</select></div>
+      </div>
+      <div class="namefield">
+        <div class="row"><label class="lbl" for="mmOrigin">出自</label><select id="mmOrigin">${opt('', 'ランダム', pm.origin || '')}${Object.entries(H.master.ORIGINS).map(([k, o]) => opt(k, o.name, pm.origin || '')).join('')}</select></div>
+        <p class="hint2" id="mmOriginDesc"></p>
+        <label class="lbl" for="mmOl">出自の呼び名（30字まで。空欄なら上の出自の名前）</label>
+        <div class="row"><input type="text" id="mmOl" maxlength="30" autocomplete="off" value="${esc(pm.originLabel || '')}" placeholder="例：時計塔の講師"></div>
+      </div>
+      <div class="namefield">
+        <span class="lbl">能力値（ランダムなら出自に合わせて抽選）</span>
+        <div class="mmstats">${MM_STATS.map(k => `<label${tipAttr('m.' + k)}><span>${esc(H.master.MASTER_STATS[k].name)}</span><select data-mms="${k}">${opt('', 'ランダム', st[k] || '')}${MM_RANKS.map(r => opt(r, r, st[k] || '')).join('')}</select></label>`).join('')}</div>
+      </div>
+      <div class="namefield">
+        <div class="row"><label class="lbl" for="mmPersona">性格</label><select id="mmPersona">${opt('', 'ランダム', pm.persona || '')}${PERSONA_KEYS.map(k => opt(k, H.PERSONAS[k].label, pm.persona || '')).join('')}</select></div>
+        <p class="hint2" id="mmPersonaDesc"></p>
+      </div>
+      <div class="namefield">
+        <label class="lbl" for="mmWish">聖杯に託す願い（60字まで）</label>
+        <div class="row"><input type="text" id="mmWish" maxlength="60" autocomplete="off" value="${esc(pm.wish || '')}" placeholder="空欄なら出自と性格に合わせてランダム"></div>
+        <label class="lbl" for="mmPast">経歴（200字まで）</label>
+        <textarea id="mmPast" maxlength="200" rows="4" placeholder="どんな人生を歩んで、この戦いに来たのか（空欄でもよい）">${esc(pm.past || '')}</textarea>
+      </div>
+      <label class="cast-force"><input type="checkbox" id="mmUse"${!p || (mm.on && mm.sel === p.id) ? ' checked' : ''}> 新しい戦争は、このマスターで始める</label>`;
+    syncMMDesc();
+    $('#mmDlg').classList.add('on');
+    $('#mmDlg .dlg-in').scrollTop = 0;
+    $('#mmName').focus({ preventScroll: true });
+  }
+  function syncMMDesc() {
+    const o = $('#mmOrigin').value, pk = $('#mmPersona').value;
+    $('#mmOriginDesc').textContent = o ? ORIGIN_DESC[o] || '' : '名門の魔術師・新興の魔術師・魔術使い・巻き込まれた一般人・異能者のどれか。';
+    $('#mmPersonaDesc').textContent = pk ? H.PERSONAS[pk].desc || '' : '出自に合わせて選ばれる。';
+  }
+  function closeMM() { $('#mmDlg').classList.remove('on'); mmEdit = null; }
+  function readMM() {
+    const st = {}; document.querySelectorAll('#mmBody [data-mms]').forEach(s => { st[s.dataset.mms] = s.value; });
+    return cleanProfile({ id: mmEdit && mmEdit.id, name: $('#mmName').value, sex: $('#mmSex').value, age: $('#mmAge').value, ali: $('#mmAli').value,
+      pm: { origin: $('#mmOrigin').value, originLabel: $('#mmOl').value, stats: st, persona: $('#mmPersona').value, wish: $('#mmWish').value, past: $('#mmPast').value } });
+  }
+  $('#mmBody').addEventListener('change', e => { if (e.target.closest('#mmOrigin, #mmPersona')) syncMMDesc(); });
+  $('#mmDlg').addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); closeMM(); } });
+  $('#mmDlg').addEventListener('click', e => { if (e.target.id === 'mmDlg') closeMM(); });
+  $('#mmCancel').onclick = closeMM;
+  $('#mmSave').onclick = () => {
+    if (!mmEdit) return;
+    const p = readMM(), use = $('#mmUse').checked;
+    const i = mm.list.findIndex(x => x.id === mmEdit.id);
+    if (i >= 0) mm.list[i] = p; else mm.list.push(p);
+    if (use) { mm.sel = p.id; mm.on = true; } else if (mm.sel === p.id) mm.on = false;
+    if (!mm.list.some(x => x.id === mm.sel)) mm.sel = p.id;
+    saveMM(); renderMMField(); closeMM();
+    toast(use ? `「${mmTitle(p)}」を保存しました。新しい戦争はこのマスターで始まります` : `「${mmTitle(p)}」を保存しました`);
+  };
+  $('#mmDel').onclick = () => {
+    const p = mmEdit && mm.list.find(x => x.id === mmEdit.id); if (!p) return;
+    if (!confirm(`マイマスター「${mmTitle(p)}」を消します。よろしいですか？（終わった戦争の記録は残ります）`)) return;
+    mm.list = mm.list.filter(x => x !== p);
+    if (mm.sel === p.id) { mm.sel = (mm.list[0] || {}).id || ''; if (!mm.list.length) mm.on = false; }
+    saveMM(); renderMMField(); closeMM(); toast(`「${mmTitle(p)}」を消しました`);
+  };
+  // 開戦の案内に出ている今のマスターを、マイマスターの下書きにする（能力値はランクに丸める）
+  function profileFromOpening() {
+    const m = (op && op.meta.master) || {};
+    const st = {}; for (const k of MM_STATS) if (m.stats && m.stats[k] != null) st[k] = toRank(m.stats[k]);
+    const pk = PERSONA_KEYS.find(k => H.PERSONAS[k].label === m.persona) || '';
+    const origin = H.master.ORIGINS[m.origin] ? m.origin : '';
+    return { name: playerName || m.name || '', sex: m.sex || '', age: m.age || 0, ali: m.align || '',
+      pm: { origin, originLabel: origin && m.originLabel === H.master.ORIGINS[origin].name ? '' : m.originLabel || '', stats: st, persona: pk, wish: m.wish || '', past: m.past || '' } };
+  }
+  renderMMField();
 
   // ---------- 情景 ----------
   // 背景画像（img/scenes/）があれば使い、無ければシードから描いた街並み（SVG）を出す
@@ -1189,7 +1357,7 @@
   const recEx = r => Array.isArray(r.ex) ? r.ex.filter(x => typeof x === 'string') : [];
   // ボス乱入の設定（無い古い記録は、起こりうる・必ずではない として扱う）
   const recIntr = r => r.intr !== false, recForce = r => r.intr !== false && r.force === true;
-  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recIntr(r) ? [] : ['nobj'], recForce(r) ? ['bf'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : []).join('|');
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recIntr(r) ? [] : ['nobj'], recForce(r) ? ['bf'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : [], pmSig(r.pm) ? [pmSig(r.pm)] : []).join('|');
   const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
   // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
@@ -1200,7 +1368,7 @@
     return store.set(SAVE_KEY, {
       v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
-      idx, focus, auto: autoAll, speed, name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, w: words.length ? words : undefined,
+      idx, focus, auto: autoAll, speed, name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, pm: playerPM || undefined, w: words.length ? words : undefined,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
     });
   }
@@ -1227,7 +1395,7 @@
     const wins = result.winners ? result.winners.map(i => result.camps[i]).filter(Boolean).map(c => ({ label: c.label, name: c.trueName })) : null;
     const rec = {
       v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
-      name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, w: words.length ? words : undefined,
+      name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, pm: playerPM || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
         winner: w ? { label: w.label, name: w.trueName, master: w.master, alone: w.masterAlive === false || undefined } : null, ending: result.ending, winners: wins || undefined, boss: hasBoss(result) ? result.camps.find(c => c.boss).trueName : undefined,
@@ -1259,11 +1427,11 @@
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), intr: recIntr(s), force: recForce(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, ali: s.ali, words: s.w });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), intr: recIntr(s), force: recForce(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, ali: s.ali, pm: s.pm, words: s.w });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), intr: recIntr(r), force: recForce(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, ali: r.ali, words: r.w });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), intr: recIntr(r), force: recForce(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, ali: r.ali, pm: r.pm, words: r.w });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
