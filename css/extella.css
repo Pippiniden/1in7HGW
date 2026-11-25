@@ -172,6 +172,7 @@ html::before {
 .log .k-death .q .qwho { background: linear-gradient(90deg, var(--seal), #ff9db1); }
 .log .k-np .q .qwho, .log .k-end .q .qwho { background: linear-gradient(90deg, var(--gold), #fff3c4); }
 .log .q.say { padding-left: 12px; }
+.log .q.qm .qwho { background: linear-gradient(90deg, #9fb0c8, #dfe7f2); }   /* 登録マスターのセリフ：サーヴァントと見分ける銀の札 */
 /* 顔：角を落としたシアンの枠 */
 .log .q .qface .face, .camps .cf .face, .face.lg {
   border: 0; border-radius: 0; box-shadow: none;

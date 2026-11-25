@@ -79,6 +79,7 @@
       // 16〜46歳。原作に倣って10代・20代がわずかに多くなるよう、若い側に少しだけ寄せる（乱数の使い方は同じ）
       age: spec.age != null ? spec.age : Math.round(16 + Math.pow(rnd(), 1.25) * 30),
       origin, originLabel: spec.originLabel || O.name,
+      align: spec.align || undefined,       // 属性（'LG' など）。無ければゲーム側で種のハッシュから決める
       stats, statSource,
       skills,
       traits: spec.traits || [],            // 自由な特徴の文字列（「魔眼持ち」など）

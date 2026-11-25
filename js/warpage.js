@@ -10,6 +10,7 @@
   const NS = GW ? 'hgw.gw.' : 'hgw.', REC_FMT = GW ? 'hgw-gw-records' : 'hgw-records';   // 保存領域の名前の頭と、記録ファイルの形式（大戦は別に持つ）
   const DEF_DAYS = GW ? H.CONFIG.GREAT_WAR.days : H.CONFIG.ENGINE.maxDays, MIN_DAYS = 10, MAX_DAYS = 100;
   let maxDays = DEF_DAYS, extraOn = true, pickMode = 'class'; // この戦争の長さ、エクストラクラスを加えるか、七騎の選び方（class / open）
+  let masterMode = 'mix', masterRand = 50;   // masterRand：含めるときにランダムのマスターになる割合（%）                                     // 登録マスターの使い方（random すべてランダム / mix 含める / only 登録マスターだけ）
   let castEx = [];                                            // この戦争で参戦から外したサーヴァントの id
   let intrOn = true, intrForce = false, bossPool = [];        // ボス乱入を起こすか／条件を満たしたら必ず起こすか／乱入しうるボス専用の英霊
   let excluded = new Set(), exInited = false;                 // 最初の画面で参戦から外している id（設定）と、URL の ex を読んだか
@@ -21,6 +22,7 @@
   // ---------- データ ----------
   function dataReady(res, label) {
     roster = res.servants.filter(s => !s.bossOnly); masters = res.masters || []; source = label;   // ボス専用の英霊は聖杯戦争に呼ばれない（乱入するボスにはなる）
+    $('#mpoolNote').textContent = masters.length ? `（いま登録されているマスター：${masters.length}人）` : '（いまのデータには登録マスターがいないので、どれを選んでもすべてランダムになる）';
     bossPool = H.build.bossesOf(res).bosses;
     initExcluded();
     const err = res.errors && res.errors.length ? `<div class="err">読めなかったもの：${esc(res.errors.join('、'))}</div>` : '';
@@ -185,7 +187,15 @@
   const formWords = () => document.querySelector('input[name=words]:checked').value !== '0';
   const formIntr = () => document.querySelector('input[name=intr]:checked').value !== '0';
   const formForce = () => $('#intrForce').checked;
-  function setForm(days, extra, pick, intr, force) {
+  const cleanMPool = v => v === 'random' || v === 'only' ? v : 'mix';
+  const formMPool = () => cleanMPool(document.querySelector('input[name=mpool]:checked').value);
+  const MPOOL_URL = { random: 'r', only: 'o' }, MPOOL_OF_URL = { r: 'random', o: 'only' };
+  const cleanMRand = v => { const n = Math.round((+v || 0) / 10) * 10; return n >= 10 && n <= 90 ? n : 50; };
+  const formMRand = () => cleanMRand($('#mrand').value);
+  const syncMRand = () => { $('#mrandOut').textContent = formMRand() + '%'; $('#mrand').disabled = formMPool() !== 'mix'; $('#mrandRow').style.opacity = formMPool() === 'mix' ? '' : '.45'; };
+  function setForm(days, extra, pick, intr, force, mpool, mrand) {
+    const me = document.querySelector(`input[name=mpool][value="${cleanMPool(mpool)}"]`); if (me) me.checked = true;
+    $('#mrand').value = cleanMRand(mrand); syncMRand();
     const ie = document.querySelector(`input[name=intr][value="${intr === false ? 0 : 1}"]`); if (ie) ie.checked = true;
     $('#intrForce').checked = force === true;
     $('#days').value = clampDays(days); $('#daysOut').textContent = clampDays(days) + '日';
@@ -202,13 +212,16 @@
     const d = qs.get('d') || (!GW && st && st.days) || DEF_DAYS, x = qs.has('x') ? qs.get('x') !== '0' : !(st && st.extra === false);
     const pk = qs.has('seed') ? (qs.get('p') === 'open' ? 'open' : 'class') : (st && st.pick) || 'class';
     const ib = qs.has('seed') ? qs.get('bj') !== '0' : !(st && st.intr === false), fc = qs.has('seed') ? qs.get('bf') === '1' : !!(st && st.force);
-    setForm(d, x, pk, ib, fc);
+    const mp = qs.has('seed') ? MPOOL_OF_URL[qs.get('mm')] : st && st.mpool;
+    const mr = qs.has('seed') ? qs.get('mr') : st && st.mrand;
+    setForm(d, x, pk, ib, fc, mp, mr);
   })();
   // 一言を聞くか・前回つけた名前も一緒に覚えておく（どちらも戦争の展開は変えない）
-  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), intr: formIntr(), force: formForce() || undefined, words: formWords(), name: settings0.name || undefined, master: settings0.master || undefined, speed: settings0.speed, auto: settings0.auto || undefined })); } catch (e) { /* 保存できなくても動く */ } };
+  const saveSettings = () => { try { localStorage.setItem(SET_KEY, JSON.stringify({ days: formDays(), extra: formExtra(), pick: formPick(), intr: formIntr(), force: formForce() || undefined, mpool: formMPool() === 'mix' ? undefined : formMPool(), mrand: formMRand() === 50 ? undefined : formMRand(), words: formWords(), name: settings0.name || undefined, master: settings0.master || undefined, speed: settings0.speed, auto: settings0.auto || undefined })); } catch (e) { /* 保存できなくても動く */ } };
   $('#days').addEventListener('input', () => { $('#daysOut').textContent = formDays() + '日'; });
   $('#days').addEventListener('change', saveSettings);
-  document.querySelectorAll('input[name=extra], input[name=pick], input[name=words], input[name=intr], #intrForce').forEach(r => r.addEventListener('change', saveSettings));
+  document.querySelectorAll('input[name=extra], input[name=pick], input[name=mpool], input[name=words], input[name=intr], #intrForce, #mrand').forEach(r => r.addEventListener('change', saveSettings));
+  document.querySelectorAll('input[name=mpool], #mrand').forEach(r => r.addEventListener('input', syncMRand));
 
   // ---------- 進行 ----------
   // エンジンは1日ごと（tick）と大きな決断（decision）で戻ってくる。
@@ -281,7 +294,7 @@
   // 戦争を組み立てる（名前を付け直すときも、同じシードで組み直す。名前は乱数を使わないので展開は変わらない）
   function makeGen() {
     out = {};
-    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: GW || view !== 'all' ? 'big' : 'never', masters: masters.slice(), out, engine: { maxDays }, war: warOpts(), ...(GW ? { greatWar: true } : { intrude: { on: intrOn, force: intrForce, bosses: bossPool } }), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerAlign: playerAli || undefined, playerName: playerName || undefined, playerMaster: playerPM || undefined });
+    gen = H.engine.warGen({ roster: castRosterOf(castEx), seed, player: view === 'all' ? 'none' : undefined, ask: GW || view !== 'all' ? 'big' : 'never', masters: masters.slice(), masterMode, masterRandom: masterRand / 100, out, engine: { maxDays }, war: warOpts(), ...(GW ? { greatWar: true } : { intrude: { on: intrOn, force: intrForce, bosses: bossPool } }), playerSex: playerSex || undefined, playerAge: playerAge || undefined, playerAlign: playerAli || undefined, playerName: playerName || undefined, playerMaster: playerPM || undefined });
     pump();
   }
   // o: { seed, view, speed, days: 戦争の長さ, extra: エクストラクラスを加えるか, c: 決断の列, f: 方針の列, to: ここまで記録を一気に表示（続きから）, focus, auto, mode,
@@ -302,6 +315,8 @@
     pickMode = o.pick ? (o.pick === 'open' ? 'open' : 'class') : formPick();
     intrOn = o.intr != null ? o.intr !== false : formIntr();
     intrForce = o.force != null ? o.force === true : formForce();
+    masterMode = o.mpool ? cleanMPool(o.mpool) : formMPool();
+    masterRand = masterMode !== 'mix' ? 50 : o.mrand != null ? cleanMRand(o.mrand) : o.mpool ? 50 : formMRand();
     replay = (o.c || []).filter(Boolean);
     replayFocus = o.f || '';
     $('#pause').disabled = false; $('#skip').disabled = false;
@@ -367,6 +382,8 @@
     if (pickMode === 'open') url.searchParams.set('p', 'open'); else url.searchParams.delete('p');
     if (!intrOn) url.searchParams.set('bj', '0'); else url.searchParams.delete('bj');
     if (intrOn && intrForce) url.searchParams.set('bf', '1'); else url.searchParams.delete('bf');
+    if (MPOOL_URL[masterMode]) url.searchParams.set('mm', MPOOL_URL[masterMode]); else url.searchParams.delete('mm');
+    if (masterRand !== 50) url.searchParams.set('mr', masterRand); else url.searchParams.delete('mr');
     if (castEx.length) url.searchParams.set('ex', exParam(castEx)); else url.searchParams.delete('ex');
     if (playerName) url.searchParams.set('n', playerName); else url.searchParams.delete('n');
     if (playerSex) url.searchParams.set('sx', playerSex === '女' ? 'f' : 'm'); else url.searchParams.delete('sx');
@@ -673,7 +690,7 @@
         <div class="opseal">${H.sealmark.markup(warSeal(), 3, 120)}</div>
         <p class="say">${esc(out.city)}。${esc(meta.base)}を拠点に、あなたは${WAR}に臨む。手の甲には三画の令呪が刻まれている。</p>
         <dl class="opkv">
-          <dt>素性</dt><dd>${esc([m.sex, m.age ? m.age + '歳' : ''].filter(Boolean).join('・'))}</dd>
+          <dt>素性</dt><dd>${esc([m.sex, m.age ? (/^\d+$/.test(String(m.age)) ? m.age + '歳' : m.age) : ''].filter(Boolean).join('・'))}</dd>
           ${m.align ? `<dt>属性</dt><dd>${esc(H.master.ALIGN.label(m.align))}</dd>` : ''}
           <dt>出自</dt><dd><b>${esc(m.originLabel || snap.origin)}</b>${ORIGIN_DESC[m.origin] ? '<br>' + esc(ORIGIN_DESC[m.origin]) : ''}</dd>
           ${m.persona ? `<dt>性格</dt><dd><b>${esc(m.persona)}</b>${m.personaDesc ? '<br>' + esc(m.personaDesc) : ''}</dd>` : ''}
@@ -967,8 +984,9 @@
   // 記録の台詞：話し手の札をつけ、その時点で真名を知っている英霊（と自分の英霊）には顔も出す。話し手は ids の先頭
   function quoteHtml(e) {
     const q = e.quote, id = e.ids && e.ids[0], c = id != null && e.snap ? e.snap[id] : null;
-    const known = !!c && (!!c.name || c.you) && !!servantOf(id) && !!q.who && q.who.indexOf(c.label) >= 0;
-    return `<span class="q say">${known ? `<span class="qface"><img class="face" data-face="${esc(faceOf(id))}" alt="" hidden></span>` : ''}<span class="qbody">${q.who ? `<span class="qwho">${esc(q.who)}</span>` : ''}<span class="qt">${esc(q.text)}</span></span></span>`;
+    // 登録マスターのセリフ（q.master）には顔を出さず、札に「マスター」と添える
+    const known = !q.master && !!c && (!!c.name || c.you) && !!servantOf(id) && !!q.who && q.who.indexOf(c.label) >= 0;
+    return `<span class="q say${q.master ? ' qm' : ''}">${known ? `<span class="qface"><img class="face" data-face="${esc(faceOf(id))}" alt="" hidden></span>` : ''}<span class="qbody">${q.who ? `<span class="qwho">${q.master ? 'マスター ' : ''}${esc(q.who)}</span>` : ''}<span class="qt">${esc(q.text)}</span></span></span>`;
   }
   const PH = { day: '昼', night: '夜', prologue: '開戦', end: '終幕' };
   const KIND_JA = { prologue: '開幕', summon: '召喚', day: '昼の行動', night: '夜の行動', battle: '戦闘', np: '宝具', cs: '令呪', death: '脱落', event: '出来事',
@@ -1356,8 +1374,8 @@
   // 参戦から外したサーヴァントの id（無い古い記録は、外していないものとして扱う）
   const recEx = r => Array.isArray(r.ex) ? r.ex.filter(x => typeof x === 'string') : [];
   // ボス乱入の設定（無い古い記録は、起こりうる・必ずではない として扱う）
-  const recIntr = r => r.intr !== false, recForce = r => r.intr !== false && r.force === true;
-  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recIntr(r) ? [] : ['nobj'], recForce(r) ? ['bf'] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : [], pmSig(r.pm) ? [pmSig(r.pm)] : []).join('|');
+  const recIntr = r => r.intr !== false, recForce = r => r.intr !== false && r.force === true, recMPool = r => cleanMPool(r.mpool), recMRand = r => recMPool(r) === 'mix' ? cleanMRand(r.mrand) : 50;
+  const recordSig = r => [r.seed, r.view, r.fp || '', r.c.join('.'), r.f, recDays(r), recExtra(r) ? 1 : 0].concat(recPick(r) === 'open' ? ['open'] : [], recIntr(r) ? [] : ['nobj'], recForce(r) ? ['bf'] : [], recMPool(r) !== 'mix' ? ['mm:' + recMPool(r)] : [], recMRand(r) !== 50 ? ['mr:' + recMRand(r)] : [], recEx(r).length ? ['ex:' + recEx(r).slice().sort().join(',')] : [], pmSig(r.pm) ? [pmSig(r.pm)] : []).join('|');
   const fmtAt = t => { const d = new Date(t); return isNaN(d) ? '' : `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`; };
 
   // 中断に備えて今の位置を保存する（1日の始め・決断のあと・中断・ページを離れるとき）
@@ -1366,7 +1384,7 @@
     if (op && !idx) return false; // 開戦の案内の途中は、まだ始まっていない
     const me = lastSnap.find(c => c.you);
     return store.set(SAVE_KEY, {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, mpool: masterMode === 'mix' ? undefined : masterMode, mrand: masterRand === 50 ? undefined : masterRand, ex: castEx.length ? castEx.slice() : undefined,
       c: choices.concat(replay), f: replayFocus.length > focusLog.length ? replayFocus : focusLog,
       idx, focus, auto: autoAll, speed, name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, pm: playerPM || undefined, w: words.length ? words : undefined,
       sum: { city: out.city, day: curDay, label: me ? me.label : null, name: me ? metaOf(me.id).trueName : null, master: me ? me.master : null, alive: lastSnap.filter(c => c.alive).length },
@@ -1394,7 +1412,7 @@
     const w = result.winner != null ? result.camps[result.winner] : null, y = result.you != null ? result.camps[result.you] : null;
     const wins = result.winners ? result.winners.map(i => result.camps[i]).filter(Boolean).map(c => ({ label: c.label, name: c.trueName })) : null;
     const rec = {
-      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
+      v: 1, at: Date.now(), seed, view, data: source, fp: rosterFp(), days: maxDays, extra: extraOn, pick: pickMode, intr: intrOn ? undefined : false, force: intrOn && intrForce ? true : undefined, mpool: masterMode === 'mix' ? undefined : masterMode, mrand: masterRand === 50 ? undefined : masterRand, ex: castEx.length ? castEx.slice() : undefined, c: choices.slice(), f: focusLog,
       name: playerName || undefined, sex: playerSex || undefined, age: playerAge || undefined, ali: playerAli || undefined, pm: playerPM || undefined, w: words.length ? words : undefined,
       sum: {
         city: result.city, days: result.days,
@@ -1427,11 +1445,11 @@
   function resume() {
     const s = store.get(SAVE_KEY);
     if (!s || !validRecord(Object.assign({ sum: {} }, s)) || !checkData(s)) return;
-    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), intr: recIntr(s), force: recForce(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, ali: s.ali, pm: s.pm, words: s.w });
+    start({ mode: 'resume', seed: s.seed, view: s.view, speed: s.speed, days: recDays(s), extra: recExtra(s), pick: recPick(s), intr: recIntr(s), force: recForce(s), mpool: recMPool(s), mrand: recMRand(s), ex: recEx(s), c: s.c, f: s.f, to: Math.max(1, s.idx | 0), focus: s.focus, auto: s.auto, name: s.name, sex: s.sex, age: s.age, ali: s.ali, pm: s.pm, words: s.w });
   }
   function playRecord(r, how) {
     if (!checkData(r)) return;
-    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), intr: recIntr(r), force: recForce(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, ali: r.ali, pm: r.pm, words: r.w });
+    start({ mode: 'replay', seed: r.seed, view: r.view, days: recDays(r), extra: recExtra(r), pick: recPick(r), intr: recIntr(r), force: recForce(r), mpool: recMPool(r), mrand: recMRand(r), ex: recEx(r), c: r.c, f: r.f, name: r.name, sex: r.sex, age: r.age, ali: r.ali, pm: r.pm, words: r.w });
     if (how === 'end') fastForward();
     else toast('記録を再生しています。方針を変えると、そこから別の展開に分かれます');
   }
@@ -1446,6 +1464,8 @@
     if (recPick(r) === 'open') u.searchParams.set('p', 'open');
     if (!recIntr(r)) u.searchParams.set('bj', '0');
     if (recForce(r)) u.searchParams.set('bf', '1');
+    if (MPOOL_URL[recMPool(r)]) u.searchParams.set('mm', MPOOL_URL[recMPool(r)]);
+    if (recMRand(r) !== 50) u.searchParams.set('mr', recMRand(r));
     if (recEx(r).length) u.searchParams.set('ex', exParam(recEx(r)));
     if (r.name) u.searchParams.set('n', r.name);
     if (r.sex) u.searchParams.set('sx', r.sex === '女' ? 'f' : 'm');
@@ -1476,7 +1496,7 @@
         : w ? (w.alone ? `${w.label}「${w.name}」が、マスターを失いながらもただ一騎で聖杯を手にした。` : `${w.label}「${w.name}」とマスター${w.master}が聖杯を手にした。`) : r.sum.ending === 'wipe' ? '最後の一騎までが斃れ、聖杯を手にした者はいなかった。' : '聖杯を手にした者はいなかった。';
       const lastW = Array.isArray(r.w) && r.w.length ? r.w[r.w.length - 1] : null;
       return `<li class="${y && y.won ? 'won' : ''}${r.keep ? ' kept' : ''}"><div class="rt">${esc(title)}${r.keep ? '<span class="keepmark">保護</span>' : ''}</div>
-        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${recEx(r).length ? ' ・ 参戦を絞った' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
+        <div class="rm">${esc(fmtAt(r.at))} ・ ${esc(r.sum.city || '')} ・ ${esc(r.sum.days)}日間${recDays(r) !== DEF_DAYS ? `（最長${recDays(r)}日）` : ''}${recExtra(r) ? '' : ' ・ エクストラなし'}${recPick(r) === 'open' ? ' ・ 全騎から均等' : ''}${recMPool(r) === 'random' ? ' ・ マスターはすべてランダム' : recMPool(r) === 'only' ? ' ・ 登録マスターだけ' : recMRand(r) !== 50 ? ` ・ ランダムのマスター${recMRand(r)}%` : ''}${recEx(r).length ? ' ・ 参戦を絞った' : ''}${r.sum.decided ? ` ・ 決断${esc(r.sum.decided)}回` : ''}${r.data === 'local' ? ' ・ リストツールで作ったリスト' : ''}</div>
         <p class="rr">${esc(res)}</p>
         ${lastW ? `<p class="rw">「${esc(lastW.text)}」</p>` : ''}
         <div class="ra"><button class="btn" data-rec="${i}" data-how="full">最初から見る</button><button class="btn" data-rec="${i}" data-how="end">結末だけ見る</button><button class="btn" data-rec="${i}" data-how="link">リンクをコピー</button>
