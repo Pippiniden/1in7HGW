@@ -99,5 +99,20 @@ const [A, Bsv, C] = [published[0], published[1], published[2]];
   fs.rmSync(t, { recursive: true, force: true });
 }
 
+// --- 登録マスター（マスターエディタの「公開用に保存」）：いちばん新しいものだけで data/masters.json を置き換え、manifest に足す
+{
+  const t = sandbox(), mf = path.join(t, 'data', 'manifest.json');
+  const man = JSON.parse(fs.readFileSync(mf, 'utf8')); man.masters = []; fs.writeFileSync(mf, S(man));
+  const before = fs.readFileSync(path.join(t, 'data', 'servants.json'), 'utf8');
+  fs.writeFileSync(path.join(t, 'data', 'incoming', 'masters (1).json'), S({ format: 'hgw-masters', version: 1, masters: [{ name: '古いほう' }] }));
+  fs.writeFileSync(path.join(t, 'data', 'incoming', 'masters (2).json'), S({ format: 'hgw-masters', version: 1, masters: [{ name: 'テスト 一', voice: { 令呪: ['行け'] } }, { name: '' }] }));
+  const r = run(t), ms = JSON.parse(fs.readFileSync(path.join(t, 'data', 'masters.json'), 'utf8'));
+  ok(r.status === 0 && ms.format === 'hgw-masters' && ms.masters.length === 1 && ms.masters[0].name === 'テスト 一', '新しい登録マスターだけで masters.json を置き換え、名前の無いものは外す');
+  ok(JSON.parse(fs.readFileSync(mf, 'utf8')).masters.includes('masters.json'), 'manifest の masters に masters.json を足す');
+  ok(!fs.readdirSync(path.join(t, 'data', 'incoming')).length, '使ったファイルも古いファイルも片付ける');
+  ok(fs.readFileSync(path.join(t, 'data', 'servants.json'), 'utf8') === before, 'マスターだけなら servants.json は書き換えない');
+  fs.rmSync(t, { recursive: true, force: true });
+}
+
 console.log(bad ? `\n${bad}件失敗` : '\nすべて通りました');
 process.exit(bad ? 1 : 0);

@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マスターエディタ</title>
+<meta name="description" content="登録マスター（決まった人物のマスター）を作る・直す。名前・出自・能力・性格・願い・場面ごとのセリフを決め、公開用のJSONで保存する。">
+<meta name="theme-color" content="#050d22">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* 色と文字は scenario.html（シナリオエディタ）と同じ */
+:root {
+  --void: #050d22; --panel-a: rgba(14, 44, 104, .80); --panel-b: rgba(6, 22, 58, .90); --inset: rgba(3, 14, 38, .72);
+  --line: rgba(80, 196, 255, .30); --line-hi: rgba(110, 226, 255, .85); --cyan: #3ee6ff; --cyan-2: #8ff4ff; --ice: #e8f7ff; --mute: #8daed4;
+  --gold: #ffd84a; --seal: #ff4f72; --mana: #4ef0c0; --sel-ink: #04152e;
+  --en: "Rajdhani", "Zen Kaku Gothic New", sans-serif; --mincho: "Shippori Mincho", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --gothic: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-t: env(safe-area-inset-top, 0px); --cut: 10px; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; color: var(--ice); font: 15px/1.7 var(--gothic); overflow-wrap: anywhere;
+  background: repeating-linear-gradient(0deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px), repeating-linear-gradient(90deg, rgba(62, 230, 255, .04) 0 1px, transparent 1px 48px),
+    radial-gradient(1100px 620px at 78% -8%, #3a1a5c 0%, transparent 62%), radial-gradient(900px 700px at -5% 105%, #0d2a62 0%, transparent 58%), var(--void);
+  background-attachment: fixed; }
+a { color: var(--cyan); }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.en { font-family: var(--en); letter-spacing: .14em; text-transform: uppercase; }
+[hidden] { display: none !important; }
+.panel { position: relative; background: linear-gradient(180deg, var(--panel-a), var(--panel-b)); border: 1px solid var(--line); box-shadow: inset 0 0 28px rgba(62, 230, 255, .06), 0 6px 24px rgba(0, 0, 0, .35); min-width: 0; }
+.panel::before, .panel::after { content: ""; position: absolute; width: 14px; height: 14px; pointer-events: none; }
+.panel::before { top: -1px; left: -1px; border-top: 2px solid var(--cyan); border-left: 2px solid var(--cyan); }
+.panel::after { bottom: -1px; right: -1px; border-bottom: 2px solid var(--cyan); border-right: 2px solid var(--cyan); }
+.hd { display: flex; align-items: center; gap: 10px; padding: 12px 16px 10px; cursor: pointer; list-style: none; }
+.hd::-webkit-details-marker { display: none; }
+.chev { flex: none; width: 22px; height: 16px; background: var(--gold); clip-path: polygon(0 0, 30% 0, 62% 50%, 30% 100%, 0 100%, 32% 50%, 38% 0, 68% 0, 100% 50%, 68% 100%, 38% 100%, 70% 50%); transition: transform .2s; }
+details:not([open]) > .hd .chev { opacity: .7; }
+details[open] > .hd .chev { transform: rotate(90deg); }
+.hd .en { font-size: 18px; font-weight: 700; color: var(--cyan); text-shadow: 0 0 10px rgba(62, 230, 255, .55); line-height: 1; white-space: nowrap; }
+.hd .ja { margin-left: auto; font-size: 12px; background: linear-gradient(90deg, rgba(62, 230, 255, .02), rgba(62, 230, 255, .18)); padding: 3px 12px; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.body { padding: 0 16px 16px; }
+.btn { position: relative; display: inline-flex; align-items: center; justify-content: center; background: linear-gradient(180deg, rgba(20, 60, 130, .9), rgba(8, 30, 74, .95)); border: 0; padding: 6px 14px; min-height: 34px; cursor: pointer; font-size: 13px; white-space: nowrap; text-decoration: none; color: var(--ice);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); box-shadow: inset 0 0 0 1px var(--line-hi); }
+.btn:hover { background: linear-gradient(180deg, rgba(40, 100, 180, .95), rgba(12, 44, 100, .95)); }
+.btn.primary { background: linear-gradient(90deg, var(--cyan), var(--cyan-2)); color: var(--sel-ink); font-weight: 700; }
+.btn.del { box-shadow: inset 0 0 0 1px var(--seal); }
+.btn.sm { min-height: 28px; padding: 3px 10px; font-size: 12px; --cut: 7px; }
+.btn:disabled { opacity: .45; cursor: default; }
+.hint { font-size: 12px; color: var(--mute); margin: 4px 0 0; line-height: 1.6; }
+input[type=text], input[type=number], textarea, select { background: var(--inset); border: 0; box-shadow: inset 0 0 0 1px var(--line-hi); color: var(--ice); padding: 7px 10px; font-size: 14px; width: 100%; min-height: 36px; min-width: 0; }
+textarea { min-height: 64px; resize: vertical; line-height: 1.6; font-family: var(--gothic); }
+input[type=checkbox] { accent-color: var(--cyan); width: 18px; height: 18px; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: calc(4vh + var(--safe-t)) 16px calc(64px + var(--safe-b)); }
+.title { padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.title .en { display: block; color: var(--cyan); font-size: 14px; font-weight: 600; text-shadow: 0 0 10px rgba(62, 230, 255, .6); }
+.title h1 { font: 700 clamp(30px, 8vw, 52px)/1.2 var(--gothic); margin: 4px 0 0; letter-spacing: .08em; text-shadow: 0 0 24px rgba(62, 230, 255, .35); }
+.lead { font: 500 15px/1.9 var(--mincho); margin: 0 0 16px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.status { font-size: 12px; color: var(--mute); margin: 8px 0 0; }
+.wrap > .panel, .wrap > details.panel, .wrap > .cols { margin-top: 14px; }
+.cols { display: grid; grid-template-columns: minmax(240px, 300px) minmax(0, 1fr); gap: 14px; align-items: start; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 70vh; overflow: auto; }
+@media (max-width: 820px) { .list { max-height: 40vh; } }
+.list button { width: 100%; text-align: left; display: grid; gap: 0; padding: 7px 10px; border: 0; cursor: pointer; background: var(--inset); color: var(--ice); box-shadow: inset 0 0 0 1px var(--line); }
+.list button:hover { box-shadow: inset 0 0 0 1px var(--line-hi); }
+.list button.on { box-shadow: inset 3px 0 0 var(--gold), inset 0 0 0 1px var(--line-hi); background: rgba(62, 230, 255, .12); }
+.list b { font-size: 14px; }
+.list small { font-size: 11px; color: var(--mute); }
+.list .warn { color: var(--gold); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; }
+.grid .full { grid-column: 1 / -1; }
+.f { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--mute); }
+.chk-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ice); cursor: pointer; }
+.sec { margin: 18px 0 8px; font: 700 15px var(--mincho); color: var(--cyan-2); border-bottom: 1px solid var(--line); padding-bottom: 4px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 14px; }
+.vrow { margin-top: 10px; padding: 10px; background: rgba(3, 14, 38, .45); box-shadow: inset 0 0 0 1px var(--line); }
+.vrow.on { box-shadow: inset 3px 0 0 var(--cyan), inset 0 0 0 1px var(--line); }
+.vrow .vh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.vrow .vh b { font-size: 14px; }
+.vrow .vh small { font-size: 11px; color: var(--mute); }
+.vrow .vh .n { margin-left: auto; font: 600 13px var(--en); color: var(--cyan); }
+.vrow textarea { margin-top: 6px; }
+.xrow { margin-top: 8px; padding: 8px 10px; background: rgba(3, 14, 38, .45); box-shadow: inset 3px 0 0 var(--mute), inset 0 0 0 1px var(--line); font-size: 13px; }
+.xrow .xh { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.xrow .xh b { margin-right: auto; }
+.xrow .xh select { width: auto; min-height: 28px; padding: 2px 8px; font-size: 12px; }
+.xrow ul { margin: 6px 0 0; padding-left: 1.2em; color: var(--mute); }
+.msgs { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 4px; font-size: 13px; }
+.msgs li { padding: 4px 8px; background: var(--inset); }
+.msgs li.e { color: var(--seal); box-shadow: inset 3px 0 0 var(--seal); }
+.msgs li.w { color: var(--gold); box-shadow: inset 3px 0 0 var(--gold); }
+.empty { color: var(--mute); font-size: 14px; padding: 24px 0; text-align: center; }
+table.res { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+table.res th, table.res td { padding: 4px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+table.res th:first-child, table.res td:first-child { text-align: left; white-space: normal; }
+table.res th { color: var(--mute); font-weight: 500; font-size: 12px; }
+.tblwrap { overflow-x: auto; }
+.said { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 6px; font-size: 13px; }
+.said li { padding: 6px 10px; background: var(--inset); }
+.said li span { display: block; color: var(--mute); font-size: 12px; }
+.said li q { quotes: "「" "」"; }
+.foot { margin-top: 24px; font-size: 12px; color: var(--mute); line-height: 1.8; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + var(--safe-b)); transform: translate(-50%, 20px); opacity: 0; transition: .25s; background: var(--panel-a); box-shadow: inset 0 0 0 1px var(--line-hi); padding: 10px 18px; font-size: 13px; pointer-events: none; z-index: 50; max-width: calc(100vw - 32px); }
+.toast.on { opacity: 1; transform: translate(-50%, 0); }
+.err { color: var(--seal); }
+</style>
+<link rel="stylesheet" href="css/extella.css">
+</head>
+<body>
+<script src="js/topnav.js"></script>
+<div class="wrap">
+  <div class="title">
+    <span class="en">Master Editor ／ Registered Masters</span>
+    <h1>マスターエディタ</h1>
+  </div>
+  <p class="lead">登録マスター（決まった人物のマスター）を作る・直す。名前や出自、能力、性格、願い、場面ごとのセリフを決めて「公開用に保存」し、そのファイルを <code>data/incoming/</code> に上げると、聖杯戦争に登場するようになる。書かなかった項目は、戦争のたびに出自から抽選で決まる。</p>
+  <div class="tools">
+    <button class="btn" id="newBtn" type="button">新しく作る</button>
+    <button class="btn" id="wikiBtn" type="button">Wikiのページから作る</button>
+    <label class="btn" for="fileIn">ファイルを読み込む</label><input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <button class="btn" id="resetBtn" type="button">公開データに戻す</button>
+    <button class="btn primary" id="saveBtn" type="button">公開用に保存</button>
+  </div>
+  <p class="status" id="status">登録マスターを読み込んでいます…</p>
+
+  <details class="panel" id="wikiBox">
+    <summary class="hd"><i class="chev"></i><span class="en">Import</span><span class="ja">Wikiのページから作る</span></summary>
+    <div class="body">
+      <p class="hint" style="margin-top:0">マスターのページの本文を貼り付ける。【氏名】【性別】【年齢】【属性】【魔術回路】（量を魔力量、質を魔術に）【出自】【願い】と、「見出し：「セリフ」」の形のセリフを読む。読めた見出しのうち場面に当たらないものは「使わない見出し」に入るので、場面へ移して使う。</p>
+      <textarea id="wikiTxt" spellcheck="false" style="min-height:180px" placeholder="【氏名】…&#10;【性別】…"></textarea>
+      <div class="tools" style="margin-top:8px"><button class="btn primary" id="wikiGo" type="button">このページから作る</button></div>
+    </div>
+  </details>
+
+  <div class="cols">
+    <section class="panel" aria-label="登録マスターの一覧">
+      <div class="hd" style="cursor:default"><i class="chev"></i><span class="en">Masters</span><span class="ja" id="listSum">一覧</span></div>
+      <div class="body">
+        <input type="text" id="q" placeholder="名前・出自で探す" aria-label="名前・出自で探す">
+        <ul class="list" id="list" style="margin-top:8px"></ul>
+      </div>
+    </section>
+    <section class="panel" aria-label="マスターを編集">
+      <div class="hd" style="cursor:default"><i class="chev"></i><span class="en">Edit</span><span class="ja" id="editSum">編集</span></div>
+      <div class="body" id="edit"><p class="empty">一覧からマスターを選ぶか、「新しく作る」を押す。</p></div>
+    </section>
+  </div>
+
+  <details class="panel" id="simBox">
+    <summary class="hd"><i class="chev"></i><span class="en">Trial</span><span class="ja">聖杯戦争で試す</span></summary>
+    <div class="body">
+      <p class="hint" style="margin-top:0">この一覧のマスターだけで（「登録マスターだけ」の設定で）、全自動の聖杯戦争を何度も回す。誰がどれくらい勝つか、どの場面でセリフが出たかを見る。サーヴァントは公開データから。</p>
+      <div class="tools" style="margin-top:8px"><select id="simN" style="width:auto"><option value="30">30回</option><option value="100" selected>100回</option><option value="300">300回</option></select><button class="btn" id="simBtn" type="button">試す</button></div>
+      <div id="simOut" style="margin-top:8px"></div>
+    </div>
+  </details>
+
+  <details class="panel" id="jsonBox">
+    <summary class="hd"><i class="chev"></i><span class="en">JSON</span><span class="ja">JSON を直接見る・直す</span></summary>
+    <div class="body">
+      <textarea id="jsonTxt" spellcheck="false" style="min-height:280px;font:12px/1.5 ui-monospace,Consolas,monospace"></textarea>
+      <div class="tools" style="margin-top:8px"><button class="btn" id="jsonApply" type="button">この JSON を反映する</button><button class="btn" id="jsonCopy" type="button">コピー</button></div>
+    </div>
+  </details>
+  <p class="foot">編集中の一覧は、このブラウザに自動で残ります（公開中の登録マスターは変わりません）。公開するには「公開用に保存」で書き出したファイルを、リポジトリの <code>data/incoming/</code> に上げてください。登録マスターがまるごとそのファイルの中身に置き換わります。セリフはサーヴァントと同じく、場面ごとに1行1セリフ。書いた場面でだけ喋り、無い場面では何も言いません。生存率やランキングは、登録マスターを使わずに出しています。</p>
+</div>
+<datalist id="sexList"><option value="男"><option value="女"><option value="不明"></datalist>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="js/config.js"></script>
+<script src="js/rank.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/effects.js"></script>
+<script src="js/fgoskills.js"></script>
+<script src="js/build.js"></script>
+<script src="js/master.js"></script>
+<script src="js/war.js"></script>
+<script src="js/names.js"></script>
+<script src="js/scenes.js"></script>
+<script src="js/personas.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/data.js"></script>
+<script>
+(function () {
+  'use strict';
+  const H = window.HGW, M = H.master;
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const KEY = 'hgw.masters.edit.v1';
+  const SLOTS = H.MASTER_VOICE_SLOTS;
+  const SLOT_OF = {}; for (const s of SLOTS) for (const h of [s.key].concat(s.aliases)) SLOT_OF[h] = s.key;
+  const slotOf = h => SLOT_OF[String(h).trim()] || SLOT_OF[String(h).trim().replace(/\s*(その)?[0-9０-９]+$/, '')] || null;
+  const RANKS = ['EX', 'A+', 'A', 'A-', 'B+', 'B', 'B-', 'C+', 'C', 'C-', 'D+', 'D', 'D-', 'E+', 'E', 'E-'];
+  const store = {
+    get() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } },
+    set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* 保存できなくても編集は続けられる */ } },
+    clear() { try { localStorage.removeItem(KEY); } catch (e) { /* 消せなくてもよい */ } },
+  };
+  const hashOf = s => { let h = 2166136261; s = String(s); for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+  let published = [], roster = [], list = [], sel = -1, pubHash = '', canTrial = false;
+  const toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('on'), 2200); };
+
+  // ---------- 形をそろえる（書き出す形：空の項目は書かない） ----------
+  function clean(m) {
+    const o = {};
+    const keep = Object.assign({}, m);
+    const put = (k, v) => { if (v !== undefined && v !== null && v !== '') o[k] = v; };
+    put('name', String(keep.name || '').trim());
+    put('sex', String(keep.sex || '').trim());
+    if (keep.age !== undefined && keep.age !== null && String(keep.age).trim() !== '') { const a = String(keep.age).trim(); o.age = /^\d+$/.test(a) ? +a : a; }
+    if (keep.origin && (M.ORIGINS[keep.origin] || keep.origin === 'custom')) o.origin = keep.origin;
+    put('originLabel', String(keep.originLabel || '').trim());
+    if (M.ALIGN.valid(keep.align)) o.align = keep.align;
+    const st = {}; for (const k of Object.keys(M.MASTER_STATS)) { const v = keep.stats && keep.stats[k]; if (v !== undefined && v !== null && v !== '') st[k] = v; }
+    if (Object.keys(st).length) o.stats = st;
+    if (keep.persona && H.PERSONAS[keep.persona]) o.persona = keep.persona;
+    put('wish', String(keep.wish || '').trim());
+    if (keep.catalyst === null) o.catalyst = null;
+    else if (keep.catalyst && typeof keep.catalyst === 'object' && String(keep.catalyst.text || '').trim()) o.catalyst = { text: String(keep.catalyst.text).trim(), servant: keep.catalyst.servant || null };
+    const v = {}; for (const [h, ls] of Object.entries(keep.voice || {})) { const a = (ls || []).map(x => String(x).trim()).filter(Boolean); if (a.length) v[h] = a; }
+    if (Object.keys(v).length) o.voice = v;
+    // ここで扱わない項目（skills・custom・relations など）はそのまま残す
+    for (const k of Object.keys(keep)) if (!(k in o) && !['name', 'sex', 'age', 'origin', 'originLabel', 'align', 'stats', 'persona', 'wish', 'catalyst', 'voice'].includes(k) && keep[k] !== undefined) o[k] = keep[k];
+    return o;
+  }
+  const exportObj = () => ({ format: 'hgw-masters', version: 1, note: '登録マスター（固定キャラ）。master.js の createMaster に渡す形。書いていない項目は出自から抽選で埋まる。voice の見出しは config.js の MASTER_VOICE_SLOTS', masters: list.map(clean) });
+  const listHash = l => hashOf(JSON.stringify(l.map(clean)));
+  function save() { store.set({ at: Date.now(), base: pubHash, masters: list.map(clean) }); renderStatus(); }
+
+  // ---------- 確かめる ----------
+  function issues(m, i) {
+    const out = [];
+    const name = String(m.name || '').trim();
+    if (!name) out.push(['e', '名前がありません（名前の無いマスターは公開されません）']);
+    else if (list.some((x, j) => j !== i && String(x.name || '').trim() === name)) out.push(['w', '同じ名前のマスターがほかにもいます']);
+    if (m.persona && !H.PERSONAS[m.persona]) out.push(['w', `性格「${m.persona}」はゲームにありません（抽選になります）`]);
+    for (const [k, v] of Object.entries(m.stats || {})) if (v !== '' && v != null && H.rank.toScore(v) == null) out.push(['w', `${M.MASTER_STATS[k] ? M.MASTER_STATS[k].name : k}「${v}」が読めません（抽選になります）`]);
+    const lines = Object.entries(m.voice || {});
+    const used = lines.filter(([h, ls]) => slotOf(h) && (ls || []).length).length, extra = lines.filter(([h, ls]) => !slotOf(h) && (ls || []).length).length;
+    if (!used) out.push(['w', 'ゲームで使う場面のセリフがありません（このマスターは喋りません）']);
+    if (extra) out.push(['w', `場面に当たらない見出しが ${extra} 個あります（ゲームでは使いません）`]);
+    return out;
+  }
+
+  // ---------- 一覧 ----------
+  function renderList() {
+    const q = $('#q').value.trim();
+    const rows = list.map((m, i) => ({ m, i })).filter(({ m }) => !q || [m.name, m.originLabel].some(x => String(x || '').includes(q)));
+    $('#list').innerHTML = rows.length ? rows.map(({ m, i }) => {
+      const n = Object.entries(m.voice || {}).filter(([h]) => slotOf(h)).reduce((a, [, ls]) => a + (ls || []).length, 0);
+      const bad = issues(m, i).some(x => x[0] === 'e');
+      return `<li><button type="button" data-i="${i}" class="${i === sel ? 'on' : ''}"><b>${bad ? '<span class="err">！</span>' : ''}${esc(m.name || '（名前なし）')}</b><small>${esc(m.originLabel || (m.origin && M.ORIGINS[m.origin] ? M.ORIGINS[m.origin].name : '出自は抽選'))} ・ セリフ${n}行</small></button></li>`;
+    }).join('') : '<li class="empty">いません</li>';
+    $('#listSum').textContent = `${list.length}人`;
+  }
+  function renderStatus() {
+    const loc = store.get();
+    const same = listHash(list) === listHash(published);
+    $('#status').innerHTML = (same ? '公開中の登録マスターと同じです。' : '<b>このブラウザで編集中</b>（公開中の登録マスターとは違います。公開するには「公開用に保存」）。')
+      + (loc && loc.base && pubHash && loc.base !== pubHash && !same ? ' <span class="err">編集を始めたあとに、公開側の登録マスターが変わっています。</span>' : '')
+      + ` ${list.length}人。`;
+  }
+
+  // ---------- 編集 ----------
+  const opt = (v, label, cur) => `<option value="${esc(v)}"${String(cur == null ? '' : cur) === String(v) ? ' selected' : ''}>${esc(label)}</option>`;
+  function renderEdit() {
+    const m = list[sel];
+    if (!m) { $('#edit').innerHTML = '<p class="empty">一覧からマスターを選ぶか、「新しく作る」を押す。</p>'; $('#editSum').textContent = '編集'; return; }
+    $('#editSum').textContent = m.name || '（名前なし）';
+    const stats = m.stats || {};
+    const cat = m.catalyst === null ? 'none' : m.catalyst && m.catalyst.text ? 'text' : '';
+    const ali = M.ALIGN.all;
+    const statSel = k => {
+      const cur = stats[k] == null ? '' : String(stats[k]);
+      const extra = cur && !RANKS.includes(cur) ? opt(cur, cur, cur) : '';
+      return `<label class="f"><span>${esc(M.MASTER_STATS[k].name)}</span><select data-stat="${k}">${opt('', '抽選', cur)}${extra}${RANKS.map(r => opt(r, r, cur)).join('')}</select></label>`;
+    };
+    const voice = m.voice || {};
+    const slotLines = key => [].concat(...Object.entries(voice).filter(([h]) => slotOf(h) === key).map(([, ls]) => ls || []));
+    const extras = Object.entries(voice).filter(([h, ls]) => !slotOf(h) && (ls || []).length);
+    $('#edit').innerHTML = `
+      <div class="tools"><button class="btn sm" type="button" data-act="dup">複製する</button><button class="btn sm" type="button" data-act="up">上へ</button><button class="btn sm" type="button" data-act="down">下へ</button><button class="btn sm del" type="button" data-act="del">削除する</button></div>
+      <ul class="msgs" id="msgs"></ul>
+      <h3 class="sec">基本</h3>
+      <div class="grid">
+        <label class="f"><span>名前（必須）</span><input type="text" data-k="name" value="${esc(m.name || '')}"></label>
+        <label class="f"><span>性別</span><input type="text" data-k="sex" list="sexList" value="${esc(m.sex || '')}" placeholder="空欄なら抽選"></label>
+        <label class="f"><span>年齢</span><input type="text" data-k="age" value="${esc(m.age == null ? '' : m.age)}" placeholder="空欄なら抽選（「ヒミツ」なども可）"></label>
+        <label class="f"><span>属性</span><select data-k="align">${opt('', '抽選（シードで決まる）', m.align || '')}${ali.map(a => opt(a, M.ALIGN.label(a), m.align || '')).join('')}</select></label>
+        <label class="f"><span>出自</span><select data-k="origin">${opt('', '抽選', m.origin || '')}${Object.entries(M.ORIGINS).map(([k, o]) => opt(k, o.name, m.origin || '')).join('')}${opt('custom', 'そのほか（呼び名だけ）', m.origin || '')}</select></label>
+        <label class="f"><span>出自の呼び名</span><input type="text" data-k="originLabel" value="${esc(m.originLabel || '')}" placeholder="例：時計塔の講師"></label>
+        <label class="f"><span>性格</span><select data-k="persona">${opt('', '抽選（出自に合わせて）', m.persona || '')}${Object.entries(H.PERSONAS).map(([k, p]) => opt(k, p.label, m.persona || '')).join('')}</select></label>
+        <label class="f full"><span>願い</span><input type="text" data-k="wish" value="${esc(m.wish || '')}" placeholder="空欄なら出自と性格に合わせて抽選"></label>
+        <label class="f"><span>触媒</span><select data-k="catMode">${opt('', '抽選', cat)}${opt('text', '持っている', cat)}${opt('none', '持っていない', cat)}</select></label>
+        <label class="f"><span>触媒の中身</span><input type="text" data-k="catText" value="${esc(m.catalyst && m.catalyst.text || '')}" ${cat === 'text' ? '' : 'disabled'} placeholder="例：古い懐中時計"></label>
+      </div>
+      <p class="hint">出自は工房の強さと、書かなかった能力の基準になる。性格は戦い方（攻める・退く・手を組むなど）に効く。触媒を持っていると、サーヴァントとの絆が少し深い状態で始まる。</p>
+      <h3 class="sec">能力値</h3>
+      <div class="stats">${Object.keys(M.MASTER_STATS).map(statSel).join('')}</div>
+      <p class="hint">${Object.values(M.MASTER_STATS).map(s => `${esc(s.name)}：${esc(s.desc)}`).join('<br>')}</p>
+      <h3 class="sec">セリフ</h3>
+      <p class="hint">1行に1つ。同じ場面に何行も書けば、そのつど選び分ける（展開は変わらない）。書いていない場面では喋らない。令呪は、撤退・強化の行があればそちらを先に使う。</p>
+      ${SLOTS.map(s => { const ls = slotLines(s.key); return `<div class="vrow${ls.length ? ' on' : ''}"><div class="vh"><b>${esc(s.key)}</b><small>${esc(s.use)}</small><span class="n">${ls.length}</span></div><textarea data-slot="${esc(s.key)}" rows="${Math.max(2, ls.length + 1)}">${esc(ls.join('\n'))}</textarea></div>`; }).join('')}
+      ${extras.length ? `<h3 class="sec">使わない見出し</h3><p class="hint">場面に当たらない見出し（Wikiから読んだものなど）。ゲームでは使わない。場面を選んで移すか、消す。</p>${extras.map(([h, ls]) => `<div class="xrow"><div class="xh"><b>${esc(h)}</b><select data-move="${esc(h)}">${SLOTS.map(s => opt(s.key, s.key + 'へ', '')).join('')}</select><button class="btn sm" type="button" data-movego="${esc(h)}">移す</button><button class="btn sm del" type="button" data-xdel="${esc(h)}">消す</button></div><ul>${ls.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`).join('')}` : ''}
+    `;
+    renderMsgs();
+  }
+  function renderMsgs() {
+    const m = list[sel]; if (!m || !$('#msgs')) return;
+    const is = issues(m, sel);
+    $('#msgs').innerHTML = is.map(([k, t]) => `<li class="${k}">${esc(t)}</li>`).join('');
+  }
+  function changed(full) { save(); renderList(); if (full) renderEdit(); else { renderMsgs(); $('#editSum').textContent = (list[sel] && list[sel].name) || '（名前なし）'; } syncJson(); }
+
+  $('#edit').addEventListener('input', e => {
+    const m = list[sel]; if (!m) return;
+    const t = e.target;
+    if (t.dataset.k) {
+      const k = t.dataset.k, v = t.value;
+      if (k === 'catMode') {
+        m.catalyst = v === 'none' ? null : v === 'text' ? { text: (m.catalyst && m.catalyst.text) || '', servant: null } : undefined;
+        if (m.catalyst === undefined) delete m.catalyst;
+        return changed(true);
+      }
+      if (k === 'catText') { m.catalyst = { text: v, servant: null }; return changed(false); }
+      if (v === '') delete m[k]; else m[k] = v;
+      return changed(false);
+    }
+    if (t.dataset.stat) { m.stats = Object.assign({}, m.stats); if (t.value === '') delete m.stats[t.dataset.stat]; else m.stats[t.dataset.stat] = t.value; return changed(false); }
+    if (t.dataset.slot) {
+      const key = t.dataset.slot, ls = t.value.split('\n').map(x => x.trim()).filter(Boolean);
+      m.voice = Object.assign({}, m.voice);
+      // 同じ場面の別名・番号付きの見出しは、代表の見出しにまとめる
+      for (const h of Object.keys(m.voice)) if (slotOf(h) === key) delete m.voice[h];
+      if (ls.length) m.voice[key] = ls;
+      const row = t.closest('.vrow'); row.classList.toggle('on', ls.length > 0); row.querySelector('.n').textContent = ls.length;
+      return changed(false);
+    }
+  });
+  $('#edit').addEventListener('change', e => { if (e.target.dataset.k === 'catMode') return; if (e.target.dataset.k === 'name') renderEdit(); });
+  $('#edit').addEventListener('click', e => {
+    const m = list[sel]; if (!m) return;
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.act === 'dup') { const c = JSON.parse(JSON.stringify(clean(m))); c.name = (c.name || '') + '（複製）'; list.splice(sel + 1, 0, c); sel++; return changed(true); }
+    if (b.dataset.act === 'del') { if (!confirm(`「${m.name || '名前なし'}」を一覧から消しますか？（公開中のデータは、公開用に保存して上げるまで変わりません）`)) return; list.splice(sel, 1); sel = Math.min(sel, list.length - 1); return changed(true); }
+    if (b.dataset.act === 'up' && sel > 0) { [list[sel - 1], list[sel]] = [list[sel], list[sel - 1]]; sel--; return changed(true); }
+    if (b.dataset.act === 'down' && sel < list.length - 1) { [list[sel + 1], list[sel]] = [list[sel], list[sel + 1]]; sel++; return changed(true); }
+    if (b.dataset.movego) {
+      const h = b.dataset.movego, to = $(`select[data-move="${CSS.escape(h)}"]`).value;
+      m.voice = Object.assign({}, m.voice); m.voice[to] = (m.voice[to] || []).concat(m.voice[h] || []); delete m.voice[h];
+      return changed(true);
+    }
+    if (b.dataset.xdel) { m.voice = Object.assign({}, m.voice); delete m.voice[b.dataset.xdel]; return changed(true); }
+  });
+  $('#list').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; sel = +b.dataset.i; renderList(); renderEdit(); if (matchMedia('(max-width: 820px)').matches) $('#edit').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('#q').addEventListener('input', renderList);
+
+  // ---------- 作る・読む・書き出す ----------
+  $('#newBtn').addEventListener('click', () => { list.push({ name: '新しいマスター' }); sel = list.length - 1; changed(true); $('#edit').querySelector('[data-k=name]').select(); });
+  $('#wikiBtn').addEventListener('click', () => { $('#wikiBox').open = true; $('#wikiTxt').focus(); });
+  $('#wikiGo').addEventListener('click', () => {
+    const t = $('#wikiTxt').value.trim(); if (!t) return toast('ページの本文を貼り付けてください');
+    let s; try { s = M.parseMasterText(t); } catch (e) { return toast('読めませんでした：' + e.message); }
+    const m = clean({ name: s.name || '', sex: s.sex, age: s.age, origin: s.origin, originLabel: s.originLabel, align: s.align, stats: s.stats, wish: s.wish, catalyst: s.catalyst, voice: s.voice });
+    list.push(m); sel = list.length - 1; $('#wikiTxt').value = ''; $('#wikiBox').open = false; changed(true);
+    toast(`「${m.name || '名前なし'}」を作りました。足りないところを埋めてください`);
+  });
+  $('#fileIn').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      const ms = Array.isArray(d) ? d : d && Array.isArray(d.masters) ? d.masters : null;
+      if (!ms || !ms.every(x => x && typeof x === 'object')) throw new Error('登録マスターのファイルではありません');
+      if (list.length && !confirm(`今の一覧（${list.length}人）を、ファイルの ${ms.length}人に置き換えますか？`)) return;
+      list = ms.map(clean); sel = list.length ? 0 : -1; changed(true); toast(`${ms.length}人を読み込みました`);
+    } catch (err) { toast('読めませんでした：' + err.message); }
+  });
+  $('#resetBtn').addEventListener('click', () => {
+    if (!confirm('このブラウザでの編集を捨てて、公開中の登録マスターに戻しますか？')) return;
+    store.clear(); list = published.map(clean); sel = list.length ? 0 : -1; renderList(); renderEdit(); renderStatus(); syncJson(); toast('公開中の登録マスターに戻しました');
+  });
+  $('#saveBtn').addEventListener('click', () => {
+    const bad = list.map((m, i) => [m, issues(m, i)]).filter(([, is]) => is.some(x => x[0] === 'e'));
+    if (bad.length && !confirm(`名前の無いマスターが ${bad.length}人います。そのマスターは公開されません。このまま保存しますか？`)) return;
+    const blob = new Blob([JSON.stringify(exportObj(), null, 2) + '\n'], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'masters.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('masters.json を保存しました。data/incoming/ に上げると公開されます');
+  });
+
+  // ---------- JSON ----------
+  function syncJson() { if ($('#jsonBox').open) $('#jsonTxt').value = JSON.stringify(exportObj(), null, 2); }
+  $('#jsonBox').addEventListener('toggle', syncJson);
+  $('#jsonApply').addEventListener('click', () => {
+    try {
+      const d = JSON.parse($('#jsonTxt').value), ms = Array.isArray(d) ? d : d.masters;
+      if (!Array.isArray(ms)) throw new Error('masters の配列がありません');
+      list = ms.map(clean); sel = Math.min(Math.max(sel, 0), list.length - 1); changed(true); toast('反映しました');
+    } catch (e) { toast('反映できませんでした：' + e.message); }
+  });
+  $('#jsonCopy').addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#jsonTxt').value); toast('コピーしました'); } catch (e) { $('#jsonTxt').select(); toast('選んだので、コピーしてください'); } });
+
+  // ---------- 試す ----------
+  $('#simBtn').addEventListener('click', () => {
+    if (!canTrial) return toast('サーヴァントのデータを読めていないので試せません（公開中のページで開いてください）');
+    const ms = list.map(clean).filter(m => m.name);
+    if (!ms.length) return toast('名前のあるマスターがいません');
+    const N = +$('#simN').value, rows = new Map(ms.map(m => [m.name, { name: m.name, n: 0, win: 0, alive: 0, lines: 0, slots: {} }]));
+    const said = []; let i = 0, err = 0;
+    $('#simBtn').disabled = true;
+    const step = () => {
+      const t0 = performance.now();
+      while (i < N && performance.now() - t0 < 40) {
+        const out = {}; let r;
+        try { r = H.engine.runWar({ roster, seed: 'me' + i, player: 'none', masters: ms.slice(), masterMode: 'only', out, intrude: { on: false } }); }
+        catch (e) { err++; i++; continue; }
+        for (const c of r.camps) { const x = c.master && rows.get(c.master); if (!x) continue; x.n++; if (r.winner === c.id) x.win++; if (c.masterAlive) x.alive++; }
+        for (const e of r.entries) if (e.quote && e.quote.master) {
+          const x = rows.get(e.quote.who); if (!x) continue; x.lines++;
+          const sl = SLOTS.find(s => (ms.find(m => m.name === e.quote.who).voice || {})[s.key] && ms.find(m => m.name === e.quote.who).voice[s.key].includes(e.quote.text));
+          const k = sl ? sl.key : '？'; x.slots[k] = (x.slots[k] || 0) + 1;
+          if (said.length < 12 && !said.some(s => s.who === e.quote.who && s.k === k)) said.push({ who: e.quote.who, k, text: e.quote.text, log: e.text });
+        }
+        i++;
+      }
+      $('#simOut').innerHTML = `<p class="hint">${i} / ${N} 回${err ? `（止まった戦争 ${err}）` : ''}</p>`;
+      if (i < N) return setTimeout(step, 0);
+      $('#simBtn').disabled = false;
+      const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+      $('#simOut').innerHTML = `<p class="hint">${N}回（「登録マスターだけ」。7人より少なければ、残りの席はランダムのマスター）${err ? ` ・ <span class="err">止まった戦争 ${err}</span>` : ''}</p>
+        <div class="tblwrap"><table class="res"><thead><tr><th>マスター</th><th>登場</th><th>優勝</th><th>生き残り</th><th>セリフ</th><th>場面ごと</th></tr></thead><tbody>
+        ${[...rows.values()].map(x => `<tr><td>${esc(x.name)}</td><td>${x.n}</td><td>${pct(x.win, x.n)}</td><td>${pct(x.alive, x.n)}</td><td>${x.lines}</td><td style="text-align:left">${esc(Object.entries(x.slots).map(([k, v]) => `${k}${v}`).join('・') || '—')}</td></tr>`).join('')}
+        </tbody></table></div>
+        ${said.length ? `<ul class="said">${said.map(s => `<li><span>${esc(s.log)}</span><b>マスター ${esc(s.who)}</b>（${esc(s.k)}）　<q>${esc(s.text)}</q></li>`).join('')}</ul>` : ''}`;
+    };
+    step();
+  });
+
+  // ---------- 読み込み ----------
+  (async () => {
+    let res = null;
+    try { res = await H.data.loadPublished('data/'); } catch (e) { res = null; }
+    published = res && res.masters ? res.masters.map(clean) : [];
+    roster = res ? res.servants.filter(s => !s.bossOnly) : [];
+    canTrial = roster.length >= 7;
+    pubHash = listHash(published);
+    const loc = store.get();
+    list = loc && Array.isArray(loc.masters) ? loc.masters.map(clean) : published.map(clean);
+    sel = list.length ? 0 : -1;
+    renderList(); renderEdit(); renderStatus();
+    if (!res) $('#status').innerHTML += ' <span class="err">公開データを読めませんでした（ファイルから開いているときは「ファイルを読み込む」で masters.json を選んでください）。</span>';
+    if (!canTrial) $('#simBtn').disabled = true;
+  })();
+})();
+</script>
+</body>
+</html>

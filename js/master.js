@@ -110,18 +110,30 @@
     const LAB = [['mana', /魔力量|魔力|回路/], ['craft', /魔術|魔術師としての腕|技量/], ['body', /体力|身体|肉体/], ['mind', /精神|胆力/], ['luck', /幸運|運/]];
     for (const { key, value } of page.info) {
       const k = R.normalize(key);
-      if (/^(名前|氏名|真名)$/.test(k)) spec.name = value;
-      else if (/^性別$/.test(k)) spec.sex = value;
-      else if (/^年齢$/.test(k)) spec.age = parseInt(R.normalize(value), 10) || value;
+      // 名前の後ろの読み（「千速棗(ちはや なつめ)」）は外す
+      if (/^(名前|氏名|真名)$/.test(k)) spec.name = String(value).replace(/\s*[（(][^（）()]*[）)]\s*$/, '').trim() || value;
+      else if (/^性別$/.test(k)) spec.sex = /^(男性?|女性?)$/.test(value.trim()) ? value.trim()[0] : value;
+      // 数字だけなら数、「800歳以上」「ヒミツ」のようなものは文字のまま
+      else if (/^年齢$/.test(k)) { const a = R.normalize(value).trim(); spec.age = /^\d+\s*歳?$/.test(a) ? parseInt(a, 10) : value; }
+      else if (/^属性$/.test(k) && /(秩序|中立|混沌).*(善|中庸|悪)/.test(value)) {
+        const m = value.match(/(秩序|中立|混沌).*?(善|中庸|悪)/);
+        spec.align = { 秩序: 'L', 中立: 'N', 混沌: 'C' }[m[1]] + { 善: 'G', 中庸: 'B', 悪: 'E' }[m[2]];
+      }
       else if (/^(出自|家系|立場|経歴|所属)$/.test(k)) { spec.originLabel = value; const hit = ORIGIN_WORDS.find(([, re]) => re.test(value)); spec.origin = hit ? hit[0] : 'custom'; }
       else if (/^願い/.test(k)) spec.wish = value;
       else if (/^触媒/.test(k)) spec.catalyst = { text: value, servant: null };
       else if (/^(ステータス|能力)$/.test(k)) {
         const t = R.normalize(value);
         for (const [sk, re] of LAB) { const m = t.match(new RegExp('(?:' + re.source + ')\\s*[:：]\\s*([^\\s]+)')); if (m) spec.stats[sk] = m[1]; }
-      } else if (/^(魔術回路)$/.test(k)) spec.stats.mana = spec.stats.mana || (R.parseRank(value).base ? value : undefined);
-      else spec.custom[key] = value;
+      } else if (/^(魔術回路)$/.test(k)) {
+        // 「質：B 量：C 編成：正常」なら、量を魔力量に、質を（魔術が書かれていなければ）魔術にする。ランクだけならそれを魔力量に
+        const t = R.normalize(value), q = t.match(/量\s*[:：]\s*([A-E](?:[+-]+)?|EX)/i), qu = t.match(/質\s*[:：]\s*([A-E](?:[+-]+)?|EX)/i);
+        if (q || qu) { if (q && !spec.stats.mana) spec.stats.mana = q[1].toUpperCase(); if (qu && !spec.stats.craft) spec.stats.craft = qu[1].toUpperCase(); }
+        else if (!spec.stats.mana && R.parseRank(value).base) spec.stats.mana = value;
+      } else spec.custom[key] = value;
     }
+    // 本文の「願い：…」（人物像の欄などに書かれていることが多い）
+    if (!spec.wish) { const m = String(text).match(/^\s*[【]?願い[】]?\s*[:：]\s*(.+)$/m); if (m && m[1].trim()) spec.wish = m[1].trim(); }
     for (const s of page.sections) {
       if (s.key === 'skills' || s.key === 'classSkills') spec.skills.push(...P.itemsToSkills(s).map(x => ({ name: x.name, rank: x.rankRaw, desc: x.desc })));
       const body = s.lines.concat(...s.items.map(i => [i.title, ...i.lines]));

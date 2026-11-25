@@ -49,14 +49,14 @@
   function runner(roster, opts) {
     opts = opts || {};
     const stats = opts.stats && opts.stats.fp === fingerprint(roster) ? opts.stats : empty(roster, opts.days);
-    const masters = opts.masters || [];
+    // 生存率は登録マスターを使わず、ランダムのマスターだけで出す（登録マスターの有無・設定で数字が変わらないように）
     return {
       stats,
       step(k) {
         for (let i = 0; i < k; i++) {
           const seed = stats.seedBase + stats.wars;
           let res;
-          try { res = G.engine.runWar({ roster, seed, player: 'none', masters: masters.slice(), engine: { maxDays: stats.days }, intrude: { on: false } }); }
+          try { res = G.engine.runWar({ roster, seed, player: 'none', masters: [], masterMode: 'random', engine: { maxDays: stats.days }, intrude: { on: false } }); }
           catch (e) { stats.wars++; continue; }
           tally(stats, res);
         }

@@ -67,6 +67,6 @@ for (let i = 0; i < N; i++) {
   }
   check(!a.out.entries.some(e => e.quote && e.quote.master), 'master without voice spoke ' + seed);
 }
-for (const k of ['令呪', '脱落', '同盟']) check(heard[k] > 0, `場面「${k}」のセリフが一度も出ていない`);
+for (const k of ['令呪（撤退）', '脱落', '同盟']) check(heard[k] > 0, `場面「${k}」のセリフが一度も出ていない`);
 console.log(`wars ${N}  mix: 登録マスター ${mixUsed}/${camps} 席  マスターのセリフ ${mq} 回 ${JSON.stringify(heard)}  fail ${fail}`);
 process.exit(fail ? 1 : 0);
