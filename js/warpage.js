@@ -1243,7 +1243,7 @@
     // 3) 足りなければ少しずつ回す（画面を止めないよう、数戦ごとに間を空ける。途中までの集計からの続き）
     if (survRunning) return;
     survRunning = true;
-    const run = H.survival.runner(roster, { stats: survStats && survStats.fp === fp ? survStats : null, masters });
+    const run = H.survival.runner(roster, { stats: survStats && survStats.fp === fp ? survStats : null });
     survStats = run.stats; renderSurvival();
     let lastSave = run.stats.wars;
     while (survRunning && run.stats.wars < SURV_TARGET && H.survival.fingerprint(roster) === fp) {

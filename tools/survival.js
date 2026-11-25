@@ -35,7 +35,7 @@ globalThis.fetch = async url => {
     return;
   }
   const n = +(args.find(a => /^\d+$/.test(a)) || 10000);
-  const run = H.survival.runner(roster, { masters: res.masters });
+  const run = H.survival.runner(roster);
   const t0 = Date.now();
   for (let done = 0; done < n; done += 100) {
     run.step(Math.min(100, n - done));

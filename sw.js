@@ -8,11 +8,11 @@
  * js/ にファイルを足したら PRECACHE にも足す。
  */
 'use strict';
-const VERSION = 'v22';
+const VERSION = 'v23';
 const CACHE = 'hgw-' + VERSION;
 const FONT_CACHE = 'hgw-fonts';
 const PRECACHE = [
-  './', 'index.html', 'roster.html', 'submit.html', 'ranking.html', 'zukan.html', 'singularity.html', 'original.html', 'scenario.html', 'taisen.html', 'logview.html', 'manifest.webmanifest',
+  './', 'index.html', 'roster.html', 'submit.html', 'ranking.html', 'zukan.html', 'singularity.html', 'original.html', 'scenario.html', 'masteredit.html', 'taisen.html', 'logview.html', 'manifest.webmanifest',
   'js/config.js', 'js/rank.js', 'js/parser.js', 'js/effects.js', 'js/fgoskills.js', 'js/build.js', 'js/master.js', 'js/war.js', 'js/voiceedit.js',
   'js/names.js', 'js/scenes.js', 'js/personas.js', 'js/engine.js', 'js/data.js', 'js/survival.js', 'js/simlab.js', 'js/simworker.js',
   'js/singdata.js', 'js/singularity.js', 'js/scenario.js', 'js/original.js', 'js/sealmark.js', 'js/sealdata.js', 'js/topnav.js', 'js/warpage.js', 'css/extella.css', 'css/warpage.css', 'css/editor.css',

@@ -13,6 +13,8 @@
  *   - Wikiのページのテキスト（.txt）……英霊を足す・置き換える（複数ページは ===== だけの行で区切る）
  *   - 集計（format: 'hgw-survival'。リストツールの「公開用の集計として保存」）……反映したあとのリストの指紋が合えば data/survival.json に置く。
  *       合わなければ使わずに片付ける（集計は「データの反映」が作り直す）
+ *   - 登録マスター（format: 'hgw-masters'。マスターエディタの「公開用に保存」）……data/masters.json をまるごと置き換える（いちばん新しいものだけ）。
+ *       manifest.json の masters に masters.json が無ければ足す
  *   - 申請（hgw-request）・記録（hgw-records）などは反映せず、そのまま残して報告する
  * 反映したファイルは data/incoming/ から消す。GitHub Actions の「データの反映」（.github/workflows/data.yml）から使う。
  */
@@ -37,7 +39,7 @@ function main() {
   const files = fs.existsSync(IN) ? fs.readdirSync(IN).filter(f => !/^readme/i.test(f) && !f.startsWith('.') && fs.statSync(path.join(IN, f)).isFile()).sort() : [];
   const notes = [], kept = [];
   let applied = 0;
-  const survFiles = [];
+  const survFiles = [], masterFiles = [];
   if (files.length) {
     // 今のリストと手直し表（手直しはゲームと同じく読み込んだ状態から始める）
     L.clearOverrides();
@@ -88,7 +90,8 @@ function main() {
         } else {
           const d = JSON.parse(fs.readFileSync(p, 'utf8'));
           const fmt = d && !Array.isArray(d) ? d.format : null;
-          if (fmt === 'hgw-survival') { survFiles.push(f); continue; }   // 反映のあと、リストの指紋が合えば data/survival.json にする
+          if (fmt === 'hgw-survival') { survFiles.push(f); continue; }
+          if (fmt === 'hgw-masters') { masterFiles.push(f); continue; }   // 登録マスター：あとで、いちばん新しいものだけを data/masters.json にする   // 反映のあと、リストの指紋が合えば data/survival.json にする
           if (fmt === 'hgw-overrides' || (!fmt && d && (d.global || d.servant || d.content || d.stats || d.np || d.pages || d.reviewed) && !d.servants)) {
             if (f !== newestOv) { notes.push(`- ${label}${fmtAt(f) ? `（${fmtAt(f)}）` : ''}：より新しい手直し表「${newestOv}」があるので使わず、片付けました`); fs.unlinkSync(p); applied++; continue; }
             L.clearOverrides(); L.applyOverrides(d);
@@ -132,6 +135,29 @@ function main() {
       fs.writeFileSync(SV, JSON.stringify(pack, null, 1) + '\n');
       const ov = L.currentOverrides(); for (const k of Object.keys(ov)) if (ov[k] && typeof ov[k] === 'object' && !Object.keys(ov[k]).length && !['global', 'servant', 'stats', 'np'].includes(k)) delete ov[k];
       fs.writeFileSync(OV, JSON.stringify(ov, null, 1) + '\n');
+    }
+    // 登録マスター（マスターエディタの「公開用に保存」）：上げた順の最後のものだけで data/masters.json をまるごと置き換える
+    if (masterFiles.length) {
+      const newest = masterFiles[masterFiles.length - 1];
+      for (const f of masterFiles) {
+        const p = path.join(IN, f), label = `「${f}」`;
+        try {
+          if (f !== newest) notes.push(`- ${label}：より新しい登録マスター「${newest}」があるので使わず、片付けました`);
+          else {
+            const d = JSON.parse(fs.readFileSync(p, 'utf8'));
+            const ms = Array.isArray(d.masters) ? d.masters.filter(m => m && typeof m === 'object' && String(m.name || '').trim()) : [];
+            if (!ms.length) throw new Error('名前のあるマスターが入っていません');
+            const out = { format: 'hgw-masters', version: 1 };
+            if (d.note) out.note = d.note;
+            out.masters = ms;
+            fs.writeFileSync(path.join(DATA, 'masters.json'), JSON.stringify(out, null, 2) + '\n');
+            const mf = path.join(DATA, 'manifest.json'), man = L.readJSON(mf);
+            if (!(man.masters || []).includes('masters.json')) { man.masters = (man.masters || []).concat('masters.json'); fs.writeFileSync(mf, JSON.stringify(man, null, 2) + '\n'); }
+            notes.push(`- ${label}：登録マスター（data/masters.json）をまるごと置き換え（${ms.length}人：${ms.map(m => m.name).join('、')}）`);
+          }
+          fs.unlinkSync(p); applied++;
+        } catch (e) { kept.push(f); notes.push(`- ${label}：読めませんでした（${e.message}）。そのまま残しました`); }
+      }
     }
     // 集計（リストツールの「公開用の集計として保存」）：反映後のリストの指紋が合うときだけ data/survival.json にする。
     // 合わないものは古い集計なので片付ける（そのあと「データの反映」が10000回で作り直す）。上げた順の最後のものだけを見る

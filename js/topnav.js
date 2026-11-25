@@ -13,6 +13,7 @@
   // 開発者・管理者向けのエディタ類。画面の一番下に折りたたんで置く
   const DEV = [
     { href: 'roster.html', name: 'サーヴァントエディタ', note: '英霊データの取り込み・確認・手直し', local: true },
+    { href: 'masteredit.html', name: 'マスターエディタ', note: '登録マスターとセリフを作る' },
     { href: 'scenario.html', name: 'シナリオエディタ', note: 'オリジナル特異点のシナリオを書く', spoil: true, local: true },
   ];
   // クレジット（LICENSE 第5条）。原作者の表記は全ページの最下部に常に出る。派生ゲームを作る人は DERIVATIVE を埋める（原作の表記は消さずに、その上に改変版の情報が載る）

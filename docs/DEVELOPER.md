@@ -165,6 +165,8 @@ data/
 - 見本として `data/masters.json` に kagemiya のマスター17人（古郡壱乃・フォーサイス・アリサ・ドクトル・キリ・チュドーヴィシチェ・千速棗・朱美帆・東雲志津乃・葛の葉・柿崎凜子・一条・アイギス・麗兵華・安倍晴明・阿久野栄・アレックス・オールディス・草加部敬一・ソフィア・ガルシア・ベアズリー・オフィーリア・公輪未来璃）を入れてあります。形は `{ format: 'hgw-masters', version: 1, masters: [...] }`。`name sex age origin originLabel align stats persona wish catalyst voice` を書けば、書いていない項目は出自から抽選で埋まります（年齢は「ヒミツ」のような文字でもよく、そのまま表示されます）。
 - `masters` には固定キャラのマスター（`master.js` の `createMaster` に渡す形式）の配列を入れたJSONを並べられます。開戦の準備の「マスター」で使い方を選べます（`warGen({ masterMode })`）：`random` 使わない（すべてランダム）／`mix` 各陣営が `masterRandom`（画面の「ランダムのマスター」の割合。既定0.5）の確率でランダム、残りでそこから選ばれる（既定）／`only` 尽きるまで必ずそこから選ばれ、足りない席だけランダム。`random` は登録マスターが空のときと同じ展開になります。確かめるのは `node test/masterpool.js`。
 - 登録マスターには `voice`（サーヴァントと同じ `{ 見出し: [セリフ…] }`。Wiki 形式なら `parseMasterText` が【セリフ】から読む）を書けます。使う場面は `config.js` の `MASTER_VOICE_SLOTS`：令呪（令呪を切るすべての場面。撤退には「令呪（撤退）」、立たせる・力を与えるには「令呪（強化）」があればそちらを先に使う）・脱落（マスターが命を落とす）・魂喰い・同盟（申し出を受ける・加わる側が喋る）・接触（昼の街で声をかけられた相手のマスターだけが喋る）・勝利（勝ち残った結末。願いの記録に付く）。別名と「令呪2」のような番号付きの見出しも同じ場面です。令呪のセリフがあるときは、地の文の「令呪をもって命ずる——」をそのセリフに置き換えます。書いていない場面では何も言わず、ランダムのマスターは喋りません。セリフの選び方は乱数を使わないので、書き足しても展開は変わりません。記録には銀の札「マスター 名前」で出ます（顔は出ません）。
+- **マスターエディタ**（`masteredit.html`。各ページの一番下の「開発者向け」から）で、登録マスターを作る・直す・Wikiのページから作る・全自動の聖杯戦争で試す（「登録マスターだけ」で回し、優勝率と場面ごとのセリフの回数を見る）ことができます。編集中の一覧はこのブラウザの `hgw.masters.edit.v1` に残り、公開中のデータは変わりません。「公開用に保存」で出した `masters.json`（`hgw-masters`）を `data/incoming/` に上げると、「データの反映」が `data/masters.json` をまるごと置き換えます（いちばん新しいものだけ。名前の無いマスターは外し、`manifest.json` の `masters` に無ければ足す）。
+- **生存率・ランキングは登録マスターを使わず**、ランダムのマスターだけで出します（`survival.runner` は `masterMode: 'random'`）。登録マスターを足したり直したりしても `survival.json` を作り直す必要はありません。
 
 ## 他の人の追加分をまとめる手順
 
@@ -427,6 +429,8 @@ FGO風ステータスの表を二重に読んでスキルが増えた、セリ�
 | `scenario.html` | オリジナル特異点のシナリオエディタ（編集中のシナリオは `hgw.orig.edit` に自動で残り、`original.html?edit=1` で試せる） |
 | `data/scenarios/` | オリジナル特異点のシナリオ。`index.json` が画面の「公開しているシナリオ」の一覧（`sample.json` はサンプル兼テスト用） |
 | `data/bosses.json` | 特異点のボス専用の英霊（聖杯戦争には呼ばれない） |
+| `data/masters.json` | 登録マスター（`hgw-masters`）。`masteredit.html` で作り、`data/incoming/` に上げて置き換える |
+| `masteredit.html` | マスターエディタ（登録マスターとセリフを作る。編集中の一覧は `hgw.masters.edit.v1`） |
 | `tools/kagemiya.js` | kagemiya のページを名前で取得してリストに入れる（GitHub Actions から使う） |
 | `tools/survival.js` | 生存曲線の集計 `data/survival.json` を作る |
 | `.github/workflows/kagemiya.yml` | Actions の「kagemiya から取り込み」 |
