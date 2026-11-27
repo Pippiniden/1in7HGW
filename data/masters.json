@@ -11,10 +11,10 @@
       "originLabel": "プルートーン・プロダクションの実況者",
       "align": "CB",
       "stats": {
-        "mana": "E",
+        "mana": "C",
         "craft": "D",
-        "body": "D",
-        "mind": "A",
+        "body": "A",
+        "mind": "C",
         "luck": "A"
       },
       "persona": "warmonger",
@@ -97,8 +97,8 @@
         "mana": "C",
         "craft": "A",
         "body": "D",
-        "mind": "B",
-        "luck": "D"
+        "mind": "C",
+        "luck": "C"
       },
       "persona": "rational",
       "wish": "最強の生命体を作り出すこと",
@@ -137,11 +137,11 @@
       "originLabel": "ウクライナの未確認生命体",
       "align": "CE",
       "stats": {
-        "mana": "B",
-        "craft": "E",
-        "body": "A",
-        "mind": "C",
-        "luck": "C"
+        "mana": "C",
+        "craft": "D",
+        "body": "A+",
+        "mind": "D",
+        "luck": "D"
       },
       "persona": "assassin",
       "wish": "種の繁殖",
@@ -181,10 +181,10 @@
       "originLabel": "九十九里浜の道士（地仙）",
       "align": "CG",
       "stats": {
-        "mana": "D",
-        "craft": "C",
-        "body": "B",
-        "mind": "C",
+        "mana": "C",
+        "craft": "D",
+        "body": "EX",
+        "mind": "A",
         "luck": "B"
       },
       "persona": "kind",
@@ -222,11 +222,11 @@
       "originLabel": "民宿「琴の音荘」の女将",
       "align": "CG",
       "stats": {
-        "mana": "A",
+        "mana": "B",
         "craft": "E",
-        "body": "D",
-        "mind": "C",
-        "luck": "A+"
+        "body": "D-",
+        "mind": "B",
+        "luck": "EX"
       },
       "persona": "kind",
       "wish": "うっかりミスを失くす",
@@ -263,10 +263,10 @@
       "align": "LG",
       "stats": {
         "mana": "D",
-        "craft": "C",
-        "body": "D",
+        "craft": "D",
+        "body": "D-",
         "mind": "B",
-        "luck": "C"
+        "luck": "D"
       },
       "persona": "kind",
       "wish": "あの人と守ってきた「九重」へ帰ること",
@@ -307,11 +307,11 @@
       "originLabel": "信太の森の白狐（安倍晴明の母）",
       "align": "NG",
       "stats": {
-        "mana": "EX",
-        "craft": "B",
-        "body": "E",
+        "mana": "B+",
+        "craft": "D+",
+        "body": "E+",
         "mind": "B",
-        "luck": "B"
+        "luck": "A+"
       },
       "persona": "kind",
       "wish": "面白ければそれでよい",
@@ -388,10 +388,10 @@
       "align": "LG",
       "stats": {
         "mana": "D",
-        "craft": "E",
+        "craft": "D+",
         "body": "A",
-        "mind": "A",
-        "luck": "C"
+        "mind": "B",
+        "luck": "D"
       },
       "persona": "proud",
       "wish": "立派な騎士として人生を全うする",
@@ -427,11 +427,11 @@
       "originLabel": "至高の陰陽術師",
       "align": "CE",
       "stats": {
-        "mana": "A",
+        "mana": "A+",
         "craft": "EX",
-        "body": "B",
-        "mind": "A",
-        "luck": "B"
+        "body": "EX",
+        "mind": "B+",
+        "luck": "E-"
       },
       "persona": "ambitious",
       "wish": "世界征服",
@@ -471,10 +471,10 @@
       "align": "NB",
       "stats": {
         "mana": "D",
-        "craft": "E",
+        "craft": "E+",
         "body": "B",
-        "mind": "C",
-        "luck": "B"
+        "mind": "B-",
+        "luck": "C"
       },
       "persona": "cautious",
       "voice": {
@@ -630,6 +630,184 @@
           "なにせ僕は奇跡を起こす公輪の中でも、更にミラクルなお姉ちゃんだからね"
         ]
       }
+    },
+    {
+      "name": "一之渡ハチ",
+      "sex": "女",
+      "age": "稼働年数5年",
+      "origin": "custom",
+      "originLabel": "ホムンクルス",
+      "align": "NB",
+      "stats": {
+        "mana": "C",
+        "craft": "D",
+        "body": "C",
+        "mind": "B",
+        "luck": "C"
+      },
+      "persona": "cautious",
+      "wish": "自分に確固たる自我がある事を証明する"
+    },
+    {
+      "name": "石沢啓哉",
+      "sex": "男",
+      "age": 17,
+      "originLabel": "オリジンストーンの分家",
+      "align": "LG",
+      "stats": {
+        "mana": "C",
+        "craft": "D",
+        "body": "B",
+        "mind": "A",
+        "luck": "E"
+      },
+      "persona": "kind",
+      "wish": "誰かを助けたい"
+    },
+    {
+      "name": "伏見東吾",
+      "sex": "男",
+      "age": 34,
+      "origin": "noble",
+      "originLabel": "儀式殺し",
+      "align": "CG",
+      "stats": {
+        "mana": "E",
+        "craft": "A",
+        "body": "B",
+        "mind": "D",
+        "luck": "E"
+      },
+      "persona": "assassin",
+      "wish": "聖杯戦争の破壊"
+    },
+    {
+      "name": "パトリシア・リガルディー",
+      "sex": "女",
+      "age": 32,
+      "origin": "newblood",
+      "align": "NB",
+      "stats": {
+        "mana": "B",
+        "craft": "B",
+        "body": "E",
+        "mind": "D",
+        "luck": "C"
+      },
+      "persona": "proud",
+      "wish": "世界中の魔術体系を１つにまとめ上げる"
+    },
+    {
+      "name": "霧六岡六霧",
+      "sex": "男",
+      "age": 36,
+      "originLabel": "\"魔皇破邪神\"シン・デミウルゴス",
+      "align": "CG",
+      "stats": {
+        "mana": "C",
+        "craft": "C",
+        "body": "C",
+        "mind": "EX",
+        "luck": "A"
+      },
+      "persona": "warmonger",
+      "wish": "「人の正の側面」を限界まで近くで見続けたい"
+    },
+    {
+      "name": "Dr.ノン・ボーン",
+      "sex": "男",
+      "age": "？？？",
+      "origin": "noble",
+      "originLabel": "O-13",
+      "align": "LG",
+      "stats": {
+        "mana": "A",
+        "craft": "A",
+        "body": "B",
+        "mind": "A",
+        "luck": "D"
+      },
+      "persona": "cautious",
+      "wish": "英霊の資源化"
+    },
+    {
+      "name": "ザックライアス・オリジンストーン",
+      "sex": "男",
+      "age": "千と数百歳",
+      "origin": "noble",
+      "align": "LB",
+      "stats": {
+        "mana": "A",
+        "craft": "D",
+        "body": "D",
+        "mind": "A",
+        "luck": "B"
+      },
+      "persona": "rational",
+      "wish": "\"ザックライアスの魂\"を回収する"
+    },
+    {
+      "name": "アビエル・オリジンストーン",
+      "sex": "男",
+      "age": 21,
+      "origin": "noble",
+      "align": "NE",
+      "stats": {
+        "mana": "B",
+        "craft": "C",
+        "body": "D",
+        "mind": "A",
+        "luck": "C"
+      },
+      "persona": "warmonger",
+      "wish": "最強の存在による世界の統治"
+    },
+    {
+      "name": "アーサー・ヴィンフィールド",
+      "sex": "男",
+      "age": 20,
+      "origin": "noble",
+      "align": "LB",
+      "stats": {
+        "mana": "B",
+        "craft": "A",
+        "body": "C",
+        "mind": "E",
+        "luck": "E"
+      },
+      "persona": "ambitious",
+      "wish": "誰かの特別になりたい"
+    },
+    {
+      "name": "アッシュ",
+      "sex": "男",
+      "age": 15,
+      "origin": "mercenary",
+      "align": "CG",
+      "stats": {
+        "mana": "A+",
+        "craft": "E+",
+        "body": "E",
+        "mind": "A",
+        "luck": "E-"
+      },
+      "wish": "延命"
+    },
+    {
+      "name": "リュシエンヌ・トランティニャン",
+      "sex": "女",
+      "age": 18,
+      "origin": "noble",
+      "align": "NB",
+      "stats": {
+        "mana": "B",
+        "craft": "B",
+        "body": "D",
+        "mind": "D",
+        "luck": "E"
+      },
+      "persona": "kind",
+      "wish": "一族の命令に従う"
     }
   ]
 }
